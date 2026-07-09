@@ -1,0 +1,15 @@
+[Unit]
+Description=Canvas Dashboard Zhihuishu Worker
+After=network.target canvas-dashboard.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/canvas-dashboard
+Environment=ZHIHUISHU_CHROMIUM_EXECUTABLE=/usr/bin/google-chrome-stable
+ExecStart=/home/ubuntu/canvas-dashboard/.venv/bin/python zhihuishu_worker.py --all-users
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canvas 接入 · Canvas Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script>window.CSRF_TOKEN = "{{ csrf_token() }}";</script>
+  <script src="{{ url_for('static', filename='csrf.js') }}"></script>
+</head>
+<body>
+  <div class="dashboard">
+    <a href="/" class="login-page-back">&#x2190; 返回看板</a>
+    <div class="card enter-main-card">
+      <div class="section-header">
+        <h2>Canvas</h2>
+      </div>
+
+      <p class="setup-hint" id="status-line">检查中...</p>
+
+      <button type="button" class="login-trigger" onclick="toggleForm()">
+        <span id="toggle-label">展开设置</span>
+        <span class="login-trigger-arrow" id="toggle-arrow">&#x25b6;</span>
+      </button>
+
+      <div class="login-body hidden" id="form-body">
+        <form class="add-todo-form" id="setup-form">
+          <input type="url" id="feed-url-input" placeholder="粘贴日历馈送 URL（.ics）..." autocomplete="off">
+          <button type="submit" class="btn-wide">保存</button>
+        </form>
+        <p class="setup-hint">
+          请从 Canvas 获取日历馈送源 URL：<br>
+          <small>Canvas → 日历 → 日历馈送 → 复制链接</small>
+        </p>
+
+        <div class="error-banner hidden" id="canvas-error"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function toggleForm(forceOpen) {
+      const body = document.getElementById('form-body');
+      const arrow = document.getElementById('toggle-arrow');
+      const label = document.getElementById('toggle-label');
+      const open = forceOpen !== undefined ? forceOpen : body.classList.contains('hidden');
+      body.classList.toggle('hidden', !open);
+      arrow.innerHTML = open ? '&#x25bc;' : '&#x25b6;';
+      label.textContent = open ? '收起设置' : '展开设置';
+    }
+
+    async function loadStatus() {
+      try {
+        const resp = await fetch('/api/config');
+        const result = await resp.json();
+        document.getElementById('status-line').textContent =
+          result.has_feed ? '当前状态：已连接' : '当前状态：未配置';
+        if (!result.has_feed) toggleForm(true);
+      } catch (e) {
+        document.getElementById('status-line').textContent = '状态获取失败';
+        toggleForm(true);
+      }
+    }
+
+    async function saveFeedUrl(e) {
+      e.preventDefault();
+      const input = document.getElementById('feed-url-input');
+      const url = input.value.trim();
+      if (!url) return;
+
+      const btn = input.nextElementSibling;
+      btn.textContent = '...';
+      btn.disabled = true;
+
+      try {
+        const resp = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ calendar_feed_url: url }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          window.location.href = '/';
+        } else {
+          document.getElementById('canvas-error').textContent = result.error || '保存失败';
+          document.getElementById('canvas-error').classList.remove('hidden');
+        }
+      } catch (e) {
+        document.getElementById('canvas-error').textContent = '网络错误';
+        document.getElementById('canvas-error').classList.remove('hidden');
+      } finally {
+        btn.textContent = '保存';
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById('setup-form').addEventListener('submit', saveFeedUrl);
+    loadStatus();
+  </script>
+</body>
+</html>

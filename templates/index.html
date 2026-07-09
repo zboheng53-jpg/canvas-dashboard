@@ -1,0 +1,1206 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canvas Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script>window.CSRF_TOKEN = "{{ csrf_token() }}";</script>
+  <script src="{{ url_for('static', filename='csrf.js') }}"></script>
+</head>
+<body>
+  <div class="dashboard">
+    <!-- Top Bar -->
+    <div class="card">
+    <header class="top-bar enter-top-bar">
+      <div class="clock-section">
+        <div class="time" id="time">--:--:--</div>
+        <div class="date-info">
+          <span id="date">----骞?-鏈?-鏃?/span>
+          <span id="weekday">鏄熸湡-</span>
+        </div>
+      </div>
+      <div class="top-right-group">
+        <div class="weather-card" id="weather-card">
+          <div class="weather-left">
+            <span class="weather-emoji" id="weather-emoji">--</span>
+            <span class="weather-temp" id="weather-temp">--掳</span>
+          </div>
+          <div class="weather-right">
+            <span class="weather-desc" id="weather-desc">鍔犺浇涓?..</span>
+            <span class="weather-detail" id="weather-detail"></span>
+          </div>
+        </div>
+        <div class="term-info" id="term-info-container">
+          <span id="term-info">鍔犺浇涓?..</span>
+          <button class="term-refresh-btn" onclick="refreshTerm()" title="浠庢牎鍘嗛〉闈㈠埛鏂?>&#x21bb;</button>
+        </div>
+      </div>
+    </header>
+    </div>
+
+    <!-- Main Content -->
+    <main>
+      <section class="column main-column">
+        <!-- Unified Main Card -->
+        <div class="card enter-main-card">
+          <div class="section-header">
+            <h2>寰呭姙娓呭崟</h2>
+            <div class="header-right">
+              <div class="header-info">
+                <span class="last-updated" id="list-updated"></span>
+                <button class="btn-refresh" id="btn-refresh" title="鍒锋柊">&#x21bb;</button>
+              </div>
+              <button type="button" class="login-trigger" onclick="toggleLoginCards()">
+                <span id="login-trigger-label">绯荤粺鐧诲綍</span>
+                <span class="login-trigger-arrow" id="login-trigger-arrow">&#x25b6;</span>
+              </button>
+              <div class="account-row">
+                <span>{{ username }}</span>
+                <a href="#" onclick="doLogout();return false;">閫€鍑虹櫥褰?/a>
+              </div>
+            </div>
+          </div>
+
+        <!-- Platform connection cards (collapsible) -->
+        <div class="login-cards hidden" id="login-cards">
+          <a href="/login/canvas" class="login-card" data-platform="canvas">
+            <span class="login-card-title">Canvas</span>
+            <span class="login-card-status" id="card-status-canvas">妫€鏌ヤ腑...</span>
+          </a>
+          <a href="/login/haoke" class="login-card" data-platform="haoke">
+            <span class="login-card-title">濂借</span>
+            <span class="login-card-status" id="card-status-haoke">妫€鏌ヤ腑...</span>
+          </a>
+          <a href="/login/zhixuemeng" class="login-card" data-platform="zhixuemeng">
+            <span class="login-card-title">鏅哄鐩?/span>
+            <span class="login-card-status" id="card-status-zhixuemeng">妫€鏌ヤ腑...</span>
+          </a>
+          <a href="/login/zhihuishu" class="login-card" data-platform="zhihuishu">
+            <span class="login-card-title">鏅烘収鏍?/span>
+            <span class="login-card-status" id="card-status-zhihuishu">妫€鏌ヤ腑...</span>
+          </a>
+        </div>
+
+        <!-- Add custom todo -->
+        <form class="add-todo-form" id="add-todo-form" style="margin-bottom: 0;">
+          <input type="text" id="new-todo-input" placeholder="娣诲姞鏂板緟鍔?.." autocomplete="off">
+          <input type="date" id="new-todo-due" class="date-input">
+          <button type="submit">+</button>
+        </form>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar" id="stats-bar">
+          <div class="stat-item">
+            <span>寰呭畬鎴?/span>
+            <span class="stat-count" id="stat-total">0</span>
+            <span>椤?/span>
+          </div>
+          <div class="stat-item">
+            <span>鍗冲皢鍒版湡</span>
+            <span class="stat-count urgent" id="stat-urgent">0</span>
+            <span>椤?/span>
+          </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- Unified todo list -->
+        <div class="todo-list" id="todo-list">
+          <div class="empty-state">鍔犺浇涓?..</div>
+        </div>
+        </div><!-- /.card -->
+
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // ---- Clock ----
+    let serverTime = null;
+    let clockStart = null;
+
+    async function initClock() {
+      const resp = await fetch('/api/clock');
+      const data = await resp.json();
+      serverTime = new Date(data.iso).getTime();
+      clockStart = Date.now();
+      updateClock(data);
+    }
+
+    function updateClock(data) {
+      document.getElementById('time').textContent = data.time;
+      document.getElementById('date').textContent = data.date;
+      document.getElementById('weekday').textContent = data.weekday;
+    }
+
+    function tickClock() {
+      if (!serverTime) { initClock(); return; }
+      const elapsed = Date.now() - clockStart;
+      const now = new Date(serverTime + elapsed);
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
+      const s = String(now.getSeconds()).padStart(2, '0');
+      document.getElementById('time').textContent = `${h}:${m}:${s}`;
+    }
+
+    setInterval(() => { initClock(); }, 10 * 60 * 1000);
+    setInterval(tickClock, 1000);
+
+    // ---- Weather ----
+    async function fetchWeather() {
+      try {
+        const resp = await fetch('/api/weather');
+        const data = await resp.json();
+        if (data.ok) {
+          document.getElementById('weather-emoji').textContent = data.weather_emoji;
+          document.getElementById('weather-temp').textContent = `${data.temperature}掳C`;
+          document.getElementById('weather-desc').textContent = data.weather_desc;
+          document.getElementById('weather-detail').textContent =
+            `婀垮害 ${data.humidity}% 路 椋庨€?${data.wind_speed} m/s`;
+        }
+      } catch (e) { console.error('Weather fetch failed:', e); }
+    }
+
+    async function fetchTerm() {
+      try {
+        const resp = await fetch('/api/term');
+        const data = await resp.json();
+        if (data.ok) {
+          const holidayHint = data.is_holiday
+            ? ` 路 ${data.holiday_name}`
+            : '';
+          document.getElementById('term-info').textContent =
+            `${data.term} 绗?{data.week}鍛?{holidayHint}`;
+        } else {
+          document.getElementById('term-info').textContent = '瀛︽湡淇℃伅鑾峰彇澶辫触';
+        }
+      } catch (e) {
+        document.getElementById('term-info').textContent = '瀛︽湡淇℃伅鍔犺浇澶辫触';
+      }
+    }
+
+    async function refreshTerm() {
+      const btn = document.querySelector('.term-refresh-btn');
+      btn.disabled = true;
+      btn.textContent = '...';
+      try {
+        const resp = await fetch('/api/term/refresh', { method: 'POST' });
+        const data = await resp.json();
+        if (data.ok) {
+          await fetchTerm();
+        } else {
+          alert('鍒锋柊澶辫触: ' + (data.error || '鏈煡閿欒'));
+        }
+      } catch (e) {
+        alert('鍒锋柊澶辫触: 缃戠粶閿欒');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Refresh';
+      }
+    }
+
+    // Initial fetches
+
+    // ---- Unified Todo Data ----
+    let canvasItems = [];
+    let customItems = [];
+    let expandedCustomTodoIds = [];
+    let hiddenIds = [];
+    let highlightedIds = [];
+
+    let haokeItems = [];
+    let haokeHiddenIds = [];
+    let haokeHighlightedIds = [];
+
+    let zhixuemengItems = [];
+    let zhixuemengHiddenIds = [];
+    let zhixuemengHighlightedIds = [];
+    let zhihuishuItems = [];
+    let zhihuishuHiddenIds = [];
+    let zhihuishuHighlightedIds = [];
+    let canvasDeletedIds = [];
+    let haokeDeletedIds = [];
+    let zhixuemengDeletedIds = [];
+    let zhihuishuDeletedIds = [];
+
+    let firstItemRender = true;
+    setTimeout(() => { firstItemRender = false; }, 2800);
+
+    // ---- Platform connection card status ----
+    function setCardStatus(platform, text, cls) {
+      const el = document.getElementById(`card-status-${platform}`);
+      if (!el) return;
+      el.textContent = text;
+      el.classList.remove('connected', 'attention');
+      if (cls) el.classList.add(cls);
+    }
+
+    function toggleLoginCards() {
+      const body = document.getElementById('login-cards');
+      const arrow = document.getElementById('login-trigger-arrow');
+      body.classList.toggle('hidden');
+      arrow.innerHTML = body.classList.contains('hidden') ? '&#x25b6;' : '&#x25bc;';
+    }
+
+    async function doLogout() {
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+      } catch (e) { /* ignore */ }
+      window.location.href = '/login';
+    }
+
+    async function fetchCanvasTodos() {
+      const updatedEl = document.getElementById('list-updated');
+
+      try {
+        const resp = await fetch('/api/canvas/todos');
+        const result = await resp.json();
+
+        if (result.need_setup) {
+          setCardStatus('canvas', 'setup');
+          updatedEl.textContent = 'setup';
+          canvasItems = [];
+          hiddenIds = [];
+          highlightedIds = [];
+          renderUnifiedList();
+          return;
+        }
+
+        if (!result.ok) {
+          setCardStatus('canvas', result.error || '鑾峰彇澶辫触', 'attention');
+        } else {
+          setCardStatus('canvas', 'connected', 'connected');
+        }
+
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+        updatedEl.textContent = result.cached
+          ? `缂撳瓨鏁版嵁 路 ${timeStr}`
+          : `宸叉洿鏂?路 ${timeStr}`;
+
+        canvasItems = result.data || [];
+        hiddenIds = result.hidden || [];
+        highlightedIds = result.highlighted || [];
+        canvasDeletedIds = result.deleted || [];
+        renderUnifiedList();
+      } catch (e) {
+        setCardStatus('canvas', '缃戠粶閿欒', 'attention');
+      }
+    }
+
+    function sortSubtasks(subtasks) {
+      return [...subtasks].sort((a, b) => {
+        if (a.done === b.done) return 0;
+        return a.done ? 1 : -1;
+      });
+    }
+
+    async function fetchCustomTodos() {
+      try {
+        const resp = await fetch('/api/custom/todos');
+        const result = await resp.json();
+        customItems = result.data || [];
+        customItems.forEach(todo => {
+          if (todo.subtasks) {
+            todo.subtasks.forEach((subtask, idx) => {
+              if (subtask.id == null) {
+                subtask.id = idx + 1;
+              }
+            });
+            todo.subtasks = sortSubtasks(todo.subtasks);
+          }
+        });
+        window.customToday = result.today || new Date().toISOString().split('T')[0];
+        renderUnifiedList();
+      } catch (e) {
+        console.error('Failed to fetch custom todos:', e);
+      }
+    }
+
+    function renderUnifiedList() {
+      const container = document.getElementById('todo-list');
+
+      // Build unified items
+      let unified = [];
+
+      canvasItems.forEach(item => {
+        if (canvasDeletedIds.includes(item.id)) return;
+        const isHidden = hiddenIds.includes(item.id);
+        const isHighlighted = highlightedIds.includes(item.id);
+        unified.push({
+          id: `c${item.id}`,
+          source: 'canvas',
+          title: item.title,
+          course: item.course,
+          due_str: item.due_str,
+          due_ts: item.due_ts,
+          type: item.type,
+          url: item.url,
+          done: isHidden,
+          hidden: isHidden,
+          highlighted: isHighlighted,
+          rawId: item.id,
+          manualHighlighted: isHighlighted,
+        });
+      });
+
+      haokeItems.forEach(item => {
+        if (haokeDeletedIds.includes(item.id)) return;
+        const isHidden = haokeHiddenIds.includes(item.id);
+        const isHighlighted = haokeHighlightedIds.includes(item.id);
+        unified.push({
+          id: `h${item.id}`,
+          source: 'haoke',
+          title: item.title,
+          course: item.course,
+          due_str: item.due_str,
+          due_ts: item.due_ts,
+          type: item.type,
+          url: item.url,
+          done: isHidden,
+          hidden: isHidden,
+          highlighted: isHighlighted,
+          rawId: item.id,
+          manualHighlighted: isHighlighted,
+        });
+      });
+
+      zhixuemengItems.forEach(item => {
+        if (zhixuemengDeletedIds.includes(item.id)) return;
+        const isHidden = zhixuemengHiddenIds.includes(item.id);
+        const isHighlighted = zhixuemengHighlightedIds.includes(item.id);
+        unified.push({
+          id: `z${item.id}`,
+          source: 'zhixuemeng',
+          title: item.title,
+          course: item.course,
+          due_str: item.due_str,
+          due_ts: item.due_ts,
+          type: item.type,
+          url: item.url,
+          done: isHidden,
+          hidden: isHidden,
+          highlighted: isHighlighted,
+          rawId: item.id,
+          manualHighlighted: isHighlighted,
+        });
+      });
+
+      zhihuishuItems.forEach(item => {
+        if (zhihuishuDeletedIds.includes(item.id)) return;
+        const isHidden = zhihuishuHiddenIds.includes(item.id);
+        const isHighlighted = zhihuishuHighlightedIds.includes(item.id);
+        unified.push({
+          id: `s${item.id}`,
+          source: 'zhihuishu',
+          title: item.title,
+          course: item.course,
+          due_str: item.due_str,
+          due_ts: item.due_ts,
+          type: item.type || 'zhihuishu',
+          url: item.url,
+          done: isHidden,
+          hidden: isHidden,
+          highlighted: isHighlighted,
+          rawId: item.id,
+          manualHighlighted: isHighlighted,
+        });
+      });
+
+      customItems.forEach(item => {
+        const today = window.customToday || new Date().toISOString().split('T')[0];
+        const isOverdue = item.due_date && item.due_date < today && !item.done;
+        const displayHighlighted = (item.highlighted || isOverdue) && !item.done;
+        unified.push({
+          id: `x${item.id}`,
+          source: 'custom',
+          title: item.text,
+          course: '',
+          labels: item.labels || [],
+          due_str: item.due_date || '',
+          due_ts: item.due_date ? `${item.due_date}T00:00:00` : null,
+          type: 'custom',
+          url: '',
+          done: item.done,
+          hidden: false,
+          highlighted: displayHighlighted,
+          rawId: item.id,
+          manualHighlighted: item.highlighted || false,
+          subtasks: item.subtasks || [],
+        });
+      });
+
+      // Sort
+      unified.sort((a, b) => {
+        if (a.done !== b.done) return a.done ? 1 : -1;
+        if (a.due_ts && !b.due_ts) return -1;
+        if (!a.due_ts && b.due_ts) return 1;
+        if (a.due_ts && b.due_ts) return a.due_ts.localeCompare(b.due_ts);
+        return 0;
+      });
+
+      if (unified.length === 0) {
+        container.innerHTML = '<div class="empty-state">娌℃湁寰呭姙浜嬮」</div>';
+        return;
+      }
+
+      const doAnimate = firstItemRender && unified.length > 0;
+
+      container.innerHTML = unified.map((item, idx) => {
+        const isDismissed = item.done || item.hidden;
+        const manualFlag = item.manualHighlighted || false;
+
+        let urgencyClass = '';
+        if (!isDismissed) {
+          if (item.due_ts) {
+            const dueTime = new Date(item.due_ts).getTime();
+            const hoursLeft = (dueTime - Date.now()) / 3600000;
+            if (hoursLeft <= 24) urgencyClass = 'urgent';
+            else if (hoursLeft <= 72) urgencyClass = 'approaching';
+          } else {
+            urgencyClass = 'remote';
+          }
+        }
+
+        const flagIcon = manualFlag ? '&#x2691;' : '&#x2690;';
+        const flagTitle = manualFlag ? '鍙栨秷鏍囩孩' : '鏍囩孩';
+        const flagClass = manualFlag ? 'btn-flag active' : 'btn-flag';
+        const dismissTitle = isDismissed ? (item.source === 'custom' ? '鍙栨秷瀹屾垚' : '鍙栨秷闅愯棌') : (item.source === 'custom' ? '瀹屾垚' : '闅愯棌');
+
+        let actionsHtml = '';
+        if (item.source === 'canvas') {
+          actionsHtml = `
+            <button class="${flagClass}" onclick="toggleHighlight('${item.id}', ${manualFlag})" title="${flagTitle}">${flagIcon}</button>
+            <button class="btn-dismiss" onclick="toggleHide('${item.id}', ${isDismissed})" title="${dismissTitle}">脳</button>
+            <button class="btn-delete" onclick="toggleCanvasDelete(${item.rawId})" title="鍒犻櫎">馃棏</button>
+          `;
+        } else if (item.source === 'haoke') {
+          actionsHtml = `
+            <button class="${flagClass}" onclick="toggleHaokeHighlight('${item.id}', ${manualFlag})" title="${flagTitle}">${flagIcon}</button>
+            <button class="btn-dismiss" onclick="toggleHaokeHide('${item.id}', ${isDismissed})" title="${dismissTitle}">脳</button>
+            <button class="btn-delete" onclick="toggleHaokeDelete(${item.rawId})" title="鍒犻櫎">馃棏</button>
+          `;
+        } else if (item.source === 'custom') {
+          actionsHtml = `
+            <button class="${flagClass}" onclick="toggleCustomHighlight(${item.rawId}, ${manualFlag})" title="${flagTitle}">${flagIcon}</button>
+            <button class="btn-dismiss" onclick="toggleTodoCheck(${item.rawId}, ${item.done})" title="${dismissTitle}">脳</button>
+            <button class="btn-delete" onclick="toggleCustomDelete(${item.rawId})" title="鍒犻櫎">馃棏</button>
+          `;
+        } else if (item.source === 'zhixuemeng') {
+          actionsHtml = `
+            <button class="${flagClass}" onclick="toggleZhixuemengHighlight('${item.id.substring(1)}', ${manualFlag})" title="${flagTitle}">${flagIcon}</button>
+            <button class="btn-dismiss" onclick="toggleZhixuemengHide('${item.id.substring(1)}', ${isDismissed})" title="${dismissTitle}">脳</button>
+            <button class="btn-delete" onclick="toggleZhixuemengDelete('${item.id.substring(1)}')" title="鍒犻櫎">馃棏</button>
+          `;
+        } else if (item.source === 'zhihuishu') {
+          actionsHtml = `
+            <button class="${flagClass}" onclick="toggleZhihuishuHighlight('${item.rawId}', ${manualFlag})" title="${flagTitle}">${flagIcon}</button>
+            <button class="btn-dismiss" onclick="toggleZhihuishuHide('${item.rawId}', ${isDismissed})" title="${dismissTitle}">脳</button>
+            <button class="btn-delete" onclick="toggleZhihuishuDelete('${item.rawId}')" title="鍒犻櫎">馃棏</button>
+          `;
+        }
+
+        const titleHtml = item.url
+          ? `<a class="item-title" href="${item.url}" target="_blank" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</a>`
+          : item.source === 'custom'
+            ? `<span class="item-title item-title-plain editable-title" data-id="${item.rawId}" data-field="text">${escapeHtml(item.title)}</span>`
+            : `<span class="item-title item-title-plain">${escapeHtml(item.title)}</span>`;
+
+        const dueHtml = item.source === 'custom'
+          ? `<span class="item-due editable-due" data-id="${item.rawId}" data-field="due_date">${item.due_str}</span>`
+          : `<span class="item-due">${item.due_str}</span>`;
+          
+        const labelsHtml = item.labels && item.labels.length > 0
+          ? `<div class="item-labels">${item.labels.map(label => `<span class="label-badge">${escapeHtml(label)}</span>`).join('')}</div>`
+          : '';
+
+        const subtasks = item.subtasks || [];
+        const isSubtaskExpanded = item.source === 'custom' && expandedCustomTodoIds.includes(item.rawId);
+        const subtaskToggleHtml = item.source === 'custom'
+          ? `<button class="subtask-toggle" onclick="toggleSubtasks(${item.rawId})" title="subtasks">${isSubtaskExpanded ? '-' : '+'}</button>`
+          : '<span class="subtask-toggle subtask-toggle-placeholder" aria-hidden="true">+</span>';
+
+        const animAttr = doAnimate ? `enter-item" style="animation-delay:${0.34 + idx * 0.04}s` : '';
+
+        const rowHtml = `
+          <div class="todo-item unified-item ${urgencyClass} ${manualFlag ? 'manual-flagged' : ''} ${isDismissed ? 'dismissed' : ''} ${animAttr}">
+            <span class="item-source-badge src-${item.source}">${item.type}</span>
+            ${titleHtml}
+            ${item.course ? `<span class="item-course">${escapeHtml(item.course)}</span>` : ''}
+            ${labelsHtml}
+            ${dueHtml}
+            <span class="item-subtask-slot">${subtaskToggleHtml}</span><span class="item-actions">${actionsHtml}</span>
+          </div>
+        `;
+
+        if (item.source !== 'custom') {
+          return rowHtml;
+        }
+
+        const panelHtml = isSubtaskExpanded ? renderSubtaskPanel(item.rawId, subtasks) : '';
+        const previewHtml = !isSubtaskExpanded ? renderUpcomingSubtasksPreview(subtasks) : '';
+        return `
+          <div class="unified-item-wrap">
+            ${rowHtml}
+            ${previewHtml}
+            ${panelHtml}
+          </div>
+        `;
+      }).join('');
+
+      if (doAnimate) firstItemRender = false;
+
+      // Update stats bar
+      updateStatsBar(unified);
+    }
+
+    function updateStatsBar(unified) {
+      const pending = unified.filter(item => !item.done && !item.hidden).length;
+      let urgent = 0;
+      unified.forEach(item => {
+        if (item.done || item.hidden) return;
+        if (item.due_ts) {
+          const hoursLeft = (new Date(item.due_ts).getTime() - Date.now()) / 3600000;
+          if (hoursLeft <= 72) urgent++;
+        }
+      });
+      document.getElementById('stat-total').textContent = pending;
+      document.getElementById('stat-urgent').textContent = urgent;
+    }
+
+    function renderUpcomingSubtasksPreview(subtasks) {
+      const today = window.customToday || new Date().toISOString().split('T')[0];
+      const d = new Date(today + 'T00:00:00');
+      d.setDate(d.getDate() + 1);
+      const tomorrow = d.toISOString().split('T')[0];
+
+      const upcoming = subtasks.filter(st => {
+        if (st.done) return false;
+        if (!st.due_date) return false;
+        return st.due_date === today || st.due_date === tomorrow;
+      });
+
+      if (upcoming.length === 0) return '';
+
+      const parts = upcoming.map(st => {
+        let label;
+        if (st.due_date === today) label = '浠婂ぉ';
+        else if (st.due_date === tomorrow) label = '鏄庡ぉ';
+        else {
+          const dt = new Date(st.due_date + 'T00:00:00');
+          label = `${dt.getMonth() + 1}/${dt.getDate()}`;
+        }
+        return `<span class="upcoming-subtask-item">${escapeHtml(st.text)} <span class="upcoming-subtask-due">${label}</span></span>`;
+      }).join('<span class="upcoming-subtask-sep"> 路 </span>');
+
+      return `<div class="subtask-upcoming-preview">+ ${parts}</div>`;
+    }
+
+    function renderSubtaskPanel(todoId, subtasks) {
+      const rowsHtml = subtasks.map((subtask, idx) => {
+        const sid = subtask.id != null ? subtask.id : idx;
+        return `
+        <div class="subtask-row">
+          <input type="checkbox" ${subtask.done ? 'checked' : ''} onchange="toggleSubtaskDone(${todoId}, ${sid})">
+          <span class="subtask-text ${subtask.done ? 'done' : ''}" onclick="startSubtaskEdit(${todoId}, ${sid}, this)">${escapeHtml(subtask.text)}</span>
+          <input type="date" class="subtask-due-input" value="${subtask.due_date || ''}" onchange="handleSubtaskDueChange(${todoId}, ${sid}, this.value)" title="鎴鏃ユ湡">
+          <button class="subtask-delete" onclick="deleteSubtask(${todoId}, ${sid})" title="delete subtask">x</button>
+        </div>
+      `;
+      }).join('');
+
+      return `
+        <div class="subtask-panel">
+          ${rowsHtml || '<div class="subtask-empty">杩樻病鏈夊瓙浠诲姟</div>'}
+          <input class="subtask-add-input" placeholder="娣诲姞瀛愪换鍔?.." onkeydown="handleSubtaskAddKey(event, ${todoId})">
+        </div>
+      `;
+    }
+
+    async function toggleHighlight(itemId, current) {
+      const rawId = parseInt(itemId.substring(1));
+      const action = current ? 'unhighlight' : 'highlight';
+      await fetch('/api/canvas/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, id: rawId }),
+      });
+      if (current) {
+        highlightedIds = highlightedIds.filter(id => id !== rawId);
+      } else {
+        highlightedIds.push(rawId);
+      }
+      renderUnifiedList();
+    }
+
+    async function toggleHide(itemId, current) {
+      const rawId = parseInt(itemId.substring(1));
+      const action = current ? 'unhide' : 'hide';
+      await fetch('/api/canvas/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, id: rawId }),
+      });
+      if (current) {
+        hiddenIds = hiddenIds.filter(id => id !== rawId);
+      } else {
+        hiddenIds.push(rawId);
+      }
+      renderUnifiedList();
+    }
+
+    // ---- Haoke Todos ----
+    async function fetchHaokeTodos() {
+      try {
+        const resp = await fetch('/api/haoke/todos');
+        const result = await resp.json();
+
+        if (result.need_setup) {
+          setCardStatus('haoke', 'setup');
+          haokeItems = [];
+          haokeHiddenIds = [];
+          haokeHighlightedIds = [];
+          renderUnifiedList();
+          return;
+        }
+
+        if (!result.ok) {
+          setCardStatus('haoke', result.error || '鑾峰彇澶辫触', 'attention');
+        } else {
+          setCardStatus('haoke', 'connected', 'connected');
+        }
+
+        haokeItems = result.data || [];
+        haokeHiddenIds = result.hidden || [];
+        haokeHighlightedIds = result.highlighted || [];
+        haokeDeletedIds = result.deleted || [];
+        renderUnifiedList();
+      } catch (e) {
+        setCardStatus('haoke', '缃戠粶閿欒', 'attention');
+      }
+    }
+
+    async function toggleHaokeHighlight(itemId, current) {
+      const rawId = parseInt(itemId.substring(1));
+      const action = current ? 'unhighlight' : 'highlight';
+      await fetch('/api/haoke/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, id: rawId }),
+      });
+      if (current) {
+        haokeHighlightedIds = haokeHighlightedIds.filter(id => id !== rawId);
+      } else {
+        haokeHighlightedIds.push(rawId);
+      }
+      renderUnifiedList();
+    }
+
+    async function toggleHaokeHide(itemId, current) {
+      const rawId = parseInt(itemId.substring(1));
+      const action = current ? 'unhide' : 'hide';
+      await fetch('/api/haoke/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, id: rawId }),
+      });
+      if (current) {
+        haokeHiddenIds = haokeHiddenIds.filter(id => id !== rawId);
+      } else {
+        haokeHiddenIds.push(rawId);
+      }
+      renderUnifiedList();
+    }
+
+    // ---- Zhixuemeng Todos ----
+    async function fetchZhixuemengTodos() {
+      try {
+        const resp = await fetch('/api/zhixuemeng/todos');
+        const result = await resp.json();
+
+        if (result.need_setup) {
+          setCardStatus('zhixuemeng', 'setup');
+          zhixuemengItems = [];
+          zhixuemengHiddenIds = [];
+          zhixuemengHighlightedIds = [];
+          renderUnifiedList();
+          return;
+        }
+
+        if (!result.ok) {
+          setCardStatus('zhixuemeng', result.error || '鑾峰彇澶辫触', 'attention');
+        } else {
+          setCardStatus('zhixuemeng', 'connected', 'connected');
+        }
+
+        zhixuemengItems = result.data || [];
+        zhixuemengHiddenIds = result.hidden || [];
+        zhixuemengHighlightedIds = result.highlighted || [];
+        zhixuemengDeletedIds = result.deleted || [];
+        renderUnifiedList();
+      } catch (e) {
+        setCardStatus('zhixuemeng', '缃戠粶閿欒', 'attention');
+      }
+    }
+
+    async function toggleZhixuemengHide(itemId, current) {
+      const action = current ? 'unhide' : 'hide';
+      await fetch('/api/zhixuemeng/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, id: itemId }),
+      });
+      if (current) {
+        zhixuemengHiddenIds = zhixuemengHiddenIds.filter(id => id !== itemId);
+      } else {
+        zhixuemengHiddenIds.push(itemId);
+      }
+      renderUnifiedList();
+    }
+
+    async function toggleZhixuemengHighlight(itemId, current) {
+      const action = current ? 'unhighlight' : 'highlight';
+      await fetch('/api/zhixuemeng/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, id: itemId }),
+      });
+      if (current) {
+        zhixuemengHighlightedIds = zhixuemengHighlightedIds.filter(id => id !== itemId);
+      } else {
+        zhixuemengHighlightedIds.push(itemId);
+      }
+      renderUnifiedList();
+    }
+
+    // ---- Zhihuishu Todos ----
+    async function fetchZhihuishuTodos() {
+      try {
+        const resp = await fetch('/api/zhihuishu/todos');
+        const result = await resp.json();
+
+        if (result.need_setup) {
+          setCardStatus('zhihuishu', result.data && result.data.length ? 'login required' : 'not logged in', 'attention');
+        } else if (!result.ok) {
+          setCardStatus('zhihuishu', result.error || '鑾峰彇澶辫触', 'attention');
+        } else if (result.stale) {
+          setCardStatus('zhihuishu', '缂撳瓨杩囨湡', 'attention');
+        } else {
+          setCardStatus('zhihuishu', 'connected', 'connected');
+        }
+
+        zhihuishuItems = result.data || [];
+        zhihuishuHiddenIds = result.hidden || [];
+        zhihuishuHighlightedIds = result.highlighted || [];
+        zhihuishuDeletedIds = result.deleted || [];
+        renderUnifiedList();
+      } catch (e) {
+        setCardStatus('zhihuishu', '缃戠粶閿欒', 'attention');
+      }
+    }
+
+    async function toggleZhihuishuHide(itemId, current) {
+      const action = current ? 'unhide' : 'hide';
+      const resp = await fetch('/api/zhihuishu/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, id: itemId }),
+      });
+      if (!resp.ok) return;
+      if (current) {
+        zhihuishuHiddenIds = zhihuishuHiddenIds.filter(id => id !== itemId);
+      } else {
+        zhihuishuHiddenIds.push(itemId);
+      }
+      renderUnifiedList();
+    }
+
+    async function toggleZhihuishuHighlight(itemId, current) {
+      const action = current ? 'unhighlight' : 'highlight';
+      const resp = await fetch('/api/zhihuishu/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, id: itemId }),
+      });
+      if (!resp.ok) return;
+      if (current) {
+        zhihuishuHighlightedIds = zhihuishuHighlightedIds.filter(id => id !== itemId);
+      } else {
+        zhihuishuHighlightedIds.push(itemId);
+      }
+      renderUnifiedList();
+    }
+
+    // ---- Custom Todos CRUD ----
+    function findCustomTodo(todoId) {
+      return customItems.find(item => item.id === todoId);
+    }
+
+    function toggleSubtasks(todoId) {
+      if (expandedCustomTodoIds.includes(todoId)) {
+        expandedCustomTodoIds = expandedCustomTodoIds.filter(id => id !== todoId);
+      } else {
+        expandedCustomTodoIds.push(todoId);
+      }
+      renderUnifiedList();
+    }
+
+    function handleSubtaskAddKey(event, todoId) {
+      if (event.key === 'Enter') {
+        addSubtask(todoId, event.target.value);
+      } else if (event.key === 'Escape') {
+        event.target.value = '';
+        event.target.blur();
+      }
+    }
+
+    async function saveCustomSubtasks(todoId, subtasks) {
+      try {
+        const todo = findCustomTodo(todoId);
+        const payload = { subtasks };
+        if (todo && todo.updated_at) payload.updated_at = todo.updated_at;
+        const resp = await fetch(`/api/custom/todos/${todoId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!resp.ok) throw new Error('save failed');
+
+        const data = await resp.json();
+        if (todo) {
+          todo.subtasks = subtasks;
+          if (data.todo && data.todo.updated_at) todo.updated_at = data.todo.updated_at;
+        }
+        renderUnifiedList();
+      } catch (e) {
+        alert('淇濆瓨澶辫触');
+        fetchCustomTodos();
+      }
+    }
+
+    async function addSubtask(todoId, text) {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+
+      const todo = findCustomTodo(todoId);
+      if (!todo) return;
+
+      const currentSubtasks = todo.subtasks || [];
+      const newId = Math.max(0, ...currentSubtasks.map(subtask => subtask.id || 0)) + 1;
+      const subtasks = [
+        ...currentSubtasks,
+        { id: newId, text: trimmed, done: false },
+      ];
+      await saveCustomSubtasks(todoId, sortSubtasks(subtasks));
+    }
+
+    async function toggleSubtaskDone(todoId, subtaskId) {
+      const todo = findCustomTodo(todoId);
+      if (!todo) return;
+
+      const sid = Number(subtaskId);
+      const subtasks = (todo.subtasks || []).map((subtask, idx) => {
+        const id = subtask.id != null ? subtask.id : idx;
+        if (id === sid) {
+          const newSubtask = { ...subtask, done: !subtask.done };
+          if (newSubtask.id == null) {
+            newSubtask.id = idx;
+          }
+          return newSubtask;
+        }
+        if (subtask.id == null) {
+          return { ...subtask, id: idx };
+        }
+        return subtask;
+      });
+
+      await saveCustomSubtasks(todoId, sortSubtasks(subtasks));
+    }
+
+    async function deleteSubtask(todoId, subtaskId) {
+      const todo = findCustomTodo(todoId);
+      if (!todo) return;
+
+      const sid = Number(subtaskId);
+      const subtasks = (todo.subtasks || []).filter((subtask, idx) => {
+        const id = subtask.id != null ? subtask.id : idx;
+        return id !== sid;
+      });
+      await saveCustomSubtasks(todoId, sortSubtasks(subtasks));
+    }
+
+    async function handleSubtaskDueChange(todoId, subtaskId, dueDate) {
+      const todo = findCustomTodo(todoId);
+      if (!todo) return;
+
+      const sid = Number(subtaskId);
+      const subtasks = (todo.subtasks || []).map((subtask, idx) => {
+        const id = subtask.id != null ? subtask.id : idx;
+        return id === sid ? { ...subtask, due_date: dueDate || null } : subtask;
+      });
+      await saveCustomSubtasks(todoId, sortSubtasks(subtasks));
+    }
+
+    function startSubtaskEdit(todoId, subtaskId, spanEl) {
+      const todo = findCustomTodo(todoId);
+      if (!todo) return;
+
+      const sid = Number(subtaskId);
+      const subtask = (todo.subtasks || []).find((item, idx) => {
+        const id = item.id != null ? item.id : idx;
+        return id === sid;
+      });
+      if (!subtask) return;
+
+      const originalText = subtask.text;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'subtask-edit-input';
+      input.value = originalText;
+      spanEl.replaceWith(input);
+      input.focus();
+      input.select();
+
+      async function finish(save) {
+        const nextText = input.value.trim();
+        if (!save || !nextText || nextText === originalText) {
+          renderUnifiedList();
+          return;
+        }
+
+        const subtasks = (todo.subtasks || []).map((item, idx) => {
+          const id = item.id != null ? item.id : idx;
+          return id === sid ? { ...item, text: nextText } : item;
+        });
+        await saveCustomSubtasks(todoId, sortSubtasks(subtasks));
+      }
+
+      input.addEventListener('keydown', event => {
+        if (event.key === 'Enter') finish(true);
+        if (event.key === 'Escape') finish(false);
+      });
+      input.addEventListener('blur', () => finish(true));
+    }
+
+    async function addTodo(e) {
+      e.preventDefault();
+      const input = document.getElementById('new-todo-input');
+      const dueInput = document.getElementById('new-todo-due');
+      const text = input.value.trim();
+      if (!text) return;
+
+      let labels = [];
+      const parts = text.split(/\s+(#[^#\s]+)/);
+      let taskText = parts[0];
+      if (parts.length > 1) {
+        taskText = parts[0].trim();
+        labels = parts.slice(1).map(tag => tag.substring(1)).filter(tag => tag); // 绉婚櫎#绗﹀彿
+      }
+
+      const resp = await fetch('/api/custom/todos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: taskText,
+          due_date: dueInput.value,
+          labels: labels  // 娣诲姞鏍囩
+        }),
+      });
+      if (resp.ok) {
+        input.value = '';
+        dueInput.value = '';
+        fetchCustomTodos();
+      } else {
+        const err = await resp.json().catch(() => ({}));
+        alert('add failed: ' + (err.error || 'unknown error'));
+      }
+    }
+
+    async function toggleTodoCheck(id, done) {
+      await fetch(`/api/custom/todos/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ done: !done }),
+      });
+      fetchCustomTodos();
+    }
+
+    async function toggleCustomHighlight(id, current) {
+      await fetch(`/api/custom/todos/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ highlighted: !current }),
+      });
+      fetchCustomTodos();
+    }
+
+    async function toggleCanvasDelete(id) {
+      await fetch('/api/canvas/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id }),
+      });
+      canvasDeletedIds.push(id);
+      renderUnifiedList();
+    }
+
+    async function toggleHaokeDelete(id) {
+      await fetch('/api/haoke/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id }),
+      });
+      haokeDeletedIds.push(id);
+      renderUnifiedList();
+    }
+
+    async function toggleZhixuemengDelete(id) {
+      await fetch('/api/zhixuemeng/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id }),
+      });
+      zhixuemengDeletedIds.push(id);
+      renderUnifiedList();
+    }
+
+    async function toggleZhihuishuDelete(id) {
+      const resp = await fetch('/api/zhihuishu/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id }),
+      });
+      if (!resp.ok) return;
+      zhihuishuDeletedIds.push(id);
+      renderUnifiedList();
+    }
+
+    async function toggleCustomDelete(id) {
+      await fetch(`/api/custom/todos/${id}`, { method: 'DELETE' });
+      fetchCustomTodos();
+    }
+
+    async function saveInlineEdit(id, field, value) {
+      const item = customItems.find(t => t.id === id);
+      if (item) {
+        if (field === 'multi') {
+          item.text = value.text;
+          item.labels = value.labels;
+        } else if (field === 'text') {
+          item.text = value;
+        } else if (field === 'due_date') {
+          item.due_date = value || null;
+        } else if (field === 'labels') {
+          item.labels = value; // 鏀寔鏍囩
+        }
+      }
+      const payload = {};
+      if (field === 'multi') {
+        payload.text = value.text;
+        payload.labels = value.labels;
+      } else {
+        payload[field] = value;
+      }
+      await fetch(`/api/custom/todos/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      renderUnifiedList();
+    }
+
+    function startInlineEdit(spanEl, field) {
+      const id = parseInt(spanEl.dataset.id);
+      const originalValue = spanEl.textContent.trim();
+
+      const input = document.createElement('input');
+      input.type = field === 'due_date' ? 'date' : 'text';
+      input.className = field === 'due_date' ? 'inline-edit-date-input' : 'inline-edit-input';
+
+      if (field === 'due_date' && originalValue) {
+        input.value = originalValue;
+      } else {
+        input.value = originalValue;
+      }
+
+      spanEl.replaceWith(input);
+      input.focus();
+      if (input.type === 'text') input.select();
+
+      function commit() {
+        const newValue = input.value.trim();
+        if (newValue !== originalValue) {
+          // 濡傛灉鏄紪杈戜换鍔℃爣棰橈紝妫€鏌ユ槸鍚︽湁鏍囩
+          if (field === 'text') {
+            const parts = newValue.split(/\s+(#[^#\s]+)/);
+            let taskText = parts[0];
+            let labels = [];
+            if (parts.length > 1) {
+              taskText = parts[0].trim();
+              labels = parts.slice(1).map(tag => tag.substring(1)).filter(tag => tag);
+            }
+            
+            // 鍚堝苟涓轰竴娆¤姹傦紝閬垮厤绔炴€佹潯浠?            saveInlineEdit(id, 'multi', { text: taskText, labels });
+          } else {
+            saveInlineEdit(id, field, newValue);
+          }
+        } else {
+          const newSpan = document.createElement('span');
+          newSpan.className = spanEl.className;
+          newSpan.dataset.id = spanEl.dataset.id;
+          newSpan.dataset.field = spanEl.dataset.field;
+          newSpan.textContent = originalValue;
+          input.replaceWith(newSpan);
+        }
+      }
+
+      function cancel() {
+        input.replaceWith(spanEl);
+      }
+
+      input.addEventListener('blur', commit);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+      });
+    }
+
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // ---- Init ----
+    document.getElementById('add-todo-form').addEventListener('submit', addTodo);
+    document.getElementById('btn-refresh').addEventListener('click', () => { fetchCanvasTodos(); fetchHaokeTodos(); fetchZhixuemengTodos(); fetchZhihuishuTodos(); });
+
+    document.getElementById('todo-list').addEventListener('click', function(e) {
+      const titleEl = e.target.closest('.editable-title');
+      if (titleEl) { startInlineEdit(titleEl, 'text'); return; }
+      const dueEl = e.target.closest('.editable-due');
+      if (dueEl) { startInlineEdit(dueEl, 'due_date'); return; }
+    });
+
+    initClock();
+    tickClock();
+    fetchWeather();
+    fetchTerm();
+    fetchCanvasTodos();
+    fetchCustomTodos();
+    fetchHaokeTodos();
+    fetchZhixuemengTodos();
+    fetchZhihuishuTodos();
+
+    setInterval(fetchCanvasTodos, 30 * 60 * 1000);
+    setInterval(fetchHaokeTodos, 30 * 60 * 1000);
+    setInterval(fetchZhixuemengTodos, 30 * 60 * 1000);
+    setInterval(fetchZhihuishuTodos, 30 * 60 * 1000);
+    setInterval(fetchTerm, 60 * 1000);
+    setInterval(fetchWeather, 60 * 60 * 1000);
+  </script>
+</body>
+</html>
+

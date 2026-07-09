@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>好课接入 · Canvas Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script>window.CSRF_TOKEN = "{{ csrf_token() }}";</script>
+  <script src="{{ url_for('static', filename='csrf.js') }}"></script>
+</head>
+<body>
+  <div class="dashboard">
+    <a href="/" class="login-page-back">&#x2190; 返回看板</a>
+    <div class="card enter-main-card">
+      <div class="section-header">
+        <h2>好课</h2>
+      </div>
+
+      <p class="setup-hint" id="status-line">检查中...</p>
+
+      <button type="button" class="login-trigger" onclick="toggleForm()">
+        <span id="toggle-label">展开设置</span>
+        <span class="login-trigger-arrow" id="toggle-arrow">&#x25b6;</span>
+      </button>
+
+      <div class="login-body hidden" id="form-body">
+        <form class="add-todo-form" id="haoke-setup-form">
+          <input type="text" id="haoke-username" placeholder="学号" autocomplete="off">
+          <input type="password" id="haoke-password" placeholder="密码" autocomplete="off">
+          <button type="submit" class="btn-wide">保存并登录</button>
+        </form>
+        <p class="setup-hint">
+          使用同济大学统一身份认证的学号和密码登录（智图 AI 好课平台）
+        </p>
+
+        <div class="error-banner hidden" id="haoke-error"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function toggleForm(forceOpen) {
+      const body = document.getElementById('form-body');
+      const arrow = document.getElementById('toggle-arrow');
+      const label = document.getElementById('toggle-label');
+      const open = forceOpen !== undefined ? forceOpen : body.classList.contains('hidden');
+      body.classList.toggle('hidden', !open);
+      arrow.innerHTML = open ? '&#x25bc;' : '&#x25b6;';
+      label.textContent = open ? '收起设置' : '展开设置';
+    }
+
+    async function loadStatus() {
+      try {
+        const resp = await fetch('/api/haoke/config');
+        const result = await resp.json();
+        document.getElementById('status-line').textContent =
+          result.has_credentials ? '当前状态：已连接' : '当前状态：未配置';
+        if (!result.has_credentials) toggleForm(true);
+      } catch (e) {
+        document.getElementById('status-line').textContent = '状态获取失败';
+        toggleForm(true);
+      }
+    }
+
+    async function saveHaokeCredentials(e) {
+      e.preventDefault();
+      const username = document.getElementById('haoke-username').value.trim();
+      const password = document.getElementById('haoke-password').value.trim();
+      if (!username || !password) return;
+
+      const btn = document.querySelector('#haoke-setup-form button');
+      btn.textContent = '...';
+      btn.disabled = true;
+
+      try {
+        const resp = await fetch('/api/haoke/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          window.location.href = '/';
+        } else {
+          document.getElementById('haoke-error').textContent = result.error || '保存失败';
+          document.getElementById('haoke-error').classList.remove('hidden');
+        }
+      } catch (e) {
+        document.getElementById('haoke-error').textContent = '网络错误';
+        document.getElementById('haoke-error').classList.remove('hidden');
+      } finally {
+        btn.textContent = '保存并登录';
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById('haoke-setup-form').addEventListener('submit', saveHaokeCredentials);
+    loadStatus();
+  </script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+# Local runtime data. Never commit this directory.
+data/
+
+# Secrets and local environment.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python artifacts.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments.
+.venv/
+venv/
+env/
+
+# Local logs.
+*.log
+*.err.log
+canvas-dashboard.tar.gz
+
+# Browser/user profiles and automation caches.
+chrome_cdp_profile/
+zhihuishu_chrome_profile/
+zhihuishu_chromium_profile/
+
+# OS/editor files.
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local agent/tool state.
+.claude/
+.superpowers/

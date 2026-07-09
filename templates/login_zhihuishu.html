@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>智慧树登录</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script>window.CSRF_TOKEN = "{{ csrf_token() }}";</script>
+  <script src="{{ url_for('static', filename='csrf.js') }}"></script>
+</head>
+<body>
+  <div class="dashboard">
+    <a class="login-page-back" href="/">返回看板</a>
+    <div class="card">
+      <div class="section-header">
+        <h2>智慧树</h2>
+        <button class="btn-refresh" type="button" onclick="loadStatus()" title="刷新">&#x21bb;</button>
+      </div>
+
+      <dl class="status-grid">
+        <dt>登录状态</dt><dd id="session">--</dd>
+        <dt>Worker</dt><dd id="worker">--</dd>
+        <dt>最近保活</dt><dd id="last-keepalive">--</dd>
+        <dt>最近抓取</dt><dd id="last-fetch">--</dd>
+        <dt>最近成功</dt><dd id="last-success">--</dd>
+        <dt>错误</dt><dd id="last-error">--</dd>
+      </dl>
+
+      <div class="zhihuishu-login-actions">
+        <button class="btn-primary" type="button" id="btn-open-login" onclick="openLoginSession()">打开智慧树登录窗口</button>
+        <button class="btn-secondary" type="button" id="btn-complete-login" onclick="completeLoginSession()" disabled>我已完成登录</button>
+        <button class="btn-secondary" type="button" id="btn-cancel-login" onclick="cancelLoginSession()" disabled>取消当前登录会话</button>
+      </div>
+
+      <div class="login-session-message" id="login-session-message"></div>
+    </div>
+  </div>
+
+  <script>
+    let currentLoginToken = null;
+    let currentLoginWindow = null;
+    let hasActiveLoginSession = false;
+
+    function fmt(value) {
+      if (!value) return '--';
+      if (typeof value === 'number') return new Date(value * 1000).toLocaleString();
+      return value;
+    }
+
+    function setMessage(text, cls) {
+      const el = document.getElementById('login-session-message');
+      el.textContent = text || '';
+      el.classList.remove('attention', 'connected');
+      if (cls) el.classList.add(cls);
+    }
+
+    function setSessionButtons(active) {
+      document.getElementById('btn-open-login').disabled = active;
+      document.getElementById('btn-complete-login').disabled = !active;
+      document.getElementById('btn-cancel-login').disabled = !active && !hasActiveLoginSession;
+    }
+
+    async function loadStatus() {
+      const resp = await fetch('/api/zhihuishu/config');
+      const data = await resp.json();
+      const status = data.status || {};
+      const loginSession = data.login_session || {};
+      hasActiveLoginSession = Boolean(loginSession.active);
+      document.getElementById('session').textContent = status.session || '--';
+      document.getElementById('worker').textContent = status.worker || '--';
+      document.getElementById('last-keepalive').textContent = fmt(status.last_keepalive_at);
+      document.getElementById('last-fetch').textContent = fmt(status.last_fetch_at);
+      document.getElementById('last-success').textContent = fmt(status.last_success_at);
+      document.getElementById('last-error').textContent = status.last_error || '--';
+      setSessionButtons(Boolean(currentLoginToken));
+      if (hasActiveLoginSession && !currentLoginToken) {
+        setMessage(`已有一个登录会话正在进行，将于 ${fmt(loginSession.expires_at)} 过期。可以取消后重新打开。`, 'attention');
+      }
+    }
+
+    async function openLoginSession() {
+      setMessage('正在打开登录窗口...');
+      try {
+        const resp = await fetch('/api/zhihuishu/login-session', { method: 'POST' });
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) throw new Error(data.error || '启动失败');
+        currentLoginToken = data.token;
+        currentLoginWindow = window.open(data.url, '_blank', 'noopener,noreferrer,width=1280,height=900');
+        setSessionButtons(true);
+        setMessage('登录窗口已打开。完成智慧树登录后回到这里确认。', 'connected');
+      } catch (e) {
+        setMessage(e.message || '登录窗口启动失败', 'attention');
+      }
+    }
+
+    async function completeLoginSession() {
+      if (!currentLoginToken) return;
+      setMessage('正在检查登录状态...');
+      try {
+        const resp = await fetch(`/api/zhihuishu/login-session/${currentLoginToken}/complete`, { method: 'POST' });
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) throw new Error(data.error || '还没有检测到登录状态');
+        setSessionButtons(false);
+        currentLoginToken = null;
+        if (currentLoginWindow) currentLoginWindow.close();
+        setMessage('登录成功，智慧树待办将在后台同步。', 'connected');
+        await loadStatus();
+      } catch (e) {
+        setMessage(e.message || '登录检查失败', 'attention');
+      }
+    }
+
+    async function cancelLoginSession() {
+      if (currentLoginToken) {
+        await fetch(`/api/zhihuishu/login-session/${currentLoginToken}`, { method: 'DELETE' });
+      } else {
+        await fetch('/api/zhihuishu/login-session', { method: 'DELETE' });
+      }
+      if (currentLoginWindow) currentLoginWindow.close();
+      currentLoginToken = null;
+      hasActiveLoginSession = false;
+      setSessionButtons(false);
+      setMessage('当前登录会话已取消。');
+      await loadStatus();
+    }
+
+    loadStatus();
+  </script>
+</body>
+</html>

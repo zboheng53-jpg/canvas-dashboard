@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 · Canvas Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script>window.CSRF_TOKEN = "{{ csrf_token() }}";</script>
+  <script src="{{ url_for('static', filename='csrf.js') }}"></script>
+</head>
+<body>
+  <div class="dashboard">
+    <div class="card enter-main-card">
+      <div class="section-header">
+        <h2>登录</h2>
+      </div>
+
+      <form class="add-todo-form mb-s" id="login-form">
+        <input type="text" id="login-username" placeholder="用户名" autocomplete="username">
+        <input type="password" id="login-password" placeholder="密码" autocomplete="current-password">
+        <button type="submit" class="btn-wide btn-accent">登录</button>
+      </form>
+
+      <p class="setup-hint">还没有账号？<a href="/register">立即注册</a></p>
+
+      <div class="error-banner hidden" id="login-error"></div>
+    </div>
+  </div>
+
+  <script>
+    async function doLogin(e) {
+      e.preventDefault();
+      const username = document.getElementById('login-username').value.trim();
+      const password = document.getElementById('login-password').value;
+      if (!username || !password) return;
+
+      const btn = document.querySelector('#login-form button');
+      btn.textContent = '...';
+      btn.disabled = true;
+
+      try {
+        const resp = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          window.location.href = '/';
+        } else {
+          document.getElementById('login-error').textContent = result.error || '登录失败';
+          document.getElementById('login-error').classList.remove('hidden');
+        }
+      } catch (e) {
+        document.getElementById('login-error').textContent = '网络错误';
+        document.getElementById('login-error').classList.remove('hidden');
+      } finally {
+        btn.textContent = '登录';
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById('login-form').addEventListener('submit', doLogin);
+  </script>
+</body>
+</html>

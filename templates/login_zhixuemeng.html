@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>智学盟接入 · Canvas Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script>window.CSRF_TOKEN = "{{ csrf_token() }}";</script>
+  <script src="{{ url_for('static', filename='csrf.js') }}"></script>
+</head>
+<body>
+  <div class="dashboard">
+    <a href="/" class="login-page-back">&#x2190; 返回看板</a>
+    <div class="card enter-main-card">
+      <div class="section-header">
+        <h2>智学盟</h2>
+      </div>
+
+      <p class="setup-hint" id="status-line">检查中...</p>
+
+      <button type="button" class="login-trigger" onclick="toggleForm()">
+        <span id="toggle-label">展开设置</span>
+        <span class="login-trigger-arrow" id="toggle-arrow">&#x25b6;</span>
+      </button>
+
+      <div class="login-body hidden" id="form-body">
+        <div id="zhixuemeng-logged-in" class="hidden logged-in-row">
+          <span class="logged-in-label">已登录</span>
+          <select id="zxm-course-select" onchange="changeZhixuemengCourse()" class="logged-in-select"></select>
+          <a href="#" onclick="logoutZhixuemeng();return false;" class="logged-in-link">登出</a>
+        </div>
+
+        <div id="zhixuemeng-setup" class="hidden">
+          <p class="setup-hint">请输入智学盟平台的手机号和验证码登录：</p>
+          <div class="add-todo-form mb-s">
+            <input type="tel" id="zxm-phone" placeholder="手机号" autocomplete="off">
+            <button type="button" id="zxm-send-sms-btn" onclick="sendZhixuemengSms()" class="btn-wide">发送验证码</button>
+          </div>
+          <div class="add-todo-form mb-s">
+            <input type="text" id="zxm-captcha" placeholder="验证码" autocomplete="off">
+            <button type="button" onclick="doZhixuemengLogin()" class="btn-wide btn-accent">登录</button>
+          </div>
+          <div class="form-note">
+            <a href="#" onclick="showZxmPasswordLogin();return false;">使用密码登录</a>
+          </div>
+          <div id="zxm-password-login" class="hidden mt-s">
+            <form class="add-todo-form" id="zxm-pwd-form">
+              <input type="text" id="zxm-username" placeholder="用户名" autocomplete="off">
+              <input type="password" id="zxm-password" placeholder="密码" autocomplete="off">
+              <button type="submit" class="btn-wide">登录</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="error-banner hidden" id="zhixuemeng-error"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function toggleForm(forceOpen) {
+      const body = document.getElementById('form-body');
+      const arrow = document.getElementById('toggle-arrow');
+      const label = document.getElementById('toggle-label');
+      const open = forceOpen !== undefined ? forceOpen : body.classList.contains('hidden');
+      body.classList.toggle('hidden', !open);
+      arrow.innerHTML = open ? '&#x25bc;' : '&#x25b6;';
+      label.textContent = open ? '收起设置' : '展开设置';
+    }
+
+    async function checkZhixuemengConfig() {
+      try {
+        const resp = await fetch('/api/zhixuemeng/config');
+        const result = await resp.json();
+        if (result.ok && result.has_token) {
+          document.getElementById('status-line').textContent = '当前状态：已登录';
+          document.getElementById('zhixuemeng-setup').classList.add('hidden');
+          document.getElementById('zhixuemeng-logged-in').classList.remove('hidden');
+          if (result.courses) {
+            const select = document.getElementById('zxm-course-select');
+            select.innerHTML = '<option value="">全部课程</option>' + result.courses.map(c =>
+              `<option value="${c.courseCode}">${c.courseCode} - ${c.courseName}</option>`
+            ).join('');
+            select.value = result.selected_course || '';
+          }
+        } else {
+          document.getElementById('status-line').textContent = '当前状态：未登录';
+          document.getElementById('zhixuemeng-setup').classList.remove('hidden');
+          document.getElementById('zhixuemeng-logged-in').classList.add('hidden');
+          toggleForm(true);
+        }
+      } catch (e) {
+        document.getElementById('status-line').textContent = '状态获取失败';
+        document.getElementById('zhixuemeng-setup').classList.remove('hidden');
+        toggleForm(true);
+      }
+    }
+
+    let zxmSmsCountdown = 0;
+    let zxmSmsTimer = null;
+
+    async function sendZhixuemengSms() {
+      if (zxmSmsCountdown > 0) return;
+      const phone = document.getElementById('zxm-phone').value.trim();
+      if (!phone) { alert('请输入手机号'); return; }
+
+      const btn = document.getElementById('zxm-send-sms-btn');
+      btn.disabled = true;
+
+      try {
+        const resp = await fetch('/api/zhixuemeng/send-sms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          zxmSmsCountdown = 60;
+          if (zxmSmsTimer) clearInterval(zxmSmsTimer);
+          zxmSmsTimer = setInterval(() => {
+            zxmSmsCountdown--;
+            if (zxmSmsCountdown <= 0) {
+              clearInterval(zxmSmsTimer);
+              zxmSmsTimer = null;
+              btn.textContent = '发送验证码';
+              btn.disabled = false;
+            } else {
+              btn.textContent = `${zxmSmsCountdown}秒后发送`;
+            }
+          }, 1000);
+          btn.textContent = `${zxmSmsCountdown}秒后发送`;
+        } else {
+          alert(result.error || '发送失败');
+          btn.disabled = false;
+        }
+      } catch (e) {
+        alert('网络错误');
+        btn.disabled = false;
+      }
+    }
+
+    async function doZhixuemengLogin() {
+      const phone = document.getElementById('zxm-phone').value.trim();
+      const captcha = document.getElementById('zxm-captcha').value.trim();
+      if (!phone || !captcha) { alert('请输入手机号和验证码'); return; }
+
+      try {
+        const resp = await fetch('/api/zhixuemeng/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, captcha }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          document.getElementById('zxm-captcha').value = '';
+          if (zxmSmsTimer) { clearInterval(zxmSmsTimer); zxmSmsTimer = null; zxmSmsCountdown = 0; }
+          document.getElementById('zxm-send-sms-btn').textContent = '发送验证码';
+          document.getElementById('zxm-send-sms-btn').disabled = false;
+          checkZhixuemengConfig();
+        } else {
+          alert(result.error || '登录失败');
+        }
+      } catch (e) {
+        alert('网络错误');
+      }
+    }
+
+    function showZxmPasswordLogin() {
+      document.getElementById('zxm-password-login').classList.toggle('hidden');
+    }
+
+    async function doZhixuemengPasswordLogin(e) {
+      e.preventDefault();
+      const username = document.getElementById('zxm-username').value.trim();
+      const password = document.getElementById('zxm-password').value.trim();
+      if (!username || !password) return;
+
+      try {
+        const resp = await fetch('/api/zhixuemeng/login-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          checkZhixuemengConfig();
+        } else {
+          alert(result.error || '登录失败');
+        }
+      } catch (e) {
+        alert('网络错误');
+      }
+    }
+
+    async function changeZhixuemengCourse() {
+      const select = document.getElementById('zxm-course-select');
+      const courseCode = select.value;
+      try {
+        await fetch('/api/zhixuemeng/course', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ course_code: courseCode }),
+        });
+      } catch (e) { /* ignore */ }
+    }
+
+    async function logoutZhixuemeng() {
+      try {
+        await fetch('/api/zhixuemeng/logout', { method: 'POST' });
+      } catch (e) { /* ignore */ }
+      document.getElementById('status-line').textContent = '当前状态：未登录';
+      document.getElementById('zhixuemeng-setup').classList.remove('hidden');
+      document.getElementById('zhixuemeng-logged-in').classList.add('hidden');
+      document.getElementById('zhixuemeng-error').classList.add('hidden');
+      document.getElementById('zxm-password-login').classList.add('hidden');
+      toggleForm(true);
+    }
+
+    const zxmPwdFormEl = document.getElementById('zxm-pwd-form');
+    if (zxmPwdFormEl) zxmPwdFormEl.addEventListener('submit', doZhixuemengPasswordLogin);
+
+    checkZhixuemengConfig();
+  </script>
+</body>
+</html>
