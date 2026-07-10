@@ -53,7 +53,14 @@ DATA_DIR = Path(__file__).parent / "data"
 CST = timezone(timedelta(hours=8))
 
 # Routes reachable without being logged in.
-_LOGIN_EXEMPT_ENDPOINTS = {"site_login_page", "site_register_page", "api_auth_register", "api_auth_login", "static"}
+_LOGIN_EXEMPT_ENDPOINTS = {
+    "site_login_page",
+    "site_register_page",
+    "api_auth_register",
+    "api_auth_login",
+    "healthz",
+    "static",
+}
 _CSRF_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 _CSRF_HEADER = "X-CSRF-Token"
 _CSRF_SESSION_KEY = "_csrf_token"
@@ -66,6 +73,68 @@ SMS_RATE_LIMIT_ATTEMPTS = 3
 SMS_RATE_LIMIT_SECONDS = 10 * 60
 _rate_limit_buckets = {}
 _rate_limit_lock = threading.Lock()
+
+
+def _check_data_writable():
+    probe = None
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        probe = DATA_DIR / f".healthz-{secrets.token_hex(8)}.tmp"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink(missing_ok=True)
+        return {"ok": True}
+    except Exception as exc:
+        if probe is not None:
+            try:
+                probe.unlink(missing_ok=True)
+            except Exception:
+                pass
+        return {"ok": False, "error": type(exc).__name__}
+
+
+def _check_zhihuishu_worker():
+    users_dir = zhihuishu_store.DATA_DIR / "users"
+    result = {
+        "ok": True,
+        "user_count": 0,
+        "status_file_count": 0,
+        "error_count": 0,
+        "unreadable_count": 0,
+        "states": {},
+        "lock_file_present": zhihuishu_worker.LOCK_FILE.exists(),
+    }
+    try:
+        if not users_dir.exists():
+            return result
+        for user_dir_path in users_dir.iterdir():
+            if not user_dir_path.is_dir():
+                continue
+            result["user_count"] += 1
+            status_file = user_dir_path / "zhihuishu_status.json"
+            if not status_file.exists():
+                continue
+            result["status_file_count"] += 1
+            status = read_json_file(status_file, {})
+            worker_state = status.get("worker", "unknown")
+            result["states"][worker_state] = result["states"].get(worker_state, 0) + 1
+            if worker_state == "error":
+                result["error_count"] += 1
+    except Exception:
+        result["unreadable_count"] += 1
+
+    result["ok"] = result["error_count"] == 0 and result["unreadable_count"] == 0
+    return result
+
+
+@app.route("/healthz")
+def healthz():
+    checks = {
+        "app": {"ok": True},
+        "data_writable": _check_data_writable(),
+        "zhihuishu_worker": _check_zhihuishu_worker(),
+    }
+    ok = all(check.get("ok") is True for check in checks.values())
+    return jsonify({"ok": ok, "checks": checks}), 200 if ok else 503
 
 
 def _get_or_create_csrf_token():
@@ -170,16 +239,34 @@ def _protect_csrf():
 
 
 WMO_CODES = {
-    0: ("Clear", "sun"), 1: ("Mostly clear", "sun"), 2: ("Partly cloudy", "cloud"), 3: ("Cloudy", "cloud"),
-    45: ("Fog", "fog"), 48: ("Rime fog", "fog"),
-    51: ("Light drizzle", "rain"), 53: ("Drizzle", "rain"), 55: ("Heavy drizzle", "rain"),
-    56: ("Freezing drizzle", "rain"), 57: ("Freezing drizzle", "rain"),
-    61: ("Light rain", "rain"), 63: ("Rain", "rain"), 65: ("Heavy rain", "rain"),
-    66: ("Freezing rain", "rain"), 67: ("Freezing rain", "rain"),
-    71: ("Light snow", "snow"), 73: ("Snow", "snow"), 75: ("Heavy snow", "snow"), 77: ("Snow grains", "snow"),
-    80: ("Rain showers", "rain"), 81: ("Rain showers", "rain"), 82: ("Heavy showers", "rain"),
-    85: ("Snow showers", "snow"), 86: ("Heavy snow showers", "snow"),
-    95: ("Thunderstorm", "storm"), 96: ("Thunderstorm with hail", "storm"), 99: ("Thunderstorm with hail", "storm"),
+    0: ("\u6674\u5929", "\u2600\ufe0f"),
+    1: ("\u6674\u95f4\u591a\u4e91", "\U0001f324\ufe0f"),
+    2: ("\u591a\u4e91", "\u26c5"),
+    3: ("\u9634\u5929", "\u2601\ufe0f"),
+    45: ("\u96fe", "\U0001f32b\ufe0f"),
+    48: ("\u96fe\u51c7", "\U0001f32b\ufe0f"),
+    51: ("\u5c0f\u6bdb\u6bdb\u96e8", "\U0001f327\ufe0f"),
+    53: ("\u6bdb\u6bdb\u96e8", "\U0001f327\ufe0f"),
+    55: ("\u5927\u6bdb\u6bdb\u96e8", "\U0001f327\ufe0f"),
+    56: ("\u51bb\u6bdb\u6bdb\u96e8", "\U0001f327\ufe0f"),
+    57: ("\u51bb\u6bdb\u6bdb\u96e8", "\U0001f327\ufe0f"),
+    61: ("\u5c0f\u96e8", "\U0001f327\ufe0f"),
+    63: ("\u4e2d\u96e8", "\U0001f327\ufe0f"),
+    65: ("\u5927\u96e8", "\U0001f327\ufe0f"),
+    66: ("\u51bb\u96e8", "\U0001f327\ufe0f"),
+    67: ("\u51bb\u96e8", "\U0001f327\ufe0f"),
+    71: ("\u5c0f\u96ea", "\u2744\ufe0f"),
+    73: ("\u4e2d\u96ea", "\u2744\ufe0f"),
+    75: ("\u5927\u96ea", "\u2744\ufe0f"),
+    77: ("\u96ea\u7c92", "\u2744\ufe0f"),
+    80: ("\u9635\u96e8", "\U0001f327\ufe0f"),
+    81: ("\u5f3a\u9635\u96e8", "\U0001f327\ufe0f"),
+    82: ("\u66b4\u96e8", "\U0001f327\ufe0f"),
+    85: ("\u9635\u96ea", "\u2744\ufe0f"),
+    86: ("\u5f3a\u9635\u96ea", "\u2744\ufe0f"),
+    95: ("\u96f7\u66b4", "\u26c8\ufe0f"),
+    96: ("\u96f7\u66b4\u4f34\u51b0\u96f9", "\u26c8\ufe0f"),
+    99: ("\u96f7\u66b4\u4f34\u51b0\u96f9", "\u26c8\ufe0f"),
 }
 WEATHER_URL = (
     "https://api.open-meteo.com/v1/forecast"
@@ -312,7 +399,15 @@ def api_auth_logout():
 @app.route("/api/clock")
 def api_clock():
     now = datetime.now(CST)
-    weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    weekdays = [
+        "\u661f\u671f\u4e00",
+        "\u661f\u671f\u4e8c",
+        "\u661f\u671f\u4e09",
+        "\u661f\u671f\u56db",
+        "\u661f\u671f\u4e94",
+        "\u661f\u671f\u516d",
+        "\u661f\u671f\u65e5",
+    ]
     return jsonify({
         "time": now.strftime("%H:%M:%S"),
         "date": now.strftime("%Y-%m-%d"),
@@ -328,7 +423,7 @@ def api_weather():
         data = resp.json()
         current = data.get("current", {})
         code = current.get("weather_code", -1)
-        desc, emoji = WMO_CODES.get(code, (f"Unknown({code})", "?"))
+        desc, emoji = WMO_CODES.get(code, (f"\u672a\u77e5({code})", "?"))
         return jsonify({
             "ok": True,
             "temperature": current.get("temperature_2m"),

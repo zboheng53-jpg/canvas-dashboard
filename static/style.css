@@ -182,7 +182,7 @@ a:hover { color: var(--accent-hover); }
 .section-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   margin-bottom: 14px;
 }
 
@@ -193,7 +193,6 @@ a:hover { color: var(--accent-hover); }
   color: var(--text);
   letter-spacing: 0.03em;
   line-height: 1;
-  transform: translateY(-9px);
 }
 
 .header-right {

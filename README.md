@@ -1,44 +1,85 @@
-﻿# Canvas Dashboard
+# Canvas Dashboard
 
-Flask web app for a personal Tongji University homework dashboard. It collects unfinished tasks from Canvas, Haoke, Zhixuemeng, Zhihuishu, and manual todos.
+Flask web app for a personal Tongji University homework dashboard. It aggregates unfinished work from Canvas, Haoke, Zhixuemeng, Zhihuishu, and manual todos.
 
-## Run Locally
+## Install
 
-```powershell
-pip install -r requirements.txt
-python app.py
-```
-
-Production entry point:
+Use the project virtual environment. The helper scripts intentionally fail if `.venv` is missing so tests and local runs do not fall back to a global Python.
 
 ```powershell
-python serve.py
+py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt pytest
 ```
 
-The app listens on port `5000` by default.
+Linux production hosts use the same package list:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m playwright install chromium
+```
+
+## Run
+
+Windows development:
+
+```powershell
+.\scripts\dev.ps1
+```
+
+Direct entry points:
+
+```powershell
+.\.venv\Scripts\python.exe app.py
+.\.venv\Scripts\python.exe serve.py
+```
+
+The app listens on `127.0.0.1:5000` by default. Override with `CANVAS_DASHBOARD_HOST` and `CANVAS_DASHBOARD_PORT`.
+
+## Test
+
+```powershell
+.\scripts\test.ps1
+.\scripts\test.ps1 tests\test_healthz.py -q
+```
+
+The script pins `.venv`, sets UTF-8 output, checks required Python packages, and then runs `pytest`.
+
+## Deploy
+
+Reference deployment files live in `deploy/`.
+
+```bash
+cd /home/ubuntu/canvas-dashboard
+.venv/bin/python serve.py
+```
+
+Production normally runs through systemd using `deploy/canvas-dashboard.service`; nginx proxies public HTTP to `127.0.0.1:5000`. The unauthenticated local health endpoint is:
+
+```bash
+curl -fsS http://127.0.0.1:5000/healthz
+```
+
+Zhihuishu background refresh and noVNC login windows need the worker service, Docker image, and cleanup timer described in `deploy/zhihuishu-login-tunnel.md`.
 
 ## Data Safety
 
-`data/` is runtime-only and must never be committed.
+`data/` is the core runtime asset and is not deployed from git. Do not commit, overwrite, delete, or migrate it casually.
 
-It may contain:
+Must preserve:
 
+- `data/users.json`
 - `data/.encryption_key`
 - `data/.flask_secret_key`
-- account registry and per-user credentials
-- cookies, browser profiles, caches, and logs
+- `data/users/<username>/config.json`
+- per-user state files and custom todos
+- per-user Zhihuishu Chromium profiles if long-lived login state matters
 
-Keep real runtime data on the machine or production server only. Use `.env.example` as the public template for local-only settings.
+Usually disposable:
 
-## Tests
+- platform cache files
+- worker status files
+- short-lived Zhihuishu login session files
+- logs and lock files
 
-```powershell
-python -m pytest
-```
-
-Use the project virtual environment when available:
-
-```powershell
-.venv\Scripts\python.exe -m pytest
-```
-
+Detailed backup and restore guidance is in `docs/backup-and-restore.md`.

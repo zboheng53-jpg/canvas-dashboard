@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -16,24 +16,24 @@
       <div class="clock-section">
         <div class="time" id="time">--:--:--</div>
         <div class="date-info">
-          <span id="date">----骞?-鏈?-鏃?/span>
-          <span id="weekday">鏄熸湡-</span>
+          <span id="date">----&#24180;--&#26376;--&#26085;</span>
+          <span id="weekday">&#26143;&#26399;-</span>
         </div>
       </div>
       <div class="top-right-group">
         <div class="weather-card" id="weather-card">
           <div class="weather-left">
             <span class="weather-emoji" id="weather-emoji">--</span>
-            <span class="weather-temp" id="weather-temp">--掳</span>
+            <span class="weather-temp" id="weather-temp">--&deg;</span>
           </div>
           <div class="weather-right">
-            <span class="weather-desc" id="weather-desc">鍔犺浇涓?..</span>
+            <span class="weather-desc" id="weather-desc">&#21152;&#36733;&#20013;...</span>
             <span class="weather-detail" id="weather-detail"></span>
           </div>
         </div>
         <div class="term-info" id="term-info-container">
-          <span id="term-info">鍔犺浇涓?..</span>
-          <button class="term-refresh-btn" onclick="refreshTerm()" title="浠庢牎鍘嗛〉闈㈠埛鏂?>&#x21bb;</button>
+          <span id="term-info">&#21152;&#36733;&#20013;...</span>
+          <button class="term-refresh-btn" onclick="refreshTerm()" title="&#20174;&#26657;&#21382;&#39029;&#38754;&#21047;&#26032;">&#x21bb;</button>
         </div>
       </div>
     </header>
@@ -45,19 +45,19 @@
         <!-- Unified Main Card -->
         <div class="card enter-main-card">
           <div class="section-header">
-            <h2>寰呭姙娓呭崟</h2>
+            <h2>&#24453;&#21150;&#28165;&#21333;</h2>
             <div class="header-right">
               <div class="header-info">
                 <span class="last-updated" id="list-updated"></span>
-                <button class="btn-refresh" id="btn-refresh" title="鍒锋柊">&#x21bb;</button>
+                <button class="btn-refresh" id="btn-refresh" title="&#21047;&#26032;">&#x21bb;</button>
               </div>
               <button type="button" class="login-trigger" onclick="toggleLoginCards()">
-                <span id="login-trigger-label">绯荤粺鐧诲綍</span>
+                <span id="login-trigger-label">&#31995;&#32479;&#30331;&#24405;</span>
                 <span class="login-trigger-arrow" id="login-trigger-arrow">&#x25b6;</span>
               </button>
               <div class="account-row">
                 <span>{{ username }}</span>
-                <a href="#" onclick="doLogout();return false;">閫€鍑虹櫥褰?/a>
+                <a href="#" onclick="doLogout();return false;">&#36864;&#20986;&#30331;&#24405;</a>
               </div>
             </div>
           </div>
@@ -66,25 +66,25 @@
         <div class="login-cards hidden" id="login-cards">
           <a href="/login/canvas" class="login-card" data-platform="canvas">
             <span class="login-card-title">Canvas</span>
-            <span class="login-card-status" id="card-status-canvas">妫€鏌ヤ腑...</span>
+            <span class="login-card-status" id="card-status-canvas">&#26816;&#26597;&#20013;...</span>
           </a>
           <a href="/login/haoke" class="login-card" data-platform="haoke">
-            <span class="login-card-title">濂借</span>
-            <span class="login-card-status" id="card-status-haoke">妫€鏌ヤ腑...</span>
+            <span class="login-card-title">&#22909;&#35838;</span>
+            <span class="login-card-status" id="card-status-haoke">&#26816;&#26597;&#20013;...</span>
           </a>
           <a href="/login/zhixuemeng" class="login-card" data-platform="zhixuemeng">
-            <span class="login-card-title">鏅哄鐩?/span>
-            <span class="login-card-status" id="card-status-zhixuemeng">妫€鏌ヤ腑...</span>
+            <span class="login-card-title">&#26234;&#23398;&#30431;</span>
+            <span class="login-card-status" id="card-status-zhixuemeng">&#26816;&#26597;&#20013;...</span>
           </a>
           <a href="/login/zhihuishu" class="login-card" data-platform="zhihuishu">
-            <span class="login-card-title">鏅烘収鏍?/span>
-            <span class="login-card-status" id="card-status-zhihuishu">妫€鏌ヤ腑...</span>
+            <span class="login-card-title">&#26234;&#24935;&#26641;</span>
+            <span class="login-card-status" id="card-status-zhihuishu">&#26816;&#26597;&#20013;...</span>
           </a>
         </div>
 
         <!-- Add custom todo -->
         <form class="add-todo-form" id="add-todo-form" style="margin-bottom: 0;">
-          <input type="text" id="new-todo-input" placeholder="娣诲姞鏂板緟鍔?.." autocomplete="off">
+          <input type="text" id="new-todo-input" placeholder="&#28155;&#21152;&#26032;&#24453;&#21150;..." autocomplete="off">
           <input type="date" id="new-todo-due" class="date-input">
           <button type="submit">+</button>
         </form>
@@ -92,14 +92,14 @@
         <!-- Stats Bar -->
         <div class="stats-bar" id="stats-bar">
           <div class="stat-item">
-            <span>寰呭畬鎴?/span>
+            <span>&#24453;&#23436;&#25104;</span>
             <span class="stat-count" id="stat-total">0</span>
-            <span>椤?/span>
+            <span>&#39033;</span>
           </div>
           <div class="stat-item">
-            <span>鍗冲皢鍒版湡</span>
+            <span>&#21363;&#23558;&#21040;&#26399;</span>
             <span class="stat-count urgent" id="stat-urgent">0</span>
-            <span>椤?/span>
+            <span>&#39033;</span>
           </div>
         </div>
 
@@ -107,7 +107,7 @@
 
         <!-- Unified todo list -->
         <div class="todo-list" id="todo-list">
-          <div class="empty-state">鍔犺浇涓?..</div>
+          <div class="empty-state">&#21152;&#36733;&#20013;...</div>
         </div>
         </div><!-- /.card -->
 
@@ -154,10 +154,10 @@
         const data = await resp.json();
         if (data.ok) {
           document.getElementById('weather-emoji').textContent = data.weather_emoji;
-          document.getElementById('weather-temp').textContent = `${data.temperature}掳C`;
+          document.getElementById('weather-temp').textContent = `${data.temperature}\u00b0C`;
           document.getElementById('weather-desc').textContent = data.weather_desc;
           document.getElementById('weather-detail').textContent =
-            `婀垮害 ${data.humidity}% 路 椋庨€?${data.wind_speed} m/s`;
+            `\u6e7f\u5ea6 ${data.humidity}% \u00b7 \u98ce\u901f ${data.wind_speed} m/s`;
         }
       } catch (e) { console.error('Weather fetch failed:', e); }
     }
@@ -168,15 +168,15 @@
         const data = await resp.json();
         if (data.ok) {
           const holidayHint = data.is_holiday
-            ? ` 路 ${data.holiday_name}`
+            ? ` \u00b7 ${data.holiday_name}`
             : '';
           document.getElementById('term-info').textContent =
-            `${data.term} 绗?{data.week}鍛?{holidayHint}`;
+            `${data.term} \u7b2c ${data.week} \u5468${holidayHint}`;
         } else {
-          document.getElementById('term-info').textContent = '瀛︽湡淇℃伅鑾峰彇澶辫触';
+          document.getElementById('term-info').textContent = '\u5b66\u671f\u4fe1\u606f\u83b7\u53d6\u5931\u8d25';
         }
       } catch (e) {
-        document.getElementById('term-info').textContent = '瀛︽湡淇℃伅鍔犺浇澶辫触';
+        document.getElementById('term-info').textContent = '\u5b66\u671f\u4fe1\u606f\u52a0\u8f7d\u5931\u8d25';
       }
     }
 
@@ -190,10 +190,10 @@
         if (data.ok) {
           await fetchTerm();
         } else {
-          alert('鍒锋柊澶辫触: ' + (data.error || '鏈煡閿欒'));
+          alert('\u5237\u65b0\u5931\u8d25: ' + (data.error || '\u672a\u77e5\u9519\u8bef'));
         }
       } catch (e) {
-        alert('鍒锋柊澶辫触: 缃戠粶閿欒');
+        alert('\u5237\u65b0\u5931\u8d25: \u7f51\u7edc\u9519\u8bef');
       } finally {
         btn.disabled = false;
         btn.textContent = 'Refresh';
@@ -268,7 +268,7 @@
         }
 
         if (!result.ok) {
-          setCardStatus('canvas', result.error || '鑾峰彇澶辫触', 'attention');
+          setCardStatus('canvas', result.error || '\u83b7\u53d6\u5931\u8d25', 'attention');
         } else {
           setCardStatus('canvas', 'connected', 'connected');
         }
@@ -276,8 +276,8 @@
         const now = new Date();
         const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
         updatedEl.textContent = result.cached
-          ? `缂撳瓨鏁版嵁 路 ${timeStr}`
-          : `宸叉洿鏂?路 ${timeStr}`;
+          ? `\u7f13\u5b58\u6570\u636e \u00b7 ${timeStr}`
+          : `\u5df2\u66f4\u65b0 \u00b7 ${timeStr}`;
 
         canvasItems = result.data || [];
         hiddenIds = result.hidden || [];
@@ -285,7 +285,7 @@
         canvasDeletedIds = result.deleted || [];
         renderUnifiedList();
       } catch (e) {
-        setCardStatus('canvas', '缃戠粶閿欒', 'attention');
+        setCardStatus('canvas', '\u7f51\u7edc\u9519\u8bef', 'attention');
       }
     }
 
@@ -294,6 +294,11 @@
         if (a.done === b.done) return 0;
         return a.done ? 1 : -1;
       });
+    }
+
+    function setNewTodoDueDefault(today) {
+      const dueInput = document.getElementById('new-todo-due');
+      if (dueInput && !dueInput.value) dueInput.value = today;
     }
 
     async function fetchCustomTodos() {
@@ -312,9 +317,12 @@
           }
         });
         window.customToday = result.today || new Date().toISOString().split('T')[0];
+        setNewTodoDueDefault(window.customToday);
         renderUnifiedList();
       } catch (e) {
         console.error('Failed to fetch custom todos:', e);
+        window.customToday = window.customToday || new Date().toISOString().split('T')[0];
+        setNewTodoDueDefault(window.customToday);
       }
     }
 
@@ -420,7 +428,7 @@
           labels: item.labels || [],
           due_str: item.due_date || '',
           due_ts: item.due_date ? `${item.due_date}T00:00:00` : null,
-          type: 'custom',
+          type: '\u81ea\u5b9a\u4e49',
           url: '',
           done: item.done,
           hidden: false,
@@ -441,7 +449,7 @@
       });
 
       if (unified.length === 0) {
-        container.innerHTML = '<div class="empty-state">娌℃湁寰呭姙浜嬮」</div>';
+        container.innerHTML = '<div class="empty-state">&#27809;&#26377;&#24453;&#21150;&#20107;&#39033;</div>';
         return;
       }
 
@@ -464,40 +472,40 @@
         }
 
         const flagIcon = manualFlag ? '&#x2691;' : '&#x2690;';
-        const flagTitle = manualFlag ? '鍙栨秷鏍囩孩' : '鏍囩孩';
+        const flagTitle = manualFlag ? '\u53d6\u6d88\u6807\u7ea2' : '\u6807\u7ea2';
         const flagClass = manualFlag ? 'btn-flag active' : 'btn-flag';
-        const dismissTitle = isDismissed ? (item.source === 'custom' ? '鍙栨秷瀹屾垚' : '鍙栨秷闅愯棌') : (item.source === 'custom' ? '瀹屾垚' : '闅愯棌');
+        const dismissTitle = isDismissed ? (item.source === 'custom' ? '\u53d6\u6d88\u5b8c\u6210' : '\u53d6\u6d88\u9690\u85cf') : (item.source === 'custom' ? '\u5b8c\u6210' : '\u9690\u85cf');
 
         let actionsHtml = '';
         if (item.source === 'canvas') {
           actionsHtml = `
             <button class="${flagClass}" onclick="toggleHighlight('${item.id}', ${manualFlag})" title="${flagTitle}">${flagIcon}</button>
-            <button class="btn-dismiss" onclick="toggleHide('${item.id}', ${isDismissed})" title="${dismissTitle}">脳</button>
-            <button class="btn-delete" onclick="toggleCanvasDelete(${item.rawId})" title="鍒犻櫎">馃棏</button>
+            <button class="btn-dismiss" onclick="toggleHide('${item.id}', ${isDismissed})" title="${dismissTitle}">&times;</button>
+            <button class="btn-delete" onclick="toggleCanvasDelete(${item.rawId})" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'haoke') {
           actionsHtml = `
             <button class="${flagClass}" onclick="toggleHaokeHighlight('${item.id}', ${manualFlag})" title="${flagTitle}">${flagIcon}</button>
-            <button class="btn-dismiss" onclick="toggleHaokeHide('${item.id}', ${isDismissed})" title="${dismissTitle}">脳</button>
-            <button class="btn-delete" onclick="toggleHaokeDelete(${item.rawId})" title="鍒犻櫎">馃棏</button>
+            <button class="btn-dismiss" onclick="toggleHaokeHide('${item.id}', ${isDismissed})" title="${dismissTitle}">&times;</button>
+            <button class="btn-delete" onclick="toggleHaokeDelete(${item.rawId})" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'custom') {
           actionsHtml = `
             <button class="${flagClass}" onclick="toggleCustomHighlight(${item.rawId}, ${manualFlag})" title="${flagTitle}">${flagIcon}</button>
-            <button class="btn-dismiss" onclick="toggleTodoCheck(${item.rawId}, ${item.done})" title="${dismissTitle}">脳</button>
-            <button class="btn-delete" onclick="toggleCustomDelete(${item.rawId})" title="鍒犻櫎">馃棏</button>
+            <button class="btn-dismiss" onclick="toggleTodoCheck(${item.rawId}, ${item.done})" title="${dismissTitle}">&times;</button>
+            <button class="btn-delete" onclick="toggleCustomDelete(${item.rawId})" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'zhixuemeng') {
           actionsHtml = `
             <button class="${flagClass}" onclick="toggleZhixuemengHighlight('${item.id.substring(1)}', ${manualFlag})" title="${flagTitle}">${flagIcon}</button>
-            <button class="btn-dismiss" onclick="toggleZhixuemengHide('${item.id.substring(1)}', ${isDismissed})" title="${dismissTitle}">脳</button>
-            <button class="btn-delete" onclick="toggleZhixuemengDelete('${item.id.substring(1)}')" title="鍒犻櫎">馃棏</button>
+            <button class="btn-dismiss" onclick="toggleZhixuemengHide('${item.id.substring(1)}', ${isDismissed})" title="${dismissTitle}">&times;</button>
+            <button class="btn-delete" onclick="toggleZhixuemengDelete('${item.id.substring(1)}')" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'zhihuishu') {
           actionsHtml = `
             <button class="${flagClass}" onclick="toggleZhihuishuHighlight('${item.rawId}', ${manualFlag})" title="${flagTitle}">${flagIcon}</button>
-            <button class="btn-dismiss" onclick="toggleZhihuishuHide('${item.rawId}', ${isDismissed})" title="${dismissTitle}">脳</button>
-            <button class="btn-delete" onclick="toggleZhihuishuDelete('${item.rawId}')" title="鍒犻櫎">馃棏</button>
+            <button class="btn-dismiss" onclick="toggleZhihuishuHide('${item.rawId}', ${isDismissed})" title="${dismissTitle}">&times;</button>
+            <button class="btn-delete" onclick="toggleZhihuishuDelete('${item.rawId}')" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         }
 
@@ -517,9 +525,11 @@
 
         const subtasks = item.subtasks || [];
         const isSubtaskExpanded = item.source === 'custom' && expandedCustomTodoIds.includes(item.rawId);
+        const subtaskToggleLabel = isSubtaskExpanded ? '\u6536\u8d77\u5b50\u4efb\u52a1' : '\u5c55\u5f00\u5b50\u4efb\u52a1';
+        const subtaskToggleIcon = isSubtaskExpanded ? '&#x25be;' : '&#x25b8;';
         const subtaskToggleHtml = item.source === 'custom'
-          ? `<button class="subtask-toggle" onclick="toggleSubtasks(${item.rawId})" title="subtasks">${isSubtaskExpanded ? '-' : '+'}</button>`
-          : '<span class="subtask-toggle subtask-toggle-placeholder" aria-hidden="true">+</span>';
+          ? `<button class="subtask-toggle" onclick="toggleSubtasks(${item.rawId})" title="${subtaskToggleLabel}" aria-label="${subtaskToggleLabel}">${subtaskToggleIcon}</button>`
+          : '<span class="subtask-toggle subtask-toggle-placeholder" aria-hidden="true">&#x25b8;</span>';
 
         const animAttr = doAnimate ? `enter-item" style="animation-delay:${0.34 + idx * 0.04}s` : '';
 
@@ -539,7 +549,7 @@
         }
 
         const panelHtml = isSubtaskExpanded ? renderSubtaskPanel(item.rawId, subtasks) : '';
-        const previewHtml = !isSubtaskExpanded ? renderUpcomingSubtasksPreview(subtasks) : '';
+        const previewHtml = '';
         return `
           <div class="unified-item-wrap">
             ${rowHtml}
@@ -585,14 +595,14 @@
 
       const parts = upcoming.map(st => {
         let label;
-        if (st.due_date === today) label = '浠婂ぉ';
-        else if (st.due_date === tomorrow) label = '鏄庡ぉ';
+        if (st.due_date === today) label = '\u4eca\u5929';
+        else if (st.due_date === tomorrow) label = '\u660e\u5929';
         else {
           const dt = new Date(st.due_date + 'T00:00:00');
           label = `${dt.getMonth() + 1}/${dt.getDate()}`;
         }
         return `<span class="upcoming-subtask-item">${escapeHtml(st.text)} <span class="upcoming-subtask-due">${label}</span></span>`;
-      }).join('<span class="upcoming-subtask-sep"> 路 </span>');
+      }).join('<span class="upcoming-subtask-sep"> &middot; </span>');
 
       return `<div class="subtask-upcoming-preview">+ ${parts}</div>`;
     }
@@ -604,7 +614,7 @@
         <div class="subtask-row">
           <input type="checkbox" ${subtask.done ? 'checked' : ''} onchange="toggleSubtaskDone(${todoId}, ${sid})">
           <span class="subtask-text ${subtask.done ? 'done' : ''}" onclick="startSubtaskEdit(${todoId}, ${sid}, this)">${escapeHtml(subtask.text)}</span>
-          <input type="date" class="subtask-due-input" value="${subtask.due_date || ''}" onchange="handleSubtaskDueChange(${todoId}, ${sid}, this.value)" title="鎴鏃ユ湡">
+          <input type="date" class="subtask-due-input" value="${subtask.due_date || ''}" onchange="handleSubtaskDueChange(${todoId}, ${sid}, this.value)" title="\u622a\u6b62\u65e5\u671f">
           <button class="subtask-delete" onclick="deleteSubtask(${todoId}, ${sid})" title="delete subtask">x</button>
         </div>
       `;
@@ -612,8 +622,8 @@
 
       return `
         <div class="subtask-panel">
-          ${rowsHtml || '<div class="subtask-empty">杩樻病鏈夊瓙浠诲姟</div>'}
-          <input class="subtask-add-input" placeholder="娣诲姞瀛愪换鍔?.." onkeydown="handleSubtaskAddKey(event, ${todoId})">
+          ${rowsHtml || '<div class="subtask-empty">\u8fd8\u6ca1\u6709\u5b50\u4efb\u52a1</div>'}
+          <input class="subtask-add-input" placeholder="\u6dfb\u52a0\u5b50\u4efb\u52a1..." onkeydown="handleSubtaskAddKey(event, ${todoId})">
         </div>
       `;
     }
@@ -666,7 +676,7 @@
         }
 
         if (!result.ok) {
-          setCardStatus('haoke', result.error || '鑾峰彇澶辫触', 'attention');
+          setCardStatus('haoke', result.error || '\u83b7\u53d6\u5931\u8d25', 'attention');
         } else {
           setCardStatus('haoke', 'connected', 'connected');
         }
@@ -677,7 +687,7 @@
         haokeDeletedIds = result.deleted || [];
         renderUnifiedList();
       } catch (e) {
-        setCardStatus('haoke', '缃戠粶閿欒', 'attention');
+        setCardStatus('haoke', '\u7f51\u7edc\u9519\u8bef', 'attention');
       }
     }
 
@@ -729,7 +739,7 @@
         }
 
         if (!result.ok) {
-          setCardStatus('zhixuemeng', result.error || '鑾峰彇澶辫触', 'attention');
+          setCardStatus('zhixuemeng', result.error || '\u83b7\u53d6\u5931\u8d25', 'attention');
         } else {
           setCardStatus('zhixuemeng', 'connected', 'connected');
         }
@@ -740,7 +750,7 @@
         zhixuemengDeletedIds = result.deleted || [];
         renderUnifiedList();
       } catch (e) {
-        setCardStatus('zhixuemeng', '缃戠粶閿欒', 'attention');
+        setCardStatus('zhixuemeng', '\u7f51\u7edc\u9519\u8bef', 'attention');
       }
     }
 
@@ -783,9 +793,9 @@
         if (result.need_setup) {
           setCardStatus('zhihuishu', result.data && result.data.length ? 'login required' : 'not logged in', 'attention');
         } else if (!result.ok) {
-          setCardStatus('zhihuishu', result.error || '鑾峰彇澶辫触', 'attention');
+          setCardStatus('zhihuishu', result.error || '\u83b7\u53d6\u5931\u8d25', 'attention');
         } else if (result.stale) {
-          setCardStatus('zhihuishu', '缂撳瓨杩囨湡', 'attention');
+          setCardStatus('zhihuishu', '\u7f13\u5b58\u8fc7\u671f', 'attention');
         } else {
           setCardStatus('zhihuishu', 'connected', 'connected');
         }
@@ -796,7 +806,7 @@
         zhihuishuDeletedIds = result.deleted || [];
         renderUnifiedList();
       } catch (e) {
-        setCardStatus('zhihuishu', '缃戠粶閿欒', 'attention');
+        setCardStatus('zhihuishu', '\u7f51\u7edc\u9519\u8bef', 'attention');
       }
     }
 
@@ -874,7 +884,7 @@
         }
         renderUnifiedList();
       } catch (e) {
-        alert('淇濆瓨澶辫触');
+        alert('\u4fdd\u5b58\u5931\u8d25');
         fetchCustomTodos();
       }
     }
@@ -1010,6 +1020,7 @@
       if (resp.ok) {
         input.value = '';
         dueInput.value = '';
+        setNewTodoDueDefault(window.customToday || new Date().toISOString().split('T')[0]);
         fetchCustomTodos();
       } else {
         const err = await resp.json().catch(() => ({}));

@@ -45,8 +45,9 @@ canvas-dashboard/
 ## Install And Run
 
 ```powershell
-pip install -r requirements.txt
-python app.py
+py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt pytest
+.\scripts\dev.ps1
 ```
 
 Development and production both listen on port `5000` by default.
@@ -64,7 +65,7 @@ The Windows wrapper `canvas-server.vbs` starts the production server without a v
 Preferred local checks:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q
+.\scripts\test.ps1
 ```
 
 Targeted examples:
@@ -92,15 +93,17 @@ Production notes:
 
 - nginx proxies port `80` to `127.0.0.1:5000`; see `deploy/canvas-dashboard.nginx`.
 - systemd uses `deploy/canvas-dashboard.service`; `ExecStart` runs `.venv/bin/python serve.py`.
+- `/healthz` is public and checks only local app/data/worker state.
 - Server-side `data/` is not included in deployments and is independent from local data.
 - Do not test open registration on production with throwaway accounts when real legacy data may still exist, because the first registered account can claim legacy top-level data files.
 
 ## API Routes
 
-All routes except `/login`, `/register`, `/api/auth/register`, and `/api/auth/login` require a site account session. Page routes redirect unauthenticated users to `/login`; `/api/*` returns `401 {"ok": false}`.
+All routes except `/healthz`, `/login`, `/register`, `/api/auth/register`, and `/api/auth/login` require a site account session. Page routes redirect unauthenticated users to `/login`; `/api/*` returns `401 {"ok": false}`.
 
 | Route | Methods | Purpose |
 | --- | --- | --- |
+| `/healthz` | GET | Public local health check for app, writable data, and Zhihuishu worker status |
 | `/login` | GET | Site account login page |
 | `/register` | GET | Site account registration page |
 | `/api/auth/register` | POST | Register and automatically log in |

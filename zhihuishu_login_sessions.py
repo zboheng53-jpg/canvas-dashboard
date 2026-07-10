@@ -1,4 +1,5 @@
 """Short-lived per-user Zhihuishu browser login sessions."""
+import argparse
 import json
 import os
 import re
@@ -105,6 +106,25 @@ def _stop_container(container_name: str) -> None:
         return
 
 
+def _list_login_containers() -> list[str]:
+    command = [
+        "docker",
+        "ps",
+        "-a",
+        "--filter",
+        "label=canvas-dashboard=zhihuishu-login",
+        "--format",
+        "{{.Names}}",
+    ]
+    try:
+        result = subprocess.run(command, check=False, capture_output=True, text=True)
+    except FileNotFoundError:
+        return []
+    if result.returncode != 0:
+        return []
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
 def _parse_allowed_port(port: int | str) -> int | None:
     try:
         parsed = int(port)
@@ -133,8 +153,9 @@ def _remove_session_file(session_file: Path, session: dict) -> None:
     session_file.unlink(missing_ok=True)
 
 
-def cleanup_expired_sessions(now: float | None = None) -> None:
+def cleanup_expired_sessions(now: float | None = None) -> int:
     now = time.time() if now is None else now
+    removed = 0
     for session_file in _iter_session_files() or []:
         if not session_file.exists():
             continue
@@ -144,6 +165,45 @@ def cleanup_expired_sessions(now: float | None = None) -> None:
             continue
         if float(session.get("expires_at", 0)) < now:
             _remove_session_file(session_file, session)
+            removed += 1
+    return removed
+
+
+def _active_session_container_names(now: float) -> set[str]:
+    names = set()
+    for session_file in _iter_session_files() or []:
+        if not session_file.exists():
+            continue
+        try:
+            session = json.loads(session_file.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if float(session.get("expires_at", 0)) < now:
+            continue
+        container_name = session.get("container_name")
+        if container_name:
+            names.add(container_name)
+    return names
+
+
+def cleanup_orphaned_containers(now: float | None = None) -> int:
+    now = time.time() if now is None else now
+    active_names = _active_session_container_names(now)
+    removed = 0
+    for container_name in _list_login_containers():
+        if container_name in active_names:
+            continue
+        _stop_container(container_name)
+        removed += 1
+    return removed
+
+
+def cleanup_login_lifecycle(now: float | None = None) -> dict:
+    now = time.time() if now is None else now
+    return {
+        "expired_sessions": cleanup_expired_sessions(now),
+        "orphaned_containers": cleanup_orphaned_containers(now),
+    }
 
 
 def build_docker_command(username: str, token: str, port: int) -> list[str]:
@@ -271,3 +331,24 @@ def stop_session(username: str, token: str | None = None) -> bool:
     _stop_container(session.get("container_name", ""))
     _session_file(username).unlink(missing_ok=True)
     return True
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Manage Zhihuishu noVNC login sessions.")
+    parser.add_argument(
+        "--cleanup-expired",
+        action="store_true",
+        help="Remove expired login session files and orphaned login containers.",
+    )
+    args = parser.parse_args(argv)
+
+    if args.cleanup_expired:
+        print(json.dumps(cleanup_login_lifecycle(), ensure_ascii=False))
+        return 0
+
+    parser.print_help()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

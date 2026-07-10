@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -170,3 +171,78 @@ def test_stop_session_clears_metadata_when_docker_is_missing(tmp_path, monkeypat
 
     assert sessions.stop_session("alice", "tok")
     assert sessions.load_session("alice") is None
+
+
+def test_cleanup_expired_sessions_returns_removed_count(tmp_path, monkeypatch):
+    import zhihuishu_login_sessions as sessions
+
+    removed = []
+    monkeypatch.setattr(sessions, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(sessions, "_stop_container", lambda name: removed.append(name))
+    sessions._save_session("alice", {
+        "username": "alice",
+        "token": "expired-token",
+        "container_name": "canvas-zhs-login-expired",
+        "expires_at": 1000.0,
+    })
+    sessions._save_session("bob", {
+        "username": "bob",
+        "token": "active-token",
+        "container_name": "canvas-zhs-login-active",
+        "expires_at": 2000.0,
+    })
+
+    removed_count = sessions.cleanup_expired_sessions(now=1500.0)
+
+    assert removed_count == 1
+    assert removed == ["canvas-zhs-login-expired"]
+    assert sessions.load_session("alice") is None
+    assert sessions.load_session("bob")["container_name"] == "canvas-zhs-login-active"
+
+
+def test_cleanup_orphaned_containers_keeps_active_session_container(tmp_path, monkeypatch):
+    import zhihuishu_login_sessions as sessions
+
+    removed = []
+    monkeypatch.setattr(sessions, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(sessions, "_stop_container", lambda name: removed.append(name))
+    monkeypatch.setattr(
+        sessions,
+        "_list_login_containers",
+        lambda: ["canvas-zhs-login-active", "canvas-zhs-login-orphan"],
+    )
+    sessions._save_session("alice", {
+        "username": "alice",
+        "token": "active-token",
+        "container_name": "canvas-zhs-login-active",
+        "expires_at": 2000.0,
+    })
+
+    removed_count = sessions.cleanup_orphaned_containers(now=1500.0)
+
+    assert removed_count == 1
+    assert removed == ["canvas-zhs-login-orphan"]
+
+
+def test_cleanup_cli_prints_json_summary(tmp_path, monkeypatch, capsys):
+    import zhihuishu_login_sessions as sessions
+
+    removed = []
+    monkeypatch.setattr(sessions, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(sessions, "_stop_container", lambda name: removed.append(name))
+    monkeypatch.setattr(sessions, "_list_login_containers", lambda: ["canvas-zhs-login-orphan"])
+    sessions._save_session("alice", {
+        "username": "alice",
+        "token": "expired-token",
+        "container_name": "canvas-zhs-login-expired",
+        "expires_at": 1000.0,
+    })
+
+    exit_code = sessions.main(["--cleanup-expired"])
+
+    assert exit_code == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "expired_sessions": 1,
+        "orphaned_containers": 1,
+    }
+    assert removed == ["canvas-zhs-login-expired", "canvas-zhs-login-orphan"]

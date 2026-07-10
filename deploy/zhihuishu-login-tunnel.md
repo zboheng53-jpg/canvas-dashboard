@@ -56,6 +56,15 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now zhihuishu-worker.service
 ```
 
+Install the login cleanup timer:
+
+```bash
+sudo cp deploy/zhihuishu-login-cleanup.service /etc/systemd/system/
+sudo cp deploy/zhihuishu-login-cleanup.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now zhihuishu-login-cleanup.timer
+```
+
 Install nginx config:
 
 ```bash
@@ -73,13 +82,16 @@ sudo systemctl reload nginx
 - Each container mounts only `data/users/<username>/zhihuishu_chromium_profile` into `/profile`.
 - Login sessions expire after 10 minutes.
 - A user can have only one active Zhihuishu login session; starting a new one stops the old container.
+- `zhihuishu-login-cleanup.timer` removes expired session files and orphaned login containers every 5 minutes.
 
 ## Diagnostics
 
 ```bash
 systemctl status zhihuishu-worker.service
 journalctl -u zhihuishu-worker.service -n 100 --no-pager
-docker ps --filter "name=canvas-zhs-login"
+systemctl list-timers zhihuishu-login-cleanup.timer
+journalctl -u zhihuishu-login-cleanup.service -n 50 --no-pager
+docker ps --filter "label=canvas-dashboard=zhihuishu-login"
 ```
 
 If a user reports that the login window does not open, check:
@@ -87,4 +99,11 @@ If a user reports that the login window does not open, check:
 ```bash
 sudo nginx -t
 docker images | grep canvas-dashboard-zhihuishu-login
+```
+
+Manual cleanup command:
+
+```bash
+cd /home/ubuntu/canvas-dashboard
+.venv/bin/python zhihuishu_login_sessions.py --cleanup-expired
 ```
