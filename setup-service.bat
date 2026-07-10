@@ -39,9 +39,21 @@ if %errorlevel% neq 0 (
 )
 
 echo   [2/2] Creating Startup shortcut...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ws = New-Object -ComObject WScript.Shell; $sc = $ws.CreateShortcut([Environment]::GetFolderPath('Startup') + '\Canvas Dashboard.lnk'); $sc.TargetPath = 'wscript.exe'; $sc.Arguments = '\"C:\Users\zhangboheng\Desktop\canvas-dashboard\canvas-server.vbs\"'; $sc.WorkingDirectory = 'C:\Users\zhangboheng\Desktop\canvas-dashboard'; $sc.WindowStyle = 7; $sc.Save()"
+set "PS1=%TEMP%\canvas_dashboard_startup.ps1"
+(
+    echo $ws = New-Object -ComObject WScript.Shell
+    echo $sc = $ws.CreateShortcut("$([Environment]::GetFolderPath('Startup'))\Canvas Dashboard.lnk"^)
+    echo $sc.TargetPath = "wscript.exe"
+    echo $sc.Arguments = "`"%~dp0canvas-server.vbs`""
+    echo $sc.WorkingDirectory = "%~dp0"
+    echo $sc.WindowStyle = 7
+    echo $sc.Save(^)
+) > "%PS1%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PS1%"
+set RESULT=%errorlevel%
+del /f /q "%PS1%" >nul 2>&1
 
-if %errorlevel% equ 0 (
+if %RESULT% equ 0 (
     echo.
     echo   ============================================
     echo     [OK] Auto-start registered!
