@@ -138,6 +138,84 @@ def test_frontend_todo_heading_is_centered_in_header(live_app, browser):
     assert abs(header_center - title_center) <= 8
 
 
+def test_frontend_mobile_header_compacts_weather(live_app, browser):
+    page = browser.new_page(viewport={"width": 375, "height": 844})
+    register_dashboard_user(page, live_app, "mobileheader")
+
+    expect(page.locator(".weather-desc")).to_be_hidden()
+    expect(page.locator(".weather-detail")).to_be_hidden()
+    expect(page.locator("#term-info")).to_be_visible()
+    assert page.locator(".weather-left").evaluate(
+        "element => getComputedStyle(element).display"
+    ) == "flex"
+    assert page.locator(".weather-left").evaluate(
+        "element => getComputedStyle(element).flexDirection"
+    ) == "column"
+    emoji_box = page.locator(".weather-emoji").bounding_box()
+    temp_box = page.locator(".weather-temp").bounding_box()
+    time_box = page.locator(".clock-section .time").bounding_box()
+    header_box = page.locator(".top-bar").bounding_box()
+    weather_card_box = page.locator(".weather-card").bounding_box()
+    assert emoji_box is not None
+    assert temp_box is not None
+    assert time_box is not None
+    assert header_box is not None
+    assert weather_card_box is not None
+    assert time_box["x"] < emoji_box["x"]
+    assert weather_card_box["y"] <= header_box["y"] + 4
+    assert emoji_box["y"] < temp_box["y"]
+
+
+@pytest.mark.parametrize("width", [375, 390, 768])
+def test_frontend_mobile_todo_layout_is_compact_and_tappable(live_app, browser, width):
+    page = browser.new_page(viewport={"width": width, "height": 844})
+    register_dashboard_user(page, live_app, f"mobiletodo{width}")
+
+    todo = page.locator(".unified-item")
+    expect(todo).to_be_visible()
+    assert todo.evaluate("element => getComputedStyle(element).display") == "grid"
+    assert page.evaluate("document.documentElement.scrollWidth") <= width
+
+    todo_input_box = page.locator("#new-todo-input").bounding_box()
+    date_input_box = page.locator("#new-todo-due").bounding_box()
+    add_button_box = page.locator("#add-todo-form button").bounding_box()
+    assert todo_input_box is not None
+    assert date_input_box is not None
+    assert add_button_box is not None
+    assert date_input_box["y"] >= todo_input_box["y"] + todo_input_box["height"]
+    assert add_button_box["y"] >= todo_input_box["y"] + todo_input_box["height"]
+    expect(todo.locator(".item-course")).to_be_hidden()
+
+    for selector in (".btn-flag", ".btn-dismiss", ".btn-delete"):
+        button_box = todo.locator(selector).bounding_box()
+        assert button_box is not None
+        assert button_box["width"] >= 35.9
+        assert button_box["height"] >= 35.9
+
+    page.fill("#new-todo-input", "Mobile labels #lab")
+    page.click("#add-todo-form button")
+    custom_item = page.locator(".unified-item-wrap").filter(has_text="Mobile labels")
+    expect(custom_item).to_be_visible()
+    expect(custom_item.locator(".label-badge")).to_be_visible()
+    expect(custom_item.locator(".subtask-toggle")).to_be_visible()
+    subtask_toggle_box = custom_item.locator(".subtask-toggle").bounding_box()
+    assert subtask_toggle_box is not None
+    assert subtask_toggle_box["width"] >= 35.9
+    assert subtask_toggle_box["height"] >= 35.9
+
+    long_label = "x" * 240
+    page.fill("#new-todo-input", f"Mobile long label #{long_label}")
+    page.click("#add-todo-form button")
+    long_label_item = page.locator(".unified-item-wrap").filter(has_text="Mobile long label")
+    expect(long_label_item.locator(".label-badge")).to_be_visible()
+    assert page.evaluate("document.documentElement.scrollWidth") <= width
+
+    page.click(".login-trigger")
+    login_cards = page.locator("#login-cards")
+    expect(login_cards).to_be_visible()
+    assert len(login_cards.evaluate("element => getComputedStyle(element).gridTemplateColumns").split()) == 2
+
+
 def test_frontend_custom_todos_subtasks_platform_cards_without_ocr(live_app, browser):
     page = browser.new_page()
     register_dashboard_user(page, live_app, "alice")
