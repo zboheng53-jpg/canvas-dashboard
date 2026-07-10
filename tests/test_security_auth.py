@@ -228,3 +228,35 @@ def test_send_sms_rate_limits_by_ip_and_phone(client_with_user, monkeypatch):
 
     assert last.status_code == 429
     assert calls == ["13800138000"] * SMS_ATTEMPTS
+
+
+def test_request_ip_uses_nginx_real_ip_not_client_forwarded_header():
+    with dashboard_app.app.test_request_context(
+        "/",
+        headers={
+            "X-Forwarded-For": "198.51.100.200",
+            "X-Real-IP": "203.0.113.9",
+        },
+        environ_base={"REMOTE_ADDR": "127.0.0.1"},
+        ):
+        assert dashboard_app._request_ip() == "203.0.113.9"
+
+
+def test_canvas_config_returns_validation_error(client_with_user, monkeypatch):
+    monkeypatch.setattr(
+        dashboard_app,
+        "save_feed_url",
+        lambda username, url: (False, "calendar feed URL must resolve to public addresses"),
+    )
+
+    resp = client_with_user.post(
+        "/api/config",
+        json={"calendar_feed_url": "https://127.0.0.1/feed.ics"},
+        headers=_set_csrf(client_with_user),
+    )
+
+    assert resp.status_code == 400
+    assert resp.get_json() == {
+        "ok": False,
+        "error": "calendar feed URL must resolve to public addresses",
+    }

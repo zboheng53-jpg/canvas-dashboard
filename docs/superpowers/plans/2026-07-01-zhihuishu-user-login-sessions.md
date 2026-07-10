@@ -1,5 +1,7 @@
 # Zhihuishu User Login Sessions Implementation Plan
 
+> Historical planning record. The unchecked checklist is preserved from drafting. Use `deploy/zhihuishu-login-tunnel.md` and `AGENTS.md` for the current deployment and route behavior.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Let ordinary site users log in to Zhihuishu themselves without SSH, server terminal access, or a shared server desktop.

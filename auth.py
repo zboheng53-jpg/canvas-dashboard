@@ -6,7 +6,7 @@ from pathlib import Path
 
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from storage import read_json_file, write_json_file
+from storage import locked_json_update, load_or_create_bytes, read_json_file, write_json_file
 
 DATA_DIR = Path(__file__).parent / "data"
 USERS_FILE = DATA_DIR / "users.json"
@@ -30,12 +30,10 @@ _LEGACY_FILES = [
 
 def get_secret_key() -> str:
     """Load or generate a persisted Flask session secret key."""
-    if SECRET_KEY_FILE.exists():
-        return SECRET_KEY_FILE.read_text(encoding="utf-8").strip()
-    key = secrets.token_hex(32)
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    SECRET_KEY_FILE.write_text(key, encoding="utf-8")
-    return key
+    return load_or_create_bytes(
+        SECRET_KEY_FILE,
+        lambda: secrets.token_hex(32).encode("utf-8"),
+    ).decode("utf-8").strip()
 
 
 def _load_users() -> dict:
@@ -69,18 +67,25 @@ def register(username: str, password: str):
     if not password or len(password) < 6:
         return False, "密码至少需要 6 位"
 
-    users = _load_users()
-    if username in users:
-        return False, "用户名已被注册"
-
-    is_first_account = len(users) == 0
-    users[username] = {
+    record = {
         "password_hash": generate_password_hash(password),
         "created_at": datetime.now(CST).isoformat(),
     }
-    _save_users(users)
+    result = {"ok": False, "is_first_account": False}
 
-    if is_first_account:
+    def add_user(users):
+        if username in users:
+            return users
+        result["ok"] = True
+        result["is_first_account"] = len(users) == 0
+        users[username] = record
+        return users
+
+    locked_json_update(USERS_FILE, {}, add_user)
+    if not result["ok"]:
+        return False, "用户名已被注册"
+
+    if result["is_first_account"]:
         _migrate_legacy_data(username)
 
     return True, None

@@ -1,5 +1,7 @@
 import json
 import logging
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from logging.handlers import RotatingFileHandler
 
 import pytest
@@ -67,6 +69,53 @@ def test_storage_locked_json_update_serializes_updates(tmp_path):
     storage.locked_json_update(path, [], add_one)
 
     assert json.loads(path.read_text(encoding="utf-8")) == [{"id": 1}, {"id": 2}]
+
+
+def test_storage_load_or_create_bytes_generates_once_under_concurrency(tmp_path):
+    import storage
+
+    path = tmp_path / ".encryption_key"
+    generated = []
+    generated_lock = threading.Lock()
+
+    def generate_key():
+        with generated_lock:
+            value = f"key-{len(generated)}".encode()
+            generated.append(value)
+            return value
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        keys = list(executor.map(lambda _: storage.load_or_create_bytes(path, generate_key), range(20)))
+
+    assert generated == [b"key-0"]
+    assert keys == [b"key-0"] * 20
+    assert path.read_bytes() == b"key-0"
+
+
+def test_read_json_file_preserves_corrupt_file_and_raises(tmp_path):
+    import storage
+
+    path = tmp_path / "config.json"
+    path.write_text('{"broken": ', encoding="utf-8")
+
+    with pytest.raises(storage.JsonFileCorruptionError):
+        storage.read_json_file(path, {})
+
+    copies = list(tmp_path.glob("config.json.corrupt-*"))
+    assert path.read_text(encoding="utf-8") == '{"broken": '
+    assert len(copies) == 1
+    assert copies[0].read_text(encoding="utf-8") == '{"broken": '
+
+
+def test_corrupt_custom_todos_returns_service_unavailable_without_overwrite(client_with_user, tmp_path):
+    path = tmp_path / "users" / "alice" / "custom_todos.json"
+    path.write_text('[{"id": ', encoding="utf-8")
+
+    response = client_with_user.get("/api/custom/todos")
+
+    assert response.status_code == 503
+    assert response.get_json() == {"ok": False, "error": "stored data is temporarily unavailable"}
+    assert path.read_text(encoding="utf-8") == '[{"id": '
 
 
 def test_serve_uses_rotating_file_handler(tmp_path):

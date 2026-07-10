@@ -1,5 +1,7 @@
 # Platform State and Settings Implementation Plan
 
+> Historical planning record. The unchecked checklist is preserved from drafting; `platform_state.py`, `settings.py`, and their callers now exist. Use `AGENTS.md`, `README.md`, and the current test suite for active behavior.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Reduce backend duplication for platform item state and todo responses without changing route behavior.

@@ -21,7 +21,7 @@ from cryptography.fernet import Fernet
 
 import settings
 from platform_state import PlatformStateStore
-from storage import read_json_file, write_json_file
+from storage import load_or_create_bytes, read_json_file, write_json_file
 from user_paths import user_dir, DATA_DIR
 
 logger = logging.getLogger(__name__)
@@ -50,12 +50,7 @@ _refresh_lock = threading.Lock()
 
 def _get_or_create_key():
     """Load or generate a Fernet key for local password encryption (shared across accounts)."""
-    if KEY_FILE.exists():
-        return KEY_FILE.read_bytes()
-    key = Fernet.generate_key()
-    KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
-    KEY_FILE.write_bytes(key)
-    return key
+    return load_or_create_bytes(KEY_FILE, Fernet.generate_key)
 
 
 def _encrypt_password_local(plain: str) -> str:

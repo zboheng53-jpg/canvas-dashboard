@@ -99,7 +99,7 @@ Production notes:
 
 ## API Routes
 
-All routes except `/healthz`, `/login`, `/register`, `/api/auth/register`, and `/api/auth/login` require a site account session. Page routes redirect unauthenticated users to `/login`; `/api/*` returns `401 {"ok": false}`.
+All routes except `/healthz`, `/login`, `/register`, `/api/auth/register`, `/api/auth/login`, and token-authenticated `/calendar/<token>.ics` require a site account session. Page routes redirect unauthenticated users to `/login`; `/api/*` returns `401 {"ok": false}`.
 
 | Route | Methods | Purpose |
 | --- | --- | --- |
@@ -109,6 +109,8 @@ All routes except `/healthz`, `/login`, `/register`, `/api/auth/register`, and `
 | `/api/auth/register` | POST | Register and automatically log in |
 | `/api/auth/login` | POST | Site account login |
 | `/api/auth/logout` | POST | Clear site session |
+| `/api/apple-calendar/subscription` | POST/DELETE | Generate or revoke the current account's private ICS subscription token |
+| `/calendar/<token>.ics` | GET | Token-authenticated read-only iCalendar feed; never expose before HTTPS |
 | `/` | GET | Main frontend app |
 | `/api/clock` | GET | Server date/time |
 | `/api/weather` | GET | Shanghai weather via Open-Meteo |
@@ -171,6 +173,7 @@ Per-user files under `data/users/<username>/`:
 | File | Purpose |
 | --- | --- |
 | `custom_todos.json` | Custom todos with `id`, `text`, `done`, `created_at`, `updated_at`, `due_date`, `highlighted`, `labels`, `subtasks` |
+| `apple_calendar.json` | SHA-256 hash of the active private Apple Calendar subscription token |
 | `config.json` | Canvas URL, encrypted 好课 credentials, encrypted 智学盟 token, selected 智学盟 course |
 | `canvas_state.json` | Canvas hidden/highlighted/deleted state |
 | `haoke_state.json` | 好课 state |
@@ -204,6 +207,7 @@ Global files under `data/`:
 
 - Lock keys use normalized absolute paths.
 - Writes use a temp file plus atomic replace, with a short Windows retry for transient replace failures.
+- Malformed or non-UTF-8 JSON is fail-closed: `read_json_file()` preserves the original plus a `.corrupt-<timestamp>` copy and raises `JsonFileCorruptionError`; do not catch that error and write a default value back.
 - Custom todo writes for the same account must use `locked_json_update()` to avoid lost updates under Waitress single-process multi-thread serving.
 - If deployment ever changes to multiple worker processes, upgrade to a cross-process file lock or a database.
 

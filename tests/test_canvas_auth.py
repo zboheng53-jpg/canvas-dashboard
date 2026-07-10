@@ -68,6 +68,24 @@ def test_extract_stable_id_hashes_uid_when_url_has_no_canvas_fragment():
     assert 0 <= first < 1000000
 
 
+def test_validate_feed_url_rejects_non_https_urls():
+    ok, error = canvas_auth.validate_feed_url("http://canvas.example/feed.ics")
+
+    assert ok is False
+    assert error == "calendar feed URL must use HTTPS"
+
+
+def test_save_feed_url_does_not_persist_private_address(tmp_path, monkeypatch):
+    user_dir = _user_dir(tmp_path)
+    monkeypatch.setattr(canvas_auth, "user_dir", user_dir)
+
+    ok, error = canvas_auth.save_feed_url("alice", "https://127.0.0.1/feed.ics")
+
+    assert ok is False
+    assert error == "calendar feed URL must resolve to public addresses"
+    assert not (user_dir("alice") / "config.json").exists()
+
+
 def test_fetch_canvas_planner_writes_cache_on_success(tmp_path, monkeypatch):
     user_dir = _user_dir(tmp_path)
     monkeypatch.setattr(canvas_auth, "user_dir", user_dir)

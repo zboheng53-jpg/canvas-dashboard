@@ -45,6 +45,18 @@ The app listens on `127.0.0.1:5000` by default. Override with `CANVAS_DASHBOARD_
 
 The script pins `.venv`, sets UTF-8 output, checks required Python packages, and then runs `pytest`.
 
+## Temporary iPhone Calendar Test (Paused)
+
+The helper below verifies the initial subscription flow without reading or changing `data/`:
+
+```powershell
+.\scripts\apple-calendar-mobile-test.ps1
+```
+
+It starts an isolated temporary app, creates one fake all-day task, prints a one-time HTTPS subscription URL, and removes the tunnel and temporary data when you press `Ctrl+C`. In iPhone Calendar, choose **Add Calendar** → **Add Subscription Calendar** and paste that URL. It never uses the production server or real local account data.
+
+Do not retry this helper on the current network: its Cloudflare Quick Tunnel cannot establish the required outbound connection and returns Error 1033. Resume only from a network that permits the tunnel connection, or after the production domain, ICP filing, and HTTPS are ready.
+
 ## Deploy
 
 Reference deployment files live in `deploy/`.
@@ -59,6 +71,10 @@ Production normally runs through systemd using `deploy/canvas-dashboard.service`
 ```bash
 curl -fsS http://127.0.0.1:5000/healthz
 ```
+
+`canvas-dashboard.xyz` is awaiting review. Keep production on its current IP/HTTP path until domain review and ICP filing are complete; only then enable HTTPS and secure session cookies.
+
+Apple Calendar's private ICS routes are implemented for local verification only. Do not deploy or share subscription URLs until the domain, ICP filing, HTTPS, token-safe proxy logging, and a real-iPhone test are all complete. The current local test covers subscription, cached-task display, and revocation; it does not yet verify calendar notifications.
 
 Zhihuishu background refresh and noVNC login windows need the worker service, Docker image, and cleanup timer described in `deploy/zhihuishu-login-tunnel.md`.
 
@@ -83,3 +99,4 @@ Usually disposable:
 - logs and lock files
 
 Detailed backup and restore guidance is in `docs/backup-and-restore.md`.
+If the app reports that stored data is temporarily unavailable, do not retry writes; follow that document's JSON-corruption recovery procedure first.

@@ -1,5 +1,6 @@
 import json
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date
 
 import pytest
 
@@ -79,6 +80,24 @@ def test_custom_todo_concurrent_posts_do_not_drop_items(isolated_app):
     assert {item["text"] for item in stored} == {f"Task {i}" for i in range(20)}
     assert sorted(item["id"] for item in stored) == list(range(1, 21))
     assert all("labels" in item and "subtasks" in item for item in stored)
+
+
+def test_expired_custom_todo_cleanup_preserves_active_todos(isolated_app):
+    todo_file = isolated_app / "custom_todos.json"
+    todo_file.write_text(
+        json.dumps(
+            [
+                {"id": 1, "text": "Expired", "done": True, "due_date": "2026-07-09"},
+                {"id": 2, "text": "Keep", "done": False, "due_date": "2026-07-11"},
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    todos = dashboard_app._remove_expired_completed_todos("alice", date(2026, 7, 10))
+
+    assert [todo["id"] for todo in todos] == [2]
+    assert [todo["id"] for todo in json.loads(todo_file.read_text(encoding="utf-8"))] == [2]
 
 
 def test_platform_state_consecutive_updates_preserve_fields(tmp_path):

@@ -7,8 +7,11 @@ import logging
 from datetime import datetime, timezone, timedelta
 
 import hashlib
+import ipaddress
 import requests
+import socket
 from icalendar import Calendar
+from urllib.parse import urlsplit
 
 from platform_state import PlatformStateStore
 from storage import read_json_file, write_json_file
@@ -25,11 +28,31 @@ def get_feed_url(username):
     return read_json_file(config_file, {}).get("calendar_feed_url")
 
 
+def validate_feed_url(url: str) -> tuple[bool, str | None]:
+    parsed = urlsplit(url)
+    if parsed.scheme != "https":
+        return False, "calendar feed URL must use HTTPS"
+    if not parsed.hostname or parsed.username or parsed.password:
+        return False, "calendar feed URL must use a public hostname"
+    try:
+        addresses = socket.getaddrinfo(parsed.hostname, None, type=socket.SOCK_STREAM)
+        resolved = {record[4][0] for record in addresses}
+    except socket.gaierror:
+        return False, "calendar feed hostname could not be resolved"
+    if not resolved or any(not ipaddress.ip_address(address).is_global for address in resolved):
+        return False, "calendar feed URL must resolve to public addresses"
+    return True, None
+
+
 def save_feed_url(username, url):
+    ok, error = validate_feed_url(url)
+    if not ok:
+        return False, error
     config_file = user_dir(username) / "config.json"
     config = read_json_file(config_file, {})
     config["calendar_feed_url"] = url
     write_json_file(config_file, config)
+    return True, None
 
 
 def has_feed_url(username):

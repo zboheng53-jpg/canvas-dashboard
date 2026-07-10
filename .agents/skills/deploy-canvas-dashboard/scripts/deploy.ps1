@@ -6,9 +6,15 @@ Write-Host "Starting deployment of Canvas Dashboard..." -ForegroundColor Cyan
 
 # 1. Run local tests & verify syntax
 Write-Host "Running local tests and compiling files..." -ForegroundColor Yellow
-& .venv\Scripts\python.exe -m unittest discover -s tests
+& .\scripts\test.ps1
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Local tests failed. Deployment aborted."
+    exit 1
+}
+
+& .venv\Scripts\python.exe -m compileall -q .
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Python compilation failed. Deployment aborted."
     exit 1
 }
 

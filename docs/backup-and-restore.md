@@ -52,6 +52,25 @@ sudo systemctl start zhihuishu-login-cleanup.timer 2>/dev/null || true
 
 Store the archive somewhere outside the server if the server itself is the failure domain.
 
+Verify that the archive can be read before treating the backup as usable:
+
+```bash
+tar -tzf /home/ubuntu/canvas-dashboard-data-YYYY-MM-DD.tgz > /dev/null
+```
+
+This project does not yet configure an automatic off-server backup destination. Do not claim that backups are automatic until an operator has selected a destination and encryption-key ownership model.
+
+## JSON Corruption Recovery
+
+When a runtime JSON file cannot be decoded, the app leaves the original file unchanged, writes a sibling copy named `<file>.corrupt-<timestamp>`, logs the incident, and returns HTTP 503 instead of replacing the data with an empty default.
+
+1. Stop the affected service before editing files.
+2. Inspect the original and `.corrupt-*` copy; they contain the same damaged bytes captured at detection time.
+3. Restore the affected file from a verified backup, or repair it manually only after keeping another copy.
+4. Start the services and confirm `curl -fsS http://127.0.0.1:5000/healthz` succeeds.
+
+Never replace `.encryption_key` while restoring a `config.json`; encrypted platform credentials require the matching key.
+
 ## Restore Procedure
 
 Stop services, keep a safety copy of the current data directory, restore the archive, and check ownership:

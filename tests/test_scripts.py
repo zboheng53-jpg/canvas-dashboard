@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 
 def test_local_powershell_scripts_pin_venv_and_utf8():
@@ -14,3 +15,37 @@ def test_local_powershell_scripts_pin_venv_and_utf8():
 
     assert "-m pytest" in test_script.read_text(encoding="utf-8")
     assert "app.py" in dev_script.read_text(encoding="utf-8")
+
+
+def test_deploy_script_runs_repository_regression_gate_and_compile_check():
+    repo_root = Path(__file__).parents[1]
+    deploy_script = repo_root / ".agents" / "skills" / "deploy-canvas-dashboard" / "scripts" / "deploy.ps1"
+    text = deploy_script.read_text(encoding="utf-8")
+
+    assert ".\\scripts\\test.ps1" in text
+    assert "-m compileall" in text
+    assert "unittest discover" not in text
+
+
+def test_apple_calendar_mobile_test_script_has_a_non_network_dry_run():
+    repo_root = Path(__file__).parents[1]
+    script = repo_root / "scripts" / "apple-calendar-mobile-test.ps1"
+
+    result = subprocess.run(
+        ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script), "-DryRun"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Dry run passed" in result.stdout
+
+
+def test_apple_calendar_mobile_test_script_uses_an_isolated_port():
+    repo_root = Path(__file__).parents[1]
+    text = (repo_root / "scripts" / "apple-calendar-mobile-test.ps1").read_text(encoding="utf-8")
+
+    assert "[System.Net.Sockets.TcpListener]" in text
+    assert "port=5051" not in text

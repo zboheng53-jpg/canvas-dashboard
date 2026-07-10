@@ -1,5 +1,7 @@
 # Zhihuishu Worker Implementation Plan
 
+> Historical planning record. The unchecked checklist is preserved from drafting and includes superseded SSH-login assumptions. Use `docs/zhihuishu-reusable-web-patterns.md`, `deploy/zhihuishu-login-tunnel.md`, and `AGENTS.md` for the current login-window and worker behavior.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Restore Zhihuishu assignments in Canvas Dashboard with a background Ubuntu worker that keeps a persistent browser session alive and writes cached todos for the Flask app.

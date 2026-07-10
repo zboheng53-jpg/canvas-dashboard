@@ -13,9 +13,10 @@ import requests
 from flask import Flask, jsonify, render_template, request, session, redirect
 
 import auth
+import apple_calendar
 import settings
 from platform_state import build_platform_todos_response
-from storage import locked_json_update, read_json_file, write_json_file
+from storage import JsonFileCorruptionError, locked_json_update, read_json_file, write_json_file
 from user_paths import user_dir
 from canvas_auth import fetch_canvas_planner, has_feed_url, save_feed_url, load_state, update_state, save_state
 from haoke_client import (
@@ -58,6 +59,7 @@ _LOGIN_EXEMPT_ENDPOINTS = {
     "site_register_page",
     "api_auth_register",
     "api_auth_login",
+    "calendar_subscription",
     "healthz",
     "static",
 }
@@ -155,9 +157,9 @@ def _csrf_failed_response():
 
 
 def _request_ip():
-    forwarded_for = request.headers.get("X-Forwarded-For", "")
-    if forwarded_for:
-        return forwarded_for.split(",", 1)[0].strip()
+    real_ip = request.headers.get("X-Real-IP", "").strip()
+    if real_ip:
+        return real_ip
     return request.remote_addr or "unknown"
 
 
@@ -226,6 +228,14 @@ def _require_login():
         if request.path.startswith("/api/"):
             return jsonify({"ok": False, "error": "unauthorized"}), 401
         return redirect("/login")
+
+
+@app.errorhandler(JsonFileCorruptionError)
+def handle_json_file_corruption(error):
+    logger.error("Stored JSON is corrupt: %s", error)
+    if request.path.startswith("/api/"):
+        return jsonify({"ok": False, "error": "stored data is temporarily unavailable"}), 503
+    return "Stored data is temporarily unavailable.", 503
 
 
 @app.before_request
@@ -322,6 +332,74 @@ def _save_todos(username, todos):
     write_json_file(_todos_file(username), todos)
 
 
+def _remove_expired_completed_todos(username, today):
+    def remove_expired(todos):
+        remaining = []
+        for todo in _normalize_todos(todos):
+            if todo.get("done") and todo.get("due_date"):
+                try:
+                    due_date = datetime.fromisoformat(todo["due_date"]).date()
+                except (ValueError, TypeError):
+                    remaining.append(todo)
+                    continue
+                if due_date < today:
+                    continue
+            remaining.append(todo)
+        return remaining
+
+    return locked_json_update(_todos_file(username), [], remove_expired)
+
+
+def _parse_calendar_due(value):
+    try:
+        due_at = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if due_at.tzinfo is None:
+        due_at = due_at.replace(tzinfo=CST)
+    return due_at.astimezone(CST)
+
+
+def _calendar_items(username):
+    now = datetime.now(CST)
+    items = []
+
+    for todo in _load_todos(username):
+        if todo.get("done") or not todo.get("due_date"):
+            continue
+        items.append({
+            "source": "Custom",
+            "id": todo.get("id"),
+            "title": todo.get("text"),
+            "due_date": todo.get("due_date"),
+        })
+
+    def add_cached(source, cached_items, state):
+        hidden = set(state.get("hidden", []))
+        deleted = set(state.get("deleted", []))
+        for item in cached_items:
+            item_id = item.get("id")
+            due_at = _parse_calendar_due(item.get("due_ts"))
+            if item_id in hidden or item_id in deleted or due_at is None or due_at < now:
+                continue
+            items.append({
+                "source": source,
+                "id": item_id,
+                "title": item.get("title"),
+                "due_ts": item.get("due_ts"),
+                "course": item.get("course"),
+                "url": item.get("url"),
+            })
+
+    add_cached("Canvas", read_json_file(user_dir(username) / "canvas_cache.json", []), load_state(username))
+    add_cached("Haoke", read_json_file(user_dir(username) / "haoke_cache.json", []), load_haoke_state(username))
+    zxm_cache = read_json_file(user_dir(username) / "zhixuemeng_cache.json", {})
+    add_cached("Zhixuemeng", zxm_cache.get("items", []) if isinstance(zxm_cache, dict) else [], load_zxm_state(username))
+    zhs_cache = zhihuishu_store.load_cache(username)
+    add_cached("Zhihuishu", zhs_cache["items"], zhihuishu_store.load_state(username))
+    return items
+
+
 @app.route("/")
 def index():
     return render_template("index.html", username=session.get("username"))
@@ -332,6 +410,29 @@ def login_page(platform):
     if platform not in ("canvas", "haoke", "zhixuemeng", "zhihuishu"):
         return "Not Found", 404
     return render_template(f"login_{platform}.html", username=session.get("username"))
+
+
+@app.route("/api/apple-calendar/subscription", methods=["POST", "DELETE"])
+def api_apple_calendar_subscription():
+    username = session["username"]
+    if request.method == "DELETE":
+        return jsonify({"ok": apple_calendar.revoke_token(username)})
+
+    token = apple_calendar.create_token(username)
+    return jsonify({"ok": True, "path": f"/calendar/{token}.ics"})
+
+
+@app.route("/calendar/<token>.ics")
+def calendar_subscription(token):
+    username = apple_calendar.username_for_token(token)
+    if not username:
+        return "Not Found", 404
+    response = app.response_class(
+        apple_calendar.build_calendar(username, _calendar_items(username), datetime.now(CST)),
+        content_type="text/calendar; charset=utf-8",
+    )
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 # ---- Site-wide account system ----
@@ -448,7 +549,9 @@ def api_config():
         url = (data.get("calendar_feed_url") or "").strip()
         if not url:
             return jsonify({"ok": False, "error": "URL 涓嶈兘涓虹┖"}), 400
-        save_feed_url(username, url)
+        ok, error = save_feed_url(username, url)
+        if not ok:
+            return jsonify({"ok": False, "error": error}), 400
         return jsonify({"ok": True})
 
     return jsonify({"ok": True, "has_feed": has_feed_url(username)})
@@ -838,26 +941,8 @@ def api_custom_todos():
         locked_json_update(_todos_file(username), [], add_todo)
         return jsonify({"ok": True, "todo": todos[-1]})
 
-    todos = _load_todos(username)
-
-    # Auto-delete: completed items whose due_date has passed (day after due)
     today = datetime.now(CST).date()
-    remaining = []
-    changed = False
-    for t in todos:
-        if t.get("done") and t.get("due_date"):
-            try:
-                due_date = datetime.fromisoformat(t["due_date"]).date()
-            except (ValueError, TypeError):
-                remaining.append(t)
-                continue
-            if due_date < today:
-                changed = True
-                continue  # skip = delete
-        remaining.append(t)
-    if changed:
-        _save_todos(username, remaining)
-    todos = remaining
+    todos = _remove_expired_completed_todos(username, today)
 
     todos.sort(key=lambda t: (
         1 if t["done"] else 0,

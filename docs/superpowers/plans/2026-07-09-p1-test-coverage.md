@@ -1,5 +1,7 @@
 ﻿# P1 Test Coverage Implementation Plan
 
+> Historical planning record. The unchecked checklist is preserved from drafting; the listed regression-test files now exist and are run by `scripts/test.ps1`. Use the current suite rather than this checklist to judge coverage.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 琛ラ綈 Canvas銆佸ソ璇俱€佹櫤瀛︾洘銆佽璇佽竟鐣屻€佸啓鍏ヤ竴鑷存€у拰鍓嶇鍏抽敭娴佺▼鐨?P1 鍥炲綊娴嬭瘯銆?
