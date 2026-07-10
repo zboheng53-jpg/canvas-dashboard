@@ -576,6 +576,18 @@ a:hover { color: var(--accent-hover); }
   flex-shrink: 0;
 }
 
+.item-desktop-actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+}
+
+.mobile-action-trigger,
+.item-mobile-actions {
+  display: none;
+}
+
 .item-subtask-slot {
   margin-right: -7px;
 }
@@ -1077,11 +1089,12 @@ a:hover { color: var(--accent-hover); }
 
 /* ---- Responsive ---- */
 @media (max-width: 768px) {
+  .enter-main-card { animation: none; }
   .dashboard { padding: 24px 14px 48px; }
   .card { padding: 16px; }
   .top-bar { flex-direction: row; align-items: flex-start; gap: 12px; }
   .top-bar .clock-section { min-width: 0; }
-  .clock-section .time { font-size: 42px; }
+  .clock-section .time { font-size: 38px; }
   .clock-section .date-info { gap: 12px; flex-wrap: wrap; }
   .top-right-group { align-items: flex-end; align-self: flex-start; min-width: 48px; }
   .weather-card { flex-direction: column; align-items: flex-end; gap: 2px; }
@@ -1089,18 +1102,33 @@ a:hover { color: var(--accent-hover); }
   .weather-emoji { font-size: 26px; }
   .weather-temp { font-size: 32px; line-height: 1; }
   .weather-right { display: none; }
-  .term-info { justify-content: flex-end; margin-top: 5px; font-size: 12px; text-align: right; }
+  .term-info { display: none; }
   .section-header { flex-wrap: wrap; align-items: flex-start; gap: 8px; }
   .header-right { margin-left: auto; }
-  .add-todo-form { display: grid; grid-template-columns: minmax(0, 1fr) 44px; flex-wrap: nowrap; }
-  .add-todo-form #new-todo-input { grid-column: 1 / -1; min-width: 0; }
-  .add-todo-form .date-input { grid-column: 1; width: 100%; }
-  .add-todo-form button { grid-column: 2; width: 44px; }
+  .add-todo-form { display: flex; align-items: flex-start; flex-wrap: nowrap; }
+  .add-todo-form #new-todo-input { flex: 1; min-width: 0; }
+  .add-todo-form .date-input {
+    flex: 0 0 44px;
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+    color: transparent;
+    font-size: 0;
+    cursor: pointer;
+  }
+  .add-todo-form .date-input::-webkit-datetime-edit { color: transparent; }
+  .add-todo-form .date-input::-webkit-calendar-picker-indicator { opacity: 0.65; cursor: pointer; }
+  .add-todo-form button { width: 44px; }
   .item-course { display: none; }
   .unified-item {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-areas: "source title due" "source labels labels" "source subtask actions";
+    grid-template-areas:
+      "source title more"
+      "source due more"
+      "source labels labels"
+      "source subtask subtask"
+      "source mobile-actions mobile-actions";
     align-items: start;
     column-gap: 8px;
     row-gap: 4px;
@@ -1116,7 +1144,33 @@ a:hover { color: var(--accent-hover); }
   .item-labels { grid-area: labels; margin-top: 0; min-width: 0; }
   .label-badge { max-width: 100%; box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; }
   .item-subtask-slot { grid-area: subtask; margin-right: 0; min-height: 36px; }
-  .item-actions { grid-area: actions; justify-self: end; min-height: 36px; }
+  .item-desktop-actions { display: none; }
+  .mobile-action-trigger {
+    grid-area: more;
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: 3px;
+    background: none;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .mobile-action-trigger:hover { color: var(--accent); background: var(--accent-subtle); }
+  .item-mobile-actions {
+    grid-area: mobile-actions;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0;
+    min-width: 0;
+  }
+  .item-mobile-actions.open { display: flex; }
   .btn-flag, .btn-dismiss, .btn-delete, .subtask-toggle { width: 36px; height: 36px; padding: 0; }
   .login-cards { grid-template-columns: repeat(2, 1fr); }
   .platform-row { flex-direction: column; gap: 16px; }

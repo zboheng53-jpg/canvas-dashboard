@@ -85,7 +85,7 @@
         <!-- Add custom todo -->
         <form class="add-todo-form" id="add-todo-form" style="margin-bottom: 0;">
           <input type="text" id="new-todo-input" placeholder="&#28155;&#21152;&#26032;&#24453;&#21150;..." autocomplete="off">
-          <input type="date" id="new-todo-due" class="date-input">
+          <input type="date" id="new-todo-due" class="date-input" aria-label="截止日期" title="截止日期">
           <button type="submit">+</button>
         </form>
 
@@ -206,6 +206,7 @@
     let canvasItems = [];
     let customItems = [];
     let expandedCustomTodoIds = [];
+    let openMobileActionItemId = null;
     let hiddenIds = [];
     let highlightedIds = [];
 
@@ -299,6 +300,11 @@
     function setNewTodoDueDefault(today) {
       const dueInput = document.getElementById('new-todo-due');
       if (dueInput && !dueInput.value) dueInput.value = today;
+    }
+
+    function toggleMobileActions(itemId) {
+      openMobileActionItemId = openMobileActionItemId === itemId ? null : itemId;
+      renderUnifiedList();
     }
 
     async function fetchCustomTodos() {
@@ -530,6 +536,7 @@
         const subtaskToggleHtml = item.source === 'custom'
           ? `<button class="subtask-toggle" onclick="toggleSubtasks(${item.rawId})" title="${subtaskToggleLabel}" aria-label="${subtaskToggleLabel}">${subtaskToggleIcon}</button>`
           : '<span class="subtask-toggle subtask-toggle-placeholder" aria-hidden="true">&#x25b8;</span>';
+        const mobileActionsOpen = openMobileActionItemId === item.id;
 
         const animAttr = doAnimate ? `enter-item" style="animation-delay:${0.34 + idx * 0.04}s` : '';
 
@@ -540,7 +547,10 @@
             ${item.course ? `<span class="item-course">${escapeHtml(item.course)}</span>` : ''}
             ${labelsHtml}
             ${dueHtml}
-            <span class="item-subtask-slot">${subtaskToggleHtml}</span><span class="item-actions">${actionsHtml}</span>
+            <span class="item-subtask-slot">${subtaskToggleHtml}</span>
+            <span class="item-desktop-actions">${actionsHtml}</span>
+            <button class="mobile-action-trigger" onclick="toggleMobileActions('${item.id}')" aria-label="更多操作" aria-expanded="${mobileActionsOpen}">•••</button>
+            <span class="item-mobile-actions ${mobileActionsOpen ? 'open' : ''}">${actionsHtml}</span>
           </div>
         `;
 
@@ -1214,4 +1224,3 @@
   </script>
 </body>
 </html>
-
