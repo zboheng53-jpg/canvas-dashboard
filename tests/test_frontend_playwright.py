@@ -122,6 +122,7 @@ def test_frontend_new_todo_date_defaults_to_server_today(live_app, browser):
     register_dashboard_user(page, live_app, "dateuser")
 
     expect(page.locator("#new-todo-due")).to_have_value("2026-07-09")
+    expect(page.locator("#new-todo-due")).to_have_attribute("aria-label", "截止日期")
 
 
 def test_frontend_todo_heading_is_centered_in_header(live_app, browser):
@@ -144,7 +145,7 @@ def test_frontend_mobile_header_compacts_weather(live_app, browser):
 
     expect(page.locator(".weather-desc")).to_be_hidden()
     expect(page.locator(".weather-detail")).to_be_hidden()
-    expect(page.locator("#term-info")).to_be_visible()
+    expect(page.locator("#term-info")).to_be_hidden()
     assert page.locator(".weather-left").evaluate(
         "element => getComputedStyle(element).display"
     ) == "flex"
@@ -171,7 +172,7 @@ def test_frontend_mobile_todo_layout_is_compact_and_tappable(live_app, browser, 
     page = browser.new_page(viewport={"width": width, "height": 844})
     register_dashboard_user(page, live_app, f"mobiletodo{width}")
 
-    todo = page.locator(".unified-item")
+    todo = page.locator(".unified-item").first
     expect(todo).to_be_visible()
     assert todo.evaluate("element => getComputedStyle(element).display") == "grid"
     assert page.evaluate("document.documentElement.scrollWidth") <= width
@@ -182,15 +183,33 @@ def test_frontend_mobile_todo_layout_is_compact_and_tappable(live_app, browser, 
     assert todo_input_box is not None
     assert date_input_box is not None
     assert add_button_box is not None
-    assert date_input_box["y"] >= todo_input_box["y"] + todo_input_box["height"]
-    assert add_button_box["y"] >= todo_input_box["y"] + todo_input_box["height"]
+    assert abs(todo_input_box["y"] - date_input_box["y"]) < 1
+    assert abs(todo_input_box["y"] - add_button_box["y"]) < 1
     expect(todo.locator(".item-course")).to_be_hidden()
 
-    for selector in (".btn-flag", ".btn-dismiss", ".btn-delete"):
-        button_box = todo.locator(selector).bounding_box()
+    trigger = todo.locator(".mobile-action-trigger")
+    expect(trigger).to_be_visible()
+    trigger_box = trigger.bounding_box()
+    assert trigger_box is not None
+    assert trigger_box["width"] >= 35.9
+    assert trigger_box["height"] >= 35.9
+    trigger.click()
+
+    mobile_actions = todo.locator(".item-mobile-actions")
+    expect(mobile_actions).to_be_visible()
+    for selector, handler_name in (
+        (".btn-flag", "toggleHighlight"),
+        (".btn-dismiss", "toggleHide"),
+        (".btn-delete", "toggleCanvasDelete"),
+    ):
+        button = mobile_actions.locator(selector)
+        button_box = button.bounding_box()
         assert button_box is not None
         assert button_box["width"] >= 35.9
         assert button_box["height"] >= 35.9
+        onclick = button.get_attribute("onclick")
+        assert onclick is not None
+        assert handler_name in onclick
 
     page.fill("#new-todo-input", "Mobile labels #lab")
     page.click("#add-todo-form button")
@@ -214,6 +233,70 @@ def test_frontend_mobile_todo_layout_is_compact_and_tappable(live_app, browser, 
     login_cards = page.locator("#login-cards")
     expect(login_cards).to_be_visible()
     assert len(login_cards.evaluate("element => getComputedStyle(element).gridTemplateColumns").split()) == 2
+
+
+@pytest.mark.parametrize("width", [375, 390, 768])
+def test_frontend_mobile_compact_controls_and_action_menu(live_app, browser, width):
+    page = browser.new_page(viewport={"width": width, "height": 844})
+    register_dashboard_user(page, live_app, f"compact{width}")
+
+    expect(page.locator(".term-info")).to_be_hidden()
+    form_box = page.locator("#add-todo-form").bounding_box()
+    title_box = page.locator("#new-todo-input").bounding_box()
+    date_box = page.locator("#new-todo-due").bounding_box()
+    add_box = page.locator("#add-todo-form button").bounding_box()
+    assert form_box is not None
+    assert title_box is not None
+    assert date_box is not None
+    assert add_box is not None
+    assert abs(title_box["y"] - date_box["y"]) < 1
+    assert abs(title_box["y"] - add_box["y"]) < 1
+    assert page.evaluate("document.documentElement.scrollWidth") <= width
+
+    items = page.locator(".unified-item")
+    expect(items).to_have_count(1)
+    first_item = items.nth(0)
+    first_trigger = first_item.locator(".mobile-action-trigger")
+    expect(first_trigger).to_be_visible()
+    expect(first_trigger).to_have_attribute("aria-expanded", "false")
+    expect(first_item.locator(".item-mobile-actions")).to_be_hidden()
+    expect(first_item.locator(".item-desktop-actions")).to_be_hidden()
+
+    first_trigger.click()
+    expect(first_trigger).to_have_attribute("aria-expanded", "true")
+    expect(first_item.locator(".item-mobile-actions")).to_be_visible()
+    expect(first_item.locator(".item-mobile-actions .btn-flag")).to_be_visible()
+    expect(first_item.locator(".item-mobile-actions .btn-dismiss")).to_be_visible()
+    expect(first_item.locator(".item-mobile-actions .btn-delete")).to_be_visible()
+
+    first_trigger.click()
+    expect(first_trigger).to_have_attribute("aria-expanded", "false")
+    expect(first_item.locator(".item-mobile-actions")).to_be_hidden()
+
+    page.fill("#new-todo-input", "Second compact mobile todo")
+    page.click("#add-todo-form button")
+    expect(items).to_have_count(2)
+    first_item = items.nth(0)
+    second_item = items.nth(1)
+    first_trigger = first_item.locator(".mobile-action-trigger")
+    second_trigger = second_item.locator(".mobile-action-trigger")
+
+    first_trigger.click()
+    expect(first_item.locator(".item-mobile-actions")).to_be_visible()
+    second_trigger.click()
+    expect(first_item.locator(".item-mobile-actions")).to_be_hidden()
+    expect(second_item.locator(".item-mobile-actions")).to_be_visible()
+
+
+@pytest.mark.parametrize("width", [769, 1024])
+def test_frontend_desktop_keeps_inline_todo_actions(live_app, browser, width):
+    page = browser.new_page(viewport={"width": width, "height": 844})
+    register_dashboard_user(page, live_app, f"desktopactions{width}")
+
+    todo = page.locator(".unified-item")
+    expect(todo.locator(".item-desktop-actions")).to_be_visible()
+    expect(todo.locator(".mobile-action-trigger")).to_be_hidden()
+    expect(todo.locator(".item-mobile-actions")).to_be_hidden()
 
 
 def test_frontend_custom_todos_subtasks_platform_cards_without_ocr(live_app, browser):
