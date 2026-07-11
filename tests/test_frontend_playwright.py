@@ -139,33 +139,49 @@ def test_frontend_todo_heading_is_centered_in_header(live_app, browser):
     assert abs(header_center - title_center) <= 8
 
 
-def test_frontend_mobile_header_compacts_weather(live_app, browser):
-    page = browser.new_page(viewport={"width": 375, "height": 844})
-    register_dashboard_user(page, live_app, "mobileheader")
+@pytest.mark.parametrize("width", [375, 390, 768])
+def test_frontend_mobile_header_shows_compact_weather_and_term(live_app, browser, width):
+    page = browser.new_page(viewport={"width": width, "height": 844})
+    register_dashboard_user(page, live_app, f"mobileheader{width}")
 
-    expect(page.locator(".weather-desc")).to_be_hidden()
-    expect(page.locator(".weather-detail")).to_be_hidden()
-    expect(page.locator("#term-info")).to_be_hidden()
-    assert page.locator(".weather-left").evaluate(
-        "element => getComputedStyle(element).display"
-    ) == "flex"
-    assert page.locator(".weather-left").evaluate(
-        "element => getComputedStyle(element).flexDirection"
-    ) == "row"
+    weather_desc = page.locator(".weather-desc")
+    weather_detail = page.locator(".weather-detail")
+    term_info = page.locator("#term-info")
+    term_refresh = page.locator(".term-refresh-btn")
+    expect(weather_desc).to_be_visible()
+    expect(weather_detail).to_be_visible()
+    expect(weather_detail).to_contain_text("湿度 55%")
+    expect(weather_detail).to_contain_text("风速 8 m/s")
+    expect(term_info).to_be_visible()
+    expect(term_refresh).to_be_visible()
+
     emoji_box = page.locator(".weather-emoji").bounding_box()
     temp_box = page.locator(".weather-temp").bounding_box()
-    time_box = page.locator(".clock-section .time").bounding_box()
-    header_box = page.locator(".top-bar").bounding_box()
-    weather_card_box = page.locator(".weather-card").bounding_box()
-    assert emoji_box is not None
-    assert temp_box is not None
-    assert time_box is not None
-    assert header_box is not None
-    assert weather_card_box is not None
-    assert time_box["x"] < emoji_box["x"]
-    assert weather_card_box["y"] <= header_box["y"] + 4
+    desc_box = weather_desc.bounding_box()
+    detail_box = weather_detail.bounding_box()
+    term_box = term_info.bounding_box()
+    assert all(box is not None for box in (emoji_box, temp_box, desc_box, detail_box, term_box))
     assert emoji_box["x"] < temp_box["x"]
     assert abs((emoji_box["y"] + emoji_box["height"] / 2) - (temp_box["y"] + temp_box["height"] / 2)) <= 2
+    assert desc_box["y"] > temp_box["y"]
+    assert abs((desc_box["y"] + desc_box["height"] / 2) - (detail_box["y"] + detail_box["height"] / 2)) <= 2
+    assert term_box["y"] >= max(
+        desc_box["y"] + desc_box["height"],
+        detail_box["y"] + detail_box["height"],
+    )
+    assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+
+
+def test_frontend_desktop_header_keeps_weather_and_term_layout(live_app, browser):
+    page = browser.new_page(viewport={"width": 769, "height": 844})
+    register_dashboard_user(page, live_app, "desktopheader")
+
+    expect(page.locator(".weather-desc")).to_be_visible()
+    expect(page.locator(".weather-detail")).to_be_visible()
+    expect(page.locator("#term-info")).to_be_visible()
+    assert page.locator(".weather-card").evaluate(
+        "element => getComputedStyle(element).flexDirection"
+    ) == "row"
 
 
 @pytest.mark.parametrize("width", [375, 390, 768])
@@ -265,7 +281,7 @@ def test_frontend_mobile_compact_controls_and_action_menu(live_app, browser, wid
     page = browser.new_page(viewport={"width": width, "height": 844})
     register_dashboard_user(page, live_app, f"compact{width}")
 
-    expect(page.locator(".term-info")).to_be_hidden()
+    expect(page.locator(".term-info")).to_be_visible()
     form_box = page.locator("#add-todo-form").bounding_box()
     title_box = page.locator("#new-todo-input").bounding_box()
     date_box = page.locator("#new-todo-due").bounding_box()
