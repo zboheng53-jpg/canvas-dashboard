@@ -151,7 +151,7 @@ def test_frontend_mobile_header_compacts_weather(live_app, browser):
     ) == "flex"
     assert page.locator(".weather-left").evaluate(
         "element => getComputedStyle(element).flexDirection"
-    ) == "column"
+    ) == "row"
     emoji_box = page.locator(".weather-emoji").bounding_box()
     temp_box = page.locator(".weather-temp").bounding_box()
     time_box = page.locator(".clock-section .time").bounding_box()
@@ -164,7 +164,32 @@ def test_frontend_mobile_header_compacts_weather(live_app, browser):
     assert weather_card_box is not None
     assert time_box["x"] < emoji_box["x"]
     assert weather_card_box["y"] <= header_box["y"] + 4
-    assert emoji_box["y"] < temp_box["y"]
+    assert emoji_box["x"] < temp_box["x"]
+    assert abs((emoji_box["y"] + emoji_box["height"] / 2) - (temp_box["y"] + temp_box["height"] / 2)) <= 2
+
+
+@pytest.mark.parametrize("width", [375, 390, 768])
+def test_frontend_mobile_alignment_places_controls_on_the_right(live_app, browser, width):
+    page = browser.new_page(viewport={"width": width, "height": 844})
+    register_dashboard_user(page, live_app, f"alignment{width}")
+    page.fill("#new-todo-input", "Alignment task #label")
+    page.click("#add-todo-form button")
+
+    item = page.locator(".unified-item-wrap").filter(has_text="Alignment task")
+    expect(item).to_be_visible()
+    label_box = item.locator(".item-labels").bounding_box()
+    subtask_box = item.locator(".item-subtask-slot").bounding_box()
+    heading_box = page.locator(".section-header h2").bounding_box()
+    header_box = page.locator(".section-header").bounding_box()
+    emoji_box = page.locator(".weather-emoji").bounding_box()
+    temp_box = page.locator(".weather-temp").bounding_box()
+    assert label_box is not None and subtask_box is not None
+    assert heading_box is not None and header_box is not None
+    assert emoji_box is not None and temp_box is not None
+    assert subtask_box["x"] > label_box["x"]
+    assert abs((heading_box["y"] + heading_box["height"] / 2) - (header_box["y"] + header_box["height"] / 2)) <= 8
+    assert emoji_box["x"] < temp_box["x"]
+    assert abs((emoji_box["y"] + emoji_box["height"] / 2) - (temp_box["y"] + temp_box["height"] / 2)) <= 2
 
 
 @pytest.mark.parametrize("width", [375, 390, 768])

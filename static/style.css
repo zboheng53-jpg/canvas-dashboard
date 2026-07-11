@@ -1098,12 +1098,13 @@ a:hover { color: var(--accent-hover); }
   .clock-section .date-info { gap: 12px; flex-wrap: wrap; }
   .top-right-group { align-items: flex-end; align-self: flex-start; min-width: 48px; }
   .weather-card { flex-direction: column; align-items: flex-end; gap: 2px; }
-  .weather-left { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+  .weather-left { display: flex; flex-direction: row; align-items: center; gap: 6px; }
   .weather-emoji { font-size: 26px; }
   .weather-temp { font-size: 32px; line-height: 1; }
   .weather-right { display: none; }
   .term-info { display: none; }
   .section-header { flex-wrap: wrap; align-items: flex-start; gap: 8px; }
+  .section-header h2 { align-self: center; }
   .header-right { margin-left: auto; }
   .add-todo-form { display: flex; align-items: flex-start; flex-wrap: nowrap; }
   .add-todo-form #new-todo-input { flex: 1; min-width: 0; }
@@ -1126,8 +1127,7 @@ a:hover { color: var(--accent-hover); }
     grid-template-areas:
       "source title more"
       "source due more"
-      "source labels labels"
-      "source subtask subtask"
+      "source labels subtask"
       "source mobile-actions mobile-actions";
     align-items: start;
     column-gap: 8px;
@@ -1143,7 +1143,7 @@ a:hover { color: var(--accent-hover); }
   .item-due { grid-area: due; align-self: start; font-size: 12px; }
   .item-labels { grid-area: labels; margin-top: 0; min-width: 0; }
   .label-badge { max-width: 100%; box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; }
-  .item-subtask-slot { grid-area: subtask; margin-right: 0; min-height: 36px; }
+  .item-subtask-slot { grid-area: subtask; justify-self: end; align-self: center; margin-right: 0; min-height: 36px; }
   .item-desktop-actions { display: none; }
   .mobile-action-trigger {
     grid-area: more;
