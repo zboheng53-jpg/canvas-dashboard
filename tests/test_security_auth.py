@@ -170,6 +170,19 @@ def test_register_rejects_weak_password_and_duplicate_username(isolated_auth_cli
     assert duplicate.get_json()["ok"] is False
 
 
+def test_register_validation_error_is_sent_as_utf8_chinese(isolated_auth_client):
+    response = isolated_auth_client.post(
+        "/api/auth/register",
+        json={"username": "x", "password": "strong-password"},
+        headers=_set_csrf(isolated_auth_client),
+    )
+
+    body = response.get_data(as_text=True)
+    assert response.status_code == 400
+    assert "用户名需为 3-20 位字母、数字或下划线" in body
+    assert "\\u7528" not in body
+
+
 def test_unauthenticated_api_returns_401_and_page_redirects_to_login(anonymous_client):
     api_resp = anonymous_client.get("/api/clock")
     page_resp = anonymous_client.get("/")

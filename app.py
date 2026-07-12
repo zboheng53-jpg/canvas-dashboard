@@ -41,6 +41,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelna
 logger = logging.getLogger("app")
 
 app = Flask(__name__)
+app.json.ensure_ascii = False
 app.secret_key = auth.get_secret_key()
 app.permanent_session_lifetime = auth.SESSION_LIFETIME
 app.config["MAX_CONTENT_LENGTH"] = settings.MAX_CONTENT_LENGTH_BYTES
