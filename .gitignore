@@ -39,3 +39,4 @@ Thumbs.db
 # Local agent/tool state.
 .claude/
 .superpowers/
+.worktrees/
