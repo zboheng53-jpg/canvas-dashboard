@@ -34,6 +34,17 @@ def test_subtasks_are_isolated_by_source_and_item_id(external_store):
     assert stored["canvas:42"]["updated_at"].endswith("+00:00")
 
 
+def test_subtasks_are_isolated_by_user_for_the_same_source_and_item_id(external_store):
+    alice_subtasks = [{"id": "alice-step", "text": "Alice", "done": False}]
+    bob_subtasks = [{"id": "bob-step", "text": "Bob", "done": True}]
+
+    external_subtasks.save_subtasks("alice", "canvas", "assignment-1", alice_subtasks)
+    external_subtasks.save_subtasks("bob", "canvas", "assignment-1", bob_subtasks)
+
+    assert external_subtasks.load_subtasks("alice", "canvas", "assignment-1") == alice_subtasks
+    assert external_subtasks.load_subtasks("bob", "canvas", "assignment-1") == bob_subtasks
+
+
 def test_attach_subtasks_merges_saved_and_default_subtasks_without_mutating_input(external_store):
     subtasks = [{"id": "1", "text": "Read", "done": False}]
     external_subtasks.save_subtasks("alice", "zhixuemeng", "work-1", subtasks)
