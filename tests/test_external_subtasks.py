@@ -272,6 +272,8 @@ def test_platform_todos_add_empty_subtasks_when_no_record_exists(api_client, mon
     "payload",
     [
         {"source": "invalid", "item_id": "item-1", "subtasks": []},
+        {"source": [], "item_id": "item-1", "subtasks": []},
+        {"source": {}, "item_id": "item-1", "subtasks": []},
         {"source": "canvas", "item_id": "   ", "subtasks": []},
         {"source": "canvas", "item_id": "item-1", "subtasks": {}},
         None,

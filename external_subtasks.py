@@ -19,7 +19,7 @@ def _subtasks_file(username: str):
 
 
 def _record_key(source: str, item_id) -> str:
-    if source not in SUPPORTED_SOURCES:
+    if not isinstance(source, str) or source not in SUPPORTED_SOURCES:
         raise ValueError("Unsupported external subtask source")
     if item_id is None:
         raise ValueError("External subtask item id is required")
