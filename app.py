@@ -15,6 +15,7 @@ from flask import Flask, jsonify, render_template, request, session, redirect
 import auth
 import apple_calendar
 import settings
+from external_subtasks import attach_subtasks, save_subtasks
 from platform_state import build_platform_todos_response
 from storage import JsonFileCorruptionError, locked_json_update, read_json_file, write_json_file
 from user_paths import user_dir
@@ -558,6 +559,23 @@ def api_config():
     return jsonify({"ok": True, "has_feed": has_feed_url(username)})
 
 
+@app.route("/api/external-subtasks", methods=["PUT"])
+def api_external_subtasks():
+    data = read_json_request()
+    if data is None:
+        return invalid_request_response()
+    try:
+        subtasks = save_subtasks(
+            session["username"],
+            data.get("source"),
+            data.get("item_id"),
+            data.get("subtasks"),
+        )
+    except ValueError as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+    return jsonify({"ok": True, "subtasks": subtasks})
+
+
 @app.route("/api/canvas/todos")
 def api_canvas_todos():
     username = session["username"]
@@ -569,7 +587,7 @@ def api_canvas_todos():
         save_state=lambda changed_state: save_state(username, changed_state),
         now=datetime.now(CST),
     )
-    return jsonify(result)
+    return jsonify(attach_subtasks(username, "canvas", result))
 
 
 @app.route("/api/canvas/state", methods=["GET", "POST"])
@@ -632,7 +650,7 @@ def api_haoke_todos():
         save_state=lambda changed_state: save_haoke_state(username, changed_state),
         now=datetime.now(CST),
     )
-    return jsonify(result)
+    return jsonify(attach_subtasks(username, "haoke", result))
 
 
 @app.route("/api/haoke/state", methods=["GET", "POST"])
@@ -742,7 +760,7 @@ def api_zxm_todos():
         save_state=lambda changed_state: save_zxm_state(username, changed_state),
         now=datetime.now(CST),
     )
-    return jsonify(result)
+    return jsonify(attach_subtasks(username, "zhixuemeng", result))
 
 
 @app.route("/api/zhixuemeng/state", methods=["GET", "POST"])
@@ -788,7 +806,7 @@ def api_zhihuishu_todos():
     cache = zhihuishu_store.load_cache(username)
 
     if status.get("session") in ("not_logged_in", "need_relogin") and not cache["items"]:
-        return jsonify({
+        return jsonify(attach_subtasks(username, "zhihuishu", {
             "ok": False,
             "need_setup": True,
             "status": status,
@@ -796,7 +814,7 @@ def api_zhihuishu_todos():
             "hidden": state["hidden"],
             "highlighted": state["highlighted"],
             "deleted": state["deleted"],
-        })
+        }))
 
     result = {
         "ok": True,
@@ -806,7 +824,8 @@ def api_zhihuishu_todos():
         "fetched_at": cache["fetched_at"],
         "status": status,
     }
-    return jsonify(build_platform_todos_response(result, state, auto_delete_expired_hidden=False))
+    result = build_platform_todos_response(result, state, auto_delete_expired_hidden=False)
+    return jsonify(attach_subtasks(username, "zhihuishu", result))
 
 
 @app.route("/api/zhihuishu/state", methods=["GET", "POST"])
@@ -1317,6 +1336,5 @@ if __name__ == "__main__":
     print(f"\n  Canvas Dashboard")
     print(f"  娴忚鍣ㄦ墦寮€ 鈫?http://{settings.APP_HOST}:{settings.APP_PORT}\n")
     app.run(host=settings.APP_HOST, port=settings.APP_PORT, debug=False)
-
 
 
