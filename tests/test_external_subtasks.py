@@ -45,6 +45,33 @@ def test_subtasks_are_isolated_by_user_for_the_same_source_and_item_id(external_
     assert external_subtasks.load_subtasks("bob", "canvas", "assignment-1") == bob_subtasks
 
 
+def test_subtasks_use_trimmed_item_ids_for_saving_loading_and_attaching(external_store):
+    subtasks = [{"id": "step-1", "text": "Trimmed", "done": False}]
+    external_subtasks.save_subtasks("alice", "canvas", " 42 ", subtasks)
+
+    assert external_subtasks.load_subtasks("alice", "canvas", "42") == subtasks
+    attached = external_subtasks.attach_subtasks(
+        "alice",
+        "canvas",
+        {"data": [{"id": "42", "title": "Assignment"}]},
+    )
+    assert attached["data"][0]["subtasks"] == subtasks
+
+
+def test_load_subtasks_returns_empty_list_before_the_store_exists(external_store):
+    assert external_subtasks.load_subtasks("alice", "canvas", "assignment-1") == []
+
+
+def test_save_rejects_wrong_shaped_store_without_replacing_it(external_store):
+    store_file = external_store("alice") / "external_subtasks.json"
+    store_file.write_text("[]", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="external subtasks"):
+        external_subtasks.save_subtasks("alice", "canvas", "assignment-1", [])
+
+    assert store_file.read_text(encoding="utf-8") == "[]"
+
+
 def test_attach_subtasks_merges_saved_and_default_subtasks_without_mutating_input(external_store):
     subtasks = [{"id": "1", "text": "Read", "done": False}]
     external_subtasks.save_subtasks("alice", "zhixuemeng", "work-1", subtasks)
