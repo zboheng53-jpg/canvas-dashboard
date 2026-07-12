@@ -7,6 +7,7 @@ import pytest
 from werkzeug.serving import make_server
 
 import app as dashboard_app
+import external_subtasks
 import user_paths
 
 playwright_api = pytest.importorskip("playwright.sync_api")
@@ -36,6 +37,7 @@ def live_app(tmp_path, monkeypatch):
     monkeypatch.setattr(dashboard_app.auth, "USERS_FILE", tmp_path / "users.json")
     monkeypatch.setattr(dashboard_app.auth, "SECRET_KEY_FILE", tmp_path / ".flask_secret_key")
     monkeypatch.setattr(user_paths, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(external_subtasks, "user_dir", resolve_user_dir)
     monkeypatch.setattr(dashboard_app, "datetime", FixedDateTime)
     if hasattr(dashboard_app, "_rate_limit_buckets"):
         dashboard_app._rate_limit_buckets.clear()
@@ -73,10 +75,26 @@ def live_app(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(dashboard_app, "load_state", lambda username: {"hidden": [], "highlighted": [], "deleted": []})
     monkeypatch.setattr(dashboard_app, "save_state", lambda username, state: None)
-    monkeypatch.setattr(dashboard_app, "fetch_haoke_todos", lambda username: {"ok": True, "data": [], "cached": False})
+    monkeypatch.setattr(
+        dashboard_app,
+        "fetch_haoke_todos",
+        lambda username: {
+            "ok": True,
+            "data": [{"id": 202, "title": "Haoke seeded", "course": "Haoke", "due_str": "07-11", "due_ts": "2099-07-11T00:00:00+08:00", "type": "Haoke", "url": ""}],
+            "cached": False,
+        },
+    )
     monkeypatch.setattr(dashboard_app, "load_haoke_state", lambda username: {"hidden": [], "highlighted": [], "deleted": []})
     monkeypatch.setattr(dashboard_app, "save_haoke_state", lambda username, state: None)
-    monkeypatch.setattr(dashboard_app, "fetch_zxm_assignments", lambda username, course_code=None: {"ok": True, "items": [], "cached": False})
+    monkeypatch.setattr(
+        dashboard_app,
+        "fetch_zxm_assignments",
+        lambda username, course_code=None: {
+            "ok": True,
+            "items": [{"id": "zxm-303", "title": "Zhixuemeng seeded", "course": "Zhixuemeng", "due_str": "07-12", "due_ts": "2099-07-12T00:00:00+08:00", "type": "Zhixuemeng", "url": ""}],
+            "cached": False,
+        },
+    )
     monkeypatch.setattr(dashboard_app, "load_zxm_state", lambda username: {"hidden": [], "highlighted": [], "deleted": []})
     monkeypatch.setattr(dashboard_app, "save_zxm_state", lambda username, state: None)
     monkeypatch.setattr(dashboard_app, "get_selected_course", lambda username: None)
@@ -85,7 +103,11 @@ def live_app(tmp_path, monkeypatch):
     monkeypatch.setattr(
         dashboard_app.zhihuishu_store,
         "load_cache",
-        lambda username: {"items": [], "stale": False, "fetched_at": None},
+        lambda username: {
+            "items": [{"id": "zhs-404", "title": "Zhihuishu seeded", "course": "Zhihuishu", "due_str": "07-13", "due_ts": "2099-07-13T00:00:00+08:00", "type": "Zhihuishu", "url": ""}],
+            "stale": False,
+            "fetched_at": None,
+        },
     )
     monkeypatch.setattr(dashboard_app.zhihuishu_login_sessions, "load_session", lambda username: None)
     dashboard_app.app.config.update(TESTING=True)
@@ -295,8 +317,8 @@ def test_frontend_mobile_compact_controls_and_action_menu(live_app, browser, wid
     assert page.evaluate("document.documentElement.scrollWidth") <= width
 
     items = page.locator(".unified-item")
-    expect(items).to_have_count(1)
-    first_item = items.nth(0)
+    expect(items).to_have_count(4)
+    first_item = page.locator(".unified-item-wrap").filter(has_text="Canvas seeded").locator(".unified-item")
     first_trigger = first_item.locator(".mobile-action-trigger")
     expect(first_trigger).to_be_visible()
     expect(first_trigger).to_have_attribute("aria-expanded", "false")
@@ -316,9 +338,8 @@ def test_frontend_mobile_compact_controls_and_action_menu(live_app, browser, wid
 
     page.fill("#new-todo-input", "Second compact mobile todo")
     page.click("#add-todo-form button")
-    expect(items).to_have_count(2)
-    first_item = items.nth(0)
-    second_item = items.nth(1)
+    expect(items).to_have_count(5)
+    second_item = page.locator(".unified-item-wrap").filter(has_text="Second compact mobile todo").locator(".unified-item")
     first_trigger = first_item.locator(".mobile-action-trigger")
     second_trigger = second_item.locator(".mobile-action-trigger")
 
@@ -334,7 +355,7 @@ def test_frontend_desktop_keeps_inline_todo_actions(live_app, browser, width):
     page = browser.new_page(viewport={"width": width, "height": 844})
     register_dashboard_user(page, live_app, f"desktopactions{width}")
 
-    todo = page.locator(".unified-item")
+    todo = page.locator(".unified-item-wrap").filter(has_text="Canvas seeded").locator(".unified-item")
     expect(todo.locator(".item-desktop-actions")).to_be_visible()
     expect(todo.locator(".mobile-action-trigger")).to_be_hidden()
     expect(todo.locator(".item-mobile-actions")).to_be_hidden()
@@ -370,3 +391,89 @@ def test_frontend_custom_todos_subtasks_platform_cards_without_ocr(live_app, bro
 
     expect(page.locator(".ocr-trigger-arrow-btn")).to_have_count(0)
     expect(page.locator("#ocr-text-input")).to_have_count(0)
+
+
+@pytest.mark.parametrize(
+    ("source", "title"),
+    [
+        ("canvas", "Canvas seeded"),
+        ("haoke", "Haoke seeded"),
+        ("zhixuemeng", "Zhixuemeng seeded"),
+        ("zhihuishu", "Zhihuishu seeded"),
+    ],
+)
+def test_frontend_external_platform_subtasks_persist_and_reload(live_app, browser, source, title):
+    page = browser.new_page()
+    register_dashboard_user(page, live_app, f"external{source}")
+
+    item = page.locator(".unified-item-wrap").filter(has_text=title)
+    toggle = item.locator(".subtask-toggle")
+    expect(toggle).to_be_visible()
+    expect(toggle).to_have_text("▸")
+    toggle.click()
+    expect(toggle).to_have_text("▾")
+
+    add_input = item.locator(".subtask-add-input")
+    add_input.fill("Draft response")
+    add_input.press("Enter")
+    expect(item.locator(".subtask-text")).to_have_text("Draft response")
+
+    item.locator(".subtask-text").click()
+    edit_input = item.locator(".subtask-edit-input")
+    edit_input.fill("Edit response")
+    edit_input.press("Enter")
+    expect(item.locator(".subtask-text")).to_have_text("Edit response")
+
+    with page.expect_response(
+        lambda response: response.url.endswith("/api/external-subtasks") and response.request.method == "PUT"
+    ):
+        item.locator(".subtask-due-input").fill("2026-07-10")
+    checkbox = item.locator(".subtask-row input[type=checkbox]")
+    with page.expect_response(
+        lambda response: response.url.endswith("/api/external-subtasks") and response.request.method == "PUT"
+    ):
+        checkbox.check()
+    expect(checkbox).to_be_checked()
+
+    page.reload()
+    item = page.locator(".unified-item-wrap").filter(has_text=title)
+    toggle = item.locator(".subtask-toggle")
+    expect(toggle).to_have_text("▸")
+    expect(item.locator(".subtask-panel")).to_have_count(0)
+    toggle.click()
+    expect(item.locator(".subtask-text")).to_have_text("Edit response")
+    expect(item.locator(".subtask-due-input")).to_have_value("2026-07-10")
+    expect(item.locator(".subtask-row input[type=checkbox]")).to_be_checked()
+
+    item.locator(".subtask-delete").click()
+    expect(item.locator(".subtask-row")).to_have_count(0)
+
+
+@pytest.mark.parametrize("width", [375, 1024])
+@pytest.mark.parametrize(
+    ("source", "title"),
+    [
+        ("canvas", "Canvas seeded"),
+        ("haoke", "Haoke seeded"),
+        ("zhixuemeng", "Zhixuemeng seeded"),
+        ("zhihuishu", "Zhihuishu seeded"),
+    ],
+)
+def test_frontend_external_subtask_toggle_keeps_row_geometry(live_app, browser, source, title, width):
+    page = browser.new_page(viewport={"width": width, "height": 844})
+    register_dashboard_user(page, live_app, f"g{source[:3]}{width}")
+
+    item = page.locator(".unified-item-wrap").filter(has_text=title)
+    toggle = item.locator(".subtask-toggle")
+    slot_box = item.locator(".item-subtask-slot").bounding_box()
+    toggle_box = toggle.bounding_box()
+    badge_box = item.locator(".item-source-badge").bounding_box()
+    assert slot_box is not None and toggle_box is not None
+    assert badge_box is not None
+    expect(toggle).to_be_visible()
+    assert slot_box["x"] <= toggle_box["x"]
+    assert toggle_box["x"] + toggle_box["width"] <= slot_box["x"] + slot_box["width"] + 1
+    assert slot_box["x"] > badge_box["x"]
+    if width < 769:
+        assert toggle_box["width"] >= 35.9
+        assert toggle_box["height"] >= 35.9

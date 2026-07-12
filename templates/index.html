@@ -205,7 +205,7 @@
     // ---- Unified Todo Data ----
     let canvasItems = [];
     let customItems = [];
-    let expandedCustomTodoIds = [];
+    let expandedSubtaskKeys = [];
     let openMobileActionItemId = null;
     let hiddenIds = [];
     let highlightedIds = [];
@@ -356,6 +356,7 @@
           highlighted: isHighlighted,
           rawId: item.id,
           manualHighlighted: isHighlighted,
+          subtasks: item.subtasks || [],
         });
       });
 
@@ -377,6 +378,7 @@
           highlighted: isHighlighted,
           rawId: item.id,
           manualHighlighted: isHighlighted,
+          subtasks: item.subtasks || [],
         });
       });
 
@@ -398,6 +400,7 @@
           highlighted: isHighlighted,
           rawId: item.id,
           manualHighlighted: isHighlighted,
+          subtasks: item.subtasks || [],
         });
       });
 
@@ -419,6 +422,7 @@
           highlighted: isHighlighted,
           rawId: item.id,
           manualHighlighted: isHighlighted,
+          subtasks: item.subtasks || [],
         });
       });
 
@@ -530,12 +534,13 @@
           : '';
 
         const subtasks = item.subtasks || [];
-        const isSubtaskExpanded = item.source === 'custom' && expandedCustomTodoIds.includes(item.rawId);
+        const subtaskKey = JSON.stringify([item.source, String(item.rawId)]);
+        const isSubtaskExpanded = expandedSubtaskKeys.includes(subtaskKey);
         const subtaskToggleLabel = isSubtaskExpanded ? '\u6536\u8d77\u5b50\u4efb\u52a1' : '\u5c55\u5f00\u5b50\u4efb\u52a1';
         const subtaskToggleIcon = isSubtaskExpanded ? '&#x25be;' : '&#x25b8;';
-        const subtaskToggleHtml = item.source === 'custom'
-          ? `<button class="subtask-toggle" onclick="toggleSubtasks(${item.rawId})" title="${subtaskToggleLabel}" aria-label="${subtaskToggleLabel}">${subtaskToggleIcon}</button>`
-          : '<span class="subtask-toggle subtask-toggle-placeholder" aria-hidden="true">&#x25b8;</span>';
+        const sourceArg = inlineJson(item.source);
+        const todoIdArg = inlineJson(item.rawId);
+        const subtaskToggleHtml = `<button class="subtask-toggle" onclick="toggleSubtasks(${sourceArg}, ${todoIdArg})" title="${subtaskToggleLabel}" aria-label="${subtaskToggleLabel}">${subtaskToggleIcon}</button>`;
         const mobileActionsOpen = openMobileActionItemId === item.id;
 
         const animAttr = doAnimate ? `enter-item" style="animation-delay:${0.34 + idx * 0.04}s` : '';
@@ -554,11 +559,7 @@
           </div>
         `;
 
-        if (item.source !== 'custom') {
-          return rowHtml;
-        }
-
-        const panelHtml = isSubtaskExpanded ? renderSubtaskPanel(item.rawId, subtasks) : '';
+        const panelHtml = isSubtaskExpanded ? renderSubtaskPanel(item.source, item.rawId, subtasks) : '';
         const previewHtml = '';
         return `
           <div class="unified-item-wrap">
@@ -617,15 +618,18 @@
       return `<div class="subtask-upcoming-preview">+ ${parts}</div>`;
     }
 
-    function renderSubtaskPanel(todoId, subtasks) {
+    function renderSubtaskPanel(source, todoId, subtasks) {
       const rowsHtml = subtasks.map((subtask, idx) => {
         const sid = subtask.id != null ? subtask.id : idx;
+        const sourceArg = inlineJson(source);
+        const todoIdArg = inlineJson(todoId);
+        const subtaskIdArg = inlineJson(sid);
         return `
         <div class="subtask-row">
-          <input type="checkbox" ${subtask.done ? 'checked' : ''} onchange="toggleSubtaskDone(${todoId}, ${sid})">
-          <span class="subtask-text ${subtask.done ? 'done' : ''}" onclick="startSubtaskEdit(${todoId}, ${sid}, this)">${escapeHtml(subtask.text)}</span>
-          <input type="date" class="subtask-due-input" value="${subtask.due_date || ''}" onchange="handleSubtaskDueChange(${todoId}, ${sid}, this.value)" title="\u622a\u6b62\u65e5\u671f">
-          <button class="subtask-delete" onclick="deleteSubtask(${todoId}, ${sid})" title="delete subtask">x</button>
+          <input type="checkbox" ${subtask.done ? 'checked' : ''} onchange="toggleSubtaskDone(${sourceArg}, ${todoIdArg}, ${subtaskIdArg})">
+          <span class="subtask-text ${subtask.done ? 'done' : ''}" onclick="startSubtaskEdit(${sourceArg}, ${todoIdArg}, ${subtaskIdArg}, this)">${escapeHtml(subtask.text)}</span>
+          <input type="date" class="subtask-due-input" value="${subtask.due_date || ''}" onchange="handleSubtaskDueChange(${sourceArg}, ${todoIdArg}, ${subtaskIdArg}, this.value)" title="\u622a\u6b62\u65e5\u671f">
+          <button class="subtask-delete" onclick="deleteSubtask(${sourceArg}, ${todoIdArg}, ${subtaskIdArg})" title="delete subtask">x</button>
         </div>
       `;
       }).join('');
@@ -633,7 +637,7 @@
       return `
         <div class="subtask-panel">
           ${rowsHtml || '<div class="subtask-empty">\u8fd8\u6ca1\u6709\u5b50\u4efb\u52a1</div>'}
-          <input class="subtask-add-input" placeholder="\u6dfb\u52a0\u5b50\u4efb\u52a1..." onkeydown="handleSubtaskAddKey(event, ${todoId})">
+          <input class="subtask-add-input" placeholder="\u6dfb\u52a0\u5b50\u4efb\u52a1..." onkeydown="handleSubtaskAddKey(event, ${inlineJson(source)}, ${inlineJson(todoId)})">
         </div>
       `;
     }
@@ -853,124 +857,140 @@
     }
 
     // ---- Custom Todos CRUD ----
-    function findCustomTodo(todoId) {
-      return customItems.find(item => item.id === todoId);
+    function sourceItems(source) {
+      if (source === 'canvas') return canvasItems;
+      if (source === 'haoke') return haokeItems;
+      if (source === 'zhixuemeng') return zhixuemengItems;
+      if (source === 'zhihuishu') return zhihuishuItems;
+      return source === 'custom' ? customItems : [];
     }
 
-    function toggleSubtasks(todoId) {
-      if (expandedCustomTodoIds.includes(todoId)) {
-        expandedCustomTodoIds = expandedCustomTodoIds.filter(id => id !== todoId);
+    function findSubtaskTodo(source, todoId) {
+      return sourceItems(source).find(item => String(item.id) === String(todoId));
+    }
+
+    function toggleSubtasks(source, todoId) {
+      const key = JSON.stringify([source, String(todoId)]);
+      if (expandedSubtaskKeys.includes(key)) {
+        expandedSubtaskKeys = expandedSubtaskKeys.filter(item => item !== key);
       } else {
-        expandedCustomTodoIds.push(todoId);
+        expandedSubtaskKeys.push(key);
       }
       renderUnifiedList();
     }
 
-    function handleSubtaskAddKey(event, todoId) {
+    function handleSubtaskAddKey(event, source, todoId) {
       if (event.key === 'Enter') {
-        addSubtask(todoId, event.target.value);
+        addSubtask(source, todoId, event.target.value);
       } else if (event.key === 'Escape') {
         event.target.value = '';
         event.target.blur();
       }
     }
 
-    async function saveCustomSubtasks(todoId, subtasks) {
-      try {
-        const todo = findCustomTodo(todoId);
-        const payload = { subtasks };
-        if (todo && todo.updated_at) payload.updated_at = todo.updated_at;
-        const resp = await fetch(`/api/custom/todos/${todoId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (!resp.ok) throw new Error('save failed');
+    async function refreshSubtaskSource(source) {
+      if (source === 'canvas') return fetchCanvasTodos();
+      if (source === 'haoke') return fetchHaokeTodos();
+      if (source === 'zhixuemeng') return fetchZhixuemengTodos();
+      if (source === 'zhihuishu') return fetchZhihuishuTodos();
+      return fetchCustomTodos();
+    }
 
-        const data = await resp.json();
+    async function saveSubtasks(source, todoId, subtasks) {
+      try {
+        const todo = findSubtaskTodo(source, todoId);
+        let resp;
+        let data;
+        if (source === 'custom') {
+          const payload = { subtasks };
+          if (todo && todo.updated_at) payload.updated_at = todo.updated_at;
+          resp = await fetch(`/api/custom/todos/${todoId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (!resp.ok) throw new Error('save failed');
+          data = await resp.json();
+        } else {
+          resp = await fetch('/api/external-subtasks', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ source, item_id: todoId, subtasks }),
+          });
+          if (!resp.ok) throw new Error('save failed');
+          data = await resp.json();
+        }
+
         if (todo) {
-          todo.subtasks = subtasks;
-          if (data.todo && data.todo.updated_at) todo.updated_at = data.todo.updated_at;
+          todo.subtasks = data.subtasks || subtasks;
+          if (source === 'custom' && data.todo && data.todo.updated_at) todo.updated_at = data.todo.updated_at;
         }
         renderUnifiedList();
       } catch (e) {
         alert('\u4fdd\u5b58\u5931\u8d25');
-        fetchCustomTodos();
+        await refreshSubtaskSource(source);
       }
     }
 
-    async function addSubtask(todoId, text) {
+    function subtaskId(subtask, index) {
+      return subtask.id != null ? subtask.id : index;
+    }
+
+    async function addSubtask(source, todoId, text) {
       const trimmed = text.trim();
       if (!trimmed) return;
 
-      const todo = findCustomTodo(todoId);
+      const todo = findSubtaskTodo(source, todoId);
       if (!todo) return;
 
       const currentSubtasks = todo.subtasks || [];
-      const newId = Math.max(0, ...currentSubtasks.map(subtask => subtask.id || 0)) + 1;
+      const newId = Math.max(0, ...currentSubtasks.map(subtask => Number(subtask.id) || 0)) + 1;
       const subtasks = [
         ...currentSubtasks,
         { id: newId, text: trimmed, done: false },
       ];
-      await saveCustomSubtasks(todoId, sortSubtasks(subtasks));
+      await saveSubtasks(source, todoId, sortSubtasks(subtasks));
     }
 
-    async function toggleSubtaskDone(todoId, subtaskId) {
-      const todo = findCustomTodo(todoId);
+    async function toggleSubtaskDone(source, todoId, subtaskIdValue) {
+      const todo = findSubtaskTodo(source, todoId);
       if (!todo) return;
 
-      const sid = Number(subtaskId);
+      const sid = String(subtaskIdValue);
       const subtasks = (todo.subtasks || []).map((subtask, idx) => {
-        const id = subtask.id != null ? subtask.id : idx;
-        if (id === sid) {
-          const newSubtask = { ...subtask, done: !subtask.done };
-          if (newSubtask.id == null) {
-            newSubtask.id = idx;
-          }
-          return newSubtask;
-        }
-        if (subtask.id == null) {
-          return { ...subtask, id: idx };
-        }
-        return subtask;
+        const id = subtaskId(subtask, idx);
+        const identifiedSubtask = subtask.id == null ? { ...subtask, id } : subtask;
+        return String(id) === sid ? { ...identifiedSubtask, done: !subtask.done } : identifiedSubtask;
       });
-
-      await saveCustomSubtasks(todoId, sortSubtasks(subtasks));
+      await saveSubtasks(source, todoId, sortSubtasks(subtasks));
     }
 
-    async function deleteSubtask(todoId, subtaskId) {
-      const todo = findCustomTodo(todoId);
+    async function deleteSubtask(source, todoId, subtaskIdValue) {
+      const todo = findSubtaskTodo(source, todoId);
       if (!todo) return;
 
-      const sid = Number(subtaskId);
-      const subtasks = (todo.subtasks || []).filter((subtask, idx) => {
-        const id = subtask.id != null ? subtask.id : idx;
-        return id !== sid;
-      });
-      await saveCustomSubtasks(todoId, sortSubtasks(subtasks));
+      const sid = String(subtaskIdValue);
+      const subtasks = (todo.subtasks || []).filter((subtask, idx) => String(subtaskId(subtask, idx)) !== sid);
+      await saveSubtasks(source, todoId, sortSubtasks(subtasks));
     }
 
-    async function handleSubtaskDueChange(todoId, subtaskId, dueDate) {
-      const todo = findCustomTodo(todoId);
+    async function handleSubtaskDueChange(source, todoId, subtaskIdValue, dueDate) {
+      const todo = findSubtaskTodo(source, todoId);
       if (!todo) return;
 
-      const sid = Number(subtaskId);
+      const sid = String(subtaskIdValue);
       const subtasks = (todo.subtasks || []).map((subtask, idx) => {
-        const id = subtask.id != null ? subtask.id : idx;
-        return id === sid ? { ...subtask, due_date: dueDate || null } : subtask;
+        return String(subtaskId(subtask, idx)) === sid ? { ...subtask, due_date: dueDate || null } : subtask;
       });
-      await saveCustomSubtasks(todoId, sortSubtasks(subtasks));
+      await saveSubtasks(source, todoId, sortSubtasks(subtasks));
     }
 
-    function startSubtaskEdit(todoId, subtaskId, spanEl) {
-      const todo = findCustomTodo(todoId);
+    function startSubtaskEdit(source, todoId, subtaskIdValue, spanEl) {
+      const todo = findSubtaskTodo(source, todoId);
       if (!todo) return;
 
-      const sid = Number(subtaskId);
-      const subtask = (todo.subtasks || []).find((item, idx) => {
-        const id = item.id != null ? item.id : idx;
-        return id === sid;
-      });
+      const sid = String(subtaskIdValue);
+      const subtask = (todo.subtasks || []).find((item, idx) => String(subtaskId(item, idx)) === sid);
       if (!subtask) return;
 
       const originalText = subtask.text;
@@ -990,10 +1010,9 @@
         }
 
         const subtasks = (todo.subtasks || []).map((item, idx) => {
-          const id = item.id != null ? item.id : idx;
-          return id === sid ? { ...item, text: nextText } : item;
+          return String(subtaskId(item, idx)) === sid ? { ...item, text: nextText } : item;
         });
-        await saveCustomSubtasks(todoId, sortSubtasks(subtasks));
+        await saveSubtasks(source, todoId, sortSubtasks(subtasks));
       }
 
       input.addEventListener('keydown', event => {
@@ -1192,6 +1211,13 @@
       const div = document.createElement('div');
       div.textContent = str;
       return div.innerHTML;
+    }
+
+    function inlineJson(value) {
+      return JSON.stringify(value)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;');
     }
 
     // ---- Init ----
