@@ -562,7 +562,7 @@
         const panelHtml = isSubtaskExpanded ? renderSubtaskPanel(item.source, item.rawId, subtasks) : '';
         const previewHtml = '';
         return `
-          <div class="unified-item-wrap">
+          <div class="unified-item-wrap"${idx === 0 ? ' style="border-top:none"' : ''}>
             ${rowHtml}
             ${previewHtml}
             ${panelHtml}
@@ -628,7 +628,7 @@
         <div class="subtask-row">
           <input type="checkbox" ${subtask.done ? 'checked' : ''} onchange="toggleSubtaskDone(${sourceArg}, ${todoIdArg}, ${subtaskIdArg})">
           <span class="subtask-text ${subtask.done ? 'done' : ''}" onclick="startSubtaskEdit(${sourceArg}, ${todoIdArg}, ${subtaskIdArg}, this)">${escapeHtml(subtask.text)}</span>
-          <input type="date" class="subtask-due-input" value="${subtask.due_date || ''}" onchange="handleSubtaskDueChange(${sourceArg}, ${todoIdArg}, ${subtaskIdArg}, this.value)" title="\u622a\u6b62\u65e5\u671f">
+          <input type="date" class="subtask-due-input" value="${escapeAttribute(subtask.due_date || '')}" onchange="handleSubtaskDueChange(${sourceArg}, ${todoIdArg}, ${subtaskIdArg}, this.value)" title="\u622a\u6b62\u65e5\u671f">
           <button class="subtask-delete" onclick="deleteSubtask(${sourceArg}, ${todoIdArg}, ${subtaskIdArg})" title="delete subtask">x</button>
         </div>
       `;
@@ -912,11 +912,17 @@
           if (!resp.ok) throw new Error('save failed');
           data = await resp.json();
         } else {
+          const payload = { source, item_id: todoId, subtasks };
+          if (todo && todo.subtasks_updated_at) payload.updated_at = todo.subtasks_updated_at;
           resp = await fetch('/api/external-subtasks', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ source, item_id: todoId, subtasks }),
+            body: JSON.stringify(payload),
           });
+          if (resp.status === 409) {
+            await refreshSubtaskSource(source);
+            return;
+          }
           if (!resp.ok) throw new Error('save failed');
           data = await resp.json();
         }
@@ -924,6 +930,7 @@
         if (todo) {
           todo.subtasks = data.subtasks || subtasks;
           if (source === 'custom' && data.todo && data.todo.updated_at) todo.updated_at = data.todo.updated_at;
+          if (source !== 'custom' && data.updated_at) todo.subtasks_updated_at = data.updated_at;
         }
         renderUnifiedList();
       } catch (e) {
@@ -1002,7 +1009,10 @@
       input.focus();
       input.select();
 
+      let finished = false;
       async function finish(save) {
+        if (finished) return;
+        finished = true;
         const nextText = input.value.trim();
         if (!save || !nextText || nextText === originalText) {
           renderUnifiedList();
@@ -1211,6 +1221,15 @@
       const div = document.createElement('div');
       div.textContent = str;
       return div.innerHTML;
+    }
+
+    function escapeAttribute(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
     }
 
     function inlineJson(value) {

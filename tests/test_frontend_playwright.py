@@ -420,14 +420,19 @@ def test_frontend_external_platform_subtasks_persist_and_reload(live_app, browse
 
     item.locator(".subtask-text").click()
     edit_input = item.locator(".subtask-edit-input")
-    edit_input.fill("Edit response")
-    edit_input.press("Enter")
+    with page.expect_response(
+        lambda response: response.url.endswith("/api/external-subtasks") and response.request.method == "PUT"
+    ) as edit_response:
+        edit_input.fill("Edit response")
+        edit_input.press("Enter")
     expect(item.locator(".subtask-text")).to_have_text("Edit response")
+    assert json.loads(edit_response.value.request.post_data)["updated_at"]
 
     with page.expect_response(
         lambda response: response.url.endswith("/api/external-subtasks") and response.request.method == "PUT"
     ):
         item.locator(".subtask-due-input").fill("2026-07-10")
+    expect(item.locator(".subtask-due-input")).to_have_value("2026-07-10")
     checkbox = item.locator(".subtask-row input[type=checkbox]")
     with page.expect_response(
         lambda response: response.url.endswith("/api/external-subtasks") and response.request.method == "PUT"
@@ -447,6 +452,65 @@ def test_frontend_external_platform_subtasks_persist_and_reload(live_app, browse
 
     item.locator(".subtask-delete").click()
     expect(item.locator(".subtask-row")).to_have_count(0)
+
+
+def test_frontend_external_subtask_conflict_refreshes_matching_platform(live_app, browser):
+    page = browser.new_page()
+    register_dashboard_user(page, live_app, "externalconflict")
+    item = page.locator(".unified-item-wrap").filter(has_text="Canvas seeded")
+    item.locator(".subtask-toggle").click()
+    item.locator(".subtask-add-input").fill("Client copy")
+    item.locator(".subtask-add-input").press("Enter")
+    page.evaluate("""async () => {
+      await fetch('/api/external-subtasks', {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          source: 'canvas', item_id: 101,
+          subtasks: [{id: 1, text: 'Server copy', done: false}],
+        }),
+      });
+    }""")
+
+    item.locator(".subtask-text").click()
+    with page.expect_response(
+        lambda response: response.url.endswith("/api/canvas/todos") and response.request.method == "GET"
+    ):
+        item.locator(".subtask-edit-input").fill("Stale client copy")
+        item.locator(".subtask-edit-input").press("Enter")
+    expect(item.locator(".subtask-text")).to_have_text("Server copy")
+
+
+def test_frontend_external_subtask_due_date_does_not_inject_html_attributes(live_app, browser):
+    page = browser.new_page()
+    register_dashboard_user(page, live_app, "maliciousdate")
+    external_subtasks._subtasks_file("maliciousdate").write_text(json.dumps({
+        "canvas:101": {
+            "updated_at": "2026-07-09T12:00:00+00:00",
+            "subtasks": [{
+                "id": 1,
+                "text": "Safe text",
+                "done": False,
+                "due_date": '" autofocus onfocus="window.externalSubtaskXss=true',
+            }],
+        },
+    }), encoding="utf-8")
+    page.reload()
+    item = page.locator(".unified-item-wrap").filter(has_text="Canvas seeded")
+    item.locator(".subtask-toggle").click()
+    due_input = item.locator(".subtask-due-input")
+
+    assert due_input.get_attribute("onfocus") is None
+    due_input.focus()
+    assert page.evaluate("window.externalSubtaskXss") is None
+
+
+def test_frontend_first_external_row_has_no_top_border(live_app, browser):
+    page = browser.new_page()
+    register_dashboard_user(page, live_app, "externalborder")
+
+    first_external = page.locator(".unified-item-wrap").filter(has_text="Canvas seeded")
+    assert first_external.evaluate("element => getComputedStyle(element).borderTopWidth") == "0px"
 
 
 @pytest.mark.parametrize("width", [375, 1024])

@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import copy
-from datetime import datetime, timezone
+import re
+from datetime import date, datetime, timezone
 
 from storage import locked_json_update, read_json_file
 from user_paths import user_dir
@@ -42,24 +43,58 @@ def _load_records(username: str) -> dict:
     return _validate_records(read_json_file(path, {}), path)
 
 
-def save_subtasks(username: str, source: str, item_id, subtasks: list) -> list:
-    """Atomically replace subtasks for one external-platform item."""
-    key = _record_key(source, item_id)
+def _validate_subtasks(subtasks: list) -> None:
     if not isinstance(subtasks, list):
         raise ValueError("Subtasks must be a list")
+    for subtask in subtasks:
+        if not isinstance(subtask, dict):
+            raise ValueError("Each subtask must be an object")
+        due_date = subtask.get("due_date")
+        if due_date in (None, ""):
+            continue
+        if not isinstance(due_date, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", due_date):
+            raise ValueError("Subtask due date must be YYYY-MM-DD")
+        try:
+            date.fromisoformat(due_date)
+        except ValueError as error:
+            raise ValueError("Subtask due date must be YYYY-MM-DD") from error
+
+
+def save_subtasks_with_version(username: str, source: str, item_id, subtasks: list, updated_at=None) -> tuple[dict, bool]:
+    """Atomically replace subtasks unless the supplied version is stale."""
+    key = _record_key(source, item_id)
+    _validate_subtasks(subtasks)
     saved_subtasks = copy.deepcopy(subtasks)
     path = _subtasks_file(username)
+    result = {"record": None, "conflict": False}
 
     def replace_record(records):
         records = dict(_validate_records(records, path))
-        records[key] = {
+        current = records.get(key, {})
+        if not isinstance(current, dict):
+            current = {}
+        if updated_at and updated_at != current.get("updated_at"):
+            result["record"] = {
+                "subtasks": copy.deepcopy(current.get("subtasks", [])),
+                "updated_at": current.get("updated_at"),
+            }
+            result["conflict"] = True
+            return records
+        result["record"] = {
             "subtasks": saved_subtasks,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
+        records[key] = result["record"]
         return records
 
     locked_json_update(path, {}, replace_record)
-    return copy.deepcopy(saved_subtasks)
+    return copy.deepcopy(result["record"]), result["conflict"]
+
+
+def save_subtasks(username: str, source: str, item_id, subtasks: list) -> list:
+    """Atomically replace subtasks for one external-platform item."""
+    record, _ = save_subtasks_with_version(username, source, item_id, subtasks)
+    return record["subtasks"]
 
 
 def load_subtasks(username: str, source: str, item_id) -> list:
@@ -75,5 +110,7 @@ def attach_subtasks(username: str, source: str, result: dict) -> dict:
     response = copy.deepcopy(result)
     records = _load_records(username)
     for item in response.get("data", []):
-        item["subtasks"] = copy.deepcopy(records.get(_record_key(source, item.get("id")), {}).get("subtasks", []))
+        record = records.get(_record_key(source, item.get("id")), {})
+        item["subtasks"] = copy.deepcopy(record.get("subtasks", []))
+        item["subtasks_updated_at"] = record.get("updated_at")
     return response

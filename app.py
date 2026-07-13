@@ -15,7 +15,7 @@ from flask import Flask, jsonify, render_template, request, session, redirect
 import auth
 import apple_calendar
 import settings
-from external_subtasks import attach_subtasks, save_subtasks
+from external_subtasks import attach_subtasks, save_subtasks_with_version
 from platform_state import build_platform_todos_response
 from storage import JsonFileCorruptionError, locked_json_update, read_json_file, write_json_file
 from user_paths import user_dir
@@ -565,15 +565,23 @@ def api_external_subtasks():
     if data is None:
         return invalid_request_response()
     try:
-        subtasks = save_subtasks(
+        record, conflict = save_subtasks_with_version(
             session["username"],
             data.get("source"),
             data.get("item_id"),
             data.get("subtasks"),
+            data.get("updated_at"),
         )
     except ValueError as error:
         return jsonify({"ok": False, "error": str(error)}), 400
-    return jsonify({"ok": True, "subtasks": subtasks})
+    if conflict:
+        return jsonify({
+            "ok": False,
+            "code": "external_subtasks_conflict",
+            "error": "External subtasks changed; refresh and try again",
+            "record": record,
+        }), 409
+    return jsonify({"ok": True, **record})
 
 
 @app.route("/api/canvas/todos")
@@ -1336,5 +1344,4 @@ if __name__ == "__main__":
     print(f"\n  Canvas Dashboard")
     print(f"  娴忚鍣ㄦ墦寮€ 鈫?http://{settings.APP_HOST}:{settings.APP_PORT}\n")
     app.run(host=settings.APP_HOST, port=settings.APP_PORT, debug=False)
-
 

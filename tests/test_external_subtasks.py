@@ -88,7 +88,9 @@ def test_attach_subtasks_merges_saved_and_default_subtasks_without_mutating_inpu
     attached = external_subtasks.attach_subtasks("alice", "zhixuemeng", result)
 
     assert attached["data"][0]["subtasks"] == subtasks
+    assert attached["data"][0]["subtasks_updated_at"]
     assert attached["data"][1]["subtasks"] == []
+    assert attached["data"][1]["subtasks_updated_at"] is None
     assert result == original
     assert attached is not result
     assert attached["data"] is not result["data"]
@@ -213,13 +215,60 @@ def test_put_subtasks_are_returned_by_each_platform_todos_route(
     )
 
     assert saved.status_code == 200
-    assert saved.get_json() == {"ok": True, "subtasks": subtasks}
+    saved_payload = saved.get_json()
+    assert saved_payload["ok"] is True
+    assert saved_payload["subtasks"] == subtasks
+    assert saved_payload["updated_at"]
 
     configure_route(monkeypatch)
     response = api_client.get(path)
 
     assert response.status_code == 200
-    assert response.get_json()["data"] == [{**item, "subtasks": subtasks}]
+    assert response.get_json()["data"] == [{
+        **item,
+        "subtasks": subtasks,
+        "subtasks_updated_at": saved_payload["updated_at"],
+    }]
+
+
+def test_external_subtasks_put_rejects_stale_subtask_version_with_current_record(api_client):
+    first = api_client.put(
+        "/api/external-subtasks",
+        json={"source": "canvas", "item_id": "item-1", "subtasks": []},
+        headers=api_client.csrf_headers,
+    ).get_json()
+    current = api_client.put(
+        "/api/external-subtasks",
+        json={
+            "source": "canvas",
+            "item_id": "item-1",
+            "subtasks": [{"id": 1, "text": "Server", "done": False}],
+            "updated_at": first["updated_at"],
+        },
+        headers=api_client.csrf_headers,
+    ).get_json()
+
+    response = api_client.put(
+        "/api/external-subtasks",
+        json={
+            "source": "canvas",
+            "item_id": "item-1",
+            "subtasks": [{"id": 1, "text": "Stale", "done": True}],
+            "updated_at": first["updated_at"],
+        },
+        headers=api_client.csrf_headers,
+    )
+
+    assert response.status_code == 409
+    assert response.get_json() == {
+        "ok": False,
+        "code": "external_subtasks_conflict",
+        "error": "External subtasks changed; refresh and try again",
+        "record": {
+            "subtasks": [{"id": 1, "text": "Server", "done": False}],
+            "updated_at": current["updated_at"],
+        },
+    }
 
 
 def test_same_item_id_is_isolated_between_platform_sources(api_client, monkeypatch):
@@ -293,6 +342,22 @@ def test_external_subtasks_put_rejects_invalid_payload(api_client, payload):
             json=payload,
             headers=api_client.csrf_headers,
         )
+
+    assert response.status_code == 400
+    assert response.get_json()["ok"] is False
+
+
+@pytest.mark.parametrize("due_date", ["2026-7-01", "2026-02-30", '" onfocus="alert(1)', 7])
+def test_external_subtasks_put_rejects_invalid_subtask_due_date(api_client, due_date):
+    response = api_client.put(
+        "/api/external-subtasks",
+        json={
+            "source": "canvas",
+            "item_id": "item-1",
+            "subtasks": [{"id": 1, "text": "Read", "done": False, "due_date": due_date}],
+        },
+        headers=api_client.csrf_headers,
+    )
 
     assert response.status_code == 400
     assert response.get_json()["ok"] is False
