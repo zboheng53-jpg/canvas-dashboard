@@ -564,6 +564,8 @@ def api_external_subtasks():
     data = read_json_request()
     if data is None:
         return invalid_request_response()
+    if "updated_at" not in data:
+        return jsonify({"ok": False, "error": "updated_at is required"}), 400
     try:
         record, conflict = save_subtasks_with_version(
             session["username"],

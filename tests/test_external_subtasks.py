@@ -210,7 +210,7 @@ def test_put_subtasks_are_returned_by_each_platform_todos_route(
     subtasks = [{"id": f"{source}-step", "text": "Read", "done": False}]
     saved = api_client.put(
         "/api/external-subtasks",
-        json={"source": source, "item_id": item["id"], "subtasks": subtasks},
+        json={"source": source, "item_id": item["id"], "subtasks": subtasks, "updated_at": None},
         headers=api_client.csrf_headers,
     )
 
@@ -234,7 +234,7 @@ def test_put_subtasks_are_returned_by_each_platform_todos_route(
 def test_external_subtasks_put_rejects_stale_subtask_version_with_current_record(api_client):
     first = api_client.put(
         "/api/external-subtasks",
-        json={"source": "canvas", "item_id": "item-1", "subtasks": []},
+        json={"source": "canvas", "item_id": "item-1", "subtasks": [], "updated_at": None},
         headers=api_client.csrf_headers,
     ).get_json()
     current = api_client.put(
@@ -271,13 +271,51 @@ def test_external_subtasks_put_rejects_stale_subtask_version_with_current_record
     }
 
 
+def test_external_subtasks_put_rejects_second_initial_save_with_null_version(api_client):
+    first_subtasks = [{"id": 1, "text": "First client", "done": False}]
+    first = api_client.put(
+        "/api/external-subtasks",
+        json={
+            "source": "canvas",
+            "item_id": "new-item",
+            "subtasks": first_subtasks,
+            "updated_at": None,
+        },
+        headers=api_client.csrf_headers,
+    )
+    second = api_client.put(
+        "/api/external-subtasks",
+        json={
+            "source": "canvas",
+            "item_id": "new-item",
+            "subtasks": [{"id": 1, "text": "Second client", "done": False}],
+            "updated_at": None,
+        },
+        headers=api_client.csrf_headers,
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 409
+    assert second.get_json()["record"]["subtasks"] == first_subtasks
+
+
+def test_external_subtasks_put_requires_explicit_null_version_for_initial_save(api_client):
+    response = api_client.put(
+        "/api/external-subtasks",
+        json={"source": "canvas", "item_id": "new-item", "subtasks": []},
+        headers=api_client.csrf_headers,
+    )
+
+    assert response.status_code == 400
+
+
 def test_same_item_id_is_isolated_between_platform_sources(api_client, monkeypatch):
     canvas_subtasks = [{"id": "canvas-step", "text": "Canvas", "done": False}]
     haoke_subtasks = [{"id": "haoke-step", "text": "Haoke", "done": True}]
     for source, subtasks in (("canvas", canvas_subtasks), ("haoke", haoke_subtasks)):
         response = api_client.put(
             "/api/external-subtasks",
-            json={"source": source, "item_id": "shared-item", "subtasks": subtasks},
+            json={"source": source, "item_id": "shared-item", "subtasks": subtasks, "updated_at": None},
             headers=api_client.csrf_headers,
         )
         assert response.status_code == 200
@@ -355,6 +393,7 @@ def test_external_subtasks_put_rejects_invalid_subtask_due_date(api_client, due_
             "source": "canvas",
             "item_id": "item-1",
             "subtasks": [{"id": 1, "text": "Read", "done": False, "due_date": due_date}],
+            "updated_at": None,
         },
         headers=api_client.csrf_headers,
     )

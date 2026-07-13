@@ -9,6 +9,7 @@ from storage import locked_json_update, read_json_file
 from user_paths import user_dir
 
 SUPPORTED_SOURCES = {"canvas", "haoke", "zhixuemeng", "zhihuishu"}
+_UNSPECIFIED_VERSION = object()
 
 
 class ExternalSubtasksDataError(RuntimeError):
@@ -60,7 +61,9 @@ def _validate_subtasks(subtasks: list) -> None:
             raise ValueError("Subtask due date must be YYYY-MM-DD") from error
 
 
-def save_subtasks_with_version(username: str, source: str, item_id, subtasks: list, updated_at=None) -> tuple[dict, bool]:
+def save_subtasks_with_version(
+    username: str, source: str, item_id, subtasks: list, updated_at=_UNSPECIFIED_VERSION
+) -> tuple[dict, bool]:
     """Atomically replace subtasks unless the supplied version is stale."""
     key = _record_key(source, item_id)
     _validate_subtasks(subtasks)
@@ -73,7 +76,7 @@ def save_subtasks_with_version(username: str, source: str, item_id, subtasks: li
         current = records.get(key, {})
         if not isinstance(current, dict):
             current = {}
-        if updated_at and updated_at != current.get("updated_at"):
+        if updated_at is not _UNSPECIFIED_VERSION and updated_at != current.get("updated_at"):
             result["record"] = {
                 "subtasks": copy.deepcopy(current.get("subtasks", [])),
                 "updated_at": current.get("updated_at"),

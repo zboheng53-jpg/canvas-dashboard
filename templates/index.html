@@ -912,8 +912,12 @@
           if (!resp.ok) throw new Error('save failed');
           data = await resp.json();
         } else {
-          const payload = { source, item_id: todoId, subtasks };
-          if (todo && todo.subtasks_updated_at) payload.updated_at = todo.subtasks_updated_at;
+          const payload = {
+            source,
+            item_id: todoId,
+            subtasks,
+            updated_at: todo ? (todo.subtasks_updated_at ?? null) : null,
+          };
           resp = await fetch('/api/external-subtasks', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
