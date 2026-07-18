@@ -1,30 +1,35 @@
 ---
 name: deploy-canvas-dashboard
-description: Deploy changes to the remote production server for the Canvas Dashboard project. Triggers when the user mentions deploying, uploading to server, syncing to production, shipping, restarting service, or putting changes live for canvas-dashboard.
+description: Use when deploying, uploading, syncing, shipping, restarting, rolling back, or putting Canvas Dashboard changes live on its production server.
 ---
 
 # Deploy Canvas Dashboard
 
-Use this skill to deploy the local codebase of Canvas Dashboard to the remote production server.
+Run the repository deployment script exactly; do not reimplement its release sequence with ad hoc `scp`, extraction, or service commands.
 
-## Production Server Details
-- **IP Address**: `124.222.188.101`
-- **Username**: `ubuntu`
-- **Deployment Directory**: `/home/ubuntu/canvas-dashboard/`
-- **Systemd Service**: `canvas-dashboard.service`
+## Deploy
 
-## How to Deploy
-
-Run the deployment script from the project root:
+From the project root:
 
 ```powershell
-.agents\skills\deploy-canvas-dashboard\scripts\deploy.ps1
+./.agents/skills/deploy-canvas-dashboard/scripts/deploy.ps1
 ```
 
-This automated deployment script will:
-1. Run local Python unittest suites using `.venv\Scripts\python.exe -m unittest discover -s tests` to prevent shipping broken code.
-2. Package the workspace into `canvas-dashboard.tar.gz` excluding files not required on production (`.venv`, `data`, `__pycache__`, `.superpowers`, `.claude`, `.git`, `.pytest_cache`, `.agents`).
-3. Copy the packaged archive to the server via `scp`.
-4. Extract the archive in `/home/ubuntu/canvas-dashboard/` and clean up the remote copy.
-5. Restart the server service with `sudo systemctl restart canvas-dashboard`.
-6. Query and output the status of the service using `sudo systemctl status canvas-dashboard` to verify deployment was successful.
+The script is the source of truth. It currently:
+
+1. runs `scripts/test.ps1` and Python compilation;
+2. creates and downloads an encrypted production-data backup, verifies it, and performs an isolated recovery drill;
+3. uses strict SSH host-key checking with `deploy/known_hosts`;
+4. uploads an immutable timestamped release under `/home/ubuntu/canvas-dashboard/releases/` without `data/`, `.venv/`, `.git/`, caches, or agent directories;
+5. atomically switches `/home/ubuntu/canvas-dashboard/current`;
+6. installs systemd/nginx configuration and restarts `canvas-dashboard.service` plus `zhihuishu-worker.service`;
+7. verifies both services, `zhihuishu-login-cleanup.timer`, `canvas-dashboard-backup.timer`, nginx, local `/healthz`, and HTTPS `/healthz`;
+8. restores the previous release automatically if activation or health verification fails.
+
+Do not use `-SkipPreDeployBackup` unless the user explicitly accepts skipping the off-server backup and recovery drill.
+
+## Report
+
+Report the activated release name and the exact verification result. If the script exits nonzero, report that deployment failed or rolled back; do not claim production is updated.
+
+For manual rollback, service diagnostics, backup recovery, or certificate operations, follow `docs/operations.md` and `docs/backup-and-restore.md`.

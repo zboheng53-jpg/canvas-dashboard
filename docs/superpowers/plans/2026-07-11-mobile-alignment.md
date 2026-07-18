@@ -1,5 +1,7 @@
 # Mobile Alignment Implementation Plan
 
+> Historical planning record. These mobile alignment changes are represented by the current stylesheet and Playwright suite; do not use unchecked boxes here as current task status.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Apply the three requested phone-only alignment corrections without changing the desktop layout.

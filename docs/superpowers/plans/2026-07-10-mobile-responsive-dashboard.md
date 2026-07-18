@@ -1,5 +1,7 @@
 # Mobile Responsive Dashboard Implementation Plan
 
+> Historical planning record. The responsive dashboard has since received additional alignment, density, weather, authentication-form, and regression-test changes. Use current CSS and Playwright tests instead of applying this checklist literally.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make the existing dashboard URL usable in mobile browsers without changing desktop behavior, data, or APIs.

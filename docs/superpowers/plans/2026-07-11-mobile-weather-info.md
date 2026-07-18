@@ -1,5 +1,7 @@
 # Mobile Weather and Term Information Implementation Plan
 
+> Historical planning record. The current phone header behavior is defined by `static/style.css` and the Playwright regression suite, not by this unchecked implementation checklist.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Show compact weather details and term information beneath the current weather icon and temperature in the mobile dashboard header without changing desktop presentation.

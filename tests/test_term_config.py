@@ -4,6 +4,27 @@ import json
 import app as dashboard_app
 
 
+def test_term_refresh_failure_returns_readable_utf8_chinese(monkeypatch):
+    monkeypatch.setattr(dashboard_app, "_scrape_term_from_tongji", lambda: None)
+    dashboard_app.app.config.update(TESTING=True)
+
+    with dashboard_app.app.test_client() as client:
+        with client.session_transaction() as sess:
+            sess["username"] = "alice"
+            sess["_csrf_token"] = "term-refresh-token"
+        response = client.post(
+            "/api/term/refresh",
+            headers={"X-CSRF-Token": "term-refresh-token"},
+        )
+
+    assert response.status_code == 502
+    assert response.get_json() == {
+        "ok": False,
+        "error": "CDP 抓取失败，请确认已登录 1.tongji.edu.cn 且 CDP proxy 正在运行",
+    }
+    assert "�" not in response.get_data(as_text=True)
+
+
 def test_load_term_config_reads_json_override(tmp_path, monkeypatch):
     config_file = tmp_path / "term_config.json"
     config_file.write_text(

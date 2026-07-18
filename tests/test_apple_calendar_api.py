@@ -21,6 +21,7 @@ def calendar_client(tmp_path, monkeypatch):
     monkeypatch.setattr(apple_calendar, "DATA_DIR", tmp_path)
     monkeypatch.setattr(apple_calendar, "user_dir", resolve_user_dir)
     monkeypatch.setattr(zhihuishu_store, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(dashboard_app.settings, "APPLE_CALENDAR_ENABLED", True)
     dashboard_app.app.config.update(TESTING=True)
     with dashboard_app.app.test_client() as client:
         with client.session_transaction() as sess:
@@ -34,8 +35,36 @@ def test_calendar_subscription_reads_only_active_cached_tasks(calendar_client, m
     client, user_dir = calendar_client
     user_dir("alice").joinpath("custom_todos.json").write_text(
         json.dumps([
-            {"id": 1, "text": "Custom due date", "due_date": "2099-07-11", "done": False},
+            {
+                "id": 1,
+                "text": "Custom due date",
+                "due_date": "2099-07-11",
+                "done": False,
+                "subtasks": [
+                    {"id": 1, "text": "Active subtask", "due_date": "2099-07-13", "done": False},
+                    {"id": 2, "text": "Completed subtask", "due_date": "2099-07-13", "done": True},
+                    {"id": 3, "text": "Undated subtask", "done": False},
+                ],
+            },
             {"id": 2, "text": "Completed custom", "due_date": "2099-07-11", "done": True},
+            {
+                "id": 3,
+                "text": "Undated parent",
+                "due_date": None,
+                "done": False,
+                "subtasks": [
+                    {"id": 1, "text": "Subtask without parent date", "due_date": "2099-07-14", "done": False},
+                ],
+            },
+            {
+                "id": 4,
+                "text": "Completed parent",
+                "due_date": None,
+                "done": True,
+                "subtasks": [
+                    {"id": 1, "text": "Subtask of completed parent", "due_date": "2099-07-15", "done": False},
+                ],
+            },
         ]),
         encoding="utf-8",
     )
@@ -72,10 +101,25 @@ def test_calendar_subscription_reads_only_active_cached_tasks(calendar_client, m
     assert response.status_code == 200
     assert response.content_type == "text/calendar; charset=utf-8"
     body = response.get_data(as_text=True)
-    for title in ("Custom due date", "Canvas visible", "Haoke visible", "Zxm visible", "Zhs visible"):
+    for title in (
+        "Custom due date",
+        "Active subtask",
+        "Subtask without parent date",
+        "Canvas visible",
+        "Haoke visible",
+        "Zxm visible",
+        "Zhs visible",
+    ):
         assert title in body
     assert "DTSTART;VALUE=DATE:20990711" in body
+    assert "DTSTART;VALUE=DATE:20990713" in body
+    assert "DTSTART;VALUE=DATE:20990714" in body
+    assert "UID:custom-1-subtask-1@canvas-dashboard" in body
+    assert "UID:custom-3-subtask-1@canvas-dashboard" in body
     assert "Completed custom" not in body
+    assert "Completed subtask" not in body
+    assert "Undated subtask" not in body
+    assert "Subtask of completed parent" not in body
     assert "Canvas hidden" not in body
     assert "alice" not in body
 
@@ -93,4 +137,15 @@ def test_calendar_subscription_token_is_revocable(calendar_client):
 
     with dashboard_app.app.test_client() as anonymous_client:
         assert anonymous_client.get(path).status_code == 404
+        assert anonymous_client.get("/calendar/not-a-token.ics").status_code == 404
+
+
+def test_calendar_subscription_is_unavailable_until_https_activation(calendar_client, monkeypatch):
+    client, _ = calendar_client
+    monkeypatch.setattr(dashboard_app.settings, "APPLE_CALENDAR_ENABLED", False)
+
+    created = client.post("/api/apple-calendar/subscription", headers=client.csrf_headers)
+
+    assert created.status_code == 404
+    with dashboard_app.app.test_client() as anonymous_client:
         assert anonymous_client.get("/calendar/not-a-token.ics").status_code == 404

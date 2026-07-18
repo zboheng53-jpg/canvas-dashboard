@@ -1,5 +1,7 @@
 # Apple Calendar Subscription Implementation Plan
 
+> Historical planning record. Production HTTPS and Apple Calendar activation are complete, and a real iPhone displayed the subscribed events. The deferred event-ledger/cancellation work in this plan is still not implemented. Use `README.md`, `docs/architecture.md`, and current tests for the active contract.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Generate a private, revocable ICS calendar for each account without publishing any subscription URL until HTTPS is live.

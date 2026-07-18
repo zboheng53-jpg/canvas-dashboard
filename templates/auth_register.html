@@ -15,7 +15,7 @@
         <h2>注册</h2>
       </div>
 
-      <form class="add-todo-form mb-s" id="register-form">
+      <form class="add-todo-form auth-form mb-s" id="register-form">
         <input type="text" id="register-username" placeholder="用户名（3-20位字母/数字/下划线）" autocomplete="username">
         <input type="password" id="register-password" placeholder="密码（至少6位）" autocomplete="new-password">
         <button type="submit" class="btn-wide btn-accent">注册</button>
@@ -25,6 +25,11 @@
 
       <div class="error-banner hidden" id="register-error"></div>
     </div>
+    {% if icp_number %}
+    <footer class="site-footer">
+      <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">{{ icp_number }}</a>
+    </footer>
+    {% endif %}
   </div>
 
   <script>

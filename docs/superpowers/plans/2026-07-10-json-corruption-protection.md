@@ -1,5 +1,7 @@
 # JSON Corruption Protection Implementation Plan
 
+> Historical planning record. Fail-closed JSON reads, forensic copies, atomic writes, and regression tests are implemented. Use `storage.py`, `docs/backup-and-restore.md`, and current tests for the active contract.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Preserve damaged runtime JSON files and stop requests from overwriting them with empty defaults.

@@ -5,7 +5,8 @@ After=network.target
 [Service]
 Type=simple
 User=ubuntu
-WorkingDirectory=/home/ubuntu/canvas-dashboard
+WorkingDirectory=/home/ubuntu/canvas-dashboard/current
+EnvironmentFile=-/etc/canvas-dashboard/canvas-dashboard.env
 Environment=ZHIHUISHU_CHROMIUM_EXECUTABLE=/usr/bin/google-chrome-stable
 ExecStart=/home/ubuntu/canvas-dashboard/.venv/bin/python serve.py
 Restart=on-failure

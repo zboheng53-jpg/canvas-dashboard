@@ -58,6 +58,31 @@ def test_session_cookie_defaults_are_hardened():
     assert dashboard_app.app.config["SESSION_COOKIE_SECURE"] is False
 
 
+def test_public_auth_pages_show_icp_footer(anonymous_client, monkeypatch):
+    monkeypatch.setattr(dashboard_app.settings, "ICP_NUMBER", "闽ICP备2026026558号-1")
+
+    for path in ("/login", "/register"):
+        response = anonymous_client.get(path)
+
+        assert response.status_code == 200
+        assert "闽ICP备2026026558号-1" in response.get_data(as_text=True)
+        assert "https://beian.miit.gov.cn/" in response.get_data(as_text=True)
+
+
+def test_wrong_password_returns_readable_login_error(anonymous_client, monkeypatch):
+    monkeypatch.setattr(dashboard_app.auth, "verify_login", lambda username, password: False)
+    headers = _set_csrf(anonymous_client)
+
+    response = anonymous_client.post(
+        "/api/auth/login",
+        json={"username": "alice", "password": "wrong-password"},
+        headers=headers,
+    )
+
+    assert response.status_code == 401
+    assert response.get_json()["error"] == "用户名或密码错误"
+
+
 def test_mutating_api_requires_csrf_token(client_with_user):
     resp = client_with_user.post(
         "/api/custom/todos",

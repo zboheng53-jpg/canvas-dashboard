@@ -1,0 +1,68 @@
+<section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-projects" data-view-panel="projects">
+  <div class="card project-manager-card">
+    <div class="project-manager-heading"><div><span class="placeholder-kicker">PROJECTS</span><h1>项目</h1><p>把本周真正要推进的事收在这里。</p></div><button type="button" id="project-new-button" onclick="showProjectComposer()">新建项目</button></div>
+    <p id="project-manager-status" class="project-manager-status" role="status"></p>
+    <form id="project-composer" class="project-composer hidden"><input name="name" required maxlength="100" placeholder="项目名称"><input name="progress" type="number" min="0" max="100" value="0" aria-label="进度"><input name="due_date" type="date" aria-label="截止日期"><input name="next_action" maxlength="200" placeholder="下一步行动（可选）"><button type="submit">保存项目</button></form>
+    <div class="project-manager-layout"><div id="project-manager-list" class="project-manager-list"></div><section id="project-detail" class="project-detail"><p class="project-list-empty">选择一个项目查看详情</p></section></div>
+  </div>
+</section>
+
+<section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-schedule" data-view-panel="schedule">
+  <div class="card schedule-manager-card">
+    <div class="schedule-manager-heading">
+      <div>
+        <span class="placeholder-kicker">SCHEDULE</span>
+        <h1>日程管理</h1>
+        <p id="schedule-term-meta">尚未导入本学期课表</p>
+      </div>
+      <button type="button" class="schedule-refresh-button" id="schedule-refresh-button" onclick="refreshCourseSchedule()">从一网通办刷新</button>
+    </div>
+    <p class="schedule-manager-status" id="schedule-manager-status" role="status"></p>
+
+    <section class="schedule-manager-section" aria-labelledby="schedule-courses-heading">
+      <h2 id="schedule-courses-heading">课程列表</h2>
+      <div class="schedule-course-list" id="schedule-course-list"></div>
+    </section>
+
+    <div class="schedule-manager-grid">
+      <section class="schedule-manager-section" aria-labelledby="schedule-recurring-heading">
+        <h2 id="schedule-recurring-heading">重复事项</h2>
+        <form class="schedule-item-form" id="recurring-schedule-form">
+          <input name="title" required maxlength="80" placeholder="固定事项名称">
+          <select name="weekday" aria-label="星期"><option value="0">周一</option><option value="1">周二</option><option value="2">周三</option><option value="3">周四</option><option value="4">周五</option><option value="5">周六</option><option value="6">周日</option></select>
+          <input name="start_time" type="time" required aria-label="开始时间">
+          <input name="end_time" type="time" required aria-label="结束时间">
+          <button type="submit">添加</button>
+        </form>
+        <div class="schedule-item-list" id="recurring-schedule-list"></div>
+      </section>
+      <section class="schedule-manager-section" aria-labelledby="schedule-one-off-heading">
+        <h2 id="schedule-one-off-heading">一次性事项</h2>
+        <form class="schedule-item-form" id="one-off-schedule-form">
+          <input name="title" required maxlength="80" placeholder="事项名称">
+          <input name="date" type="date" required aria-label="日期">
+          <input name="start_time" type="time" required aria-label="开始时间">
+          <input name="end_time" type="time" required aria-label="结束时间">
+          <button type="submit">添加</button>
+        </form>
+        <div class="schedule-item-list" id="one-off-schedule-list"></div>
+      </section>
+    </div>
+  </div>
+</section>
+
+<section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-sources" data-view-panel="sources">
+  <div class="card placeholder-card">
+    <span class="placeholder-kicker">SOURCES</span>
+    <h1>数据源</h1>
+    <p>现有平台关联仍在总览的待办卡片中，这里暂不迁移账户或刷新功能。</p>
+  </div>
+</section>
+
+<section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-settings" data-view-panel="settings">
+  <div class="card placeholder-card">
+    <span class="placeholder-kicker">SETTINGS</span>
+    <h1>设置</h1>
+    <p>设置入口已预留，本阶段不改变现有账户、平台连接或任务行为。</p>
+  </div>
+</section>

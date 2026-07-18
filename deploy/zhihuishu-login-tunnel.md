@@ -4,7 +4,7 @@ This app lets normal site users log in to Zhihuishu without SSH, server terminal
 
 ## User Flow
 
-1. User opens `http://124.222.188.101`.
+1. User opens `https://canvas-dashboard.xyz`.
 2. User logs in with their site account.
 3. User opens the Zhihuishu login page from the dashboard.
 4. User clicks "打开智慧树登录窗口".
@@ -24,10 +24,10 @@ Users never need:
 
 ## Admin Deployment
 
-Build the restricted browser image:
+Ordinary application releases are installed by the verified deployment workflow in `docs/operations.md`. Build the restricted browser image only when its Dockerfile or entrypoint changes:
 
 ```bash
-cd /home/ubuntu/canvas-dashboard
+cd /home/ubuntu/canvas-dashboard/current
 sudo docker build -f deploy/zhihuishu-login-browser.Dockerfile -t canvas-dashboard-zhihuishu-login:latest .
 ```
 
@@ -48,30 +48,34 @@ cd /home/ubuntu/canvas-dashboard
 .venv/bin/python -m playwright install chromium
 ```
 
-Install the worker service:
+Release activation installs and enables the worker and cleanup units from `current/deploy/`. For a manual repair:
 
 ```bash
-sudo cp deploy/zhihuishu-worker.service /etc/systemd/system/
+cd /home/ubuntu/canvas-dashboard/current
+sudo install -m 0644 deploy/zhihuishu-worker.service /etc/systemd/system/
+sudo install -m 0644 deploy/zhihuishu-login-cleanup.service /etc/systemd/system/
+sudo install -m 0644 deploy/zhihuishu-login-cleanup.timer /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now zhihuishu-worker.service
-```
-
-Install the login cleanup timer:
-
-```bash
-sudo cp deploy/zhihuishu-login-cleanup.service /etc/systemd/system/
-sudo cp deploy/zhihuishu-login-cleanup.timer /etc/systemd/system/
-sudo systemctl daemon-reload
 sudo systemctl enable --now zhihuishu-login-cleanup.timer
 ```
 
-Install nginx config:
+Do not replace the live HTTPS nginx file with the HTTP bootstrap file. A release automatically chooses `canvas-dashboard.https.nginx` when the certificate exists. For a manual repair:
 
 ```bash
-sudo cp deploy/canvas-dashboard.nginx /etc/nginx/sites-enabled/canvas-dashboard
+cd /home/ubuntu/canvas-dashboard/current
+sudo install -m 0644 deploy/canvas-dashboard.https.nginx /etc/nginx/sites-enabled/canvas-dashboard
 sudo nginx -t
 sudo systemctl reload nginx
 ```
+
+## Worker Behavior
+
+- `zhihuishu-worker.service` runs `zhihuishu_worker.py --all-users`.
+- Every round rediscovers user directories, so accounts created after service start are included automatically.
+- Each user refresh runs in an isolated child process with a default 180-second timeout.
+- A timeout or failure updates only that user's status and does not block later users.
+- Successful refreshes write `last_success_at`; `/healthz` summarizes newest/oldest success times and age without triggering a browser.
 
 ## Security Notes
 
@@ -92,6 +96,7 @@ journalctl -u zhihuishu-worker.service -n 100 --no-pager
 systemctl list-timers zhihuishu-login-cleanup.timer
 journalctl -u zhihuishu-login-cleanup.service -n 50 --no-pager
 docker ps --filter "label=canvas-dashboard=zhihuishu-login"
+curl -fsS http://127.0.0.1:5000/healthz
 ```
 
 If a user reports that the login window does not open, check:
@@ -104,6 +109,6 @@ docker images | grep canvas-dashboard-zhihuishu-login
 Manual cleanup command:
 
 ```bash
-cd /home/ubuntu/canvas-dashboard
-.venv/bin/python zhihuishu_login_sessions.py --cleanup-expired
+cd /home/ubuntu/canvas-dashboard/current
+../.venv/bin/python zhihuishu_login_sessions.py --cleanup-expired
 ```

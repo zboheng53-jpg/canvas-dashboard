@@ -1,5 +1,7 @@
 # Compact Mobile Dashboard Implementation Plan
 
+> Historical planning record. The compact mobile controls are represented by the current template, stylesheet, and Playwright suite; do not use unchecked boxes here as current task status.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Remove wasted vertical space from the phone dashboard while retaining every todo action behind an on-demand menu.

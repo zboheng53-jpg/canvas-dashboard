@@ -4,6 +4,8 @@ import importlib
 def test_settings_env_overrides(monkeypatch):
     monkeypatch.setenv("CANVAS_DASHBOARD_PORT", "5050")
     monkeypatch.setenv("CANVAS_DASHBOARD_COOKIE_SECURE", "yes")
+    monkeypatch.setenv("CANVAS_DASHBOARD_ICP_NUMBER", "沪ICP备00000000号-1")
+    monkeypatch.setenv("CANVAS_DASHBOARD_APPLE_CALENDAR_ENABLED", "yes")
     monkeypatch.setenv("ZHIHUISHU_NOVNC_READY_TIMEOUT_SECONDS", "3.5")
     monkeypatch.setenv("HAOKE_BASE_URL", "https://example.invalid")
 
@@ -13,6 +15,8 @@ def test_settings_env_overrides(monkeypatch):
 
     assert settings.APP_PORT == 5050
     assert settings.COOKIE_SECURE is True
+    assert settings.ICP_NUMBER == "沪ICP备00000000号-1"
+    assert settings.APPLE_CALENDAR_ENABLED is True
     assert settings.ZHIHUISHU_NOVNC_READY_TIMEOUT_SECONDS == 3.5
     assert settings.HAOKE_BASE_URL == "https://example.invalid"
 

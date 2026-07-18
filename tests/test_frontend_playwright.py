@@ -184,6 +184,220 @@ def test_frontend_desktop_header_keeps_weather_and_term_layout(live_app, browser
     ) == "row"
 
 
+def test_frontend_v2_desktop_shell_uses_bounded_three_column_layout(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "desktopv2")
+
+    sidebar = page.locator("#academic-sidebar")
+    workspace = page.locator(".workspace-main")
+    right_rail = page.locator("#dashboard-right-rail")
+    expect(sidebar).to_be_visible()
+    expect(workspace).to_be_visible()
+    expect(right_rail).to_be_visible()
+
+    sidebar_box = sidebar.bounding_box()
+    workspace_box = workspace.bounding_box()
+    right_box = right_rail.bounding_box()
+    assert sidebar_box is not None
+    assert workspace_box is not None
+    assert right_box is not None
+    assert 180 <= sidebar_box["width"] <= 200
+    assert 820 <= workspace_box["width"] <= 860
+    assert 320 <= right_box["width"] <= 360
+    assert 20 <= workspace_box["x"] - (sidebar_box["x"] + sidebar_box["width"]) <= 24
+    assert 20 <= right_box["x"] - (workspace_box["x"] + workspace_box["width"]) <= 24
+    assert right_box["height"] == pytest.approx(sidebar_box["height"], abs=1)
+    assert right_box["y"] + right_box["height"] == pytest.approx(
+        sidebar_box["y"] + sidebar_box["height"],
+        abs=1,
+    )
+    rail_cards = right_rail.locator(".rail-card")
+    assert rail_cards.count() == 2
+    first_rail_box = rail_cards.nth(0).bounding_box()
+    second_rail_box = rail_cards.nth(1).bounding_box()
+    assert first_rail_box is not None
+    assert second_rail_box is not None
+    assert first_rail_box["height"] == pytest.approx(second_rail_box["height"], abs=1)
+    todo_card = page.locator(".workspace-main .enter-main-card")
+    expect(todo_card).to_have_css(
+        "transform", re.compile(r"matrix\(1, 0, 0, 1, 0, 0\)")
+    )
+    todo_card_box = todo_card.bounding_box()
+    assert todo_card_box is not None
+    assert todo_card_box["y"] + todo_card_box["height"] == pytest.approx(
+        sidebar_box["y"] + sidebar_box["height"],
+        abs=1,
+    )
+
+    collapse = page.locator("#sidebar-collapse-toggle")
+    collapse.click()
+    expect(collapse).to_have_attribute("aria-expanded", "false")
+    collapsed_box = sidebar.bounding_box()
+    assert collapsed_box is not None
+    assert 64 <= collapsed_box["width"] <= 80
+    expect(sidebar.locator(".sidebar-label").first).to_be_hidden()
+
+
+def test_frontend_v2_narrow_desktop_stacks_right_rail_below_center(live_app, browser):
+    page = browser.new_page(viewport={"width": 1280, "height": 1000})
+    register_dashboard_user(page, live_app, "narrowv2")
+
+    sidebar = page.locator("#academic-sidebar")
+    workspace = page.locator(".workspace-main")
+    right_rail = page.locator("#dashboard-right-rail")
+    sidebar_box = sidebar.bounding_box()
+    workspace_box = workspace.bounding_box()
+    right_box = right_rail.bounding_box()
+    assert sidebar_box is not None
+    assert workspace_box is not None
+    assert right_box is not None
+    assert 64 <= sidebar_box["width"] <= 80
+    assert workspace_box["width"] <= 860
+    assert right_box["x"] == pytest.approx(workspace_box["x"], abs=1)
+    vertical_gap = right_box["y"] - (workspace_box["y"] + workspace_box["height"])
+    assert 20 <= vertical_gap <= 24
+
+
+def test_frontend_v2_sidebar_uses_light_reference_style(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "lightsidebarv2")
+
+    styles = page.locator("#academic-sidebar").evaluate(
+        """element => {
+            const sidebar = getComputedStyle(element);
+            const active = getComputedStyle(element.querySelector('.sidebar-nav-item.is-active'));
+            const user = getComputedStyle(element.querySelector('.sidebar-user'));
+            return {
+                background: sidebar.backgroundColor,
+                activeBackground: active.backgroundColor,
+                activeColor: active.color,
+                userBorder: user.borderTopWidth,
+            };
+        }"""
+    )
+    assert styles["background"] == "rgb(255, 255, 255)"
+    assert styles["activeBackground"] != "rgba(0, 0, 0, 0)"
+    assert styles["activeColor"] == "rgb(47, 107, 214)"
+    assert styles["userBorder"] == "1px"
+
+
+def test_frontend_v2_sidebar_greeting_and_calendar_subscription(live_app, browser, monkeypatch):
+    monkeypatch.setattr(dashboard_app.settings, "APPLE_CALENDAR_ENABLED", True)
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "calendarv2")
+
+    expect(page.locator("#sidebar-greeting")).to_have_text("早上好")
+    expect(page.locator(".sidebar-brand-copy small")).to_have_text("今天也按自己的节奏来")
+    page.locator("#calendar-subscription-trigger").click()
+    expect(page.locator("#calendar-subscription-panel")).to_be_visible()
+    page.locator("#calendar-subscription-create").click()
+    expect(page.locator("#calendar-subscription-url")).to_have_value(re.compile(r"/calendar/.+\.ics$"))
+    page.locator("#calendar-subscription-revoke").click()
+    expect(page.locator("#calendar-subscription-status")).to_have_text("日历订阅已撤销")
+
+
+def test_frontend_v2_mobile_menu_placeholders_and_stacked_modules(live_app, browser):
+    page = browser.new_page(viewport={"width": 390, "height": 844})
+    register_dashboard_user(page, live_app, "mobilev2")
+
+    menu = page.locator("#mobile-menu-toggle")
+    sidebar = page.locator("#academic-sidebar")
+    expect(menu).to_be_visible()
+    expect(menu).to_have_attribute("aria-expanded", "false")
+    expect(sidebar).to_have_attribute("aria-hidden", "true")
+
+    project_card = page.locator("#long-term-projects-card")
+    schedule_card = page.locator("#today-schedule-card")
+    project_box = project_card.bounding_box()
+    schedule_box = schedule_card.bounding_box()
+    workspace_box = page.locator(".workspace-main").bounding_box()
+    assert project_box is not None
+    assert schedule_box is not None
+    assert workspace_box is not None
+    assert project_box["y"] >= workspace_box["y"] + workspace_box["height"]
+    assert schedule_box["y"] > project_box["y"] + project_box["height"]
+    assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+
+    menu.click()
+    expect(menu).to_have_attribute("aria-expanded", "true")
+    expect(sidebar).to_have_attribute("aria-hidden", "false")
+    page.locator('[data-dashboard-view="projects"]').click()
+    expect(page.locator("#dashboard-view-projects")).to_be_visible()
+    expect(page.locator("#dashboard-view-overview")).to_be_hidden()
+    expect(page.locator("#dashboard-right-rail")).to_be_hidden()
+    expect(menu).to_have_attribute("aria-expanded", "false")
+
+
+def test_frontend_schedule_management_renders_today_busy_item(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "schedulev2")
+    page.locator('[data-dashboard-view="schedule"]').click()
+    expect(page.locator("#dashboard-view-schedule")).to_be_visible()
+    page.fill('#one-off-schedule-form [name="title"]', "实验室值班")
+    page.fill('#one-off-schedule-form [name="date"]', "2026-07-09")
+    page.fill('#one-off-schedule-form [name="start_time"]', "18:00")
+    page.fill('#one-off-schedule-form [name="end_time"]', "19:00")
+    page.locator("#one-off-schedule-form button").click()
+    expect(page.locator("#one-off-schedule-list")).to_contain_text("实验室值班")
+    page.locator('[data-dashboard-view="overview"]').click()
+    expect(page.locator("#today-schedule-content")).to_contain_text("实验室值班")
+
+
+def test_frontend_projects_overview_limits_cards_and_opens_manager(live_app, browser):
+    page = browser.new_page(viewport={"width": 390, "height": 844})
+    project_requests = []
+    page.on(
+        "request",
+        lambda request: project_requests.append(request.url)
+        if request.url.endswith("/api/projects")
+        else None,
+    )
+    register_dashboard_user(page, live_app, "projectsv2")
+    expect(page.locator("#project-overview-content")).to_contain_text("暂无长期项目")
+    page.locator("#project-empty-create").click()
+    expect(page.locator("#dashboard-view-projects")).to_be_visible()
+    expect(page.locator("#project-composer")).to_be_visible()
+    assert len(project_requests) == 1
+    page.fill('#project-composer [name="name"]', "毕业设计")
+    page.locator("#project-composer button").click()
+    expect(page.locator("#project-manager-list")).to_contain_text("毕业设计")
+    page.route(
+        "**/api/projects/*",
+        lambda route: route.abort()
+        if route.request.method == "PUT"
+        else route.continue_(),
+    )
+    page.fill('.project-edit-form [name="name"]', "保留的项目名称")
+    page.locator(".project-edit-form button").click()
+    expect(page.locator('#project-detail [name="name"]')).to_have_value("保留的项目名称")
+    expect(page.locator("#project-manager-status")).to_contain_text("保存失败")
+
+
+def test_frontend_right_rail_distinguishes_loading_failures_from_empty_states(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    page.route(
+        "**/api/projects/overview",
+        lambda route: route.fulfill(
+            status=503,
+            content_type="application/json",
+            body='{"ok":false,"error":"unavailable"}',
+        ),
+    )
+    page.route(
+        "**/api/schedule/today",
+        lambda route: route.fulfill(
+            status=503,
+            content_type="application/json",
+            body='{"ok":false,"error":"unavailable"}',
+        ),
+    )
+
+    register_dashboard_user(page, live_app, "railerrorsv2")
+
+    expect(page.locator("#project-overview-content")).to_contain_text("长期项目加载失败")
+    expect(page.locator("#today-schedule-content")).to_contain_text("今日日程加载失败")
+
+
 @pytest.mark.parametrize("width", [375, 390, 768])
 def test_frontend_mobile_alignment_places_controls_on_the_right(live_app, browser, width):
     page = browser.new_page(viewport={"width": width, "height": 844})
@@ -370,3 +584,40 @@ def test_frontend_custom_todos_subtasks_platform_cards_without_ocr(live_app, bro
 
     expect(page.locator(".ocr-trigger-arrow-btn")).to_have_count(0)
     expect(page.locator("#ocr-text-input")).to_have_count(0)
+
+
+def test_frontend_v2_preserves_core_todo_actions(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "coreactionsv2")
+
+    canvas_item = page.locator(".unified-item").filter(has_text="Canvas seeded")
+    expect(canvas_item).to_be_visible()
+    canvas_item.locator(".item-desktop-actions .btn-flag").click()
+    expect(canvas_item).to_have_class(re.compile(r"\bmanual-flagged\b"))
+    canvas_item.locator(".item-desktop-actions .btn-dismiss").click()
+    expect(canvas_item).to_have_class(re.compile(r"\bdismissed\b"))
+    expect(page.locator("#stat-total")).to_have_text("0")
+    canvas_item.locator(".item-desktop-actions .btn-delete").click()
+    expect(canvas_item).to_have_count(0)
+
+    page.fill("#new-todo-input", "Original custom todo #lab")
+    page.click("#add-todo-form button")
+    custom_item = page.locator(".unified-item-wrap").filter(has_text="Original custom todo")
+    expect(custom_item).to_be_visible()
+    custom_item.locator(".editable-title").click()
+    page.locator(".inline-edit-input").fill("Edited custom todo #updated")
+    page.locator(".inline-edit-input").blur()
+
+    custom_item = page.locator(".unified-item-wrap").filter(has_text="Edited custom todo")
+    expect(custom_item.locator(".label-badge")).to_have_text("updated")
+    custom_item.locator(".subtask-toggle").click()
+    custom_item.locator(".subtask-add-input").fill("Preserved subtask")
+    custom_item.locator(".subtask-add-input").press("Enter")
+    expect(custom_item.locator(".subtask-text")).to_have_text("Preserved subtask")
+
+    custom_item.locator(".item-desktop-actions .btn-dismiss").click()
+    expect(custom_item.locator(".unified-item")).to_have_class(re.compile(r"\bdismissed\b"))
+    custom_item.locator(".item-desktop-actions .btn-dismiss").click()
+    expect(custom_item.locator(".unified-item")).not_to_have_class(re.compile(r"\bdismissed\b"))
+    custom_item.locator(".item-desktop-actions .btn-delete").click()
+    expect(custom_item).to_have_count(0)

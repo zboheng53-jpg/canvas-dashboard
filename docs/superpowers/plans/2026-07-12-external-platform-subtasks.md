@@ -1,5 +1,7 @@
 # 外部平台作业子任务 Implementation Plan
 
+> Historical proposal, not an implemented contract. There is currently no `external_subtasks.py`, `/api/external-subtasks` route, or editable subtask UI for imported platform assignments. Custom-todo subtasks are the only editable subtasks; dated custom subtasks can be exported to Apple Calendar.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 让 Canvas、好课、智学盟和智慧树导入的作业拥有与自定义待办相同、刷新后可恢复的子任务读写，并保持三角按钮位置不变。

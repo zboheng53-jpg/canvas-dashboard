@@ -10,7 +10,7 @@ from datetime import datetime, timezone, timedelta, date
 from pathlib import Path
 
 import requests
-from flask import Flask, jsonify, render_template, request, session, redirect
+from flask import Flask, abort, jsonify, render_template, request, session, redirect
 
 import auth
 import apple_calendar
@@ -37,6 +37,9 @@ from zhixuemeng_client import (
 import zhihuishu_store
 import zhihuishu_login_sessions
 import zhihuishu_worker
+import schedule_store
+import tongji_timetable
+import project_store
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger("app")
 
@@ -104,8 +107,13 @@ def _check_zhihuishu_worker():
         "error_count": 0,
         "unreadable_count": 0,
         "states": {},
+        "last_success_count": 0,
+        "last_success_at": None,
+        "oldest_last_success_at": None,
+        "last_success_age_seconds": None,
         "lock_file_present": zhihuishu_worker.LOCK_FILE.exists(),
     }
+    last_success_values = []
     try:
         if not users_dir.exists():
             return result
@@ -122,9 +130,17 @@ def _check_zhihuishu_worker():
             result["states"][worker_state] = result["states"].get(worker_state, 0) + 1
             if worker_state == "error":
                 result["error_count"] += 1
+            last_success_at = status.get("last_success_at")
+            if isinstance(last_success_at, (int, float)):
+                last_success_values.append(float(last_success_at))
     except Exception:
         result["unreadable_count"] += 1
 
+    if last_success_values:
+        result["last_success_count"] = len(last_success_values)
+        result["last_success_at"] = max(last_success_values)
+        result["oldest_last_success_at"] = min(last_success_values)
+        result["last_success_age_seconds"] = max(0, round(time.time() - result["last_success_at"]))
     result["ok"] = result["error_count"] == 0 and result["unreadable_count"] == 0
     return result
 
@@ -366,14 +382,28 @@ def _calendar_items(username):
     items = []
 
     for todo in _load_todos(username):
-        if todo.get("done") or not todo.get("due_date"):
+        if todo.get("done"):
             continue
-        items.append({
-            "source": "Custom",
-            "id": todo.get("id"),
-            "title": todo.get("text"),
-            "due_date": todo.get("due_date"),
-        })
+        if todo.get("due_date"):
+            items.append({
+                "source": "Custom",
+                "id": todo.get("id"),
+                "title": todo.get("text"),
+                "due_date": todo.get("due_date"),
+            })
+        for index, subtask in enumerate(todo.get("subtasks") or [], start=1):
+            if not isinstance(subtask, dict) or subtask.get("done") or not subtask.get("due_date"):
+                continue
+            subtask_id = subtask.get("id")
+            if subtask_id is None:
+                subtask_id = index
+            items.append({
+                "source": "Custom",
+                "id": f"{todo.get('id')}-subtask-{subtask_id}",
+                "title": subtask.get("text"),
+                "due_date": subtask.get("due_date"),
+                "course": todo.get("text"),
+            })
 
     def add_cached(source, cached_items, state):
         hidden = set(state.get("hidden", []))
@@ -403,7 +433,12 @@ def _calendar_items(username):
 
 @app.route("/")
 def index():
-    return render_template("index.html", username=session.get("username"))
+    return render_template(
+        "index.html",
+        username=session.get("username"),
+        icp_number=settings.ICP_NUMBER,
+        apple_calendar_enabled=settings.APPLE_CALENDAR_ENABLED,
+    )
 
 
 @app.route("/login/<platform>")
@@ -415,6 +450,8 @@ def login_page(platform):
 
 @app.route("/api/apple-calendar/subscription", methods=["POST", "DELETE"])
 def api_apple_calendar_subscription():
+    if not settings.APPLE_CALENDAR_ENABLED:
+        abort(404)
     username = session["username"]
     if request.method == "DELETE":
         return jsonify({"ok": apple_calendar.revoke_token(username)})
@@ -425,6 +462,8 @@ def api_apple_calendar_subscription():
 
 @app.route("/calendar/<token>.ics")
 def calendar_subscription(token):
+    if not settings.APPLE_CALENDAR_ENABLED:
+        abort(404)
     username = apple_calendar.username_for_token(token)
     if not username:
         return "Not Found", 404
@@ -443,14 +482,14 @@ def calendar_subscription(token):
 def site_login_page():
     if session.get("username"):
         return redirect("/")
-    return render_template("auth_login.html")
+    return render_template("auth_login.html", icp_number=settings.ICP_NUMBER)
 
 
 @app.route("/register")
 def site_register_page():
     if session.get("username"):
         return redirect("/")
-    return render_template("auth_register.html")
+    return render_template("auth_register.html", icp_number=settings.ICP_NUMBER)
 
 
 @app.route("/api/auth/register", methods=["POST"])
@@ -486,7 +525,7 @@ def api_auth_login():
     if not allowed:
         return _rate_limited_response(retry_after)
     if not auth.verify_login(username, password):
-        return jsonify({"ok": False, "error": "鐢ㄦ埛鍚嶆垨瀵嗙爜閿欒"}), 401
+        return jsonify({"ok": False, "error": "用户名或密码错误"}), 401
     session["username"] = username
     session.permanent = True
     return jsonify({"ok": True})
@@ -1012,6 +1051,222 @@ def api_custom_todo_item(todo_id):
     return jsonify({"ok": False, "error": "Method not allowed"}), 405
 
 
+# ---- Course timetable and simple schedule items ----
+
+def _schedule_item_payload(data, kind):
+    if data is None:
+        return None
+    title = (data.get("title") or "").strip()
+    start_time = (data.get("start_time") or "").strip()
+    end_time = (data.get("end_time") or "").strip()
+    if not title or not re.fullmatch(r"\d{2}:\d{2}", start_time) or not re.fullmatch(r"\d{2}:\d{2}", end_time) or start_time >= end_time:
+        return None
+    payload = {"title": title, "start_time": start_time, "end_time": end_time}
+    if kind == "recurring":
+        weekday = data.get("weekday")
+        if not isinstance(weekday, int) or not 0 <= weekday <= 6:
+            return None
+        payload.update({"weekday": weekday, "enabled": bool(data.get("enabled", True))})
+        if "skipped_dates" in data:
+            payload["skipped_dates"] = [value for value in data["skipped_dates"] if isinstance(value, str)]
+    else:
+        try:
+            payload["date"] = date.fromisoformat((data.get("date") or "").strip()).isoformat()
+        except ValueError:
+            return None
+    return payload
+
+
+def _schedule_overlap(username, kind, payload, ignore_id=None):
+    items = schedule_store.load_items(username)
+    weekday = payload.get("weekday") if kind == "recurring" else date.fromisoformat(payload["date"]).weekday()
+    candidate_date = date.fromisoformat(payload["date"]) if kind == "one_off" else None
+    courses = schedule_store.load_courses(username)
+    for course in courses.get("courses", []):
+        for meeting in course.get("sessions", []):
+            if candidate_date is None:
+                same_day = meeting.get("weekday") == weekday
+            elif meeting.get("date_start") and meeting.get("date_end"):
+                same_day = meeting["date_start"] <= candidate_date.isoformat() <= meeting["date_end"]
+            else:
+                same_day = meeting.get("weekday") == weekday
+            if same_day and payload["start_time"] < meeting.get("end_time", "") and meeting.get("start_time", "") < payload["end_time"]:
+                return True
+    for item in items.get("recurring", []):
+        if kind == "recurring" and item.get("id") == ignore_id:
+            continue
+        if item.get("enabled", True) and item.get("weekday") == weekday and payload["start_time"] < item.get("end_time", "") and item.get("start_time", "") < payload["end_time"]:
+            return True
+    for item in items.get("one_off", []):
+        if kind == "one_off" and item.get("id") == ignore_id:
+            continue
+        if kind == "one_off":
+            same_day = item.get("date") == payload.get("date")
+        else:
+            same_day = date.fromisoformat(item.get("date")).weekday() == weekday if item.get("date") else False
+        if same_day and payload["start_time"] < item.get("end_time", "") and item.get("start_time", "") < payload["end_time"]:
+            return True
+    return False
+
+
+@app.route("/api/schedule", methods=["GET"])
+def api_schedule():
+    username = session["username"]
+    return jsonify({"ok": True, "courses": schedule_store.load_courses(username), "items": schedule_store.load_items(username)})
+
+
+@app.route("/api/schedule/refresh", methods=["POST"])
+def api_schedule_refresh():
+    username = session["username"]
+    courses = tongji_timetable.fetch_selected_courses()
+    if not courses:
+        return api_error("timetable_fetch_failed", "课表抓取失败，请确认已登录一网通办且 CDP proxy 正在运行", 502)
+    term, _, semester_start = get_term_info()
+    schedule_store.save_courses(username, term, semester_start, courses, datetime.now(CST).isoformat())
+    return jsonify({"ok": True, "courses": schedule_store.load_courses(username)})
+
+
+@app.route("/api/schedule/<kind>", methods=["POST"])
+def api_schedule_item_create(kind):
+    if kind not in {"recurring", "one-off"}:
+        abort(404)
+    username = session["username"]
+    payload = _schedule_item_payload(read_json_request(), "recurring" if kind == "recurring" else "one_off")
+    if payload is None:
+        return invalid_request_response()
+    item = schedule_store.create_item(username, "recurring" if kind == "recurring" else "one_off", payload)
+    return jsonify({"ok": True, "item": item, "overlap": _schedule_overlap(username, "recurring" if kind == "recurring" else "one_off", payload, item["id"])})
+
+
+@app.route("/api/schedule/<kind>/<int:item_id>", methods=["PUT", "DELETE"])
+def api_schedule_item(kind, item_id):
+    if kind not in {"recurring", "one-off"}:
+        abort(404)
+    username = session["username"]
+    normalized_kind = "recurring" if kind == "recurring" else "one_off"
+    if request.method == "DELETE":
+        return jsonify({"ok": schedule_store.delete_item(username, normalized_kind, item_id)})
+    payload = _schedule_item_payload(read_json_request(), normalized_kind)
+    if payload is None:
+        return invalid_request_response()
+    item = schedule_store.update_item(username, normalized_kind, item_id, payload)
+    if item is None:
+        return api_error("schedule_item_not_found", "日程不存在", 404)
+    return jsonify({"ok": True, "item": item, "overlap": _schedule_overlap(username, normalized_kind, payload, item_id)})
+
+
+@app.route("/api/schedule/today")
+def api_schedule_today():
+    username = session["username"]
+    today = datetime.now(CST).date()
+    _, _, semester_start = get_term_info()
+    result = schedule_store.today_entries(username, today, semester_start)
+    for item in _calendar_items(username):
+        due_date = item.get("due_date")
+        due_at = _parse_calendar_due(item.get("due_ts")) if item.get("due_ts") else None
+        if due_date == today.isoformat() or (due_at and due_at.date() == today):
+            if due_at and due_at.strftime("%H:%M") != "00:00":
+                result["timed"].append({"kind": "deadline", "title": item.get("title") or "Deadline", "location": "", "start_time": due_at.strftime("%H:%M"), "end_time": due_at.strftime("%H:%M")})
+            else:
+                result["deadlines"].append({"title": item.get("title") or "Deadline"})
+    result["timed"].sort(key=lambda item: (item["start_time"], item["title"]))
+    return jsonify({"ok": True, "date": today.isoformat(), **result})
+
+
+# ---- Long-term projects ----
+
+def _project_payload(data, partial=False):
+    if data is None:
+        return None
+    payload = {}
+    if not partial or "name" in data:
+        name = (data.get("name") or "").strip()
+        if not name or len(name) > 100: return None
+        payload["name"] = name
+    if "progress" in data:
+        progress = data["progress"]
+        if not isinstance(progress, int) or isinstance(progress, bool) or not 0 <= progress <= 100: return None
+        payload["progress"] = progress
+    if "due_date" in data:
+        raw = (data.get("due_date") or "").strip()
+        try: payload["due_date"] = date.fromisoformat(raw).isoformat() if raw else None
+        except ValueError: return None
+    if "next_action" in data:
+        action = (data.get("next_action") or "").strip()
+        if len(action) > 200: return None
+        payload["next_action"] = action
+    return payload
+
+
+@app.route("/api/projects", methods=["GET", "POST"])
+def api_projects():
+    username = session["username"]
+    if request.method == "POST":
+        payload = _project_payload(read_json_request())
+        if payload is None: return invalid_request_response()
+        return jsonify({"ok": True, "project": project_store.create_project(username, payload)})
+    return jsonify({"ok": True, "projects": project_store.load_projects(username)})
+
+
+@app.route("/api/projects/overview")
+def api_projects_overview():
+    active = [project for project in project_store.load_projects(session["username"]) if project.get("status") == "active"]
+    return jsonify({"ok": True, "projects": active[:3], "has_more": len(active) > 3})
+
+
+@app.route("/api/projects/<int:project_id>", methods=["PUT"])
+def api_project(project_id):
+    payload = _project_payload(read_json_request(), partial=True)
+    if payload is None or not payload: return invalid_request_response()
+    project = project_store.update_project(session["username"], project_id, payload)
+    if project is None: return api_error("project_not_found", "项目不存在", 404)
+    return jsonify({"ok": True, "project": project})
+
+
+@app.route("/api/projects/<int:project_id>/archive", methods=["POST"])
+def api_project_archive(project_id):
+    project = project_store.update_project(session["username"], project_id, {"status": "archived"})
+    if project is None: return api_error("project_not_found", "项目不存在", 404)
+    return jsonify({"ok": True, "project": project})
+
+
+@app.route("/api/projects/<int:project_id>/goals", methods=["POST"])
+def api_project_goal_create(project_id):
+    data = read_json_request(); text = (data.get("text") or "").strip() if data else ""
+    if not text or len(text) > 160: return invalid_request_response()
+    goal = project_store.create_goal(session["username"], project_id, text)
+    if goal is None: return api_error("project_not_found", "项目不存在", 404)
+    return jsonify({"ok": True, "goal": goal})
+
+
+@app.route("/api/projects/<int:project_id>/goals/<int:goal_id>", methods=["PUT", "DELETE"])
+def api_project_goal(project_id, goal_id):
+    if request.method == "DELETE":
+        return jsonify({"ok": project_store.delete_goal(session["username"], project_id, goal_id)})
+    data = read_json_request()
+    if not data or ("text" not in data and "done" not in data): return invalid_request_response()
+    changes = {}
+    if "text" in data:
+        text = (data.get("text") or "").strip()
+        if not text or len(text) > 160: return invalid_request_response()
+        changes["text"] = text
+    if "done" in data:
+        if not isinstance(data["done"], bool): return invalid_request_response()
+        changes["done"] = data["done"]
+    goal = project_store.update_goal(session["username"], project_id, goal_id, changes)
+    if goal is None: return api_error("goal_not_found", "目标不存在", 404)
+    return jsonify({"ok": True, "goal": goal})
+
+
+@app.route("/api/projects/<int:project_id>/goals/reorder", methods=["POST"])
+def api_project_goal_reorder(project_id):
+    data = read_json_request(); goal_ids = data.get("goal_ids") if data else None
+    if not isinstance(goal_ids, list) or not all(isinstance(value, int) for value in goal_ids): return invalid_request_response()
+    goals = project_store.reorder_goals(session["username"], project_id, goal_ids)
+    if goals is None: return api_error("goal_order_invalid", "目标顺序无效", 400)
+    return jsonify({"ok": True, "goals": goals})
+
+
 # ---- School Term / Week ----
 
 TERM_START = datetime.combine(settings.TERM_START_DATE, datetime.min.time(), tzinfo=CST)
@@ -1171,7 +1426,7 @@ def api_term_refresh():
             "term": scraped["term"],
             "week": _compute_week_num(datetime.now(CST), start_date),
         })
-    return jsonify({"ok": False, "error": "CDP 鎶撳彇澶辫触锛岃纭宸茬櫥褰?1.tongji.edu.cn 涓?CDP proxy 姝ｅ湪杩愯"}), 502
+    return jsonify({"ok": False, "error": "CDP 抓取失败，请确认已登录 1.tongji.edu.cn 且 CDP proxy 正在运行"}), 502
 
 
 # ---- Holiday Detection (from 1.tongji.edu.cn workbench API) ----

@@ -1,5 +1,7 @@
 # Security and Release Foundation Implementation Plan
 
+> Historical planning record. The domain, ICP filing, HTTPS, secure cookies, pinned SSH host key, encrypted backup drill, and rollback-capable release workflow are now active. Use `docs/operations.md`, `docs/backup-and-restore.md`, and current tests for the production contract.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make the current HTTP deployment safer to operate and ensure every deployment executes the real regression suite before domain-backed HTTPS is enabled.

@@ -25,6 +25,19 @@ def test_deploy_script_runs_repository_regression_gate_and_compile_check():
     assert ".\\scripts\\test.ps1" in text
     assert "-m compileall" in text
     assert "unittest discover" not in text
+    assert "StrictHostKeyChecking=no" not in text
+    assert "StrictHostKeyChecking=yes" in text
+    assert "UserKnownHostsFile=" in text
+    assert "install-release.sh" in text
+    assert "--resolve canvas-dashboard.xyz:443:127.0.0.1" in text
+
+
+def test_repository_pins_the_production_ed25519_host_key():
+    repo_root = Path(__file__).parents[1]
+    known_hosts = (repo_root / "deploy" / "known_hosts").read_text(encoding="utf-8")
+
+    assert known_hosts.startswith("124.222.188.101 ssh-ed25519 ")
+    assert "*" not in known_hosts
 
 
 def test_apple_calendar_mobile_test_script_has_a_non_network_dry_run():

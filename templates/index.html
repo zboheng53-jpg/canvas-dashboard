@@ -5,13 +5,41 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Canvas Dashboard</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='dashboard-shell.css') }}">
   <script>window.CSRF_TOKEN = "{{ csrf_token() }}";</script>
   <script src="{{ url_for('static', filename='csrf.js') }}"></script>
 </head>
 <body>
-  <div class="dashboard">
+  <div class="dashboard dashboard-shell" id="dashboard-shell">
+    <header class="mobile-shell-bar">
+      <button
+        type="button"
+        class="mobile-menu-toggle"
+        id="mobile-menu-toggle"
+        aria-label="打开菜单"
+        aria-controls="academic-sidebar"
+        aria-expanded="false"
+        onclick="toggleMobileMenu()"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 7h14M5 12h14M5 17h14"></path>
+        </svg>
+      </button>
+      <div class="mobile-shell-title">
+        <span aria-hidden="true">台</span>
+        <strong>Canvas Dashboard</strong>
+      </div>
+      <span class="mobile-shell-user">{{ username }}</span>
+    </header>
+
+    <div class="dashboard-grid">
+      {% include "dashboard/_academic_sidebar.html" %}
+
+      <div class="workspace-stack">
+        <div class="workspace-main">
+          <section class="dashboard-view" id="dashboard-view-overview" data-view-panel="overview">
     <!-- Top Bar -->
-    <div class="card">
+    <div class="card context-card">
     <header class="top-bar enter-top-bar">
       <div class="clock-section">
         <div class="time" id="time">--:--:--</div>
@@ -113,9 +141,386 @@
 
       </section>
     </main>
+          </section>
+
+          {% include "dashboard/_placeholder_views.html" %}
+        </div>
+
+        <aside class="dashboard-right-rail" id="dashboard-right-rail" aria-label="辅助信息">
+          {% include "dashboard/_long_term_projects.html" %}
+          {% include "dashboard/_today_schedule.html" %}
+        </aside>
+      </div>
+    </div>
+
+    <button
+      type="button"
+      class="sidebar-scrim"
+      id="sidebar-scrim"
+      aria-label="关闭菜单"
+      onclick="closeMobileMenu()"
+    ></button>
   </div>
 
   <script>
+    // ---- Dashboard V2 shell ----
+    const dashboardShell = document.getElementById('dashboard-shell');
+    const academicSidebar = document.getElementById('academic-sidebar');
+    const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+    const sidebarCollapseToggle = document.getElementById('sidebar-collapse-toggle');
+    const calendarSubscriptionPanel = document.getElementById('calendar-subscription-panel');
+    const calendarSubscriptionTrigger = document.getElementById('calendar-subscription-trigger');
+    const mobileSidebarQuery = window.matchMedia('(max-width: 960px)');
+
+    function syncSidebarState() {
+      const isMobile = mobileSidebarQuery.matches;
+      const isOpen = dashboardShell.classList.contains('mobile-nav-open');
+      academicSidebar.setAttribute('aria-hidden', String(isMobile && !isOpen));
+      mobileMenuToggle.setAttribute('aria-expanded', String(isMobile && isOpen));
+      mobileMenuToggle.setAttribute('aria-label', isOpen ? '关闭菜单' : '打开菜单');
+    }
+
+    function toggleMobileMenu() {
+      dashboardShell.classList.toggle('mobile-nav-open');
+      syncSidebarState();
+    }
+
+    function closeMobileMenu() {
+      dashboardShell.classList.remove('mobile-nav-open');
+      syncSidebarState();
+    }
+
+    function toggleCalendarSubscription() {
+      if (!calendarSubscriptionPanel) return;
+      if (dashboardShell.classList.contains('sidebar-collapsed')) {
+        toggleSidebarCollapse();
+        return;
+      }
+      const isOpen = calendarSubscriptionPanel.classList.toggle('hidden');
+      calendarSubscriptionTrigger.setAttribute('aria-expanded', String(!isOpen));
+    }
+
+    function setCalendarSubscriptionStatus(message, isError = false) {
+      const status = document.getElementById('calendar-subscription-status');
+      if (!status) return;
+      status.textContent = message;
+      status.classList.toggle('is-error', isError);
+    }
+
+    async function createCalendarSubscription() {
+      const createButton = document.getElementById('calendar-subscription-create');
+      const urlInput = document.getElementById('calendar-subscription-url');
+      const urlRow = document.getElementById('calendar-subscription-url-row');
+      const revokeButton = document.getElementById('calendar-subscription-revoke');
+      if (!createButton || !urlInput || !urlRow || !revokeButton) return;
+
+      createButton.disabled = true;
+      setCalendarSubscriptionStatus('正在生成私有订阅链接…');
+      try {
+        const response = await fetch('/api/apple-calendar/subscription', { method: 'POST' });
+        const data = await response.json();
+        if (!response.ok || !data.ok || !data.path) throw new Error('subscription unavailable');
+        urlInput.value = new URL(data.path, window.location.origin).href;
+        urlRow.classList.remove('hidden');
+        revokeButton.classList.remove('hidden');
+        setCalendarSubscriptionStatus('链接已生成；重新生成会使旧链接失效。');
+      } catch (error) {
+        setCalendarSubscriptionStatus('暂时无法生成订阅链接，请稍后重试。', true);
+      } finally {
+        createButton.disabled = false;
+      }
+    }
+
+    async function copyCalendarSubscription() {
+      const urlInput = document.getElementById('calendar-subscription-url');
+      if (!urlInput || !urlInput.value) return;
+      try {
+        await navigator.clipboard.writeText(urlInput.value);
+      } catch (error) {
+        urlInput.select();
+        document.execCommand('copy');
+      }
+      setCalendarSubscriptionStatus('订阅地址已复制。');
+    }
+
+    async function revokeCalendarSubscription() {
+      const urlInput = document.getElementById('calendar-subscription-url');
+      const urlRow = document.getElementById('calendar-subscription-url-row');
+      const revokeButton = document.getElementById('calendar-subscription-revoke');
+      if (!urlInput || !urlRow || !revokeButton) return;
+
+      revokeButton.disabled = true;
+      try {
+        const response = await fetch('/api/apple-calendar/subscription', { method: 'DELETE' });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error('revoke failed');
+        urlInput.value = '';
+        urlRow.classList.add('hidden');
+        revokeButton.classList.add('hidden');
+        setCalendarSubscriptionStatus('日历订阅已撤销');
+      } catch (error) {
+        setCalendarSubscriptionStatus('撤销失败，请稍后重试。', true);
+      } finally {
+        revokeButton.disabled = false;
+      }
+    }
+
+    function toggleSidebarCollapse() {
+      if (mobileSidebarQuery.matches) {
+        closeMobileMenu();
+        return;
+      }
+      const isCollapsed = dashboardShell.classList.toggle('sidebar-collapsed');
+      if (isCollapsed && calendarSubscriptionPanel) {
+        calendarSubscriptionPanel.classList.add('hidden');
+        calendarSubscriptionTrigger.setAttribute('aria-expanded', 'false');
+      }
+      sidebarCollapseToggle.setAttribute('aria-expanded', String(!isCollapsed));
+      sidebarCollapseToggle.setAttribute('aria-label', isCollapsed ? '展开侧栏' : '收起侧栏');
+    }
+
+    function switchDashboardView(viewName) {
+      document.querySelectorAll('[data-view-panel]').forEach((panel) => {
+        panel.classList.toggle('hidden', panel.dataset.viewPanel !== viewName);
+      });
+      document.querySelectorAll('[data-dashboard-view]').forEach((button) => {
+        const isActive = button.dataset.dashboardView === viewName;
+        button.classList.toggle('is-active', isActive);
+        if (isActive) {
+          button.setAttribute('aria-current', 'page');
+        } else {
+          button.removeAttribute('aria-current');
+        }
+      });
+      document.getElementById('dashboard-right-rail').classList.toggle('hidden', viewName !== 'overview');
+      let loadPromise = Promise.resolve();
+      if (viewName === 'schedule') loadPromise = loadScheduleManager();
+      if (viewName === 'projects') loadPromise = loadProjects();
+      closeMobileMenu();
+      return loadPromise;
+    }
+
+    document.querySelectorAll('[data-dashboard-view]').forEach((button) => {
+      button.addEventListener('click', () => switchDashboardView(button.dataset.dashboardView));
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeMobileMenu();
+    });
+    if (mobileSidebarQuery.addEventListener) {
+      mobileSidebarQuery.addEventListener('change', closeMobileMenu);
+    } else {
+      mobileSidebarQuery.addListener(closeMobileMenu);
+    }
+    syncSidebarState();
+
+    // ---- Schedule management and today's busy items ----
+    const weekdayLabels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    let scheduleData = null;
+    let scheduleToday = null;
+
+    function setScheduleStatus(message, isError = false) {
+      const status = document.getElementById('schedule-manager-status');
+      if (!status) return;
+      status.textContent = message;
+      status.classList.toggle('is-error', isError);
+    }
+
+    function scheduleElement(tag, className, text) {
+      const element = document.createElement(tag);
+      if (className) element.className = className;
+      if (text !== undefined) element.textContent = text;
+      return element;
+    }
+
+    function renderScheduleItems(kind, items) {
+      const container = document.getElementById(kind === 'recurring' ? 'recurring-schedule-list' : 'one-off-schedule-list');
+      if (!container) return;
+      container.replaceChildren();
+      if (!items.length) {
+        container.append(scheduleElement('p', 'schedule-list-empty', '暂时没有事项'));
+        return;
+      }
+      items.forEach((item) => {
+        const row = scheduleElement('div', 'schedule-item-row');
+        const copy = scheduleElement('div', 'schedule-item-copy');
+        copy.append(scheduleElement('strong', '', item.title));
+        const day = kind === 'recurring' ? weekdayLabels[item.weekday] : item.date;
+        copy.append(scheduleElement('small', '', `${day} · ${item.start_time}–${item.end_time}${kind === 'recurring' && !item.enabled ? ' · 已暂停' : ''}`));
+        const actions = scheduleElement('div', 'schedule-item-actions');
+        if (kind === 'recurring') {
+          const pause = scheduleElement('button', '', item.enabled ? '暂停' : '启用');
+          pause.type = 'button'; pause.onclick = () => saveScheduleItem(kind, item.id, {...item, enabled: !item.enabled}); actions.append(pause);
+          const skip = scheduleElement('button', '', '跳过今天');
+          skip.type = 'button'; skip.onclick = () => saveScheduleItem(kind, item.id, {...item, skipped_dates: [...(item.skipped_dates || []), scheduleToday || new Date().toISOString().slice(0, 10)]}); actions.append(skip);
+        }
+        const edit = scheduleElement('button', '', '编辑');
+        edit.type = 'button'; edit.onclick = () => editScheduleItem(kind, item); actions.append(edit);
+        const remove = scheduleElement('button', 'is-danger', '删除');
+        remove.type = 'button'; remove.onclick = () => deleteScheduleItem(kind, item.id); actions.append(remove);
+        row.append(copy, actions); container.append(row);
+      });
+    }
+
+    function renderScheduleManager(data) {
+      scheduleData = data;
+      const courses = data.courses || {};
+      const meta = document.getElementById('schedule-term-meta');
+      if (meta) meta.textContent = courses.updated_at ? `${courses.term || '当前学期'} · 上次更新 ${new Date(courses.updated_at).toLocaleString('zh-CN')}` : '尚未导入本学期课表';
+      const courseList = document.getElementById('schedule-course-list');
+      if (courseList) {
+        courseList.replaceChildren();
+        const values = courses.courses || [];
+        if (!values.length) courseList.append(scheduleElement('p', 'schedule-list-empty', '尚未导入课程'));
+        values.forEach((course) => {
+          const row = scheduleElement('div', 'schedule-course-row');
+          row.append(scheduleElement('strong', '', course.name), scheduleElement('span', '', course.location || course.raw_time));
+          courseList.append(row);
+        });
+      }
+      renderScheduleItems('recurring', data.items?.recurring || []);
+      renderScheduleItems('one-off', data.items?.one_off || []);
+    }
+
+    async function loadScheduleManager() {
+      setScheduleStatus('正在加载日程…');
+      try {
+        const response = await fetch('/api/schedule');
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || 'load failed');
+        renderScheduleManager(data);
+        setScheduleStatus('');
+      } catch (error) {
+        setScheduleStatus('日程加载失败，请稍后重试', true);
+      }
+    }
+
+    async function refreshCourseSchedule() {
+      const button = document.getElementById('schedule-refresh-button');
+      button.disabled = true; setScheduleStatus('正在从一网通办读取已选课程…');
+      try {
+        const response = await fetch('/api/schedule/refresh', {method: 'POST'});
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || 'refresh failed');
+        setScheduleStatus(`已更新 ${data.courses.courses.length} 门课程`); renderScheduleManager({courses: data.courses, items: scheduleData?.items || {recurring: [], one_off: []}}); await loadTodaySchedule();
+      } catch (error) { setScheduleStatus(error.message || '课表刷新失败，已保留原有缓存', true); }
+      finally { button.disabled = false; }
+    }
+
+    async function saveScheduleItem(kind, itemId, payload) {
+      const url = itemId ? `/api/schedule/${kind === 'recurring' ? 'recurring' : 'one-off'}/${itemId}` : `/api/schedule/${kind === 'recurring' ? 'recurring' : 'one-off'}`;
+      const response = await fetch(url, {method: itemId ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
+      const data = await response.json();
+      if (!response.ok || !data.ok) { setScheduleStatus(data.error || '保存失败', true); return; }
+      setScheduleStatus(data.overlap ? '已保存；该事项与同类日程时间重叠' : '已保存');
+      await loadScheduleManager(); await loadTodaySchedule();
+    }
+
+    async function deleteScheduleItem(kind, itemId) {
+      const response = await fetch(`/api/schedule/${kind === 'recurring' ? 'recurring' : 'one-off'}/${itemId}`, {method: 'DELETE'});
+      const data = await response.json();
+      if (!response.ok || !data.ok) { setScheduleStatus('删除失败', true); return; }
+      await loadScheduleManager(); await loadTodaySchedule();
+    }
+
+    function editScheduleItem(kind, item) {
+      const title = window.prompt('事项名称', item.title); if (title === null) return;
+      const start = window.prompt('开始时间（HH:MM）', item.start_time); if (start === null) return;
+      const end = window.prompt('结束时间（HH:MM）', item.end_time); if (end === null) return;
+      saveScheduleItem(kind, item.id, {...item, title, start_time: start, end_time: end});
+    }
+
+    function renderTodaySchedule(data) {
+      scheduleToday = data.date;
+      const container = document.getElementById('today-schedule-content');
+      if (!container) return;
+      container.setAttribute('aria-busy', 'false');
+      container.replaceChildren();
+      if (!data.timed.length && !data.deadlines.length) {
+        const empty = scheduleElement('div', 'rail-empty-state');
+        empty.append(scheduleElement('strong', '', '今天没有日程'), scheduleElement('p', '', '课程、固定事项和一次性事项会显示在这里'));
+        container.append(empty); return;
+      }
+      const list = scheduleElement('div', 'today-schedule-list');
+      data.timed.forEach((item) => {
+        const row = scheduleElement('div', `today-schedule-row today-${item.kind}`);
+        row.append(scheduleElement('time', '', item.start_time === item.end_time ? item.start_time : `${item.start_time}–${item.end_time}`));
+        const copy = scheduleElement('div', ''); copy.append(scheduleElement('strong', '', item.kind === 'deadline' ? `◆ ${item.title}` : item.title));
+        if (item.location) copy.append(scheduleElement('small', '', item.location)); row.append(copy); list.append(row);
+      });
+      if (data.deadlines.length) {
+        const group = scheduleElement('div', 'today-deadlines'); group.append(scheduleElement('span', '', '今日截止'));
+        data.deadlines.forEach((item) => group.append(scheduleElement('strong', '', `◆ ${item.title}`))); list.append(group);
+      }
+      container.append(list);
+    }
+
+    function renderTodayScheduleState(title, detail, isError = false) {
+      const container = document.getElementById('today-schedule-content');
+      if (!container) return;
+      const state = scheduleElement('div', `rail-empty-state${isError ? ' is-error' : ''}`);
+      state.append(scheduleElement('strong', '', title), scheduleElement('p', '', detail));
+      container.replaceChildren(state);
+    }
+
+    async function loadTodaySchedule() {
+      const container = document.getElementById('today-schedule-content');
+      if (container) container.setAttribute('aria-busy', 'true');
+      try {
+        const response = await fetch('/api/schedule/today');
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || 'load failed');
+        renderTodaySchedule(data);
+      } catch (error) {
+        renderTodayScheduleState('今日日程加载失败', '请稍后重试', true);
+      } finally {
+        if (container) container.setAttribute('aria-busy', 'false');
+      }
+    }
+
+    document.getElementById('recurring-schedule-form').addEventListener('submit', (event) => { event.preventDefault(); const values = Object.fromEntries(new FormData(event.currentTarget)); values.weekday = Number(values.weekday); saveScheduleItem('recurring', null, values); event.currentTarget.reset(); });
+    document.getElementById('one-off-schedule-form').addEventListener('submit', (event) => { event.preventDefault(); saveScheduleItem('one_off', null, Object.fromEntries(new FormData(event.currentTarget))); event.currentTarget.reset(); });
+    loadTodaySchedule();
+
+    // ---- Long-term projects ----
+    let projects = []; let selectedProjectId = null;
+    const projectNode = (tag, text, className = '') => { const el = document.createElement(tag); el.textContent = text; el.className = className; return el; };
+    function setProjectStatus(message, error = false) { const el = document.getElementById('project-manager-status'); if (el) { el.textContent = message; el.classList.toggle('is-error', error); } }
+    function projectGoalSummary(project) { const goals = project.goals || []; return `${goals.filter(goal => goal.done).length}/${goals.length} 本周目标`; }
+    function projectCard(project) { const button = projectNode('button', '', 'project-overview-item'); button.type = 'button'; button.onclick = () => openProjectDetail(project.id); const title = projectNode('strong', project.name); const meter = projectNode('span', `${project.progress}%`, 'project-overview-progress'); const meta = projectNode('small', `${project.due_date ? `截止 ${project.due_date} · ` : ''}${projectGoalSummary(project)}`); const action = projectNode('small', project.next_action || '尚未填写下一步行动'); button.append(title, meter, meta, action); return button; }
+    function renderProjectOverview(data) { const container = document.getElementById('project-overview-content'); if (!container) return; container.replaceChildren(); if (!data.projects.length) { const empty = projectNode('div', '', 'rail-empty-state'); const copy = projectNode('div', ''); copy.append(projectNode('strong', '暂无长期项目'), projectNode('p', '从一个清晰的下一步开始')); const create = projectNode('button', '新建项目', 'project-empty-create'); create.id = 'project-empty-create'; create.type = 'button'; create.onclick = () => openProjectDetail(null, true); empty.append(copy, create); container.append(empty); return; } data.projects.forEach(project => container.append(projectCard(project))); if (data.has_more) { const more = projectNode('button', '查看全部项目', 'project-overview-more'); more.type = 'button'; more.onclick = () => switchDashboardView('projects'); container.append(more); } }
+    function renderProjectOverviewState(title, detail, isError = false) { const container = document.getElementById('project-overview-content'); if (!container) return; const state = projectNode('div', '', `rail-empty-state${isError ? ' is-error' : ''}`); state.append(projectNode('strong', title), projectNode('p', detail)); container.replaceChildren(state); }
+    async function loadProjectOverview() { const container = document.getElementById('project-overview-content'); if (container) container.setAttribute('aria-busy', 'true'); try { const response = await fetch('/api/projects/overview'); const data = await response.json(); if (!response.ok || !data.ok) throw new Error(data.error || 'load failed'); renderProjectOverview(data); } catch (error) { renderProjectOverviewState('长期项目加载失败', '请稍后重试', true); } finally { if (container) container.setAttribute('aria-busy', 'false'); } }
+    function renderProjectList() { const list = document.getElementById('project-manager-list'); if (!list) return; list.replaceChildren(); const ordered = [...projects].sort((a,b) => (a.status === b.status ? 0 : a.status === 'active' ? -1 : 1)); if (!ordered.length) list.append(projectNode('p', '暂无项目', 'project-list-empty')); ordered.forEach(project => { const item = projectNode('button', `${project.name} · ${project.progress}%`, `project-list-item${project.id === selectedProjectId ? ' is-selected' : ''}`); item.type = 'button'; item.onclick = () => openProjectDetail(project.id); list.append(item); }); }
+    function renderProjectDetail() { const detail = document.getElementById('project-detail'); if (!detail) return; detail.replaceChildren(); const project = projects.find(item => item.id === selectedProjectId); if (!project) { detail.append(projectNode('p', '选择一个项目查看详情', 'project-list-empty')); return; } const form = document.createElement('form'); form.className = 'project-edit-form'; form.innerHTML = `<input name="name" required maxlength="100"><input name="progress" type="number" min="0" max="100"><input name="due_date" type="date"><input name="next_action" maxlength="200" placeholder="下一步行动"><button>保存修改</button>`; form.name.value = project.name; form.progress.value = project.progress; form.due_date.value = project.due_date || ''; form.next_action.value = project.next_action || ''; form.onsubmit = event => { event.preventDefault(); const value = Object.fromEntries(new FormData(form)); value.progress = Number(value.progress); saveProject(project.id, value, form); }; detail.append(form); const archive = projectNode('button', project.status === 'archived' ? '已归档' : '归档项目', 'project-archive-button'); archive.type = 'button'; archive.disabled = project.status === 'archived'; archive.onclick = () => archiveProject(project.id); detail.append(archive); const goals = projectNode('div', '', 'project-goals'); goals.append(projectNode('h2', '本周目标')); const goalForm = document.createElement('form'); goalForm.className = 'project-goal-form'; goalForm.innerHTML = '<input name="text" required maxlength="160" placeholder="添加本周目标"><button>添加</button>'; goalForm.onsubmit = event => { event.preventDefault(); createGoal(project.id, goalForm.text.value, goalForm); }; goals.append(goalForm); (project.goals || []).forEach((goal, index) => { const row = projectNode('div', '', 'project-goal-row'); const done = document.createElement('input'); done.type = 'checkbox'; done.checked = goal.done; done.onchange = () => saveGoal(project.id, goal.id, {done: done.checked}); const text = projectNode('button', goal.text, goal.done ? 'is-done' : ''); text.type = 'button'; text.onclick = () => { const value = prompt('目标内容', goal.text); if (value !== null) saveGoal(project.id, goal.id, {text: value}); }; const up = projectNode('button', '↑'); up.type = 'button'; up.disabled = index === 0; up.onclick = () => reorderGoals(project, index, index - 1); const down = projectNode('button', '↓'); down.type = 'button'; down.disabled = index === project.goals.length - 1; down.onclick = () => reorderGoals(project, index, index + 1); const remove = projectNode('button', '删除'); remove.type = 'button'; remove.onclick = () => deleteGoal(project.id, goal.id); row.append(done, text, up, down, remove); goals.append(row); }); detail.append(goals); }
+    function renderProjects() { renderProjectList(); renderProjectDetail(); }
+    async function loadProjects() { setProjectStatus('正在加载项目…'); try { const response = await fetch('/api/projects'); const data = await response.json(); if (!response.ok || !data.ok) throw new Error(data.error || 'load failed'); projects = data.projects; renderProjects(); setProjectStatus(''); return true; } catch (error) { setProjectStatus('项目加载失败，请稍后重试', true); return false; } }
+    function showProjectComposer() { document.getElementById('project-composer').classList.remove('hidden'); }
+    async function saveProject(id, payload, form) {
+      try {
+        const response = await fetch(id ? `/api/projects/${id}` : '/api/projects', {method: id ? 'PUT' : 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+          setProjectStatus(data.error || '保存失败，已保留当前输入', true);
+          return;
+        }
+        selectedProjectId = data.project.id;
+        setProjectStatus('已保存');
+        if (!id) document.getElementById('project-composer').classList.add('hidden');
+        await loadProjects();
+        await loadProjectOverview();
+      } catch (error) {
+        setProjectStatus('保存失败，已保留当前输入', true);
+      }
+    }
+    async function archiveProject(id) { const response = await fetch(`/api/projects/${id}/archive`, {method:'POST'}); const data = await response.json(); if (!response.ok || !data.ok) { setProjectStatus('归档失败', true); return; } await loadProjects(); await loadProjectOverview(); }
+    async function createGoal(projectId, text, form) { const response = await fetch(`/api/projects/${projectId}/goals`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({text})}); const data = await response.json(); if (!response.ok || !data.ok) { setProjectStatus(data.error || '保存失败', true); return; } form.reset(); await loadProjects(); await loadProjectOverview(); }
+    async function saveGoal(projectId, goalId, payload) { const response = await fetch(`/api/projects/${projectId}/goals/${goalId}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); const data = await response.json(); if (!response.ok || !data.ok) { setProjectStatus(data.error || '保存失败', true); return; } await loadProjects(); await loadProjectOverview(); }
+    async function deleteGoal(projectId, goalId) { await fetch(`/api/projects/${projectId}/goals/${goalId}`, {method:'DELETE'}); await loadProjects(); await loadProjectOverview(); }
+    async function reorderGoals(project, from, to) { const ids = project.goals.map(goal => goal.id); [ids[from], ids[to]] = [ids[to], ids[from]]; const response = await fetch(`/api/projects/${project.id}/goals/reorder`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({goal_ids:ids})}); if (response.ok) await loadProjects(); }
+    function openProjectDetail(id, create = false) { selectedProjectId = id; switchDashboardView('projects').then(() => { if (create) showProjectComposer(); }); }
+    document.getElementById('project-composer').addEventListener('submit', event => { event.preventDefault(); const value = Object.fromEntries(new FormData(event.currentTarget)); value.progress = Number(value.progress); saveProject(null, value, event.currentTarget); });
+    loadProjectOverview();
+
     // ---- Clock ----
     let serverTime = null;
     let clockStart = null;
@@ -1163,6 +1568,7 @@
             }
             
             // 鍚堝苟涓轰竴娆¤姹傦紝閬垮厤绔炴€佹潯浠?            saveInlineEdit(id, 'multi', { text: taskText, labels });
+            saveInlineEdit(id, 'multi', { text: taskText, labels });
           } else {
             saveInlineEdit(id, field, newValue);
           }

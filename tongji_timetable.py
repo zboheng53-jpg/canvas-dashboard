@@ -1,0 +1,186 @@
+"""Parse Tongji graduate timetable rows and read them through the local CDP proxy."""
+import html
+import json
+import re
+import time
+from datetime import date
+from html.parser import HTMLParser
+
+import requests
+
+import settings
+
+TIMETABLE_URL = "https://1.tongji.edu.cn/GraduateStudentTimeTable"
+PERIOD_TIMES = {
+    1: ("08:00", "08:45"), 2: ("08:50", "09:35"), 3: ("10:00", "10:45"),
+    4: ("10:50", "11:35"), 5: ("13:30", "14:15"), 6: ("14:20", "15:05"),
+    7: ("15:30", "16:15"), 8: ("16:20", "17:05"), 9: ("18:30", "19:15"),
+    10: ("19:20", "20:05"), 11: ("20:10", "20:55"),
+}
+WEEKDAYS = {"一": 0, "二": 1, "三": 2, "四": 3, "五": 4, "六": 5, "日": 6, "天": 6}
+
+
+class _TableParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.tables, self._table, self._row, self._cell = [], None, None, None
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "table":
+            self._table = []
+        elif tag == "tr" and self._table is not None:
+            self._row = []
+        elif tag in {"td", "th"} and self._row is not None:
+            self._cell = []
+        elif tag == "br" and self._cell is not None:
+            self._cell.append("\n")
+
+    def handle_data(self, data):
+        if self._cell is not None:
+            self._cell.append(data)
+
+    def handle_endtag(self, tag):
+        if tag in {"td", "th"} and self._cell is not None:
+            self._row.append("".join(self._cell).strip())
+            self._cell = None
+        elif tag == "tr" and self._row is not None:
+            self._table.append(self._row)
+            self._row = None
+        elif tag == "table" and self._table is not None:
+            self.tables.append(self._table)
+            self._table = None
+
+
+def _normalized(value):
+    return re.sub(r"\s+", "", html.unescape(value or ""))
+
+
+def _header_index(headers, aliases):
+    for index, header in enumerate(headers):
+        normalized = _normalized(header)
+        if any(alias in normalized for alias in aliases):
+            return index
+    return None
+
+
+def _split_segments(raw_time):
+    return [part.strip() for part in re.split(r"[；;\n]+", raw_time or "") if part.strip()]
+
+
+def _parse_weeks(text):
+    weeks = set()
+    for match in re.finditer(r"(\[|第)\s*(\d{1,2})\s*[-~至]\s*(\d{1,2})\s*(周)?", text):
+        if match.group(1) == "[" or match.group(4) == "周":
+            weeks.update(range(int(match.group(2)), int(match.group(3)) + 1))
+    for match in re.findall(r"(?:第)?([\d、，,\s]+)周", text):
+        weeks.update(int(value) for value in re.findall(r"\d{1,2}", match))
+    parity = "odd" if "单周" in text else "even" if "双周" in text else None
+    return sorted(weeks), parity
+
+
+def _parse_periods(text):
+    match = re.search(r"第?\s*(\d{1,2})\s*(?:[-~至]\s*(\d{1,2}))?\s*节", text)
+    if not match:
+        return None, None
+    start, end = int(match.group(1)), int(match.group(2) or match.group(1))
+    if start not in PERIOD_TIMES or end not in PERIOD_TIMES or end < start:
+        return None, None
+    return start, end
+
+
+def _parse_date_range(text):
+    match = re.search(r"(20\d{2})[./-](\d{1,2})[./-](\d{1,2})\s*(?:至|~|-)\s*(?:20\d{2}[./-])?(\d{1,2})[./-](\d{1,2})", text)
+    if not match:
+        return None, None
+    year, month, day, end_month, end_day = map(int, match.groups())
+    try:
+        return date(year, month, day).isoformat(), date(year, end_month, end_day).isoformat()
+    except ValueError:
+        return None, None
+
+
+def parse_time_segments(raw_time, fallback_locations=""):
+    """Turn a course's original time string into independent meeting segments."""
+    result = []
+    for text in _split_segments(raw_time):
+        weekday_match = re.search(r"周([一二三四五六日天])", text)
+        start_period, end_period = _parse_periods(text)
+        date_start, date_end = _parse_date_range(text)
+        if not weekday_match and not date_start:
+            continue
+        if start_period is None:
+            continue
+        weeks, parity = _parse_weeks(text)
+        location = re.sub(r".*?(?:第?\s*\d{1,2}\s*(?:[-~至]\s*\d{1,2})?\s*节)", "", text).strip(" ，,;；")
+        result.append({
+            "weekday": WEEKDAYS.get(weekday_match.group(1)) if weekday_match else None,
+            "weeks": weeks,
+            "parity": parity,
+            "start_period": start_period,
+            "end_period": end_period,
+            "start_time": PERIOD_TIMES[start_period][0],
+            "end_time": PERIOD_TIMES[end_period][1],
+            "date_start": date_start,
+            "date_end": date_end,
+            "location": location or fallback_locations,
+            "raw_time": text,
+        })
+    return result
+
+
+def parse_selected_courses_html(markup):
+    """Find the selected-course table by header names, never fixed column positions."""
+    parser = _TableParser()
+    parser.feed(markup or "")
+    courses = []
+    for table in parser.tables:
+        if not table:
+            continue
+        headers = table[0]
+        code = _header_index(headers, ("课程代码", "课程号"))
+        name = _header_index(headers, ("课程名称",))
+        teacher = _header_index(headers, ("教师", "任课教师"))
+        meeting = _header_index(headers, ("上课时间", "时间"))
+        location = _header_index(headers, ("地点", "教室"))
+        campus = _header_index(headers, ("校区",))
+        if name is None or meeting is None:
+            continue
+        for row in table[1:]:
+            def cell(index):
+                return row[index].strip() if index is not None and index < len(row) else ""
+            raw_time = cell(meeting)
+            places = " · ".join(value for value in (cell(campus), cell(location)) if value)
+            sessions = parse_time_segments(raw_time, places)
+            if not sessions:
+                continue
+            course_name = cell(name)
+            courses.append({
+                "id": f"{cell(code) or course_name}:{len(courses)}",
+                "code": cell(code), "name": course_name, "teacher": cell(teacher),
+                "raw_time": raw_time, "location": places, "sessions": sessions,
+            })
+        if courses:
+            return courses
+    return []
+
+
+def fetch_selected_courses():
+    """Read the authenticated timetable page through CDP without persisting browser secrets."""
+    target_id = None
+    try:
+        opened = requests.get(f"{settings.CDP_PROXY_BASE_URL}/new", params={"url": TIMETABLE_URL}, timeout=15)
+        target_id = opened.json()["targetId"]
+        time.sleep(2)
+        script = "document.documentElement.innerHTML"
+        response = requests.post(f"{settings.CDP_PROXY_BASE_URL}/eval", params={"target": target_id}, data=script, timeout=15)
+        markup = response.json().get("value", "")
+        courses = parse_selected_courses_html(markup)
+        return courses if courses else None
+    except (requests.RequestException, KeyError, ValueError, json.JSONDecodeError):
+        return None
+    finally:
+        if target_id:
+            try:
+                requests.get(f"{settings.CDP_PROXY_BASE_URL}/close", params={"target": target_id}, timeout=5)
+            except requests.RequestException:
+                pass

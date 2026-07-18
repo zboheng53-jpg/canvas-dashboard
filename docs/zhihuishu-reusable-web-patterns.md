@@ -68,8 +68,8 @@ zhihuishu_chromium_profile/
 
 前端看板不能等浏览器现场启动。正确模式是：
 
-1. Worker 按站内账号遍历用户。
-2. 对每个用户打开该用户独立 Chromium profile。
+1. `--all-users` supervisor 每轮重新发现站内账号，因此服务启动后新增的用户也会进入下一轮。
+2. 每个用户在独立子进程中打开自己的 Chromium profile；单用户超时或失败不会阻塞后续用户。
 3. 先 `check_session(username)`，判断登录态是否仍有效。
 4. 登录有效时 `keepalive(username)`，更新 `last_keepalive_at`。
 5. 到抓取间隔或用户刚完成登录时，执行 `fetch_assignments(username)`。
@@ -82,6 +82,7 @@ zhihuishu_chromium_profile/
 KEEPALIVE_INTERVAL_SECONDS = 15 * 60
 FETCH_INTERVAL_SECONDS = 45 * 60
 MAX_FAILURE_DELAY_SECONDS = 60 * 60
+FETCH_TIMEOUT_SECONDS = 180
 ```
 
 可复用 API 返回形状：
@@ -242,6 +243,8 @@ smart_course_task_url(href)
    - 新建 `<platform>_worker.py`。
    - Flask 请求路径里不能启动浏览器。
    - 实现 `--username`、`--all-users`、`--once`、`--dry-run`。
+   - `--all-users` 每轮重新发现用户，并用有上限的子进程隔离单用户刷新。
+   - 每次成功刷新写 `last_success_at`，并让本地健康检查汇总其时间和年龄。
    - systemd 用独立 service 管理。
 
 3. Browser adapter 层
@@ -275,7 +278,7 @@ smart_course_task_url(href)
    - Store 测缓存过期和 state。
    - API 测登录态、login session、VNC auth、complete 后刷新 cache。
    - Browser 纯函数测 URL 改写、item normalization、入口候选提取。
-   - Worker 测 fetch 间隔、强制 fetch、登录失效状态。
+   - Worker 测 fetch 间隔、强制 fetch、登录失效状态、新用户发现和单用户超时隔离。
 
 ## 验证命令模板
 
@@ -294,36 +297,37 @@ Python 编译检查：
 服务器服务状态：
 
 ```bash
-systemctl is-active canvas-dashboard <platform>-worker.service nginx
+systemctl is-active canvas-dashboard.service <platform>-worker.service nginx
 journalctl -u <platform>-worker.service -n 100 --no-pager
+curl -fsS http://127.0.0.1:5000/healthz
 ```
 
 服务器手动检查登录态：
 
 ```bash
-cd /home/ubuntu/canvas-dashboard
-env <PLATFORM>_CHROMIUM_EXECUTABLE=/usr/bin/google-chrome-stable .venv/bin/python <platform>_browser.py check --username <site_username>
+cd /home/ubuntu/canvas-dashboard/current
+env <PLATFORM>_CHROMIUM_EXECUTABLE=/usr/bin/google-chrome-stable ../.venv/bin/python <platform>_browser.py check --username <site_username>
 ```
 
 服务器手动抓取：
 
 ```bash
-cd /home/ubuntu/canvas-dashboard
-env <PLATFORM>_CHROMIUM_EXECUTABLE=/usr/bin/google-chrome-stable .venv/bin/python <platform>_browser.py fetch --username <site_username>
+cd /home/ubuntu/canvas-dashboard/current
+env <PLATFORM>_CHROMIUM_EXECUTABLE=/usr/bin/google-chrome-stable ../.venv/bin/python <platform>_browser.py fetch --username <site_username>
 ```
 
 强制 worker 跑一次并写 cache：
 
 ```bash
-cd /home/ubuntu/canvas-dashboard
-.venv/bin/python <platform>_worker.py --username <site_username> --once
+cd /home/ubuntu/canvas-dashboard/current
+../.venv/bin/python <platform>_worker.py --username <site_username> --once
 ```
 
 检查 cache 是否新鲜：
 
 ```bash
-cd /home/ubuntu/canvas-dashboard
-.venv/bin/python -c 'import json, <platform>_store as s; print(json.dumps(s.load_cache("<site_username>"), ensure_ascii=False))'
+cd /home/ubuntu/canvas-dashboard/current
+../.venv/bin/python -c 'import json, <platform>_store as s; print(json.dumps(s.load_cache("<site_username>"), ensure_ascii=False))'
 ```
 
 ## 常见失败解释

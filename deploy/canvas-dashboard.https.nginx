@@ -8,6 +8,24 @@ server {
         default_type text/plain;
     }
 
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name canvas-dashboard.xyz www.canvas-dashboard.xyz;
+
+    ssl_certificate /etc/letsencrypt/live/canvas-dashboard.xyz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/canvas-dashboard.xyz/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+
     location = /_zhihuishu_vnc_auth {
         internal;
         proxy_pass http://127.0.0.1:5000/api/zhihuishu/login-session-auth;
@@ -54,7 +72,6 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # Other applications sharing this host.
     location /daily-english/ {
         proxy_pass http://127.0.0.1:8080/;
         proxy_set_header Host $host;

@@ -21,6 +21,9 @@ canvas-dashboard/
 ├── auth.py                        # Site account system, password hashing, legacy migration
 ├── user_paths.py                  # Per-user data paths under data/users/<username>/
 ├── storage.py                     # Locked JSON reads/writes and atomic replace
+├── tongji_timetable.py             # 一网通办课表 CDP fetch and parser
+├── schedule_store.py               # Per-user course and schedule-item storage
+├── project_store.py                # Per-user long-term project storage
 ├── canvas_auth.py                 # Canvas iCal fetching and parsing
 ├── haoke_client.py                # 好课 client and cache handling
 ├── zhixuemeng_client.py           # 智学盟 client, token, course, assignment APIs
@@ -39,7 +42,7 @@ canvas-dashboard/
 ├── deploy/                        # nginx and systemd reference configs
 ├── data/                          # Local runtime data, never casually modify
 ├── AGENTS.md                      # Canonical agent guide
-└── CLAUDE.md                      # Symlink to AGENTS.md
+└── CLAUDE.md                      # Same content as AGENTS.md (hard link on Windows)
 ```
 
 ## Install And Run
@@ -50,15 +53,7 @@ py -m venv .venv
 .\scripts\dev.ps1
 ```
 
-Development and production both listen on port `5000` by default.
-
-Production entrypoint:
-
-```powershell
-python serve.py
-```
-
-The Windows wrapper `canvas-server.vbs` starts the production server without a visible console.
+Local development and Waitress both listen on `127.0.0.1:5000` by default. `serve.py` is the production entrypoint; systemd runs it from `/home/ubuntu/canvas-dashboard/current`.
 
 ## Tests
 
@@ -87,61 +82,33 @@ Deploy through the project skill script after local verification:
 .\.agents\skills\deploy-canvas-dashboard\scripts\deploy.ps1
 ```
 
-The deploy script runs local tests, packages the app excluding `.venv`, `data`, caches, `.git`, and agent directories, uploads via `scp`, restarts `canvas-dashboard`, and checks systemd status.
+The deploy script runs the full test/compile gates, creates and restores an encrypted off-server backup in an isolated drill, uploads an immutable release through the pinned `deploy/known_hosts`, atomically switches `current`, and automatically restores the previous release on activation or health failure.
 
 Production notes:
 
-- nginx proxies port `80` to `127.0.0.1:5000`; see `deploy/canvas-dashboard.nginx`.
-- systemd uses `deploy/canvas-dashboard.service`; `ExecStart` runs `.venv/bin/python serve.py`.
-- `/healthz` is public and checks only local app/data/worker state.
+- nginx redirects HTTP to HTTPS and terminates TLS on `canvas-dashboard.xyz`; see `deploy/canvas-dashboard.https.nginx`.
+- systemd units use `/home/ubuntu/canvas-dashboard/current`; shared runtime state remains at the project root.
+- `/healthz` is public, checks only local app/data/worker state, and summarizes 智慧树 `last_success_at` values without refreshing.
 - Server-side `data/` is not included in deployments and is independent from local data.
 - Do not test open registration on production with throwaway accounts when real legacy data may still exist, because the first registered account can claim legacy top-level data files.
+- Full deployment, rollback, service, certificate, and incident commands are in `docs/operations.md`.
 
 ## API Routes
 
-All routes except `/healthz`, `/login`, `/register`, `/api/auth/register`, `/api/auth/login`, and token-authenticated `/calendar/<token>.ics` require a site account session. Page routes redirect unauthenticated users to `/login`; `/api/*` returns `401 {"ok": false}`.
+All routes except `/healthz`, `/login`, `/register`, `/api/auth/register`, `/api/auth/login`, and token-authenticated `/calendar/<token>.ics` require a site account session. Page routes redirect unauthenticated users to `/login`; `/api/*` returns `401 {"ok": false}`. CSRF protection applies to every POST/PUT/PATCH/DELETE request.
 
-| Route | Methods | Purpose |
-| --- | --- | --- |
-| `/healthz` | GET | Public local health check for app, writable data, and Zhihuishu worker status |
-| `/login` | GET | Site account login page |
-| `/register` | GET | Site account registration page |
-| `/api/auth/register` | POST | Register and automatically log in |
-| `/api/auth/login` | POST | Site account login |
-| `/api/auth/logout` | POST | Clear site session |
-| `/api/apple-calendar/subscription` | POST/DELETE | Generate or revoke the current account's private ICS subscription token |
-| `/calendar/<token>.ics` | GET | Token-authenticated read-only iCalendar feed; never expose before HTTPS |
-| `/` | GET | Main frontend app |
-| `/api/clock` | GET | Server date/time |
-| `/api/weather` | GET | Shanghai weather via Open-Meteo |
-| `/api/term` | GET | Term and week data |
-| `/api/term/refresh` | POST | Refresh term data through CDP |
-| `/api/config` | GET/POST | Canvas feed URL config |
-| `/api/canvas/todos` | GET | Canvas assignments |
-| `/api/canvas/state` | GET/POST | Canvas hidden/highlighted/deleted state |
-| `/api/haoke/config` | GET/POST | 好课 credential config |
-| `/api/haoke/todos` | GET | 好课 assignments |
-| `/api/haoke/state` | GET/POST | 好课 state |
-| `/api/zhixuemeng/send-sms` | POST | Send 智学盟 SMS code |
-| `/api/zhixuemeng/login` | POST | 智学盟 SMS login |
-| `/api/zhixuemeng/login-password` | POST | 智学盟 password login |
-| `/api/zhixuemeng/logout` | POST | Clear 智学盟 token and assignment cache |
-| `/api/zhixuemeng/config` | GET | 智学盟 login/course status |
-| `/api/zhixuemeng/course` | POST | Select 智学盟 course |
-| `/api/zhixuemeng/todos` | GET | 智学盟 assignments |
-| `/api/zhixuemeng/state` | GET/POST | 智学盟 state |
-| `/api/custom/todos` | GET/POST | List or create custom todos |
-| `/api/custom/todos/<id>` | PUT/DELETE | Update or delete a custom todo |
-| `/api/zhihuishu/config` | GET | 智慧树 login/cache status |
-| `/api/zhihuishu/todos` | GET | 智慧树 assignments from cache |
-| `/api/zhihuishu/state` | GET/POST | 智慧树 state |
-| `/api/zhihuishu/login-required` | POST | Mark 智慧树 login required |
-| `/api/zhihuishu/login-session` | POST/DELETE | Create or stop the current 智慧树 login window |
-| `/api/zhihuishu/login-session-auth` | GET | 智慧树 noVNC reverse-proxy auth |
-| `/api/zhihuishu/login-session/<token>/complete` | POST | Complete login window and trigger refresh |
-| `/api/zhihuishu/login-session/<token>` | DELETE | Stop a specific login window |
-| `/zhihuishu/session/<token>/` | GET | 智慧树 login window landing page |
-| `/login/<platform>` | GET | Platform credential page after site login |
+Route groups:
+
+- `/api/auth/*`: register, login, and logout.
+- `/api/{canvas,haoke,zhixuemeng,zhihuishu}/*`: platform configuration, todos, state, and login actions.
+- `/api/custom/todos[/<id>]`: custom-todo CRUD.
+- `/api/apple-calendar/subscription` and `/calendar/<token>.ics`: private subscription lifecycle and feed.
+- `/api/schedule`: course cache, CDP refresh, recurring/one-off item CRUD, and today's busy schedule.
+- `/api/projects`: long-term project, weekly-goal, archive, and overview APIs.
+- `/api/term`, `/api/term/refresh`, `/api/clock`, and `/api/weather`: dashboard context.
+- `/api/zhihuishu/login-session*` and `/zhihuishu/session/<token>/`: token-gated login windows.
+
+When routes change, verify the actual `app.url_map`, authentication exemption set, CSRF boundary, and route tests together.
 
 ## Site Accounts And User Data
 
@@ -168,38 +135,11 @@ Platform credential pages are separate from site account login:
 
 ## Data Files
 
-Per-user files under `data/users/<username>/`:
+Per-user durable files include `custom_todos.json`, `apple_calendar.json`, `course_schedule.json`, `schedule_items.json`, `projects.json`, `config.json`, and the four `*_state.json` files. Per-user caches/status/login metadata and `zhihuishu_chromium_profile/` are runtime artifacts. Global durable files include `users.json`, `.flask_secret_key`, `.encryption_key`, and optional `term_config.json`; holiday and term caches are rebuildable.
 
-| File | Purpose |
-| --- | --- |
-| `custom_todos.json` | Custom todos with `id`, `text`, `done`, `created_at`, `updated_at`, `due_date`, `highlighted`, `labels`, `subtasks` |
-| `apple_calendar.json` | SHA-256 hash of the active private Apple Calendar subscription token |
-| `config.json` | Canvas URL, encrypted 好课 credentials, encrypted 智学盟 token, selected 智学盟 course |
-| `canvas_state.json` | Canvas hidden/highlighted/deleted state |
-| `haoke_state.json` | 好课 state |
-| `zhixuemeng_state.json` | 智学盟 state |
-| `zhihuishu_state.json` | 智慧树 state |
-| `canvas_cache.json` | Canvas parsed iCal cache |
-| `haoke_cache.json` | 好课 assignment cache |
-| `zhixuemeng_cache.json` | 智学盟 assignment cache, 30 minute TTL |
-| `zhihuishu_status.json` | 智慧树 worker/session status |
-| `zhihuishu_cache.json` | 智慧树 assignment cache |
-| `zhihuishu_login_session.json` | 智慧树 short login-window metadata |
-| `zhihuishu_cookies.json` | Legacy 智慧树 cookie compatibility file |
-| `zhihuishu_chromium_profile/` | Per-user 智慧树 Chromium profile |
+`custom_todos.json` stores `id`, `text`, `done`, timestamps, optional parent `due_date`, `highlighted`, `labels`, and `subtasks`. Each subtask stores `id`, `text`, `done`, and optional `due_date`.
 
-Global files under `data/`:
-
-| File | Purpose |
-| --- | --- |
-| `users.json` | Site user registry |
-| `.flask_secret_key` | Flask session signing key |
-| `.encryption_key` | Fernet key shared by all account credential encryption |
-| `holiday_cache.json` | Official holiday cache |
-| `term_cache.json` | Term/week cache |
-| `term_config.json` | Local fallback term label and start date |
-| `zhixuemeng_gaoshu_*.md` | Manual 智学盟 export output |
-| `zhixuemeng_gaoshu_*_raw.json` | Manual 智学盟 raw export output |
+The exact data flow and backup inclusion policy are documented in `docs/architecture.md` and `docs/backup-and-restore.md`.
 
 ## Storage And Concurrency
 
@@ -250,6 +190,7 @@ Canvas and 好课 item IDs are usually treated as integers. 智学盟 and 智慧
 
 - Flask routes never launch a browser directly. `/api/zhihuishu/todos` only reads cache/status/state.
 - Background refresh runs through `zhihuishu_worker.py --all-users`.
+- Every round rediscovers users. Each user runs in a timeout-isolated child process, so one stuck account cannot block later accounts.
 - Each site account has an isolated Chromium profile under `data/users/<username>/zhihuishu_chromium_profile/`.
 - Login or slider failures are handled through short-lived Docker/noVNC login windows guarded by tokens.
 - Deployment needs Playwright Chromium installed for the worker: `.venv/bin/python -m playwright install chromium`.
@@ -268,14 +209,19 @@ Holiday detection uses the Tongji workbench API through CDP and caches to `data/
 
 The main app is `templates/index.html`: vanilla JS plus Fetch API.
 
+- The responsive desktop shell is split across `templates/dashboard/*.html` and `static/dashboard-shell.css`; keep new sidebar or right-rail work inside those boundaries when possible.
+- On desktop the overview's todo card fills the remaining viewport height below the context card; do not apply that fixed-height behavior to the narrow or mobile layouts.
+
 - `renderUnifiedList()` merges Canvas, 好课, 智学盟, 智慧树, and custom todos into one list.
 - Custom todo IDs use a `c` prefix on the frontend, for example `c16`.
 - 智学盟 IDs use a `zxm_` prefix in the unified list.
 - `customItems` stores custom todos in frontend memory.
 - User input like `任务名称 #标签1 #标签2` extracts labels from whitespace-separated `#` tokens.
 - `saveInlineEdit(..., field='multi')` sends `text` and `labels` together to avoid racing parallel PUTs.
-- Custom todo subtasks live in each todo's `subtasks` array as `{id, text, done}`.
+- Custom todo subtasks live in each todo's `subtasks` array as `{id, text, done, due_date?}`.
 - Subtask expanded state is frontend-only in `expandedCustomTodoIds` and resets after refresh.
 - External platform rows render a disabled triangle placeholder so dates and right-side action icons stay aligned.
+- Apple Calendar exports an unfinished dated subtask independently of the parent's date; a completed parent suppresses all of its subtasks.
+- `templates/dashboard/_today_schedule.html` and `_long_term_projects.html` own the two right-rail modules; their managers remain isolated in the `schedule` and `projects` views.
 
 `GET /api/custom/todos` still auto-deletes completed custom todos whose due date is earlier than today. Sorting is unfinished first, then dated items first, then due date ascending. If this sorting changes, check `renderUnifiedList()` at the same time.

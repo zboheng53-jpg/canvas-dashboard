@@ -1,6 +1,17 @@
 # Canvas Dashboard
 
-Flask web app for a personal Tongji University homework dashboard. It aggregates unfinished work from Canvas, Haoke, Zhixuemeng, Zhihuishu, and manual todos.
+Flask web app for a personal Tongji University dashboard. It aggregates unfinished work from Canvas, Haoke, Zhixuemeng, Zhihuishu, and manual todos, with a per-user course schedule and lightweight long-term projects.
+
+Production is live at [https://canvas-dashboard.xyz](https://canvas-dashboard.xyz) with ICP filing, HTTPS, secure session cookies, and private Apple Calendar subscriptions enabled.
+
+## Documentation
+
+- `docs/architecture.md`: runtime components, data flow, storage safety, worker isolation, and release topology.
+- `docs/operations.md`: deployment, rollback, services, health checks, HTTPS, and incident commands.
+- `docs/backup-and-restore.md`: encrypted backup ownership, automation, recovery drills, and staged restoration.
+- `docs/README.md`: current-versus-historical documentation index.
+- `deploy/zhihuishu-login-tunnel.md`: 智慧树 login-window and worker operations.
+- `AGENTS.md`: concise implementation rules and current code contracts for coding agents.
 
 ## Install
 
@@ -45,38 +56,21 @@ The app listens on `127.0.0.1:5000` by default. Override with `CANVAS_DASHBOARD_
 
 The script pins `.venv`, sets UTF-8 output, checks required Python packages, and then runs `pytest`.
 
-## Temporary iPhone Calendar Test (Paused)
+## Apple Calendar
 
-The helper below verifies the initial subscription flow without reading or changing `data/`:
+After signing in to the production dashboard, open **日历订阅** from the bottom of the sidebar. The panel can generate and copy the private HTTPS feed URL or revoke it. Treat the URL like a password: anyone holding it can read that account's exported task titles and dates.
 
-```powershell
-.\scripts\apple-calendar-mobile-test.ps1
-```
-
-It starts an isolated temporary app, creates one fake all-day task, prints a one-time HTTPS subscription URL, and removes the tunnel and temporary data when you press `Ctrl+C`. In iPhone Calendar, choose **Add Calendar** → **Add Subscription Calendar** and paste that URL. It never uses the production server or real local account data.
-
-Do not retry this helper on the current network: its Cloudflare Quick Tunnel cannot establish the required outbound connection and returns Error 1033. Resume only from a network that permits the tunnel connection, or after the production domain, ICP filing, and HTTPS are ready.
+The feed includes unfinished, visible, dated platform items; dated unfinished custom todos; and unfinished custom subtasks that have their own `due_date`. A dated subtask is exported even if its parent has no date. Completed parents, completed subtasks, and undated subtasks are excluded.
 
 ## Deploy
 
-Reference deployment files live in `deploy/`.
+Run the verified release workflow from Windows:
 
-```bash
-cd /home/ubuntu/canvas-dashboard
-.venv/bin/python serve.py
+```powershell
+.\.agents\skills\deploy-canvas-dashboard\scripts\deploy.ps1
 ```
 
-Production normally runs through systemd using `deploy/canvas-dashboard.service`; nginx proxies public HTTP to `127.0.0.1:5000`. The unauthenticated local health endpoint is:
-
-```bash
-curl -fsS http://127.0.0.1:5000/healthz
-```
-
-`canvas-dashboard.xyz` is awaiting review. Keep production on its current IP/HTTP path until domain review and ICP filing are complete; only then enable HTTPS and secure session cookies.
-
-Apple Calendar's private ICS routes are implemented for local verification only. Do not deploy or share subscription URLs until the domain, ICP filing, HTTPS, token-safe proxy logging, and a real-iPhone test are all complete. The current local test covers subscription, cached-task display, and revocation; it does not yet verify calendar notifications.
-
-Zhihuishu background refresh and noVNC login windows need the worker service, Docker image, and cleanup timer described in `deploy/zhihuishu-login-tunnel.md`.
+It runs the full test and compile gates, performs an encrypted off-server backup plus isolated recovery drill, creates an immutable release, activates it atomically, and rolls back automatically on failure. See `docs/operations.md` for service checks and manual rollback.
 
 ## Data Safety
 
@@ -88,15 +82,16 @@ Must preserve:
 - `data/.encryption_key`
 - `data/.flask_secret_key`
 - `data/users/<username>/config.json`
-- per-user state files and custom todos
-- per-user Zhihuishu Chromium profiles if long-lived login state matters
+- per-user state files, custom todos, schedules, projects, and Apple Calendar token hashes
 
 Usually disposable:
 
 - platform cache files
 - worker status files
 - short-lived Zhihuishu login session files
+- per-user 智慧树 Chromium profiles in the standard encrypted backup policy; users may need to sign in again after a full restore
 - logs and lock files
 
-Detailed backup and restore guidance is in `docs/backup-and-restore.md`.
-If the app reports that stored data is temporarily unavailable, do not retry writes; follow that document's JSON-corruption recovery procedure first.
+Daily encrypted backups, a scheduled off-server pull, authenticated verification, and an isolated recovery drill are configured. The recovery private key stays off the server. Detailed procedures are in `docs/backup-and-restore.md`.
+
+If the app reports that stored data is temporarily unavailable, do not retry writes; preserve the damaged JSON and follow the corruption-recovery procedure first.

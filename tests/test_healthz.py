@@ -68,3 +68,23 @@ def test_healthz_reports_local_worker_error_status(health_client):
     worker = body["checks"]["zhihuishu_worker"]
     assert worker["ok"] is False
     assert worker["error_count"] == 1
+
+
+def test_healthz_reports_worker_success_refresh_times(health_client, monkeypatch):
+    monkeypatch.setattr(dashboard_app.time, "time", lambda: 10_000.0)
+    for username, last_success in (("alice", 9_900.0), ("bob", 9_800.0)):
+        user_dir = zhihuishu_store.DATA_DIR / "users" / username
+        user_dir.mkdir(parents=True)
+        (user_dir / "zhihuishu_status.json").write_text(
+            f'{{"worker": "running", "last_success_at": {last_success}}}',
+            encoding="utf-8",
+        )
+
+    resp = health_client.get("/healthz")
+
+    assert resp.status_code == 200
+    worker = resp.get_json()["checks"]["zhihuishu_worker"]
+    assert worker["last_success_at"] == 9_900.0
+    assert worker["oldest_last_success_at"] == 9_800.0
+    assert worker["last_success_age_seconds"] == 100
+    assert worker["last_success_count"] == 2

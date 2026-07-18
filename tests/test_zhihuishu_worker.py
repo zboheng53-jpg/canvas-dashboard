@@ -74,3 +74,48 @@ def test_scheduled_cycle_fetches_after_interval(tmp_path, monkeypatch):
     zhihuishu_worker.run_scheduled_cycle("alice", now=1000.0 + zhihuishu_worker.FETCH_INTERVAL_SECONDS + 1)
 
     assert zhihuishu_store.load_cache("alice")["items"][0]["id"] == "zhs_1"
+
+
+def test_all_users_round_discovers_users_added_after_start(tmp_path, monkeypatch):
+    import zhihuishu_store
+    import zhihuishu_worker
+
+    monkeypatch.setattr(zhihuishu_store, "DATA_DIR", tmp_path)
+    users_dir = tmp_path / "users"
+    (users_dir / "alice").mkdir(parents=True)
+    calls = []
+    runner = lambda username, dry_run=False: calls.append(username) or True
+
+    failures = zhihuishu_worker._run_all_users_round({}, runner=runner)
+    (users_dir / "bob").mkdir()
+    failures = zhihuishu_worker._run_all_users_round(failures, runner=runner)
+
+    assert calls == ["alice", "alice", "bob"]
+    assert failures == {"alice": 0, "bob": 0}
+
+
+def test_timed_out_user_does_not_prevent_later_user_cycle(tmp_path, monkeypatch):
+    import subprocess
+
+    import zhihuishu_store
+    import zhihuishu_worker
+
+    monkeypatch.setattr(zhihuishu_store, "DATA_DIR", tmp_path)
+    (tmp_path / "users" / "slow").mkdir(parents=True)
+    (tmp_path / "users" / "fast").mkdir()
+    calls = []
+
+    def fake_run(command, **kwargs):
+        username = command[command.index("--username") + 1]
+        calls.append(username)
+        if username == "slow":
+            raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(zhihuishu_worker.subprocess, "run", fake_run)
+    failures = zhihuishu_worker._run_all_users_round({})
+
+    assert calls == ["fast", "slow"]
+    assert failures == {"fast": 0, "slow": 1}
+    assert zhihuishu_store.load_status("slow")["worker"] == "error"
+    assert "timed out" in zhihuishu_store.load_status("slow")["last_error"]
