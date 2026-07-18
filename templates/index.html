@@ -169,6 +169,33 @@
       aria-label="关闭菜单"
       onclick="closeMobileMenu()"
     ></button>
+
+    {% if apple_calendar_enabled %}
+    <div
+      class="calendar-subscription-panel hidden"
+      id="calendar-subscription-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="calendar-subscription-title"
+      onclick="closeCalendarSubscriptionFromBackdrop(event)"
+    >
+      <section class="calendar-subscription-dialog">
+        <button type="button" class="calendar-modal-close" aria-label="关闭苹果日历订阅" onclick="closeCalendarSubscription()">&times;</button>
+        <h2 id="calendar-subscription-title">苹果日历订阅</h2>
+        <p>请将下方私密链接添加到 iPhone 日历，不要转发给他人。</p>
+        <div class="calendar-subscription-url" id="calendar-subscription-url-row">
+          <input type="text" id="calendar-subscription-url" readonly aria-label="私有日历订阅地址" placeholder="生成后将在这里显示私密订阅链接">
+        </div>
+        <div class="calendar-subscription-actions">
+          <button type="button" class="calendar-panel-primary" id="calendar-subscription-create" onclick="createCalendarSubscription()">生成订阅链接</button>
+          <button type="button" id="calendar-subscription-open" onclick="openCalendarSubscription()" disabled>在日历中打开</button>
+          <button type="button" id="calendar-subscription-copy" onclick="copyCalendarSubscription()" disabled>复制链接</button>
+          <button type="button" class="calendar-panel-revoke" id="calendar-subscription-revoke" onclick="revokeCalendarSubscription()" disabled>撤销链接</button>
+        </div>
+        <p class="calendar-subscription-status" id="calendar-subscription-status" role="status">生成后可复制链接或直接在日历中打开。</p>
+      </section>
+    </div>
+    {% endif %}
   </div>
 
   <script>
@@ -202,12 +229,22 @@
 
     function toggleCalendarSubscription() {
       if (!calendarSubscriptionPanel) return;
-      if (dashboardShell.classList.contains('sidebar-collapsed')) {
-        toggleSidebarCollapse();
-        return;
-      }
-      const isOpen = calendarSubscriptionPanel.classList.toggle('hidden');
-      calendarSubscriptionTrigger.setAttribute('aria-expanded', String(!isOpen));
+      const willOpen = calendarSubscriptionPanel.classList.contains('hidden');
+      calendarSubscriptionPanel.classList.toggle('hidden', !willOpen);
+      calendarSubscriptionTrigger.setAttribute('aria-expanded', String(willOpen));
+      document.body.classList.toggle('calendar-modal-open', willOpen);
+      if (willOpen) closeMobileMenu();
+    }
+
+    function closeCalendarSubscription() {
+      if (!calendarSubscriptionPanel) return;
+      calendarSubscriptionPanel.classList.add('hidden');
+      calendarSubscriptionTrigger.setAttribute('aria-expanded', 'false');
+      document.body.classList.remove('calendar-modal-open');
+    }
+
+    function closeCalendarSubscriptionFromBackdrop(event) {
+      if (event.target === calendarSubscriptionPanel) closeCalendarSubscription();
     }
 
     function setCalendarSubscriptionStatus(message, isError = false) {
@@ -220,9 +257,10 @@
     async function createCalendarSubscription() {
       const createButton = document.getElementById('calendar-subscription-create');
       const urlInput = document.getElementById('calendar-subscription-url');
-      const urlRow = document.getElementById('calendar-subscription-url-row');
+      const openButton = document.getElementById('calendar-subscription-open');
+      const copyButton = document.getElementById('calendar-subscription-copy');
       const revokeButton = document.getElementById('calendar-subscription-revoke');
-      if (!createButton || !urlInput || !urlRow || !revokeButton) return;
+      if (!createButton || !urlInput || !openButton || !copyButton || !revokeButton) return;
 
       createButton.disabled = true;
       setCalendarSubscriptionStatus('正在生成私有订阅链接…');
@@ -231,14 +269,22 @@
         const data = await response.json();
         if (!response.ok || !data.ok || !data.path) throw new Error('subscription unavailable');
         urlInput.value = new URL(data.path, window.location.origin).href;
-        urlRow.classList.remove('hidden');
-        revokeButton.classList.remove('hidden');
+        openButton.disabled = false;
+        copyButton.disabled = false;
+        revokeButton.disabled = false;
+        createButton.textContent = '重新生成链接';
         setCalendarSubscriptionStatus('链接已生成；重新生成会使旧链接失效。');
       } catch (error) {
         setCalendarSubscriptionStatus('暂时无法生成订阅链接，请稍后重试。', true);
       } finally {
         createButton.disabled = false;
       }
+    }
+
+    function openCalendarSubscription() {
+      const urlInput = document.getElementById('calendar-subscription-url');
+      if (!urlInput || !urlInput.value) return;
+      window.location.href = urlInput.value.replace(/^https?:/, 'webcal:');
     }
 
     async function copyCalendarSubscription() {
@@ -255,9 +301,11 @@
 
     async function revokeCalendarSubscription() {
       const urlInput = document.getElementById('calendar-subscription-url');
-      const urlRow = document.getElementById('calendar-subscription-url-row');
+      const createButton = document.getElementById('calendar-subscription-create');
+      const openButton = document.getElementById('calendar-subscription-open');
+      const copyButton = document.getElementById('calendar-subscription-copy');
       const revokeButton = document.getElementById('calendar-subscription-revoke');
-      if (!urlInput || !urlRow || !revokeButton) return;
+      if (!urlInput || !createButton || !openButton || !copyButton || !revokeButton) return;
 
       revokeButton.disabled = true;
       try {
@@ -265,13 +313,14 @@
         const data = await response.json();
         if (!response.ok || !data.ok) throw new Error('revoke failed');
         urlInput.value = '';
-        urlRow.classList.add('hidden');
-        revokeButton.classList.add('hidden');
+        openButton.disabled = true;
+        copyButton.disabled = true;
+        createButton.textContent = '生成订阅链接';
         setCalendarSubscriptionStatus('日历订阅已撤销');
       } catch (error) {
         setCalendarSubscriptionStatus('撤销失败，请稍后重试。', true);
       } finally {
-        revokeButton.disabled = false;
+        revokeButton.disabled = !urlInput.value;
       }
     }
 
@@ -281,10 +330,7 @@
         return;
       }
       const isCollapsed = dashboardShell.classList.toggle('sidebar-collapsed');
-      if (isCollapsed && calendarSubscriptionPanel) {
-        calendarSubscriptionPanel.classList.add('hidden');
-        calendarSubscriptionTrigger.setAttribute('aria-expanded', 'false');
-      }
+      if (isCollapsed) closeCalendarSubscription();
       sidebarCollapseToggle.setAttribute('aria-expanded', String(!isCollapsed));
       sidebarCollapseToggle.setAttribute('aria-label', isCollapsed ? '展开侧栏' : '收起侧栏');
     }
@@ -315,7 +361,10 @@
       button.addEventListener('click', () => switchDashboardView(button.dataset.dashboardView));
     });
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') closeMobileMenu();
+      if (event.key === 'Escape') {
+        closeMobileMenu();
+        closeCalendarSubscription();
+      }
     });
     if (mobileSidebarQuery.addEventListener) {
       mobileSidebarQuery.addEventListener('change', closeMobileMenu);

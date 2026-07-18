@@ -289,8 +289,16 @@ def test_frontend_v2_sidebar_greeting_and_calendar_subscription(live_app, browse
     expect(page.locator(".sidebar-brand-copy small")).to_have_count(0)
     page.locator("#calendar-subscription-trigger").click()
     expect(page.locator("#calendar-subscription-panel")).to_be_visible()
+    dialog = page.locator(".calendar-subscription-dialog")
+    expect(dialog).to_be_visible()
+    dialog_box = dialog.bounding_box()
+    assert dialog_box is not None
+    assert 580 <= dialog_box["width"] <= 720
+    assert abs((dialog_box["x"] + dialog_box["width"] / 2) - 720) <= 2
+    expect(page.locator("#calendar-subscription-open")).to_be_disabled()
     page.locator("#calendar-subscription-create").click()
     expect(page.locator("#calendar-subscription-url")).to_have_value(re.compile(r"/calendar/.+\.ics$"))
+    expect(page.locator("#calendar-subscription-open")).to_be_enabled()
     page.locator("#calendar-subscription-revoke").click()
     expect(page.locator("#calendar-subscription-status")).to_have_text("日历订阅已撤销")
 
@@ -319,6 +327,14 @@ def test_frontend_source_filters_and_focus_views(live_app, browser):
     projects_width = page.locator(".workspace-main").bounding_box()["width"]
     expect(page.locator("#dashboard-view-projects")).to_be_visible()
     assert projects_width > overview_width + 300
+
+    page.locator('[data-dashboard-view="schedule"]').click()
+    sidebar_box = page.locator("#academic-sidebar").bounding_box()
+    schedule_box = page.locator(".schedule-manager-card").bounding_box()
+    assert sidebar_box is not None and schedule_box is not None
+    assert schedule_box["y"] + schedule_box["height"] == pytest.approx(
+        sidebar_box["y"] + sidebar_box["height"], abs=2
+    )
 
 
 def test_frontend_v2_mobile_menu_placeholders_and_stacked_modules(live_app, browser):

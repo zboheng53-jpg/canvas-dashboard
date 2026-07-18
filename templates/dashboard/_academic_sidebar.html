@@ -73,16 +73,6 @@
       </svg>
       <span class="sidebar-label">Apple 日历订阅</span>
     </button>
-    <div class="calendar-subscription-panel hidden" id="calendar-subscription-panel">
-      <p>将含截止日期的待办同步到日历。</p>
-      <button type="button" class="calendar-panel-primary" id="calendar-subscription-create" onclick="createCalendarSubscription()">生成订阅链接</button>
-      <div class="calendar-subscription-url hidden" id="calendar-subscription-url-row">
-        <input type="text" id="calendar-subscription-url" readonly aria-label="私有日历订阅地址">
-        <button type="button" id="calendar-subscription-copy" onclick="copyCalendarSubscription()">复制</button>
-      </div>
-      <button type="button" class="calendar-panel-revoke hidden" id="calendar-subscription-revoke" onclick="revokeCalendarSubscription()">撤销当前订阅</button>
-      <p class="calendar-subscription-status" id="calendar-subscription-status" role="status"></p>
-    </div>
     {% endif %}
     <button type="button" class="sidebar-footer-action" data-dashboard-view="settings">
       <svg viewBox="0 0 24 24" aria-hidden="true">

@@ -326,67 +326,111 @@
 }
 
 .calendar-subscription-panel {
-  padding: 11px;
-  background: #f8fbff;
-  border: 1px solid #dbe8fb;
-  border-radius: 7px;
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(28, 35, 47, 0.56);
+  backdrop-filter: blur(2px);
 }
 
-.calendar-subscription-panel > p {
-  color: var(--sidebar-muted);
-  font-size: 11px;
-  line-height: 1.5;
+.calendar-subscription-dialog {
+  position: relative;
+  width: min(640px, calc(100vw - 32px));
+  padding: 34px;
+  background: #fff;
+  border: 1px solid var(--shell-border);
+  border-radius: 10px;
+  box-shadow: 0 22px 70px rgba(19, 26, 38, 0.24);
+}
+
+.calendar-subscription-dialog h2 {
+  margin: 0;
+  color: var(--shell-ink);
+  font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
+  font-size: 24px;
+  letter-spacing: .02em;
+}
+
+.calendar-subscription-dialog > p {
+  margin: 14px 0 0;
+  color: var(--shell-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.calendar-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  width: 32px;
+  height: 32px;
+  color: #777;
+  background: transparent;
+  border: 0;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .calendar-panel-primary,
 .calendar-panel-revoke,
-.calendar-subscription-url button {
-  width: 100%;
-  min-height: 32px;
-  margin-top: 9px;
+.calendar-subscription-actions button {
+  min-height: 42px;
+  padding: 0 16px;
   border: 1px solid #cbdcf6;
-  border-radius: 5px;
+  border-radius: 6px;
   background: #fff;
   color: var(--sidebar-blue);
   font-family: inherit;
-  font-size: 11px;
+  font-size: 13px;
   cursor: pointer;
 }
 
 .calendar-panel-primary:hover,
-.calendar-subscription-url button:hover {
+.calendar-subscription-actions button:hover {
   background: var(--sidebar-blue-soft);
   border-color: #a8c7f2;
 }
 
+.calendar-panel-primary {
+  color: #fff;
+  background: var(--sidebar-blue);
+  border-color: var(--sidebar-blue);
+}
+
+.calendar-panel-primary:hover { color: var(--sidebar-blue); }
+
 .calendar-panel-primary:disabled,
-.calendar-panel-revoke:disabled {
+.calendar-panel-revoke:disabled,
+.calendar-subscription-actions button:disabled {
   cursor: wait;
   opacity: 0.55;
 }
 
 .calendar-subscription-url {
-  display: flex;
-  gap: 6px;
-  margin-top: 9px;
+  margin-top: 14px;
 }
 
 .calendar-subscription-url input {
-  min-width: 0;
-  flex: 1;
-  height: 32px;
-  padding: 0 8px;
+  width: 100%;
+  height: 46px;
+  padding: 0 13px;
   border: 1px solid #d6e2f4;
-  border-radius: 5px;
-  background: #fff;
+  border-radius: 6px;
+  background: #fbfaf8;
   color: #596575;
-  font-size: 10px;
+  font-size: 13px;
 }
 
-.calendar-subscription-url button {
-  width: 42px;
-  flex: 0 0 auto;
-  margin-top: 0;
+.calendar-subscription-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 16px;
 }
 
 .calendar-panel-revoke {
@@ -399,13 +443,16 @@
 }
 
 .calendar-subscription-status {
-  min-height: 16px;
-  margin-top: 8px;
+  min-height: 20px;
+  margin-top: 12px !important;
+  font-size: 12px !important;
 }
 
 .calendar-subscription-status.is-error {
   color: #c9544a;
 }
+
+body.calendar-modal-open { overflow: hidden; }
 
 /* ---- Right rail modules ---- */
 .dashboard-right-rail {
@@ -518,7 +565,7 @@
 .workspace-stack.is-focus-view .dashboard-placeholder-view { width: 100%; }
 .workspace-stack.is-focus-view .project-manager-card,
 .workspace-stack.is-focus-view .schedule-manager-card,
-.workspace-stack.is-focus-view .placeholder-card { width: 100%; min-height: calc(100vh - 128px); }
+.workspace-stack.is-focus-view .placeholder-card { width: 100%; min-height: calc(100vh - 64px); }
 .project-manager-card { max-width: none; }
 .project-manager-heading { display: flex; justify-content: space-between; gap: 18px; }
 .project-manager-heading h1 { margin: 0; color: var(--shell-ink); font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", serif; font-size: 27px; }
@@ -620,10 +667,6 @@
 .sidebar-collapsed .sidebar-label,
 .sidebar-collapsed .sidebar-user-copy {
   display: none;
-}
-
-.sidebar-collapsed .calendar-subscription-panel {
-  display: none !important;
 }
 
 .sidebar-collapsed .sidebar-heading {
