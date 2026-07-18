@@ -112,8 +112,8 @@ def test_today_schedule_only_returns_busy_items_and_date_only_deadlines(tmp_path
     schedule_store.save_courses("alice", "测试学期", semester_start.isoformat(), [{"name": "自动控制", "location": "北229", "sessions": [{"weekday": today.weekday(), "weeks": [1], "parity": None, "start_time": "08:00", "end_time": "09:35", "date_start": None, "date_end": None, "location": "北229"}]}], "2026-07-01T00:00:00+08:00")
     schedule_store.create_item("alice", "recurring", {"title": "实验", "weekday": today.weekday(), "start_time": "10:00", "end_time": "11:00", "enabled": True})
     schedule_store.create_item("alice", "one_off", {"title": "组会", "date": today.isoformat(), "start_time": "14:00", "end_time": "15:00"})
-    dashboard_app._save_todos("alice", [{"id": 1, "text": "实验报告", "done": False, "due_date": today.isoformat(), "subtasks": []}])
+    dashboard_app._save_todos("alice", [{"id": 1, "text": "Python学习", "done": False, "due_date": None, "subtasks": [{"id": 1, "text": "周度复盘", "done": False, "due_date": today.isoformat()}]}, {"id": 2, "text": "实验报告", "done": False, "due_date": today.isoformat(), "subtasks": []}])
     monkeypatch.setattr(dashboard_app, "get_term_info", lambda: ("测试学期", 1, semester_start.isoformat()))
     data = client.get("/api/schedule/today").get_json()
     assert [item["title"] for item in data["timed"]] == ["自动控制", "实验", "组会"]
-    assert data["deadlines"] == [{"title": "实验报告"}]
+    assert data["deadlines"] == [{"title": "周度复盘", "course": "Python学习"}, {"title": "实验报告"}]
