@@ -4,41 +4,67 @@ import json
 import app as dashboard_app
 
 
-def test_term_refresh_failure_returns_readable_utf8_chinese(monkeypatch):
-    monkeypatch.setattr(dashboard_app, "_scrape_term_from_tongji", lambda: None)
-    dashboard_app.app.config.update(TESTING=True)
+def test_calendar_inference_july_18_is_week_20():
+    """Verify that 2026-07-18 is calculated as 2025-2026学年 第二学期 Week 20."""
+    target_dt = dt.datetime(2026, 7, 18, 12, 0, tzinfo=dashboard_app.CST)
+    term_label, week_num, semester_start = dashboard_app.get_term_info(target_dt)
 
-    with dashboard_app.app.test_client() as client:
-        with client.session_transaction() as sess:
-            sess["username"] = "alice"
-            sess["_csrf_token"] = "term-refresh-token"
-        response = client.post(
-            "/api/term/refresh",
-            headers={"X-CSRF-Token": "term-refresh-token"},
-        )
-
-    assert response.status_code == 502
-    assert response.get_json() == {
-        "ok": False,
-        "error": "CDP 抓取失败，请确认已登录 1.tongji.edu.cn 且 CDP proxy 正在运行",
-    }
-    assert "�" not in response.get_data(as_text=True)
+    assert term_label == "2025-2026学年 第二学期"
+    assert week_num == 20
+    assert semester_start == "2026-03-02"
 
 
-def test_load_term_config_reads_json_override(tmp_path, monkeypatch):
+def test_load_term_config_multi_semester(tmp_path, monkeypatch):
     config_file = tmp_path / "term_config.json"
     config_file.write_text(
-        json.dumps(
-            {
-                "term_label": "2026-2027 test term",
-                "term_start": "2026-09-07",
-            }
-        ),
+        json.dumps({
+            "semesters": [
+                {
+                    "term_label": "2025-2026学年 第二学期",
+                    "start_date": "2026-03-02",
+                    "weeks": 22,
+                },
+                {
+                    "term_label": "2026-2027学年 第一学期",
+                    "start_date": "2026-09-14",
+                    "weeks": 19,
+                },
+            ]
+        }),
         encoding="utf-8",
     )
     monkeypatch.setattr(dashboard_app, "_TERM_CONFIG_FILE", config_file)
 
-    label, start_date = dashboard_app._load_term_config()
+    # First day of 2025-2026 2nd semester
+    label1, week1, _ = dashboard_app._load_term_config(dt.date(2026, 3, 2))
+    assert label1 == "2025-2026学年 第二学期"
+    assert week1 == 1
+
+    # July 18, 2026 (Week 20)
+    label20, week20, _ = dashboard_app._load_term_config(dt.date(2026, 7, 18))
+    assert label20 == "2025-2026学年 第二学期"
+    assert week20 == 20
+
+    # First day of 2026-2027 1st semester
+    label_next, week_next, _ = dashboard_app._load_term_config(dt.date(2026, 9, 14))
+    assert label_next == "2026-2027学年 第一学期"
+    assert week_next == 1
+
+
+def test_load_term_config_single_override_fallback(tmp_path, monkeypatch):
+    config_file = tmp_path / "term_config.json"
+    config_file.write_text(
+        json.dumps({
+            "term_label": "2026-2027 test term",
+            "term_start": "2026-09-07",
+        }),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(dashboard_app, "_TERM_CONFIG_FILE", config_file)
+
+    label, week_num, start_str = dashboard_app._load_term_config(dt.date(2026, 9, 7))
 
     assert label == "2026-2027 test term"
-    assert start_date == dt.date(2026, 9, 7)
+    assert week_num == 1
+    assert start_str == "2026-09-07"
+

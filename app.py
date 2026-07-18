@@ -1276,131 +1276,104 @@ def api_project_goal_reorder(project_id):
 TERM_START = datetime.combine(settings.TERM_START_DATE, datetime.min.time(), tzinfo=CST)
 TERM_LABEL = settings.TERM_LABEL
 
-_TERM_CACHE_FILE = DATA_DIR / "term_cache.json"
 _TERM_CONFIG_FILE = DATA_DIR / "term_config.json"
 
 
-def _load_term_config():
-    data = read_json_file(_TERM_CONFIG_FILE, {})
-    label = data.get("term_label") or data.get("term") or TERM_LABEL
-    start_raw = data.get("term_start") or data.get("semester_start")
-    if start_raw:
-        try:
-            return label, date.fromisoformat(start_raw)
-        except (TypeError, ValueError):
-            logger.warning("Invalid term config start date: %r", start_raw)
-    return TERM_LABEL, TERM_START.date()
-
-
-def _load_term_cache():
-    if _TERM_CACHE_FILE.exists():
-        try:
-            data = json.loads(_TERM_CACHE_FILE.read_text(encoding="utf-8"))
-            return {"data": data.get("data"), "fetched_at": datetime.fromisoformat(data["fetched_at"])}
-        except Exception:
-            pass
-    return {"data": None, "fetched_at": None}
-
-
-def _save_term_cache(cache):
-    _TERM_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    write_json_file(_TERM_CACHE_FILE, {
-        "data": cache["data"],
-        "fetched_at": cache["fetched_at"].isoformat() if cache["fetched_at"] else None,
-    })
-
-
-_scraped_term_cache = _load_term_cache()
-
-
-def _scrape_term_from_tongji():
-    """Get current semester and week from the Tongji calendar page via CDP."""
-    try:
-        r = requests.get(
-            f"{settings.CDP_PROXY_BASE_URL}/new",
-            params={"url": "https://1.tongji.edu.cn/schoolCalendars"},
-            timeout=15,
-        )
-        target_id = r.json()["targetId"]
-
-        import time
-        time.sleep(3)
-
-        r = requests.post(
-            f"{settings.CDP_PROXY_BASE_URL}/eval",
-            params={"target": target_id},
-            data="Array.from(document.querySelectorAll('.el-tag--light')).map(t => t.innerText.trim()).join('||')",
-            timeout=10,
-        )
-        text = r.json()["value"]
-        parts = [p.strip() for p in text.split("||")]
-
-        requests.get(
-            f"{settings.CDP_PROXY_BASE_URL}/close",
-            params={"target": target_id},
-            timeout=5,
-        )
-
-        if len(parts) < 2:
-            return None
-
-        semester_raw, week_raw = parts[0], parts[1]
-        year_match = re.search(r"(\d{4}-\d{4})", semester_raw)
-        sem_digits = re.findall(r"\d+", semester_raw)
-        week_match = re.search(r"\d+", week_raw)
-        if not year_match or not sem_digits or not week_match:
-            return None
-
-        year_range = year_match.group(1)
-        sem_num = int(sem_digits[-1])
-        week_num = int(week_match.group(0))
-        sem_label = f"{year_range} semester {sem_num}"
-
-        today = datetime.now(CST).date()
-        current_monday = today - timedelta(days=today.weekday())
-        semester_start_monday = current_monday - timedelta(weeks=week_num - 1)
-
-        return {
-            "term": sem_label,
-            "week": week_num,
-            "semester_start": semester_start_monday.strftime("%Y-%m-%d"),
-        }
-    except Exception as e:
-        logger.warning(f"Term scraping via CDP failed: {e}")
-    return None
-
-def _compute_week_num(now, semester_start_date):
+def _compute_week_num(target_date, semester_start_date):
     """Compute current week number given a semester start date.
     Week 1 starts on the Monday containing or following the semester start date.
     """
     days_until_monday = (7 - semester_start_date.weekday()) % 7
     start_monday = semester_start_date + timedelta(days=days_until_monday)
-    days_from_start_monday = (now.date() - start_monday).days
+    days_from_start_monday = (target_date - start_monday).days
     return days_from_start_monday // 7 + 1
 
 
-def get_term_info():
+def _load_term_config(target_date=None):
+    """Load term config and compute (term_label, week_num, semester_start_str) for target_date."""
+    if target_date is None:
+        target_date = datetime.now(CST).date()
+
+    data = read_json_file(_TERM_CONFIG_FILE, {})
+    semesters = data.get("semesters")
+
+    if isinstance(semesters, list) and len(semesters) > 0:
+        parsed_semesters = []
+        for s in semesters:
+            if not isinstance(s, dict):
+                continue
+            raw_start = s.get("start_date") or s.get("term_start")
+            label = s.get("term_label") or s.get("term")
+            weeks = s.get("weeks", 20)
+            if raw_start and label:
+                try:
+                    dt_start = date.fromisoformat(raw_start)
+                    days_until_monday = (7 - dt_start.weekday()) % 7
+                    start_monday = dt_start + timedelta(days=days_until_monday)
+                    parsed_semesters.append({
+                        "label": label,
+                        "start_monday": start_monday,
+                        "weeks": weeks,
+                    })
+                except (TypeError, ValueError):
+                    pass
+
+        if parsed_semesters:
+            parsed_semesters.sort(key=lambda item: item["start_monday"])
+            
+            # Check if target_date falls within any configured semester
+            for i, sem in enumerate(parsed_semesters):
+                end_sunday = sem["start_monday"] + timedelta(weeks=sem["weeks"]) - timedelta(days=1)
+                if sem["start_monday"] <= target_date <= end_sunday:
+                    week_num = (target_date - sem["start_monday"]).days // 7 + 1
+                    return sem["label"], week_num, sem["start_monday"].strftime("%Y-%m-%d")
+
+            # If before first configured semester
+            if target_date < parsed_semesters[0]["start_monday"]:
+                first = parsed_semesters[0]
+                week_num = _compute_week_num(target_date, first["start_monday"])
+                return first["label"], week_num, first["start_monday"].strftime("%Y-%m-%d")
+
+            # Check if in gap between semesters or after last semester
+            for i in range(len(parsed_semesters) - 1):
+                prev_sem = parsed_semesters[i]
+                next_sem = parsed_semesters[i + 1]
+                prev_end = prev_sem["start_monday"] + timedelta(weeks=prev_sem["weeks"]) - timedelta(days=1)
+                if prev_end < target_date < next_sem["start_monday"]:
+                    week_num = (target_date - prev_sem["start_monday"]).days // 7 + 1
+                    return prev_sem["label"], week_num, prev_sem["start_monday"].strftime("%Y-%m-%d")
+
+            # If after last semester
+            last = parsed_semesters[-1]
+            week_num = (target_date - last["start_monday"]).days // 7 + 1
+            return last["label"], week_num, last["start_monday"].strftime("%Y-%m-%d")
+
+    # Fallback to single term_config or settings default
+    label = data.get("term_label") or data.get("term") or TERM_LABEL
+    start_raw = data.get("term_start") or data.get("semester_start")
+    if start_raw:
+        try:
+            start_date = date.fromisoformat(start_raw)
+            return label, _compute_week_num(target_date, start_date), start_date.strftime("%Y-%m-%d")
+        except (TypeError, ValueError):
+            logger.warning("Invalid term config start date: %r", start_raw)
+
+    return TERM_LABEL, _compute_week_num(target_date, TERM_START.date()), TERM_START.date().strftime("%Y-%m-%d")
+
+
+def get_term_info(now=None):
     """Return (term_label, week_num, semester_start_str).
-    Uses disk-cached CDP data when available (no TTL), falls back to local term config.
-    CDP scrape is only triggered manually via POST /api/term/refresh.
+    Uses offline calendar configuration to compute active term and week number.
     """
-    global _scraped_term_cache
-    now = datetime.now(CST)
-
-    if _scraped_term_cache["data"] and _scraped_term_cache["fetched_at"]:
-        s = _scraped_term_cache["data"]
-        start_date = datetime.strptime(s["semester_start"], "%Y-%m-%d").date()
-        return s["term"], _compute_week_num(now, start_date), s["semester_start"]
-
-    term_label, start_date = _load_term_config()
-    week_num = _compute_week_num(now, start_date)
-    return term_label, week_num, start_date.strftime("%Y-%m-%d")
+    if now is None:
+        now = datetime.now(CST)
+    return _load_term_config(now.date())
 
 
 @app.route("/api/term")
 def api_term():
     now = datetime.now(CST)
-    term_label, week_num, semester_start = get_term_info()
+    term_label, week_num, semester_start = get_term_info(now)
 
     # Holiday detection from 1.tongji.edu.cn workbench calendar
     is_holiday, holiday_name = _check_today_holiday(now)
@@ -1414,23 +1387,6 @@ def api_term():
         "semester_start": semester_start,
     })
 
-
-@app.route("/api/term/refresh", methods=["POST"])
-def api_term_refresh():
-    """Manually trigger CDP scrape to update term info."""
-    global _scraped_term_cache
-    scraped = _scrape_term_from_tongji()
-    if scraped:
-        _scraped_term_cache["data"] = scraped
-        _scraped_term_cache["fetched_at"] = datetime.now(CST)
-        _save_term_cache(_scraped_term_cache)
-        start_date = datetime.strptime(scraped["semester_start"], "%Y-%m-%d").date()
-        return jsonify({
-            "ok": True,
-            "term": scraped["term"],
-            "week": _compute_week_num(datetime.now(CST), start_date),
-        })
-    return jsonify({"ok": False, "error": "CDP 抓取失败，请确认已登录 1.tongji.edu.cn 且 CDP proxy 正在运行"}), 502
 
 
 # ---- Holiday Detection (from 1.tongji.edu.cn workbench API) ----

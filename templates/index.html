@@ -61,7 +61,6 @@
         </div>
         <div class="term-info" id="term-info-container">
           <span id="term-info">&#21152;&#36733;&#20013;...</span>
-          <button class="term-refresh-btn" onclick="refreshTerm()" title="&#20174;&#26657;&#21382;&#39029;&#38754;&#21047;&#26032;">&#x21bb;</button>
         </div>
       </div>
     </header>
@@ -688,25 +687,6 @@
       }
     }
 
-    async function refreshTerm() {
-      const btn = document.querySelector('.term-refresh-btn');
-      btn.disabled = true;
-      btn.textContent = '...';
-      try {
-        const resp = await fetch('/api/term/refresh', { method: 'POST' });
-        const data = await resp.json();
-        if (data.ok) {
-          await fetchTerm();
-        } else {
-          alert('\u5237\u65b0\u5931\u8d25: ' + (data.error || '\u672a\u77e5\u9519\u8bef'));
-        }
-      } catch (e) {
-        alert('\u5237\u65b0\u5931\u8d25: \u7f51\u7edc\u9519\u8bef');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Refresh';
-      }
-    }
 
     // Initial fetches
 

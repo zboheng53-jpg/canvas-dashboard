@@ -147,13 +147,11 @@ def test_frontend_mobile_header_shows_compact_weather_and_term(live_app, browser
     weather_desc = page.locator(".weather-desc")
     weather_detail = page.locator(".weather-detail")
     term_info = page.locator("#term-info")
-    term_refresh = page.locator(".term-refresh-btn")
     expect(weather_desc).to_be_visible()
     expect(weather_detail).to_be_visible()
     expect(weather_detail).to_contain_text("湿度 55%")
     expect(weather_detail).to_contain_text("风速 8 m/s")
     expect(term_info).to_be_visible()
-    expect(term_refresh).to_be_visible()
 
     emoji_box = page.locator(".weather-emoji").bounding_box()
     temp_box = page.locator(".weather-temp").bounding_box()
