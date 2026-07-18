@@ -125,9 +125,9 @@
   background: #fff8f7;
   border: 1px solid #f5c7c2;
   border-radius: 50%;
-  font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
+  font-family: "Tiempos Text", "Source Han Serif SC", "Noto Serif SC", serif;
   font-size: 17px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .sidebar-brand-copy,
@@ -139,7 +139,7 @@
 
 .sidebar-brand-copy strong {
   color: #252a31;
-  font-family: "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  font-family: "MiSans", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   font-size: 16px;
   line-height: 1.25;
   letter-spacing: 0.02em;
@@ -360,9 +360,11 @@
 .calendar-subscription-dialog h2 {
   margin: 0;
   color: var(--shell-ink);
-  font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
+  font-family: "Tiempos Text", "Source Han Serif SC", "Noto Serif SC", serif;
   font-size: 24px;
-  letter-spacing: .02em;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
 }
 
 .calendar-subscription-dialog > p {
@@ -528,11 +530,12 @@ body.calendar-modal-open { overflow: hidden; }
 }
 
 .rail-card-heading h2 {
-  font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
+  font-family: "Tiempos Text", "Source Han Serif SC", "Noto Serif SC", serif;
   color: var(--shell-ink);
   font-size: 20px;
+  font-weight: 600;
   line-height: 1.25;
-  letter-spacing: 0.03em;
+  letter-spacing: -0.02em;
 }
 
 .rail-card-index {
@@ -578,7 +581,7 @@ body.calendar-modal-open { overflow: hidden; }
 .workspace-stack.is-focus-view .placeholder-card { width: 100%; min-height: calc(100vh - 64px); }
 .project-manager-card { max-width: none; }
 .project-manager-heading { display: flex; justify-content: space-between; gap: 18px; }
-.project-manager-heading h1 { margin: 0; color: var(--shell-ink); font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", serif; font-size: 27px; }
+.project-manager-heading h1 { margin: 0; color: var(--shell-ink); font-family: "Tiempos Text", "Source Han Serif SC", "Noto Serif SC", serif; font-size: 28px; font-weight: 600; line-height: 1.25; letter-spacing: -0.02em; }
 .project-manager-heading p, .project-manager-status { color: var(--shell-muted); font-size: 12px; }
 .project-manager-heading button, .project-composer button, .project-edit-form button, .project-goal-form button { border: 1px solid #cbdcf6; border-radius: 6px; background: #fff; color: var(--sidebar-blue); font: inherit; cursor: pointer; }
 .project-manager-heading button { height: 36px; padding: 0 12px; }
@@ -591,7 +594,7 @@ body.calendar-modal-open { overflow: hidden; }
 
 .schedule-manager-card { max-width: none; }
 .schedule-manager-heading { display: flex; align-items: start; justify-content: space-between; gap: 18px; }
-.schedule-manager-heading h1 { margin: 0; color: var(--shell-ink); font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", serif; font-size: 27px; }
+.schedule-manager-heading h1 { margin: 0; color: var(--shell-ink); font-family: "Tiempos Text", "Source Han Serif SC", "Noto Serif SC", serif; font-size: 28px; font-weight: 600; line-height: 1.25; letter-spacing: -0.02em; }
 .schedule-manager-heading p, .schedule-manager-status { margin: 7px 0 0; color: var(--shell-muted); font-size: 12px; }
 .schedule-manager-status { min-height: 18px; color: var(--sidebar-blue); }
 .schedule-manager-status.is-error { color: #b8564d; }
@@ -643,10 +646,11 @@ body.calendar-modal-open { overflow: hidden; }
 
 .placeholder-card h1 {
   margin-bottom: 14px;
-  font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
-  font-size: 30px;
-  line-height: 1.2;
-  letter-spacing: 0.04em;
+  font-family: "Tiempos Text", "Source Han Serif SC", "Noto Serif SC", serif;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
 }
 
 .placeholder-card p {
@@ -852,9 +856,10 @@ body.calendar-modal-open { overflow: hidden; }
   }
 
   .mobile-shell-title strong {
-    font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
+    font-family: "Tiempos Text", "Source Han Serif SC", "Noto Serif SC", serif;
     font-size: 16px;
-    letter-spacing: 0.06em;
+    font-weight: 600;
+    letter-spacing: -0.02em;
   }
 
   .mobile-shell-user {

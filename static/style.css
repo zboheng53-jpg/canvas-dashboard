@@ -61,10 +61,10 @@
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  font-family: "PingFang SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
-  font-size: 15px;
+  font-family: "MiSans", "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
   font-weight: 400;
-  line-height: 1.6;
+  line-height: 1.55;
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
@@ -103,9 +103,10 @@ a:hover { color: var(--accent-hover); }
 .top-bar .clock-section { flex: 1; }
 
 .clock-section .time {
+  font-family: "Geist", "MiSans", sans-serif;
   font-size: 56px;
   font-weight: 400;
-  letter-spacing: 0.08em;
+  letter-spacing: -0.04em;
   line-height: 1;
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -187,12 +188,12 @@ a:hover { color: var(--accent-hover); }
 }
 
 .section-header h2 {
-  font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", "STSong", serif;
-  font-size: 26px;
-  font-weight: 700;
+  font-family: "Tiempos Text", "Source Han Serif SC", "Noto Serif SC", serif;
+  font-size: 28px;
+  font-weight: 600;
   color: var(--text);
-  letter-spacing: 0.03em;
-  line-height: 1;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
 }
 
 .header-right {
@@ -430,7 +431,7 @@ a:hover { color: var(--accent-hover); }
 .todo-group-heading h3 {
   margin: 0;
   color: var(--text-secondary);
-  font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
+  font-family: "Tiempos Text", "Source Han Serif SC", "Noto Serif SC", serif;
   font-size: 17px;
   line-height: 1.25;
 }
@@ -576,7 +577,7 @@ a:hover { color: var(--accent-hover); }
 .item-title {
   flex: 1;
   font-size: 15px;
-  font-weight: 400;
+  font-weight: 500;
   color: var(--text);
   line-height: 1.5;
   min-width: 0;
