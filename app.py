@@ -1169,10 +1169,21 @@ def api_schedule_today():
         due_date = item.get("due_date")
         due_at = _parse_calendar_due(item.get("due_ts")) if item.get("due_ts") else None
         if due_date == today.isoformat() or (due_at and due_at.date() == today):
+            course_name = item.get("course") or ""
             if due_at and due_at.strftime("%H:%M") != "00:00":
-                result["timed"].append({"kind": "deadline", "title": item.get("title") or "Deadline", "location": "", "start_time": due_at.strftime("%H:%M"), "end_time": due_at.strftime("%H:%M")})
+                result["timed"].append({
+                    "kind": "deadline",
+                    "title": item.get("title") or "Deadline",
+                    "location": course_name,
+                    "course": course_name,
+                    "start_time": due_at.strftime("%H:%M"),
+                    "end_time": due_at.strftime("%H:%M")
+                })
             else:
-                result["deadlines"].append({"title": item.get("title") or "Deadline"})
+                result["deadlines"].append({
+                    "title": item.get("title") or "Deadline",
+                    "course": course_name
+                })
     result["timed"].sort(key=lambda item: (item["start_time"], item["title"]))
     return jsonify({"ok": True, "date": today.isoformat(), **result})
 

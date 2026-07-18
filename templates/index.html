@@ -526,9 +526,10 @@
         const copy = scheduleElement('div', '');
         const displayTitle = formatScheduleTitle(item.title);
         const titleEl = scheduleElement('strong', '', item.kind === 'deadline' ? `◆ ${displayTitle}` : displayTitle);
-        titleEl.title = item.title;
+        titleEl.title = item.course ? `${item.course} · ${item.title}` : item.title;
         copy.append(titleEl);
-        if (item.location) copy.append(scheduleElement('small', '', item.location));
+        const metaText = item.location || item.course;
+        if (metaText) copy.append(scheduleElement('small', '', metaText));
         row.append(copy);
         list.append(row);
       });
@@ -536,10 +537,15 @@
         const group = scheduleElement('div', 'today-deadlines');
         group.append(scheduleElement('span', '', '今日截止'));
         data.deadlines.forEach((item) => {
+          const itemEl = scheduleElement('div', 'today-deadline-item');
           const displayTitle = formatScheduleTitle(item.title);
           const deadlineEl = scheduleElement('strong', '', `◆ ${displayTitle}`);
-          deadlineEl.title = item.title;
-          group.append(deadlineEl);
+          deadlineEl.title = item.course ? `${item.course} · ${item.title}` : item.title;
+          itemEl.append(deadlineEl);
+          if (item.course) {
+            itemEl.append(scheduleElement('small', 'today-deadline-course', item.course));
+          }
+          group.append(itemEl);
         });
         list.append(group);
       }
