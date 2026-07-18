@@ -50,3 +50,23 @@ def test_weather_cloudy_response_is_chinese_and_uses_icon(tmp_path, monkeypatch)
     assert resp.status_code == 200
     assert body["weather_desc"] == "\u9634\u5929"
     assert body["weather_emoji"] == "\u2601\ufe0f"
+
+
+def test_greeting_info_by_hour():
+    expected_mappings = {
+        0: ("夜深了", "🌙"),
+        3: ("夜深了", "🌙"),
+        5: ("早上好", "🌅"),
+        8: ("早上好", "🌅"),
+        9: ("上午好", "☀️"),
+        11: ("上午好", "☀️"),
+        12: ("中午好", "☀️"),
+        13: ("中午好", "☀️"),
+        14: ("下午好", "🌤️"),
+        18: ("下午好", "🌤️"),
+        19: ("晚上好", "🌙"),
+        23: ("晚上好", "🌙"),
+    }
+    for hour, (text, icon) in expected_mappings.items():
+        dt = datetime(2026, 7, 18, hour, 30, 0)
+        assert dashboard_app.get_greeting_info(dt) == (text, icon)

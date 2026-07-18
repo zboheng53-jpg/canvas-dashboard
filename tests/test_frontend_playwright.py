@@ -339,7 +339,7 @@ def test_frontend_v2_sidebar_greeting_and_calendar_subscription(live_app, browse
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "calendarv2")
 
-    expect(page.locator("#sidebar-greeting")).to_have_text("早上好，calendarv2")
+    expect(page.locator("#sidebar-greeting")).to_have_text(re.compile(r"^(早上好|上午好|中午好|下午好|晚上好|夜深了)，calendarv2$"))
     expect(page.locator(".sidebar-brand-copy small")).to_have_count(0)
     page.locator("#calendar-subscription-trigger").click()
     expect(page.locator("#calendar-subscription-panel")).to_be_visible()

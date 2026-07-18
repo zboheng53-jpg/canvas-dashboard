@@ -1,4 +1,4 @@
-﻿"""Canvas Dashboard - Flask backend for Tongji University students."""
+"""Canvas Dashboard - Flask backend for Tongji University students."""
 import hmac
 import threading
 import json
@@ -412,11 +412,32 @@ def _calendar_items(username):
     return items
 
 
+def get_greeting_info(dt=None):
+    if dt is None:
+        dt = datetime.now(CST)
+    hour = dt.hour
+    if 0 <= hour < 5:
+        return "夜深了", "🌙"
+    elif 5 <= hour < 9:
+        return "早上好", "🌅"
+    elif 9 <= hour < 12:
+        return "上午好", "☀️"
+    elif 12 <= hour < 14:
+        return "中午好", "☀️"
+    elif 14 <= hour < 19:
+        return "下午好", "🌤️"
+    else:
+        return "晚上好", "🌙"
+
+
 @app.route("/")
 def index():
+    greeting_text, greeting_icon = get_greeting_info()
     return render_template(
         "index.html",
         username=session.get("username"),
+        greeting_text=greeting_text,
+        greeting_icon=greeting_icon,
         icp_number=settings.ICP_NUMBER,
         apple_calendar_enabled=settings.APPLE_CALENDAR_ENABLED,
     )

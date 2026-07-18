@@ -581,9 +581,41 @@
     document.getElementById('project-composer').addEventListener('submit', event => { event.preventDefault(); const value = Object.fromEntries(new FormData(event.currentTarget)); value.progress = Number(value.progress); saveProject(null, value, event.currentTarget); });
     loadProjectOverview();
 
-    // ---- Clock ----
+    // ---- Clock & Greeting ----
     let serverTime = null;
     let clockStart = null;
+
+    function getGreetingInfo(dateObj) {
+      const hour = dateObj.getHours();
+      if (hour >= 0 && hour < 5) {
+        return { greeting: '夜深了', icon: '🌙' };
+      } else if (hour >= 5 && hour < 9) {
+        return { greeting: '早上好', icon: '🌅' };
+      } else if (hour >= 9 && hour < 12) {
+        return { greeting: '上午好', icon: '☀️' };
+      } else if (hour >= 12 && hour < 14) {
+        return { greeting: '中午好', icon: '☀️' };
+      } else if (hour >= 14 && hour < 19) {
+        return { greeting: '下午好', icon: '🌤️' };
+      } else {
+        return { greeting: '晚上好', icon: '🌙' };
+      }
+    }
+
+    function updateGreeting(nowDate) {
+      const greetingEl = document.getElementById('sidebar-greeting');
+      if (!greetingEl) return;
+      const username = greetingEl.getAttribute('data-username') || '{{ username }}';
+      const info = getGreetingInfo(nowDate || new Date());
+      const targetText = `${info.greeting}，${username}`;
+      if (greetingEl.textContent !== targetText) {
+        greetingEl.textContent = targetText;
+      }
+      const iconEl = document.getElementById('sidebar-greeting-icon');
+      if (iconEl && iconEl.textContent !== info.icon) {
+        iconEl.textContent = info.icon;
+      }
+    }
 
     async function initClock() {
       const resp = await fetch('/api/clock');
@@ -597,16 +629,22 @@
       document.getElementById('time').textContent = data.time;
       document.getElementById('date').textContent = data.date;
       document.getElementById('weekday').textContent = data.weekday;
+      if (serverTime) {
+        updateGreeting(new Date(serverTime));
+      } else {
+        updateGreeting(new Date());
+      }
     }
 
     function tickClock() {
-      if (!serverTime) { initClock(); return; }
+      if (!serverTime) { initClock(); updateGreeting(new Date()); return; }
       const elapsed = Date.now() - clockStart;
       const now = new Date(serverTime + elapsed);
       const h = String(now.getHours()).padStart(2, '0');
       const m = String(now.getMinutes()).padStart(2, '0');
       const s = String(now.getSeconds()).padStart(2, '0');
       document.getElementById('time').textContent = `${h}:${m}:${s}`;
+      updateGreeting(now);
     }
 
     setInterval(() => { initClock(); }, 10 * 60 * 1000);
@@ -1740,6 +1778,7 @@
       if (dueEl) { startInlineEdit(dueEl, 'due_date'); return; }
     });
 
+    updateGreeting(new Date());
     initClock();
     tickClock();
     fetchWeather();
