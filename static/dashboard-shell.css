@@ -566,7 +566,7 @@ body.calendar-modal-open { overflow: hidden; }
 .today-schedule-list { display: grid; width: 100%; align-content: start; gap: 9px; margin-top: 20px; }
 .today-schedule-row { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; padding: 8px 0; border-top: 1px solid var(--shell-border-soft); }
 .today-schedule-row time { color: var(--shell-muted); font-size: 11px; font-family: var(--font-number); font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
-.today-schedule-row strong, .today-deadlines strong { display: block; color: var(--shell-ink); font-family: var(--font-sans); font-size: 12px; font-weight: 600; line-height: 1.45; }
+.today-schedule-row strong, .today-deadlines strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; color: var(--shell-ink); font-family: var(--font-sans); font-size: 12px; font-weight: 600; line-height: 1.45; }
 .today-schedule-row small { display: block; margin-top: 2px; color: var(--shell-muted); font-size: 10px; }
 .today-deadlines { display: grid; gap: 6px; margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--shell-border); }
 .today-deadlines > span { color: var(--shell-muted); font-family: var(--font-kicker); font-size: 10px; font-weight: 700; letter-spacing: .12em; }

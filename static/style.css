@@ -842,6 +842,16 @@ a:hover { color: var(--accent-hover); }
   line-height: 1.5;
   cursor: text;
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.subtask-text.is-expanded {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
 }
 
 .subtask-text.done {

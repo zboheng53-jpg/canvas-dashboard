@@ -491,6 +491,23 @@
       saveScheduleItem(kind, item.id, {...item, title, start_time: start, end_time: end});
     }
 
+    function formatScheduleTitle(title) {
+      if (!title) return '';
+      let cleaned = String(title).trim();
+      cleaned = cleaned.replace(/^Day\s*\d+[^:]*:\s*/i, '');
+      const parts = cleaned.split(/[;；]/).map(p => p.trim()).filter(Boolean);
+      if (parts.length > 0) {
+        let selected = parts[0];
+        if ((selected === '--' || selected.includes('今日已完成')) && parts.length > 1) {
+          selected = parts[1];
+        }
+        cleaned = selected;
+      }
+      cleaned = cleaned.replace(/^([\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]\s*)?(?:学习任务|今日任务|目标|任务)\s*[:：]\s*/u, '');
+      cleaned = cleaned.replace(/[;；\s\─\-]+$/, '').trim();
+      return cleaned || title;
+    }
+
     function renderTodaySchedule(data) {
       scheduleToday = data.date;
       const container = document.getElementById('today-schedule-content');
@@ -506,12 +523,25 @@
       data.timed.forEach((item) => {
         const row = scheduleElement('div', `today-schedule-row today-${item.kind}`);
         row.append(scheduleElement('time', '', item.start_time === item.end_time ? item.start_time : `${item.start_time}–${item.end_time}`));
-        const copy = scheduleElement('div', ''); copy.append(scheduleElement('strong', '', item.kind === 'deadline' ? `◆ ${item.title}` : item.title));
-        if (item.location) copy.append(scheduleElement('small', '', item.location)); row.append(copy); list.append(row);
+        const copy = scheduleElement('div', '');
+        const displayTitle = formatScheduleTitle(item.title);
+        const titleEl = scheduleElement('strong', '', item.kind === 'deadline' ? `◆ ${displayTitle}` : displayTitle);
+        titleEl.title = item.title;
+        copy.append(titleEl);
+        if (item.location) copy.append(scheduleElement('small', '', item.location));
+        row.append(copy);
+        list.append(row);
       });
       if (data.deadlines.length) {
-        const group = scheduleElement('div', 'today-deadlines'); group.append(scheduleElement('span', '', '今日截止'));
-        data.deadlines.forEach((item) => group.append(scheduleElement('strong', '', `◆ ${item.title}`))); list.append(group);
+        const group = scheduleElement('div', 'today-deadlines');
+        group.append(scheduleElement('span', '', '今日截止'));
+        data.deadlines.forEach((item) => {
+          const displayTitle = formatScheduleTitle(item.title);
+          const deadlineEl = scheduleElement('strong', '', `◆ ${displayTitle}`);
+          deadlineEl.title = item.title;
+          group.append(deadlineEl);
+        });
+        list.append(group);
       }
       container.append(list);
     }
@@ -1164,7 +1194,7 @@
         return `
         <div class="subtask-row">
           <input type="checkbox" ${subtask.done ? 'checked' : ''} onchange="toggleSubtaskDone(${todoId}, ${sid})">
-          <span class="subtask-text ${subtask.done ? 'done' : ''}" onclick="startSubtaskEdit(${todoId}, ${sid}, this)">${escapeHtml(subtask.text)}</span>
+          <span class="subtask-text ${subtask.done ? 'done' : ''}" title="${escapeHtml(subtask.text)}" onclick="startSubtaskEdit(${todoId}, ${sid}, this)">${escapeHtml(subtask.text)}</span>
           <input type="date" class="subtask-due-input" value="${dueDateVal}" onchange="handleSubtaskDueChange(${todoId}, ${sid}, this.value)" title="截止日期">
           <button class="subtask-delete" onclick="deleteSubtask(${todoId}, ${sid})" title="delete subtask">x</button>
         </div>
