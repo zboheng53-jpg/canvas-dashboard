@@ -3,8 +3,7 @@
     <div class="sidebar-brand">
       <span class="sidebar-brand-mark" aria-hidden="true">☀</span>
       <span class="sidebar-brand-copy">
-        <strong id="sidebar-greeting">早上好</strong>
-        <small>今天也按自己的节奏来</small>
+        <strong id="sidebar-greeting">早上好，{{ username }}</strong>
       </span>
     </div>
     <button
@@ -50,6 +49,15 @@
   </nav>
 
   <div class="sidebar-footer">
+    <div class="sidebar-user" title="{{ username }}">
+      <span class="sidebar-user-avatar" aria-hidden="true">{{ username[:1] | upper }}</span>
+      <span class="sidebar-user-copy">
+        <strong>{{ username }}</strong>
+      </span>
+      <svg class="sidebar-user-chevron" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="m8 10 4 4 4-4"></path>
+      </svg>
+    </div>
     {% if apple_calendar_enabled %}
     <button
       type="button"
@@ -63,7 +71,7 @@
         <rect x="4" y="5" width="16" height="15" rx="2"></rect>
         <path d="M8 3v4m8-4v4M4 10h16m-8 4h4m-2-2v4"></path>
       </svg>
-      <span class="sidebar-label">日历订阅</span>
+      <span class="sidebar-label">Apple 日历订阅</span>
     </button>
     <div class="calendar-subscription-panel hidden" id="calendar-subscription-panel">
       <p>将含截止日期的待办同步到日历。</p>
@@ -76,13 +84,6 @@
       <p class="calendar-subscription-status" id="calendar-subscription-status" role="status"></p>
     </div>
     {% endif %}
-    <div class="sidebar-user" title="{{ username }}">
-      <span class="sidebar-user-avatar" aria-hidden="true">{{ username[:1] | upper }}</span>
-      <span class="sidebar-user-copy">
-        <small>当前用户</small>
-        <strong>{{ username }}</strong>
-      </span>
-    </div>
     <button type="button" class="sidebar-footer-action" data-dashboard-view="settings">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="12" cy="12" r="3"></circle>

@@ -39,6 +39,14 @@
   min-width: 0;
 }
 
+.workspace-stack.is-focus-view {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.workspace-stack.is-focus-view .workspace-main {
+  width: 100%;
+}
+
 .workspace-main .context-card {
   padding-top: 21px;
   padding-bottom: 21px;
@@ -269,6 +277,17 @@
   border-radius: 7px;
 }
 
+.sidebar-user-chevron {
+  width: 16px;
+  margin-left: auto;
+  color: var(--sidebar-muted);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .sidebar-user-avatar {
   display: inline-flex;
   flex: 0 0 auto;
@@ -281,12 +300,6 @@
   border: 1px solid #d7e5fb;
   border-radius: 50%;
   font-size: 12px;
-}
-
-.sidebar-user-copy small {
-  color: var(--sidebar-muted);
-  font-size: 9px;
-  line-height: 1.2;
 }
 
 .sidebar-user-copy strong {
@@ -502,7 +515,11 @@
 .project-overview-item small { grid-column: 1 / -1; overflow: hidden; color: var(--shell-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .project-overview-progress { color: var(--sidebar-blue); font-size: 12px; font-variant-numeric: tabular-nums; }
 .project-overview-more, .project-empty-create { padding: 8px 10px; color: var(--sidebar-blue); font-size: 11px; text-align: center; }
-.project-manager-card { max-width: 980px; }
+.workspace-stack.is-focus-view .dashboard-placeholder-view { width: 100%; }
+.workspace-stack.is-focus-view .project-manager-card,
+.workspace-stack.is-focus-view .schedule-manager-card,
+.workspace-stack.is-focus-view .placeholder-card { width: 100%; min-height: calc(100vh - 128px); }
+.project-manager-card { max-width: none; }
 .project-manager-heading { display: flex; justify-content: space-between; gap: 18px; }
 .project-manager-heading h1 { margin: 0; color: var(--shell-ink); font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", serif; font-size: 27px; }
 .project-manager-heading p, .project-manager-status { color: var(--shell-muted); font-size: 12px; }
@@ -515,7 +532,7 @@
 .project-manager-list { display: grid; align-content: start; gap: 6px; }.project-list-item { padding: 10px; border: 1px solid var(--shell-border-soft); border-radius: 7px; background: #fff; color: var(--shell-ink); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }.project-list-item.is-selected { color: var(--sidebar-blue); background: var(--sidebar-blue-soft); border-color: #d4e3fa; }
 .project-detail { min-height: 260px; padding: 15px; border: 1px solid var(--shell-border-soft); border-radius: 8px; }.project-archive-button { margin-top: 10px; border: 0; background: transparent; color: #b8564d; font: inherit; font-size: 12px; cursor: pointer; }.project-goals { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--shell-border); }.project-goals h2 { margin: 0 0 10px; font-size: 15px; }.project-goal-form { display: flex; gap: 7px; }.project-goal-form input { flex: 1; }.project-goal-form button { padding: 0 10px; }.project-goal-row { display: flex; align-items: center; gap: 7px; margin-top: 8px; }.project-goal-row > button { border: 0; background: transparent; color: var(--sidebar-blue); font: inherit; font-size: 12px; cursor: pointer; }.project-goal-row > button:nth-child(2) { flex: 1; color: var(--shell-ink); text-align: left; }.project-goal-row > button.is-done { color: var(--shell-muted); text-decoration: line-through; }
 
-.schedule-manager-card { max-width: 920px; }
+.schedule-manager-card { max-width: none; }
 .schedule-manager-heading { display: flex; align-items: start; justify-content: space-between; gap: 18px; }
 .schedule-manager-heading h1 { margin: 0; color: var(--shell-ink); font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", serif; font-size: 27px; }
 .schedule-manager-heading p, .schedule-manager-status { margin: 7px 0 0; color: var(--shell-muted); font-size: 12px; }

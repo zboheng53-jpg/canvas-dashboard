@@ -35,7 +35,7 @@
     <div class="dashboard-grid">
       {% include "dashboard/_academic_sidebar.html" %}
 
-      <div class="workspace-stack">
+      <div class="workspace-stack" id="workspace-stack">
         <div class="workspace-main">
           <section class="dashboard-view" id="dashboard-view-overview" data-view-panel="overview">
     <!-- Top Bar -->
@@ -133,6 +133,11 @@
 
         <hr class="section-divider">
 
+        <div class="todo-group-controls" role="group" aria-label="待办分组方式">
+          <button type="button" class="todo-group-control is-active" data-todo-grouping="time" aria-pressed="true" onclick="setTodoGrouping('time')">按时间</button>
+          <button type="button" class="todo-group-control" data-todo-grouping="label" aria-pressed="false" onclick="setTodoGrouping('label')">按标签</button>
+        </div>
+
         <!-- Unified todo list -->
         <div class="todo-list" id="todo-list">
           <div class="empty-state">&#21152;&#36733;&#20013;...</div>
@@ -165,6 +170,7 @@
   <script>
     // ---- Dashboard V2 shell ----
     const dashboardShell = document.getElementById('dashboard-shell');
+    const workspaceStack = document.getElementById('workspace-stack');
     const academicSidebar = document.getElementById('academic-sidebar');
     const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
     const sidebarCollapseToggle = document.getElementById('sidebar-collapse-toggle');
@@ -293,6 +299,7 @@
         }
       });
       document.getElementById('dashboard-right-rail').classList.toggle('hidden', viewName !== 'overview');
+      workspaceStack.classList.toggle('is-focus-view', viewName !== 'overview');
       let loadPromise = Promise.resolve();
       if (viewName === 'schedule') loadPromise = loadScheduleManager();
       if (viewName === 'projects') loadPromise = loadProjects();
@@ -737,6 +744,53 @@
       }
     }
 
+    let todoGrouping = 'time';
+
+    function setTodoGrouping(grouping) {
+      todoGrouping = grouping;
+      document.querySelectorAll('[data-todo-grouping]').forEach((button) => {
+        const isActive = button.dataset.todoGrouping === grouping;
+        button.classList.toggle('is-active', isActive);
+        button.setAttribute('aria-pressed', String(isActive));
+      });
+      renderUnifiedList();
+    }
+
+    function timeGroupForTodo(item) {
+      const today = window.customToday || new Date().toISOString().slice(0, 10);
+      const tomorrow = new Date(`${today}T00:00:00`);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const weekEnd = new Date(`${today}T00:00:00`);
+      weekEnd.setDate(weekEnd.getDate() + (7 - weekEnd.getDay()) % 7);
+      const dueDate = item.due_ts ? item.due_ts.slice(0, 10) : '';
+      if (!item.done && (item.manualHighlighted || (dueDate && dueDate <= today))) return 'today';
+      if (!item.done && dueDate && dueDate <= weekEnd.toISOString().slice(0, 10)) return 'week';
+      return 'later';
+    }
+
+    function buildTodoGroups(items) {
+      if (todoGrouping === 'label') {
+        const groups = new Map();
+        items.forEach((item) => {
+          const labels = item.labels && item.labels.length ? item.labels : ['未标注'];
+          labels.forEach((label) => {
+            if (!groups.has(label)) groups.set(label, []);
+            groups.get(label).push(item);
+          });
+        });
+        return [...groups.entries()]
+          .sort(([a], [b]) => (a === '未标注') - (b === '未标注') || a.localeCompare(b, 'zh-CN'))
+          .map(([label, groupedItems]) => ({ title: `标签 · ${label}`, items: groupedItems }));
+      }
+
+      const labels = { today: '今日优先', week: '本周安排', later: '之后' };
+      const groups = { today: [], week: [], later: [] };
+      items.forEach((item) => groups[timeGroupForTodo(item)].push(item));
+      return Object.entries(groups)
+        .filter(([, groupedItems]) => groupedItems.length)
+        .map(([key, groupedItems]) => ({ title: labels[key], items: groupedItems }));
+    }
+
     function renderUnifiedList() {
       const container = document.getElementById('todo-list');
 
@@ -865,8 +919,10 @@
       }
 
       const doAnimate = firstItemRender && unified.length > 0;
+      let itemIndex = 0;
 
-      container.innerHTML = unified.map((item, idx) => {
+      const renderTodoItem = (item) => {
+        const idx = itemIndex++;
         const isDismissed = item.done || item.hidden;
         const manualFlag = item.manualHighlighted || false;
 
@@ -972,7 +1028,17 @@
             ${panelHtml}
           </div>
         `;
-      }).join('');
+      };
+
+      container.innerHTML = buildTodoGroups(unified).map((group) => `
+        <section class="todo-group">
+          <div class="todo-group-heading">
+            <h3>${escapeHtml(group.title)}</h3>
+            <span>${group.items.length}</span>
+          </div>
+          <div class="todo-group-items">${group.items.map(renderTodoItem).join('')}</div>
+        </section>
+      `).join('');
 
       if (doAnimate) firstItemRender = false;
 

@@ -286,14 +286,32 @@ def test_frontend_v2_sidebar_greeting_and_calendar_subscription(live_app, browse
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "calendarv2")
 
-    expect(page.locator("#sidebar-greeting")).to_have_text("早上好")
-    expect(page.locator(".sidebar-brand-copy small")).to_have_text("今天也按自己的节奏来")
+    expect(page.locator("#sidebar-greeting")).to_have_text("早上好，calendarv2")
+    expect(page.locator(".sidebar-brand-copy small")).to_have_count(0)
     page.locator("#calendar-subscription-trigger").click()
     expect(page.locator("#calendar-subscription-panel")).to_be_visible()
     page.locator("#calendar-subscription-create").click()
     expect(page.locator("#calendar-subscription-url")).to_have_value(re.compile(r"/calendar/.+\.ics$"))
     page.locator("#calendar-subscription-revoke").click()
     expect(page.locator("#calendar-subscription-status")).to_have_text("日历订阅已撤销")
+
+
+def test_frontend_todo_grouping_and_focus_views(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "groupingv2")
+
+    expect(page.locator(".todo-group-heading").first).to_contain_text("之后")
+    page.fill("#new-todo-input", "Tag grouping task #automation")
+    page.fill("#new-todo-due", "2026-07-09")
+    page.click("#add-todo-form button")
+    page.locator('[data-todo-grouping="label"]').click()
+    expect(page.locator(".todo-group-heading").filter(has_text="标签 · automation")).to_be_visible()
+
+    overview_width = page.locator(".workspace-main").bounding_box()["width"]
+    page.locator('[data-dashboard-view="projects"]').click()
+    projects_width = page.locator(".workspace-main").bounding_box()["width"]
+    expect(page.locator("#dashboard-view-projects")).to_be_visible()
+    assert projects_width > overview_width + 300
 
 
 def test_frontend_v2_mobile_menu_placeholders_and_stacked_modules(live_app, browser):
