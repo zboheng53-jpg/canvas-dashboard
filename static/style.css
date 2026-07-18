@@ -388,30 +388,36 @@ a:hover { color: var(--accent-hover); }
   margin: 18px 0;
 }
 
-.todo-group-controls {
+.todo-source-filters {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: -2px 0 14px;
+  gap: 9px;
+  margin: -2px 0 18px;
+  padding-bottom: 14px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: thin;
 }
 
-.todo-group-control {
-  min-height: 32px;
-  padding: 0 12px;
+.todo-source-filter {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0 14px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 6px;
   color: var(--text-secondary);
-  background: var(--surface);
+  background: #f5f3ef;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
+  transition: border-color .18s ease, color .18s ease, background .18s ease;
 }
 
-.todo-group-control:hover,
-.todo-group-control.is-active {
+.todo-source-filter:hover,
+.todo-source-filter.is-active {
   border-color: var(--accent);
   color: var(--accent);
-  background: var(--accent-subtle);
+  background: #f7f9fd;
 }
 
 .todo-group { margin-top: 20px; }

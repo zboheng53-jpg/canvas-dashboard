@@ -133,9 +133,13 @@
 
         <hr class="section-divider">
 
-        <div class="todo-group-controls" role="group" aria-label="待办分组方式">
-          <button type="button" class="todo-group-control is-active" data-todo-grouping="time" aria-pressed="true" onclick="setTodoGrouping('time')">按时间</button>
-          <button type="button" class="todo-group-control" data-todo-grouping="label" aria-pressed="false" onclick="setTodoGrouping('label')">按标签</button>
+        <div class="todo-source-filters" id="todo-source-filters" role="group" aria-label="按来源筛选待办">
+          <button type="button" class="todo-source-filter is-active" data-todo-source="all" aria-pressed="true" onclick="setTodoSourceFilter('all')">全部 (0)</button>
+          <button type="button" class="todo-source-filter" data-todo-source="canvas" aria-pressed="false" onclick="setTodoSourceFilter('canvas')">Canvas (0)</button>
+          <button type="button" class="todo-source-filter" data-todo-source="haoke" aria-pressed="false" onclick="setTodoSourceFilter('haoke')">好课 (0)</button>
+          <button type="button" class="todo-source-filter" data-todo-source="zhixuemeng" aria-pressed="false" onclick="setTodoSourceFilter('zhixuemeng')">智学盟 (0)</button>
+          <button type="button" class="todo-source-filter" data-todo-source="zhihuishu" aria-pressed="false" onclick="setTodoSourceFilter('zhihuishu')">智慧树 (0)</button>
+          <button type="button" class="todo-source-filter" data-todo-source="custom" aria-pressed="false" onclick="setTodoSourceFilter('custom')">自定义 (0)</button>
         </div>
 
         <!-- Unified todo list -->
@@ -744,24 +748,42 @@
       }
     }
 
-    let todoGrouping = 'time';
+    let todoSourceFilter = 'all';
 
-    function setTodoGrouping(grouping) {
-      todoGrouping = grouping;
-      document.querySelectorAll('[data-todo-grouping]').forEach((button) => {
-        const isActive = button.dataset.todoGrouping === grouping;
+    function setTodoSourceFilter(source) {
+      todoSourceFilter = source;
+      document.querySelectorAll('[data-todo-source]').forEach((button) => {
+        const isActive = button.dataset.todoSource === source;
         button.classList.toggle('is-active', isActive);
         button.setAttribute('aria-pressed', String(isActive));
       });
       renderUnifiedList();
     }
 
+    function renderTodoSourceFilters(items) {
+      const labels = {
+        all: '全部',
+        canvas: 'Canvas',
+        haoke: '好课',
+        zhixuemeng: '智学盟',
+        zhihuishu: '智慧树',
+        custom: '自定义',
+      };
+      const counts = { all: items.length, canvas: 0, haoke: 0, zhixuemeng: 0, zhihuishu: 0, custom: 0 };
+      items.forEach((item) => { counts[item.source] += 1; });
+      document.querySelectorAll('[data-todo-source]').forEach((button) => {
+        const source = button.dataset.todoSource;
+        button.textContent = `${labels[source]} (${counts[source]})`;
+        const isActive = source === todoSourceFilter;
+        button.classList.toggle('is-active', isActive);
+        button.setAttribute('aria-pressed', String(isActive));
+      });
+    }
+
     function timeGroupForTodo(item) {
       const today = window.customToday || new Date().toISOString().slice(0, 10);
-      const tomorrow = new Date(`${today}T00:00:00`);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const weekEnd = new Date(`${today}T00:00:00`);
-      weekEnd.setDate(weekEnd.getDate() + (7 - weekEnd.getDay()) % 7);
+      const weekEnd = new Date(`${today}T00:00:00Z`);
+      weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
       const dueDate = item.due_ts ? item.due_ts.slice(0, 10) : '';
       if (!item.done && (item.manualHighlighted || (dueDate && dueDate <= today))) return 'today';
       if (!item.done && dueDate && dueDate <= weekEnd.toISOString().slice(0, 10)) return 'week';
@@ -769,20 +791,6 @@
     }
 
     function buildTodoGroups(items) {
-      if (todoGrouping === 'label') {
-        const groups = new Map();
-        items.forEach((item) => {
-          const labels = item.labels && item.labels.length ? item.labels : ['未标注'];
-          labels.forEach((label) => {
-            if (!groups.has(label)) groups.set(label, []);
-            groups.get(label).push(item);
-          });
-        });
-        return [...groups.entries()]
-          .sort(([a], [b]) => (a === '未标注') - (b === '未标注') || a.localeCompare(b, 'zh-CN'))
-          .map(([label, groupedItems]) => ({ title: `标签 · ${label}`, items: groupedItems }));
-      }
-
       const labels = { today: '今日优先', week: '本周安排', later: '之后' };
       const groups = { today: [], week: [], later: [] };
       items.forEach((item) => groups[timeGroupForTodo(item)].push(item));
@@ -913,12 +921,18 @@
         return 0;
       });
 
-      if (unified.length === 0) {
-        container.innerHTML = '<div class="empty-state">&#27809;&#26377;&#24453;&#21150;&#20107;&#39033;</div>';
+      renderTodoSourceFilters(unified);
+      updateStatsBar(unified);
+      const filteredItems = todoSourceFilter === 'all'
+        ? unified
+        : unified.filter((item) => item.source === todoSourceFilter);
+
+      if (filteredItems.length === 0) {
+        container.innerHTML = `<div class="empty-state">${unified.length ? '该来源暂无待办事项' : '没有待办事项'}</div>`;
         return;
       }
 
-      const doAnimate = firstItemRender && unified.length > 0;
+      const doAnimate = firstItemRender && filteredItems.length > 0;
       let itemIndex = 0;
 
       const renderTodoItem = (item) => {
@@ -1030,7 +1044,7 @@
         `;
       };
 
-      container.innerHTML = buildTodoGroups(unified).map((group) => `
+      container.innerHTML = buildTodoGroups(filteredItems).map((group) => `
         <section class="todo-group">
           <div class="todo-group-heading">
             <h3>${escapeHtml(group.title)}</h3>
@@ -1042,8 +1056,6 @@
 
       if (doAnimate) firstItemRender = false;
 
-      // Update stats bar
-      updateStatsBar(unified);
     }
 
     function updateStatsBar(unified) {

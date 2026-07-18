@@ -1,6 +1,16 @@
 import importlib
 
 
+def test_apple_calendar_is_enabled_by_default(monkeypatch):
+    monkeypatch.delenv("CANVAS_DASHBOARD_APPLE_CALENDAR_ENABLED", raising=False)
+
+    import settings
+
+    importlib.reload(settings)
+
+    assert settings.APPLE_CALENDAR_ENABLED is True
+
+
 def test_settings_env_overrides(monkeypatch):
     monkeypatch.setenv("CANVAS_DASHBOARD_PORT", "5050")
     monkeypatch.setenv("CANVAS_DASHBOARD_COOKIE_SECURE", "yes")

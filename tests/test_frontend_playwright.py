@@ -281,8 +281,7 @@ def test_frontend_v2_sidebar_uses_light_reference_style(live_app, browser):
     assert styles["userBorder"] == "1px"
 
 
-def test_frontend_v2_sidebar_greeting_and_calendar_subscription(live_app, browser, monkeypatch):
-    monkeypatch.setattr(dashboard_app.settings, "APPLE_CALENDAR_ENABLED", True)
+def test_frontend_v2_sidebar_greeting_and_calendar_subscription(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "calendarv2")
 
@@ -296,16 +295,24 @@ def test_frontend_v2_sidebar_greeting_and_calendar_subscription(live_app, browse
     expect(page.locator("#calendar-subscription-status")).to_have_text("日历订阅已撤销")
 
 
-def test_frontend_todo_grouping_and_focus_views(live_app, browser):
+def test_frontend_source_filters_and_focus_views(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "groupingv2")
 
+    source_filters = page.locator("[data-todo-source]")
+    expect(source_filters).to_have_count(6)
+    expect(page.locator('[data-todo-source="all"]')).to_have_text("全部 (1)")
+    expect(page.locator('[data-todo-source="canvas"]')).to_have_text("Canvas (1)")
+    expect(page.locator('[data-todo-source="custom"]')).to_have_text("自定义 (0)")
     expect(page.locator(".todo-group-heading").first).to_contain_text("之后")
     page.fill("#new-todo-input", "Tag grouping task #automation")
-    page.fill("#new-todo-due", "2026-07-09")
+    page.fill("#new-todo-due", "2026-07-16")
     page.click("#add-todo-form button")
-    page.locator('[data-todo-grouping="label"]').click()
-    expect(page.locator(".todo-group-heading").filter(has_text="标签 · automation")).to_be_visible()
+    expect(page.locator(".todo-group-heading").filter(has_text="本周安排")).to_be_visible()
+    page.locator('[data-todo-source="custom"]').click()
+    expect(page.locator('[data-todo-source="custom"]')).to_have_text("自定义 (1)")
+    expect(page.locator(".unified-item").filter(has_text="Tag grouping task")).to_be_visible()
+    expect(page.locator(".unified-item").filter(has_text="Canvas seeded")).to_have_count(0)
 
     overview_width = page.locator(".workspace-main").bounding_box()["width"]
     page.locator('[data-dashboard-view="projects"]').click()
