@@ -416,28 +416,30 @@ def get_greeting_info(dt=None):
     if dt is None:
         dt = datetime.now(CST)
     hour = dt.hour
+    is_night = (hour >= 19 or hour < 5)
     if 0 <= hour < 5:
-        return "夜深了", "🌙"
+        return "夜深了", "🌙", is_night
     elif 5 <= hour < 9:
-        return "早上好", "🌅"
+        return "早上好", "🌅", is_night
     elif 9 <= hour < 12:
-        return "上午好", "☀️"
+        return "上午好", "☀️", is_night
     elif 12 <= hour < 14:
-        return "中午好", "☀️"
+        return "中午好", "☀️", is_night
     elif 14 <= hour < 19:
-        return "下午好", "🌤️"
+        return "下午好", "🌤️", is_night
     else:
-        return "晚上好", "🌙"
+        return "晚上好", "🌙", is_night
 
 
 @app.route("/")
 def index():
-    greeting_text, greeting_icon = get_greeting_info()
+    greeting_text, greeting_icon, is_night = get_greeting_info()
     return render_template(
         "index.html",
         username=session.get("username"),
         greeting_text=greeting_text,
         greeting_icon=greeting_icon,
+        is_night=is_night,
         icp_number=settings.ICP_NUMBER,
         apple_calendar_enabled=settings.APPLE_CALENDAR_ENABLED,
     )

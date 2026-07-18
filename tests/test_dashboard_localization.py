@@ -54,19 +54,19 @@ def test_weather_cloudy_response_is_chinese_and_uses_icon(tmp_path, monkeypatch)
 
 def test_greeting_info_by_hour():
     expected_mappings = {
-        0: ("夜深了", "🌙"),
-        3: ("夜深了", "🌙"),
-        5: ("早上好", "🌅"),
-        8: ("早上好", "🌅"),
-        9: ("上午好", "☀️"),
-        11: ("上午好", "☀️"),
-        12: ("中午好", "☀️"),
-        13: ("中午好", "☀️"),
-        14: ("下午好", "🌤️"),
-        18: ("下午好", "🌤️"),
-        19: ("晚上好", "🌙"),
-        23: ("晚上好", "🌙"),
+        0: ("夜深了", "🌙", True),
+        3: ("夜深了", "🌙", True),
+        5: ("早上好", "🌅", False),
+        8: ("早上好", "🌅", False),
+        9: ("上午好", "☀️", False),
+        11: ("上午好", "☀️", False),
+        12: ("中午好", "☀️", False),
+        13: ("中午好", "☀️", False),
+        14: ("下午好", "🌤️", False),
+        18: ("下午好", "🌤️", False),
+        19: ("晚上好", "🌙", True),
+        23: ("晚上好", "🌙", True),
     }
-    for hour, (text, icon) in expected_mappings.items():
+    for hour, (text, icon, is_night) in expected_mappings.items():
         dt = datetime(2026, 7, 18, hour, 30, 0)
-        assert dashboard_app.get_greeting_info(dt) == (text, icon)
+        assert dashboard_app.get_greeting_info(dt) == (text, icon, is_night)

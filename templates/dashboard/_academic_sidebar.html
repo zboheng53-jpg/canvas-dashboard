@@ -1,7 +1,7 @@
 <aside class="academic-sidebar" id="academic-sidebar" aria-label="主导航" aria-hidden="false">
   <div class="sidebar-heading">
     <div class="sidebar-brand">
-      <span class="sidebar-brand-mark" id="sidebar-greeting-icon" aria-hidden="true">{{ greeting_icon or "☀" }}</span>
+      <span class="sidebar-brand-mark {% if is_night %}is-night{% else %}is-daytime{% endif %}" id="sidebar-greeting-icon" aria-hidden="true">{{ greeting_icon or "☀" }}</span>
       <span class="sidebar-brand-copy">
         <strong id="sidebar-greeting" data-username="{{ username }}">{{ greeting_text or "早上好" }}，{{ username }}</strong>
       </span>

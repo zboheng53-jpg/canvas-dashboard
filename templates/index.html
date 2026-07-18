@@ -587,18 +587,19 @@
 
     function getGreetingInfo(dateObj) {
       const hour = dateObj.getHours();
+      const isNight = hour >= 19 || hour < 5;
       if (hour >= 0 && hour < 5) {
-        return { greeting: '夜深了', icon: '🌙' };
+        return { greeting: '夜深了', icon: '🌙', isNight };
       } else if (hour >= 5 && hour < 9) {
-        return { greeting: '早上好', icon: '🌅' };
+        return { greeting: '早上好', icon: '🌅', isNight };
       } else if (hour >= 9 && hour < 12) {
-        return { greeting: '上午好', icon: '☀️' };
+        return { greeting: '上午好', icon: '☀️', isNight };
       } else if (hour >= 12 && hour < 14) {
-        return { greeting: '中午好', icon: '☀️' };
+        return { greeting: '中午好', icon: '☀️', isNight };
       } else if (hour >= 14 && hour < 19) {
-        return { greeting: '下午好', icon: '🌤️' };
+        return { greeting: '下午好', icon: '🌤️', isNight };
       } else {
-        return { greeting: '晚上好', icon: '🌙' };
+        return { greeting: '晚上好', icon: '🌙', isNight };
       }
     }
 
@@ -612,8 +613,12 @@
         greetingEl.textContent = targetText;
       }
       const iconEl = document.getElementById('sidebar-greeting-icon');
-      if (iconEl && iconEl.textContent !== info.icon) {
-        iconEl.textContent = info.icon;
+      if (iconEl) {
+        if (iconEl.textContent !== info.icon) {
+          iconEl.textContent = info.icon;
+        }
+        iconEl.classList.toggle('is-night', info.isNight);
+        iconEl.classList.toggle('is-daytime', !info.isNight);
       }
     }
 
