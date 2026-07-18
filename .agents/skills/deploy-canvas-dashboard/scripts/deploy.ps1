@@ -42,7 +42,10 @@ try {
         --exclude='.claude' `
         --exclude='.git' `
         --exclude='.pytest_cache' `
+        --exclude='.pytest-sandbox' `
+        --exclude='.worktrees' `
         --exclude='.agents' `
+        --exclude='*.log' `
         --exclude='*.tar.gz' `
         -czf $TarFile *
     if ($LASTEXITCODE -ne 0) { throw "Failed to create release archive." }
