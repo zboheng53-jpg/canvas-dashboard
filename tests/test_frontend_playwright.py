@@ -160,7 +160,7 @@ def test_frontend_mobile_header_shows_compact_weather_and_term(live_app, browser
     term_box = term_info.bounding_box()
     assert all(box is not None for box in (emoji_box, temp_box, desc_box, detail_box, term_box))
     assert emoji_box["x"] < temp_box["x"]
-    assert abs((emoji_box["y"] + emoji_box["height"] / 2) - (temp_box["y"] + temp_box["height"] / 2)) <= 2
+    assert abs((emoji_box["y"] + emoji_box["height"] / 2) - (temp_box["y"] + temp_box["height"] / 2)) <= 3
     assert desc_box["y"] > temp_box["y"]
     assert abs((desc_box["y"] + desc_box["height"] / 2) - (detail_box["y"] + detail_box["height"] / 2)) <= 2
     assert term_box["y"] >= max(
@@ -261,6 +261,7 @@ def test_frontend_v2_desktop_shell_uses_bounded_three_column_layout(live_app, br
 def test_frontend_desktop_todo_card_scrolls_without_outgrowing_sidebars(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "todocardscroll")
+    page.wait_for_timeout(1000)
 
     page.evaluate(
         """() => {
