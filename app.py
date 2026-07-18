@@ -303,25 +303,6 @@ WEATHER_URL = (
 )
 
 
-def _load_todos(username):
-    todos_file = user_dir(username) / "custom_todos.json"
-    if not todos_file.exists():
-        return []
-    with open(todos_file, "r", encoding="utf-8") as f:
-        todos = json.load(f)
-        # 纭繚鎵€鏈夊緟鍔炰簨椤归兘鏈夋爣绛惧拰瀛愪换鍔″瓧娈碉紙鍏煎鏃ф暟鎹級
-        for todo in todos:
-            if "labels" not in todo:
-                todo["labels"] = []
-            if "subtasks" not in todo:
-                todo["subtasks"] = []
-        return todos
-
-
-def _save_todos(username, todos):
-    write_json_file(user_dir(username) / "custom_todos.json", todos)
-
-
 def _todos_file(username):
     return user_dir(username) / "custom_todos.json"
 

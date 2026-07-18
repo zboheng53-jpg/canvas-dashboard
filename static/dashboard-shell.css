@@ -6,8 +6,6 @@
   --shell-border-soft: #eeeae3;
   --shell-ink: #20242b;
   --shell-muted: #77736d;
-  --shell-navy: #19263a;
-  --shell-accent: #c9a45f;
   --shell-radius: 10px;
   --shell-shadow: 0 2px 10px rgba(29, 35, 43, 0.035);
   --sidebar-blue: #2f6bd6;
@@ -192,8 +190,7 @@
 .sidebar-collapse-toggle svg,
 .mobile-menu-toggle svg,
 .sidebar-nav-item svg,
-.sidebar-footer-action svg,
-.rail-empty-icon svg {
+.sidebar-footer-action svg {
   width: 20px;
   height: 20px;
   fill: none;
@@ -553,7 +550,7 @@ body.calendar-modal-open { overflow: hidden; }
 .today-schedule-row small { display: block; margin-top: 2px; color: var(--shell-muted); font-size: 10px; }
 .today-deadlines { display: grid; gap: 6px; margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--shell-border); }
 .today-deadlines > span { color: var(--shell-muted); font-size: 10px; font-weight: 700; letter-spacing: .12em; }
-.today-deadline strong, .today-deadlines strong { color: #b8564d; }
+.today-deadlines strong { color: #b8564d; }
 
 .project-overview-content { position: relative; z-index: 1; display: grid; gap: 8px; margin-top: 18px; }
 .project-overview-item, .project-overview-more, .project-empty-create { width: 100%; border: 1px solid var(--shell-border-soft); border-radius: 7px; background: #fbfaf8; color: var(--shell-ink); font: inherit; text-align: left; cursor: pointer; }
@@ -602,18 +599,6 @@ body.calendar-modal-open { overflow: hidden; }
 .schedule-item-actions { display: flex; flex-wrap: wrap; justify-content: end; gap: 5px; }
 .schedule-item-actions button { border: 0; background: transparent; color: var(--sidebar-blue); font: inherit; font-size: 11px; cursor: pointer; }
 .schedule-item-actions .is-danger { color: #b8564d; }
-
-.rail-empty-icon {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  color: #7f7a71;
-  background: #f4f2ed;
-  border-radius: 50%;
-}
 
 .rail-empty-state strong {
   display: block;

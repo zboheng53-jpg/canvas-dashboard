@@ -1,6 +1,5 @@
 """Per-user course cache and simple schedule-item storage."""
-from datetime import date, datetime
-from pathlib import Path
+from datetime import date
 
 from storage import locked_json_update, read_json_file, write_json_file
 import user_paths
@@ -58,9 +57,6 @@ def delete_item(username, kind, item_id):
         found["value"] = len(original) != len(data[key]); return data
     locked_json_update(_items_file(username), {"recurring": [], "one_off": []}, update)
     return found["value"]
-
-
-def _overlaps(start_a, end_a, start_b, end_b): return start_a < end_b and start_b < end_a
 
 
 def today_entries(username, today, semester_start):

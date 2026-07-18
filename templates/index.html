@@ -183,7 +183,7 @@
         <button type="button" class="calendar-modal-close" aria-label="关闭苹果日历订阅" onclick="closeCalendarSubscription()">&times;</button>
         <h2 id="calendar-subscription-title">苹果日历订阅</h2>
         <p>请将下方私密链接添加到 iPhone 日历，不要转发给他人。</p>
-        <div class="calendar-subscription-url" id="calendar-subscription-url-row">
+        <div class="calendar-subscription-url">
           <input type="text" id="calendar-subscription-url" readonly aria-label="私有日历订阅地址" placeholder="生成后将在这里显示私密订阅链接">
         </div>
         <div class="calendar-subscription-actions">
@@ -1119,34 +1119,6 @@
       });
       document.getElementById('stat-total').textContent = pending;
       document.getElementById('stat-urgent').textContent = urgent;
-    }
-
-    function renderUpcomingSubtasksPreview(subtasks) {
-      const today = window.customToday || new Date().toISOString().split('T')[0];
-      const d = new Date(today + 'T00:00:00');
-      d.setDate(d.getDate() + 1);
-      const tomorrow = d.toISOString().split('T')[0];
-
-      const upcoming = subtasks.filter(st => {
-        if (st.done) return false;
-        if (!st.due_date) return false;
-        return st.due_date === today || st.due_date === tomorrow;
-      });
-
-      if (upcoming.length === 0) return '';
-
-      const parts = upcoming.map(st => {
-        let label;
-        if (st.due_date === today) label = '\u4eca\u5929';
-        else if (st.due_date === tomorrow) label = '\u660e\u5929';
-        else {
-          const dt = new Date(st.due_date + 'T00:00:00');
-          label = `${dt.getMonth() + 1}/${dt.getDate()}`;
-        }
-        return `<span class="upcoming-subtask-item">${escapeHtml(st.text)} <span class="upcoming-subtask-due">${label}</span></span>`;
-      }).join('<span class="upcoming-subtask-sep"> &middot; </span>');
-
-      return `<div class="subtask-upcoming-preview">+ ${parts}</div>`;
     }
 
     function renderSubtaskPanel(todoId, subtasks) {
