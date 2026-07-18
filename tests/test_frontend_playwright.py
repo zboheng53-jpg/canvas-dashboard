@@ -184,6 +184,28 @@ def test_frontend_desktop_header_keeps_weather_and_term_layout(live_app, browser
     ) == "row"
 
 
+def test_frontend_todo_hover_keeps_content_and_actions_in_place(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "todohovers")
+
+    todo = page.locator("#todo-list .unified-item").first
+    title = todo.locator(".item-title")
+    dismiss_button = todo.locator(".item-desktop-actions .btn-dismiss")
+    title_before = title.bounding_box()
+    dismiss_before = dismiss_button.bounding_box()
+    assert title_before is not None
+    assert dismiss_before is not None
+
+    todo.hover()
+
+    title_after = title.bounding_box()
+    dismiss_after = dismiss_button.bounding_box()
+    assert title_after is not None
+    assert dismiss_after is not None
+    assert title_after["x"] == pytest.approx(title_before["x"], abs=1)
+    assert dismiss_after["x"] == pytest.approx(dismiss_before["x"], abs=1)
+
+
 def test_frontend_v2_desktop_shell_uses_bounded_three_column_layout(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "desktopv2")
@@ -236,6 +258,38 @@ def test_frontend_v2_desktop_shell_uses_bounded_three_column_layout(live_app, br
     assert collapsed_box is not None
     assert 64 <= collapsed_box["width"] <= 80
     expect(sidebar.locator(".sidebar-label").first).to_be_hidden()
+
+
+def test_frontend_desktop_todo_card_scrolls_without_outgrowing_sidebars(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "todocardscroll")
+
+    page.evaluate(
+        """() => {
+            document.getElementById('todo-list').innerHTML = Array.from(
+                { length: 18 },
+                (_, index) => `<div class="todo-item unified-item"><span class="item-title">Overflow todo ${index}</span></div>`
+            ).join('');
+        }"""
+    )
+
+    todo_card = page.locator(".workspace-main .enter-main-card")
+    todo_list = page.locator("#todo-list")
+    sidebar = page.locator("#academic-sidebar")
+    expect(todo_list.locator(".unified-item")).to_have_count(18)
+    expect(todo_card).to_have_css(
+        "transform", re.compile(r"matrix\(1, 0, 0, 1, 0, 0\)")
+    )
+
+    todo_card_box = todo_card.bounding_box()
+    sidebar_box = sidebar.bounding_box()
+    assert todo_card_box is not None
+    assert sidebar_box is not None
+    assert todo_card_box["y"] + todo_card_box["height"] == pytest.approx(
+        sidebar_box["y"] + sidebar_box["height"], abs=1
+    )
+    assert todo_list.evaluate("element => element.scrollHeight > element.clientHeight")
+    assert todo_list.evaluate("element => getComputedStyle(element).overflowY") == "auto"
 
 
 def test_frontend_v2_narrow_desktop_stacks_right_rail_below_center(live_app, browser):

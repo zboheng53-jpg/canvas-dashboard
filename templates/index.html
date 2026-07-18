@@ -755,6 +755,15 @@
       }
     }
 
+    function getTodayDateString() {
+      if (window.customToday) return window.customToday;
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
     function sortSubtasks(subtasks) {
       return [...subtasks].sort((a, b) => {
         if (a.done === b.done) return 0;
@@ -1122,13 +1131,15 @@
     }
 
     function renderSubtaskPanel(todoId, subtasks) {
+      const todayStr = getTodayDateString();
       const rowsHtml = subtasks.map((subtask, idx) => {
         const sid = subtask.id != null ? subtask.id : idx;
+        const dueDateVal = subtask.due_date || todayStr;
         return `
         <div class="subtask-row">
           <input type="checkbox" ${subtask.done ? 'checked' : ''} onchange="toggleSubtaskDone(${todoId}, ${sid})">
           <span class="subtask-text ${subtask.done ? 'done' : ''}" onclick="startSubtaskEdit(${todoId}, ${sid}, this)">${escapeHtml(subtask.text)}</span>
-          <input type="date" class="subtask-due-input" value="${subtask.due_date || ''}" onchange="handleSubtaskDueChange(${todoId}, ${sid}, this.value)" title="\u622a\u6b62\u65e5\u671f">
+          <input type="date" class="subtask-due-input" value="${dueDateVal}" onchange="handleSubtaskDueChange(${todoId}, ${sid}, this.value)" title="截止日期">
           <button class="subtask-delete" onclick="deleteSubtask(${todoId}, ${sid})" title="delete subtask">x</button>
         </div>
       `;
@@ -1136,8 +1147,12 @@
 
       return `
         <div class="subtask-panel">
-          ${rowsHtml || '<div class="subtask-empty">\u8fd8\u6ca1\u6709\u5b50\u4efb\u52a1</div>'}
-          <input class="subtask-add-input" placeholder="\u6dfb\u52a0\u5b50\u4efb\u52a1..." onkeydown="handleSubtaskAddKey(event, ${todoId})">
+          ${rowsHtml || '<div class="subtask-empty">还没有子任务</div>'}
+          <div class="subtask-add-row">
+            <input class="subtask-add-input" id="subtask-add-text-${todoId}" placeholder="添加子任务..." onkeydown="handleSubtaskAddKey(event, ${todoId})">
+            <input type="date" class="subtask-add-due-input" id="subtask-add-due-${todoId}" value="${todayStr}" onkeydown="handleSubtaskAddKey(event, ${todoId})" title="截止日期">
+            <button type="button" class="subtask-add-btn" onclick="submitSubtaskAdd(${todoId})" title="添加子任务">添加</button>
+          </div>
         </div>
       `;
     }
@@ -1372,11 +1387,25 @@
 
     function handleSubtaskAddKey(event, todoId) {
       if (event.key === 'Enter') {
-        addSubtask(todoId, event.target.value);
+        event.preventDefault();
+        submitSubtaskAdd(todoId);
       } else if (event.key === 'Escape') {
-        event.target.value = '';
-        event.target.blur();
+        const textInput = document.getElementById(`subtask-add-text-${todoId}`);
+        if (textInput) {
+          textInput.value = '';
+          textInput.blur();
+        }
       }
+    }
+
+    async function submitSubtaskAdd(todoId) {
+      const textInput = document.getElementById(`subtask-add-text-${todoId}`);
+      const dueInput = document.getElementById(`subtask-add-due-${todoId}`);
+      if (!textInput) return;
+      const text = textInput.value.trim();
+      const dueDate = dueInput ? dueInput.value : getTodayDateString();
+      if (!text) return;
+      await addSubtask(todoId, text, dueDate);
     }
 
     async function saveCustomSubtasks(todoId, subtasks) {
@@ -1398,12 +1427,12 @@
         }
         renderUnifiedList();
       } catch (e) {
-        alert('\u4fdd\u5b58\u5931\u8d25');
+        alert('保存失败');
         fetchCustomTodos();
       }
     }
 
-    async function addSubtask(todoId, text) {
+    async function addSubtask(todoId, text, dueDate) {
       const trimmed = text.trim();
       if (!trimmed) return;
 
@@ -1412,9 +1441,10 @@
 
       const currentSubtasks = todo.subtasks || [];
       const newId = Math.max(0, ...currentSubtasks.map(subtask => subtask.id || 0)) + 1;
+      const finalDueDate = (dueDate !== undefined && dueDate !== null && dueDate !== '') ? dueDate : getTodayDateString();
       const subtasks = [
         ...currentSubtasks,
-        { id: newId, text: trimmed, done: false },
+        { id: newId, text: trimmed, done: false, due_date: finalDueDate },
       ];
       await saveCustomSubtasks(todoId, sortSubtasks(subtasks));
     }

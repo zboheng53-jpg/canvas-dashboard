@@ -714,6 +714,27 @@ body.calendar-modal-open { overflow: hidden; }
   }
 }
 
+@media (min-width: 1341px) {
+  .workspace-main {
+    height: calc(100vh - 64px);
+  }
+
+  .workspace-main .dashboard-view[data-view-panel="overview"] .enter-main-card {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .workspace-main .dashboard-view[data-view-panel="overview"] .todo-list {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
 @media (max-width: 1340px) {
   #dashboard-shell {
     max-width: 100%;
