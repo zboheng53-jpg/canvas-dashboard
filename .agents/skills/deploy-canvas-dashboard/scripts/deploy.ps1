@@ -34,20 +34,7 @@ if (-not $SkipPreDeployBackup) {
 
 Write-Host "Packaging immutable release $ReleaseName..." -ForegroundColor Yellow
 try {
-    tar `
-        --exclude='.venv' `
-        --exclude='data' `
-        --exclude='__pycache__' `
-        --exclude='.superpowers' `
-        --exclude='.claude' `
-        --exclude='.git' `
-        --exclude='.pytest_cache' `
-        --exclude='.pytest-sandbox' `
-        --exclude='.worktrees' `
-        --exclude='.agents' `
-        --exclude='*.log' `
-        --exclude='*.tar.gz' `
-        -czf $TarFile *
+    & git archive --format=tar.gz --output=$TarFile HEAD
     if ($LASTEXITCODE -ne 0) { throw "Failed to create release archive." }
 
     & ssh @SshOptions $Remote "mkdir -p $RemoteRoot/incoming $RemoteRoot/releases"

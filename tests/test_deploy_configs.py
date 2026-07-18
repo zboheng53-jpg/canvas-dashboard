@@ -48,7 +48,7 @@ def test_services_run_from_the_atomic_current_release():
     assert "EnvironmentFile=-/etc/canvas-dashboard/canvas-dashboard.env" in web
 
 
-def test_deploy_archive_excludes_local_runtime_artifacts():
+def test_deploy_archive_uses_only_tracked_release_files():
     repo_root = Path(__file__).parents[1]
     deploy_script = (
         repo_root
@@ -58,9 +58,11 @@ def test_deploy_archive_excludes_local_runtime_artifacts():
         / "scripts"
         / "deploy.ps1"
     ).read_text(encoding="utf-8")
+    attributes = (repo_root / ".gitattributes").read_text(encoding="utf-8")
 
-    for local_path in (".pytest-sandbox", ".worktrees", "*.log"):
-        assert f"--exclude='{local_path}'" in deploy_script
+    assert "git archive" in deploy_script
+    assert "-czf $TarFile *" not in deploy_script
+    assert ".agents export-ignore" in attributes
 
 
 def test_release_installer_checks_and_restarts_all_units():
