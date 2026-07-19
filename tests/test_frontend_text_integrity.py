@@ -4,14 +4,21 @@ import settings
 
 
 def test_index_template_has_valid_visible_chinese_and_no_leaked_tags():
-    text = (Path(__file__).parents[1] / "templates" / "index.html").read_text(encoding="utf-8")
+    templates = Path(__file__).parents[1] / "templates"
+    index_text = (templates / "index.html").read_text(encoding="utf-8")
+    sidebar_text = (templates / "dashboard" / "_academic_sidebar.html").read_text(encoding="utf-8")
+    views_text = (templates / "dashboard" / "_placeholder_views.html").read_text(encoding="utf-8")
+    text = "\n".join((index_text, sidebar_text, views_text))
 
-    assert "&#24453;&#21150;&#28165;&#21333;" in text
-    assert "&#31995;&#32479;&#30331;&#24405;" in text
-    assert "&#36864;&#20986;&#30331;&#24405;</a>" in text
-    assert "&#26234;&#24935;&#26641;</span>" in text
-    assert "${data.week}" in text
-    assert "\\u00b0C" in text
+    assert "&#24453;&#21150;&#28165;&#21333;" in index_text
+    assert "今日总览" in sidebar_text
+    assert "连接与同步" in sidebar_text
+    assert "Apple Calendar" in sidebar_text
+    assert "退出登录" in sidebar_text
+    assert "智慧树" in views_text
+    assert "Apple Calendar 订阅" in views_text
+    assert "${data.week}" in index_text
+    assert "\\u00b0C" in index_text
 
     bad_fragments = [
         "?/span>",

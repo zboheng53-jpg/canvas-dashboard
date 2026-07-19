@@ -21,35 +21,70 @@
   </div>
 
   <nav class="sidebar-nav" aria-label="主要入口">
-    <button type="button" class="sidebar-nav-item is-active" data-dashboard-view="overview" aria-current="page">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z"></path>
-      </svg>
-      <span class="sidebar-label">总览</span>
-    </button>
-    <button type="button" class="sidebar-nav-item" data-dashboard-view="projects">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 6.5h6l1.5 2H20v10H4v-12Z"></path>
-      </svg>
-      <span class="sidebar-label">项目</span>
-    </button>
-    <button type="button" class="sidebar-nav-item" data-dashboard-view="schedule">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M5 5h14v15H5V5Zm3-2v4m8-4v4M5 10h14"></path>
-      </svg>
-      <span class="sidebar-label">日程管理</span>
-    </button>
-    <button type="button" class="sidebar-nav-item" data-dashboard-view="sources">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <ellipse cx="12" cy="6" rx="7" ry="3"></ellipse>
-        <path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"></path>
-      </svg>
-      <span class="sidebar-label">数据源</span>
-    </button>
+    <div class="sidebar-nav-group" aria-labelledby="sidebar-section-workspace">
+      <span class="sidebar-section-label" id="sidebar-section-workspace">工作区</span>
+      <button type="button" class="sidebar-nav-item is-active" data-dashboard-view="overview" aria-current="page" title="今日总览">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z"></path>
+        </svg>
+        <span class="sidebar-label">今日总览</span>
+      </button>
+    </div>
+
+    <div class="sidebar-nav-group" aria-labelledby="sidebar-section-planning">
+      <span class="sidebar-section-label" id="sidebar-section-planning">计划</span>
+      <button type="button" class="sidebar-nav-item" data-dashboard-view="projects" title="长期项目">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 6.5h6l1.5 2H20v10H4v-12Z"></path>
+        </svg>
+        <span class="sidebar-label">长期项目</span>
+      </button>
+      <button type="button" class="sidebar-nav-item" data-dashboard-view="schedule" title="日程与课表">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 5h14v15H5V5Zm3-2v4m8-4v4M5 10h14"></path>
+        </svg>
+        <span class="sidebar-label">日程与课表</span>
+      </button>
+    </div>
+
+    <div class="sidebar-nav-group" aria-labelledby="sidebar-section-management">
+      <span class="sidebar-section-label" id="sidebar-section-management">管理</span>
+      <button type="button" class="sidebar-nav-item" data-dashboard-view="connections" title="连接与同步">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <ellipse cx="12" cy="6" rx="7" ry="3"></ellipse>
+          <path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"></path>
+        </svg>
+        <span class="sidebar-label">连接与同步</span>
+        <span class="sidebar-attention-dot hidden" id="connections-attention" aria-label="连接需要处理"></span>
+      </button>
+      {% if apple_calendar_enabled %}
+      <button
+        type="button"
+        class="sidebar-nav-item"
+        id="calendar-subscription-trigger"
+        data-dashboard-view="calendar"
+        aria-controls="dashboard-view-calendar"
+        title="Apple Calendar"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="4" y="5" width="16" height="15" rx="2"></rect>
+          <path d="M8 3v4m8-4v4M4 10h16m-8 4h4m-2-2v4"></path>
+        </svg>
+        <span class="sidebar-label">Apple Calendar</span>
+      </button>
+      {% endif %}
+      <button type="button" class="sidebar-nav-item" data-dashboard-view="settings" title="偏好设置">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19 13.5v-3l-2-.7-.7-1.7.9-1.9-2.1-2.1-1.9.9-1.7-.7-.7-2h-3l-.7 2-1.7.7-1.9-.9-2.1 2.1.9 1.9-.7 1.7-2 .7v3l2 .7.7 1.7-.9 1.9 2.1 2.1 1.9-.9 1.7.7.7 2h3l.7-2 1.7-.7 1.9.9 2.1-2.1-.9-1.9.7-1.7 2-.7Z"></path>
+        </svg>
+        <span class="sidebar-label">偏好设置</span>
+      </button>
+    </div>
   </nav>
 
   <div class="sidebar-footer">
-    <div class="sidebar-user" title="{{ username }}">
+    <button type="button" class="sidebar-user" title="打开偏好设置" aria-label="打开 {{ username }} 的偏好设置" onclick="switchDashboardView('settings')">
       <span class="sidebar-user-avatar" aria-hidden="true">{{ username[:1] | upper }}</span>
       <span class="sidebar-user-copy">
         <strong>{{ username }}</strong>
@@ -57,29 +92,6 @@
       <svg class="sidebar-user-chevron" viewBox="0 0 24 24" aria-hidden="true">
         <path d="m8 10 4 4 4-4"></path>
       </svg>
-    </div>
-    {% if apple_calendar_enabled %}
-    <button
-      type="button"
-      class="sidebar-footer-action calendar-subscription-trigger"
-      id="calendar-subscription-trigger"
-      aria-controls="calendar-subscription-panel"
-      aria-expanded="false"
-      onclick="toggleCalendarSubscription()"
-    >
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="4" y="5" width="16" height="15" rx="2"></rect>
-        <path d="M8 3v4m8-4v4M4 10h16m-8 4h4m-2-2v4"></path>
-      </svg>
-      <span class="sidebar-label">Apple 日历订阅</span>
-    </button>
-    {% endif %}
-    <button type="button" class="sidebar-footer-action" data-dashboard-view="settings">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="12" cy="12" r="3"></circle>
-        <path d="M19 13.5v-3l-2-.7-.7-1.7.9-1.9-2.1-2.1-1.9.9-1.7-.7-.7-2h-3l-.7 2-1.7.7-1.9-.9-2.1 2.1.9 1.9-.7 1.7-2 .7v3l2 .7.7 1.7-.9 1.9 2.1 2.1 1.9-.9 1.7.7.7 2h3l.7-2 1.7-.7 1.9.9 2.1-2.1-.9-1.9.7-1.7 2-.7Z"></path>
-      </svg>
-      <span class="sidebar-label">设置</span>
     </button>
     <button type="button" class="sidebar-footer-action sidebar-logout" onclick="doLogout()">
       <svg viewBox="0 0 24 24" aria-hidden="true">

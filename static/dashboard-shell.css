@@ -46,8 +46,7 @@
 }
 
 .workspace-main .context-card {
-  padding-top: 21px;
-  padding-bottom: 21px;
+  padding: 0;
 }
 
 .workspace-main .card {
@@ -59,8 +58,7 @@
 
 .workspace-main .add-todo-form input,
 .workspace-main .add-todo-form button,
-.workspace-main .btn-refresh,
-.workspace-main .login-trigger {
+.workspace-main .btn-refresh {
   border-color: var(--shell-border);
   background: #fbfaf8;
 }
@@ -68,10 +66,6 @@
 .workspace-main .section-divider,
 .workspace-main .unified-item {
   border-color: var(--shell-border-soft);
-}
-
-.workspace-main .account-row {
-  display: none;
 }
 
 .dashboard-view[hidden],
@@ -215,9 +209,37 @@
 
 .sidebar-nav {
   display: flex;
+  min-height: 0;
+  flex: 1;
   flex-direction: column;
-  gap: 6px;
+  gap: 18px;
   padding: 18px 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.sidebar-nav-group {
+  display: grid;
+  gap: 4px;
+}
+
+.sidebar-section-label {
+  padding: 0 10px 5px;
+  color: #9a9290;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  line-height: 1;
+}
+
+.sidebar-attention-dot {
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  background: #d7655b;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(215, 101, 91, 0.18);
 }
 
 .sidebar-nav-item,
@@ -265,6 +287,15 @@
   display: none;
 }
 
+.sidebar-nav::-webkit-scrollbar {
+  width: 3px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: #dfe3e9;
+  border-radius: 999px;
+}
+
 .sidebar-footer {
   display: flex;
   flex-direction: column;
@@ -277,6 +308,7 @@
 
 .sidebar-user {
   display: flex;
+  width: 100%;
   min-width: 0;
   align-items: center;
   gap: 10px;
@@ -285,6 +317,17 @@
   background: #fff;
   border: 1px solid var(--shell-border-soft);
   border-radius: 7px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar-user:hover,
+.sidebar-user:focus-visible {
+  background: #f7f9fc;
+  border-color: #dce5f2;
+  outline: none;
 }
 
 .sidebar-user-chevron {
@@ -328,68 +371,6 @@
   background: #fff2f0;
 }
 
-.calendar-subscription-trigger {
-  color: var(--sidebar-blue);
-}
-
-.calendar-subscription-trigger:hover,
-.calendar-subscription-trigger:focus-visible {
-  color: var(--sidebar-blue);
-  background: var(--sidebar-blue-soft);
-}
-
-.calendar-subscription-panel {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(28, 35, 47, 0.56);
-  backdrop-filter: blur(2px);
-}
-
-.calendar-subscription-dialog {
-  position: relative;
-  width: min(640px, calc(100vw - 32px));
-  padding: 34px;
-  background: #fff;
-  border: 1px solid var(--shell-border);
-  border-radius: 10px;
-  box-shadow: 0 22px 70px rgba(19, 26, 38, 0.24);
-}
-
-.calendar-subscription-dialog h2 {
-  margin: 0;
-  color: var(--shell-ink);
-  font-family: var(--font-serif);
-  font-size: 24px;
-  letter-spacing: .02em;
-}
-
-.calendar-subscription-dialog > p {
-  margin: 14px 0 0;
-  color: var(--shell-muted);
-  font-family: var(--font-serif);
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.calendar-modal-close {
-  position: absolute;
-  top: 16px;
-  right: 18px;
-  width: 32px;
-  height: 32px;
-  color: #777;
-  background: transparent;
-  border: 0;
-  font-size: 24px;
-  line-height: 1;
-  cursor: pointer;
-}
-
 .calendar-panel-primary,
 .calendar-panel-revoke,
 .calendar-subscription-actions button {
@@ -410,13 +391,16 @@
   border-color: #a8c7f2;
 }
 
-.calendar-panel-primary {
+.calendar-subscription-actions .calendar-panel-primary {
   color: #fff;
   background: var(--sidebar-blue);
   border-color: var(--sidebar-blue);
 }
 
-.calendar-panel-primary:hover { color: var(--sidebar-blue); }
+.calendar-subscription-actions .calendar-panel-primary:hover {
+  color: var(--sidebar-blue);
+  background: var(--sidebar-blue-soft);
+}
 
 .calendar-panel-primary:disabled,
 .calendar-panel-revoke:disabled,
@@ -465,8 +449,6 @@
 .calendar-subscription-status.is-error {
   color: #c9544a;
 }
-
-body.calendar-modal-open { overflow: hidden; }
 
 /* ---- Right rail modules ---- */
 .dashboard-right-rail {
@@ -533,11 +515,12 @@ body.calendar-modal-open { overflow: hidden; }
 }
 
 .rail-card-heading h2 {
-  font-family: var(--font-serif);
+  font-family: "Noto Serif SC", "Source Han Serif SC", serif;
   color: var(--shell-ink);
   font-size: 20px;
+  font-weight: 500;
   line-height: 1.25;
-  letter-spacing: 0.03em;
+  letter-spacing: -0.04em;
 }
 
 .rail-card-index {
@@ -584,6 +567,7 @@ body.calendar-modal-open { overflow: hidden; }
 .workspace-stack.is-focus-view .dashboard-placeholder-view { width: 100%; }
 .workspace-stack.is-focus-view .project-manager-card,
 .workspace-stack.is-focus-view .schedule-manager-card,
+.workspace-stack.is-focus-view .console-manager-card,
 .workspace-stack.is-focus-view .placeholder-card { width: 100%; min-height: calc(100vh - 64px); }
 .project-manager-card { max-width: none; }
 .project-manager-heading { display: flex; justify-content: space-between; gap: 18px; }
@@ -622,6 +606,268 @@ body.calendar-modal-open { overflow: hidden; }
 .schedule-item-actions { display: flex; flex-wrap: wrap; justify-content: end; gap: 5px; }
 .schedule-item-actions button { border: 0; background: transparent; color: var(--sidebar-blue); font: inherit; font-size: 11px; cursor: pointer; }
 .schedule-item-actions .is-danger { color: #b8564d; }
+
+/* ---- Console management views ---- */
+.console-manager-card {
+  max-width: none;
+}
+
+.console-manager-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.console-manager-heading h1 {
+  margin: 0;
+  color: var(--shell-ink);
+  font-family: var(--font-serif);
+  font-size: 27px;
+  line-height: 1.25;
+}
+
+.console-manager-heading p,
+.console-manager-status {
+  margin: 7px 0 0;
+  color: var(--shell-muted);
+  font-family: var(--font-serif);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.console-manager-status {
+  min-height: 18px;
+}
+
+.console-secondary-button {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 12px;
+  color: var(--sidebar-blue);
+  background: #fff;
+  border: 1px solid #cbdcf6;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.console-secondary-button:hover,
+.console-secondary-button:focus-visible {
+  background: var(--sidebar-blue-soft);
+  outline: none;
+}
+
+.console-secondary-button:disabled {
+  cursor: wait;
+  opacity: .55;
+}
+
+.connection-platform-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 24px 0 0;
+}
+
+.connection-platform-grid .login-card {
+  position: relative;
+  display: grid;
+  min-height: 142px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: start;
+  gap: 5px 14px;
+  padding: 18px 19px;
+  border-top-width: 1px;
+}
+
+.connection-platform-grid .login-card::before {
+  position: absolute;
+  top: -1px;
+  right: 20px;
+  left: 20px;
+  height: 3px;
+  background: var(--card-accent, var(--sidebar-blue));
+  border-radius: 0 0 3px 3px;
+  content: "";
+}
+
+.connection-platform-index,
+.manager-section-index {
+  color: #9aa1aa;
+  font-family: var(--font-number);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .12em;
+}
+
+.connection-platform-grid .login-card-title {
+  grid-column: 1;
+  margin-top: 6px;
+  font-family: var(--font-serif);
+  font-size: 18px;
+}
+
+.connection-platform-grid .login-card-status {
+  grid-column: 1;
+  margin-top: 0;
+}
+
+.connection-platform-action {
+  grid-row: 2 / span 2;
+  grid-column: 2;
+  align-self: end;
+  color: var(--sidebar-blue);
+  font-size: 11px;
+}
+
+.connection-sync-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-top: 18px;
+  padding: 17px 18px;
+  background: #f8fbff;
+  border: 1px solid #dbe8fb;
+  border-radius: 8px;
+}
+
+.connection-sync-mark {
+  display: grid;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: var(--sidebar-blue);
+  background: #fff;
+  border: 1px solid #d8e6fb;
+  border-radius: 50%;
+  font-size: 17px;
+}
+
+.connection-sync-note h2,
+.calendar-subscription-workspace h2,
+.settings-summary-card h2 {
+  margin: 0;
+  color: var(--shell-ink);
+  font-size: 14px;
+}
+
+.connection-sync-note p,
+.calendar-subscription-copy p,
+.settings-summary-card p {
+  margin: 4px 0 0;
+  color: var(--shell-muted);
+  font-family: var(--font-serif);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.calendar-privacy-badge {
+  padding: 6px 10px;
+  color: #4e6f59;
+  background: #eff7f1;
+  border: 1px solid #d5e7d9;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.calendar-subscription-workspace {
+  margin-top: 26px;
+  padding: 24px;
+  background: #fbfaf8;
+  border: 1px solid var(--shell-border-soft);
+  border-radius: 10px;
+}
+
+.calendar-subscription-workspace .calendar-subscription-url {
+  margin-top: 20px;
+}
+
+.calendar-subscription-workspace .calendar-subscription-url input {
+  height: 50px;
+  background: #fff;
+}
+
+.settings-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 26px;
+}
+
+.settings-summary-card {
+  min-height: 170px;
+  padding: 20px;
+  background: #fbfaf8;
+  border: 1px solid var(--shell-border-soft);
+  border-radius: 8px;
+}
+
+.settings-summary-card h2 {
+  margin-top: 12px;
+}
+
+.settings-summary-card .settings-account-name {
+  margin-top: 16px;
+  color: var(--shell-ink);
+  font-family: var(--font-number);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.manager-subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 7px;
+  background: #f7f8fa;
+  border: 1px solid var(--shell-border-soft);
+  border-radius: 8px;
+}
+
+.manager-subnav a {
+  padding: 7px 11px;
+  color: var(--shell-muted);
+  border-radius: 5px;
+  font-size: 11px;
+  text-decoration: none;
+}
+
+.manager-subnav a:hover,
+.manager-subnav a:focus-visible {
+  color: var(--sidebar-blue);
+  background: #fff;
+  outline: none;
+}
+
+.manager-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 12px;
+}
+
+.manager-section-heading > div {
+  display: grid;
+  gap: 5px;
+}
+
+.manager-section-heading h2 {
+  margin: 0;
+}
+
+.manager-section-heading p {
+  max-width: 340px;
+  margin: 0;
+  color: var(--shell-muted);
+  font-family: var(--font-serif);
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: right;
+}
 
 .rail-empty-state strong {
   display: block;
@@ -675,8 +921,13 @@ body.calendar-modal-open { overflow: hidden; }
 
 .sidebar-collapsed .sidebar-brand-copy,
 .sidebar-collapsed .sidebar-label,
+.sidebar-collapsed .sidebar-section-label,
 .sidebar-collapsed .sidebar-user-copy {
   display: none;
+}
+
+.sidebar-collapsed .sidebar-nav {
+  gap: 10px;
 }
 
 .sidebar-collapsed .sidebar-heading {
@@ -698,6 +949,13 @@ body.calendar-modal-open { overflow: hidden; }
   justify-content: center;
   padding-right: 0;
   padding-left: 0;
+}
+
+.sidebar-collapsed .sidebar-attention-dot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  margin-left: 0;
 }
 
 .sidebar-collapsed .sidebar-user {
@@ -781,8 +1039,13 @@ body.calendar-modal-open { overflow: hidden; }
 
   .academic-sidebar .sidebar-brand-copy,
   .academic-sidebar .sidebar-label,
+  .academic-sidebar .sidebar-section-label,
   .academic-sidebar .sidebar-user-copy {
     display: none;
+  }
+
+  .academic-sidebar .sidebar-nav {
+    gap: 10px;
   }
 
   .academic-sidebar .sidebar-heading,
@@ -805,6 +1068,13 @@ body.calendar-modal-open { overflow: hidden; }
     justify-content: center;
     padding-right: 0;
     padding-left: 0;
+  }
+
+  .academic-sidebar .sidebar-attention-dot {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    margin-left: 0;
   }
 
   .dashboard-right-rail {
@@ -901,8 +1171,17 @@ body.calendar-modal-open { overflow: hidden; }
 
   .academic-sidebar .sidebar-brand-copy,
   .academic-sidebar .sidebar-label,
+  .academic-sidebar .sidebar-section-label,
   .academic-sidebar .sidebar-user-copy {
     display: flex;
+  }
+
+  .academic-sidebar .sidebar-section-label {
+    display: block;
+  }
+
+  .academic-sidebar .sidebar-nav {
+    gap: 18px;
   }
 
   .academic-sidebar .sidebar-heading {
@@ -919,6 +1198,11 @@ body.calendar-modal-open { overflow: hidden; }
   .academic-sidebar .sidebar-footer-action {
     justify-content: flex-start;
     padding: 9px 11px;
+  }
+
+  .academic-sidebar .sidebar-attention-dot {
+    position: static;
+    margin-left: auto;
   }
 
   .academic-sidebar .sidebar-collapse-toggle {
@@ -964,8 +1248,7 @@ body.calendar-modal-open { overflow: hidden; }
   }
 
   .workspace-main .context-card {
-    padding-top: 16px;
-    padding-bottom: 16px;
+    padding: 16px;
   }
 
   .dashboard-right-rail {
@@ -1004,6 +1287,8 @@ body.calendar-modal-open { overflow: hidden; }
 
 @media (max-width: 768px) {
   .schedule-manager-heading { align-items: stretch; flex-direction: column; }
+  .manager-section-heading { align-items: flex-start; flex-direction: column; gap: 7px; }
+  .manager-section-heading p { max-width: none; text-align: left; }
   .schedule-item-form { grid-template-columns: 1fr 1fr; }
   .schedule-item-form input[name="title"] { grid-column: 1 / -1; }
   .schedule-item-form button { grid-column: 1 / -1; height: 34px; }
@@ -1013,4 +1298,15 @@ body.calendar-modal-open { overflow: hidden; }
   .project-composer, .project-edit-form { grid-template-columns: 1fr 1fr; }
   .project-composer input[name="name"], .project-composer input[name="next_action"], .project-composer button, .project-edit-form input[name="name"], .project-edit-form input[name="next_action"], .project-edit-form button { grid-column: 1 / -1; }
   .project-manager-layout { grid-template-columns: 1fr; }
+  .console-manager-heading { align-items: stretch; flex-direction: column; }
+  .console-secondary-button { align-self: flex-start; }
+  .settings-summary-grid { grid-template-columns: 1fr; }
+  .connection-platform-grid .login-card { min-height: 124px; }
+  .calendar-subscription-workspace { padding: 18px; }
+  .calendar-subscription-actions { display: grid; grid-template-columns: 1fr; }
+  .calendar-subscription-actions button { width: 100%; }
+}
+
+@media (max-width: 480px) {
+  .connection-platform-grid { grid-template-columns: 1fr; }
 }

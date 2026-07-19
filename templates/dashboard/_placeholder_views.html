@@ -1,6 +1,6 @@
 <section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-projects" data-view-panel="projects">
   <div class="card project-manager-card">
-    <div class="project-manager-heading"><div><span class="placeholder-kicker">PROJECTS</span><h1>项目</h1><p>把本周真正要推进的事收在这里。</p></div><button type="button" id="project-new-button" onclick="showProjectComposer()">新建项目</button></div>
+    <div class="project-manager-heading"><div><span class="placeholder-kicker">PROJECTS</span><h1>长期项目</h1><p>集中管理需要持续推进的目标与本周行动。</p></div><button type="button" id="project-new-button" onclick="showProjectComposer()">新建项目</button></div>
     <p id="project-manager-status" class="project-manager-status" role="status"></p>
     <form id="project-composer" class="project-composer hidden"><input name="name" required maxlength="100" placeholder="项目名称"><input name="progress" type="number" min="0" max="100" value="0" aria-label="进度"><input name="due_date" type="date" aria-label="截止日期"><input name="next_action" maxlength="200" placeholder="下一步行动（可选）"><button type="submit">保存项目</button></form>
     <div class="project-manager-layout"><div id="project-manager-list" class="project-manager-list"></div><section id="project-detail" class="project-detail"><p class="project-list-empty">选择一个项目查看详情</p></section></div>
@@ -12,21 +12,38 @@
     <div class="schedule-manager-heading">
       <div>
         <span class="placeholder-kicker">SCHEDULE</span>
-        <h1>日程管理</h1>
+        <h1>日程与课表</h1>
         <p id="schedule-term-meta">尚未导入本学期课表</p>
       </div>
-      <button type="button" class="schedule-refresh-button" id="schedule-refresh-button" onclick="refreshCourseSchedule()">从一网通办刷新</button>
+      <button type="button" class="schedule-refresh-button" id="schedule-refresh-button" onclick="refreshCourseSchedule()">导入 / 刷新课表</button>
     </div>
     <p class="schedule-manager-status" id="schedule-manager-status" role="status"></p>
+    <nav class="manager-subnav" aria-label="日程与课表分区">
+      <a href="#schedule-courses-heading">课表</a>
+      <a href="#schedule-recurring-heading">例行安排</a>
+      <a href="#schedule-one-off-heading">一次性安排</a>
+    </nav>
 
     <section class="schedule-manager-section" aria-labelledby="schedule-courses-heading">
-      <h2 id="schedule-courses-heading">课程列表</h2>
+      <div class="manager-section-heading">
+        <div>
+          <span class="manager-section-index">01</span>
+          <h2 id="schedule-courses-heading">课表</h2>
+        </div>
+        <p>从一网通办导入本学期课程，作为每日安排的基础。</p>
+      </div>
       <div class="schedule-course-list" id="schedule-course-list"></div>
     </section>
 
     <div class="schedule-manager-grid">
       <section class="schedule-manager-section" aria-labelledby="schedule-recurring-heading">
-        <h2 id="schedule-recurring-heading">重复事项</h2>
+        <div class="manager-section-heading">
+          <div>
+            <span class="manager-section-index">02</span>
+            <h2 id="schedule-recurring-heading">例行安排</h2>
+          </div>
+          <p>为固定学习、训练或值班安排每周重复时段。</p>
+        </div>
         <form class="schedule-item-form" id="recurring-schedule-form">
           <input name="title" required maxlength="80" placeholder="固定事项名称">
           <select name="weekday" aria-label="星期"><option value="0">周一</option><option value="1">周二</option><option value="2">周三</option><option value="3">周四</option><option value="4">周五</option><option value="5">周六</option><option value="6">周日</option></select>
@@ -37,7 +54,13 @@
         <div class="schedule-item-list" id="recurring-schedule-list"></div>
       </section>
       <section class="schedule-manager-section" aria-labelledby="schedule-one-off-heading">
-        <h2 id="schedule-one-off-heading">一次性事项</h2>
+        <div class="manager-section-heading">
+          <div>
+            <span class="manager-section-index">03</span>
+            <h2 id="schedule-one-off-heading">一次性安排</h2>
+          </div>
+          <p>记录只发生一次的实验、会议或临时活动。</p>
+        </div>
         <form class="schedule-item-form" id="one-off-schedule-form">
           <input name="title" required maxlength="80" placeholder="事项名称">
           <input name="date" type="date" required aria-label="日期">
@@ -51,18 +74,109 @@
   </div>
 </section>
 
-<section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-sources" data-view-panel="sources">
-  <div class="card placeholder-card">
-    <span class="placeholder-kicker">SOURCES</span>
-    <h1>数据源</h1>
-    <p>现有平台关联仍在总览的待办卡片中，这里暂不迁移账户或刷新功能。</p>
+<section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-connections" data-view-panel="connections">
+  <div class="card console-manager-card connections-manager-card">
+    <div class="console-manager-heading">
+      <div>
+        <span class="placeholder-kicker">CONNECTIONS</span>
+        <h1>连接与同步</h1>
+        <p>统一管理学习平台账号，并查看当前连接状态。</p>
+      </div>
+      <button type="button" class="console-secondary-button" id="connections-refresh-button" onclick="refreshPlatformConnections()">刷新连接状态</button>
+    </div>
+    <p class="console-manager-status" id="connections-manager-status" role="status">平台状态会随待办同步自动更新。</p>
+
+    <div class="login-cards connection-platform-grid" id="login-cards">
+      <a href="/login/canvas" class="login-card" data-platform="canvas">
+        <span class="connection-platform-index">01</span>
+        <span class="login-card-title">Canvas</span>
+        <span class="login-card-status" id="card-status-canvas">检查中...</span>
+        <span class="connection-platform-action">管理连接 →</span>
+      </a>
+      <a href="/login/haoke" class="login-card" data-platform="haoke">
+        <span class="connection-platform-index">02</span>
+        <span class="login-card-title">好课</span>
+        <span class="login-card-status" id="card-status-haoke">检查中...</span>
+        <span class="connection-platform-action">管理连接 →</span>
+      </a>
+      <a href="/login/zhixuemeng" class="login-card" data-platform="zhixuemeng">
+        <span class="connection-platform-index">03</span>
+        <span class="login-card-title">智学盟</span>
+        <span class="login-card-status" id="card-status-zhixuemeng">检查中...</span>
+        <span class="connection-platform-action">管理连接 →</span>
+      </a>
+      <a href="/login/zhihuishu" class="login-card" data-platform="zhihuishu">
+        <span class="connection-platform-index">04</span>
+        <span class="login-card-title">智慧树</span>
+        <span class="login-card-status" id="card-status-zhihuishu">检查中...</span>
+        <span class="connection-platform-action">管理连接 →</span>
+      </a>
+    </div>
+
+    <section class="connection-sync-note" aria-labelledby="connection-sync-note-title">
+      <span class="connection-sync-mark" aria-hidden="true">↻</span>
+      <div>
+        <h2 id="connection-sync-note-title">同步如何工作</h2>
+        <p>连接成功后，各平台待办会汇入今日总览；智慧树由后台任务持续刷新，其余来源会在页面加载和手动刷新时更新。</p>
+      </div>
+    </section>
   </div>
 </section>
 
+{% if apple_calendar_enabled %}
+<section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-calendar" data-view-panel="calendar">
+  <div class="card console-manager-card calendar-subscription-card" id="calendar-subscription-card">
+    <div class="console-manager-heading">
+      <div>
+        <span class="placeholder-kicker">CALENDAR SUBSCRIPTION</span>
+        <h1 id="calendar-subscription-title">Apple Calendar 订阅</h1>
+        <p>把未完成且带日期的任务和日程订阅到 Apple 日历。</p>
+      </div>
+      <span class="calendar-privacy-badge">私密链接</span>
+    </div>
+
+    <section class="calendar-subscription-workspace" aria-labelledby="calendar-subscription-link-heading">
+      <div class="calendar-subscription-copy">
+        <span class="manager-section-index">SUBSCRIPTION URL</span>
+        <h2 id="calendar-subscription-link-heading">订阅地址</h2>
+        <p>链接等同于访问凭证，请勿转发。重新生成会立即使旧链接失效。</p>
+      </div>
+      <div class="calendar-subscription-url">
+        <input type="text" id="calendar-subscription-url" readonly aria-label="私有日历订阅地址" placeholder="生成后将在这里显示私密订阅链接">
+      </div>
+      <div class="calendar-subscription-actions">
+        <button type="button" class="calendar-panel-primary" id="calendar-subscription-create" onclick="createCalendarSubscription()">生成订阅链接</button>
+        <button type="button" id="calendar-subscription-open" onclick="openCalendarSubscription()" disabled>在日历中打开</button>
+        <button type="button" id="calendar-subscription-copy" onclick="copyCalendarSubscription()" disabled>复制链接</button>
+        <button type="button" class="calendar-panel-revoke" id="calendar-subscription-revoke" onclick="revokeCalendarSubscription()" disabled>撤销链接</button>
+      </div>
+      <p class="calendar-subscription-status" id="calendar-subscription-status" role="status">生成后可复制链接或直接在日历中打开。</p>
+    </section>
+  </div>
+</section>
+{% endif %}
+
 <section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-settings" data-view-panel="settings">
-  <div class="card placeholder-card">
-    <span class="placeholder-kicker">SETTINGS</span>
-    <h1>设置</h1>
-    <p>设置入口已预留，本阶段不改变现有账户、平台连接或任务行为。</p>
+  <div class="card console-manager-card settings-manager-card">
+    <div class="console-manager-heading">
+      <div>
+        <span class="placeholder-kicker">PREFERENCES</span>
+        <h1>偏好设置</h1>
+        <p>集中查看当前账号与控制台功能边界。</p>
+      </div>
+    </div>
+    <div class="settings-summary-grid">
+      <section class="settings-summary-card">
+        <span class="manager-section-index">ACCOUNT</span>
+        <h2>当前账号</h2>
+        <p class="settings-account-name">{{ username }}</p>
+        <p>平台连接按此站点账号隔离保存。</p>
+      </section>
+      <section class="settings-summary-card">
+        <span class="manager-section-index">ORGANIZATION</span>
+        <h2>功能入口</h2>
+        <p>学习平台统一在“连接与同步”管理；Apple Calendar 使用独立入口。</p>
+      </section>
+    </div>
   </div>
 </section>

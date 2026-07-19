@@ -180,6 +180,29 @@ def test_frontend_desktop_header_keeps_weather_and_term_layout(live_app, browser
     assert page.locator(".weather-card").evaluate(
         "element => getComputedStyle(element).flexDirection"
     ) == "row"
+    assert page.locator(".header-summary").evaluate(
+        "element => getComputedStyle(element).display"
+    ) == "grid"
+    assert page.locator(".clock-section .time").evaluate(
+        "element => getComputedStyle(element).fontSize"
+    ) == "62px"
+
+
+def test_frontend_titles_use_relaxed_serif_style(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "seriftitles")
+
+    for selector, expected_letter_spacing in (
+        (".section-header h2", "-1.12px"),
+        ("#long-term-projects-title", "-0.8px"),
+        ("#today-schedule-title", "-0.8px"),
+    ):
+        style = page.locator(selector).evaluate(
+            "element => { const style = getComputedStyle(element); return { fontFamily: style.fontFamily, fontWeight: style.fontWeight, letterSpacing: style.letterSpacing }; }"
+        )
+        assert "Noto Serif SC" in style["fontFamily"]
+        assert style["fontWeight"] == "500"
+        assert style["letterSpacing"] == expected_letter_spacing
 
 
 def test_frontend_todo_hover_keeps_content_and_actions_in_place(live_app, browser):
@@ -334,26 +357,76 @@ def test_frontend_v2_sidebar_uses_light_reference_style(live_app, browser):
     assert styles["userBorder"] == "1px"
 
 
-def test_frontend_v2_sidebar_greeting_and_calendar_subscription(live_app, browser):
+def test_frontend_console_navigation_groups_features_without_overview_duplicates(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    page_errors = []
+    page.on("pageerror", lambda error: page_errors.append(str(error)))
+    register_dashboard_user(page, live_app, "consolev2")
+
+    expect(page.locator(".sidebar-nav-group")).to_have_count(3)
+    expect(page.locator(".sidebar-section-label")).to_have_text(["工作区", "计划", "管理"])
+    expect(page.locator("[data-dashboard-view] .sidebar-label")).to_have_text(
+        ["今日总览", "长期项目", "日程与课表", "连接与同步", "Apple Calendar", "偏好设置"]
+    )
+    expect(page.locator("#dashboard-view-overview .login-trigger")).to_have_count(0)
+    expect(page.locator("#dashboard-view-overview .account-row")).to_have_count(0)
+    expect(page.locator("#dashboard-view-overview #login-cards")).to_have_count(0)
+
+    page.locator('[data-dashboard-view="connections"]').click()
+    expect(page.locator("#dashboard-view-connections")).to_be_visible()
+    expect(page.locator("#dashboard-view-connections #login-cards")).to_be_visible()
+    expect(page.locator("#dashboard-view-connections .login-card")).to_have_count(4)
+
+    page.locator('[data-dashboard-view="schedule"]').click()
+    expect(page.locator("#dashboard-view-schedule")).to_be_visible()
+    expect(page.locator("#schedule-courses-heading")).to_have_text("课表")
+    expect(page.locator("#schedule-recurring-heading")).to_have_text("例行安排")
+    expect(page.locator("#schedule-one-off-heading")).to_have_text("一次性安排")
+
+    for view_name in ("overview", "projects", "schedule", "connections", "calendar", "settings"):
+        button = page.locator(f'[data-dashboard-view="{view_name}"]')
+        button.click()
+        expect(page.locator(f'[data-view-panel="{view_name}"]')).to_be_visible()
+        expect(page.locator(".sidebar-nav-item.is-active")).to_have_count(1)
+        expect(button).to_have_attribute("aria-current", "page")
+        if view_name == "overview":
+            expect(page.locator("#dashboard-right-rail")).to_be_visible()
+        else:
+            expect(page.locator("#dashboard-right-rail")).to_be_hidden()
+    page.locator(".sidebar-user").click()
+    expect(page.locator("#dashboard-view-settings")).to_be_visible()
+    assert page_errors == []
+
+
+def test_frontend_v2_sidebar_greeting_and_calendar_subscription_page(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "calendarv2")
 
     expect(page.locator("#sidebar-greeting")).to_have_text(re.compile(r"^(早上好|上午好|中午好|下午好|晚上好|夜深了)，calendarv2$"))
     expect(page.locator(".sidebar-brand-copy small")).to_have_count(0)
-    page.locator("#calendar-subscription-trigger").click()
-    expect(page.locator("#calendar-subscription-panel")).to_be_visible()
-    dialog = page.locator(".calendar-subscription-dialog")
-    expect(dialog).to_be_visible()
-    dialog_box = dialog.bounding_box()
-    assert dialog_box is not None
-    assert 580 <= dialog_box["width"] <= 720
-    assert abs((dialog_box["x"] + dialog_box["width"] / 2) - 720) <= 2
+    page.locator('[data-dashboard-view="calendar"]').click()
+    expect(page.locator("#dashboard-view-calendar")).to_be_visible()
+    expect(page.locator("#calendar-subscription-card")).to_be_visible()
+    expect(page.locator("#calendar-subscription-panel")).to_have_count(0)
+    expect(page.locator("#calendar-subscription-title")).to_have_text("Apple Calendar 订阅")
     expect(page.locator("#calendar-subscription-open")).to_be_disabled()
+    assert page.locator("#calendar-subscription-create").evaluate(
+        "element => getComputedStyle(element).backgroundColor"
+    ) == "rgb(47, 107, 214)"
     page.locator("#calendar-subscription-create").click()
     expect(page.locator("#calendar-subscription-url")).to_have_value(re.compile(r"/calendar/.+\.ics$"))
     expect(page.locator("#calendar-subscription-open")).to_be_enabled()
     page.locator("#calendar-subscription-revoke").click()
     expect(page.locator("#calendar-subscription-status")).to_have_text("日历订阅已撤销")
+
+
+def test_frontend_hides_calendar_view_when_feature_is_disabled(live_app, browser, monkeypatch):
+    monkeypatch.setattr(dashboard_app.settings, "APPLE_CALENDAR_ENABLED", False)
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "calendaroffv2")
+
+    expect(page.locator('[data-dashboard-view="calendar"]')).to_have_count(0)
+    expect(page.locator("#dashboard-view-calendar")).to_have_count(0)
 
 
 def test_frontend_source_filters_and_focus_views(live_app, browser):
@@ -578,10 +651,12 @@ def test_frontend_mobile_todo_layout_is_compact_and_tappable(live_app, browser, 
     expect(long_label_item.locator(".label-badge")).to_be_visible()
     assert page.evaluate("document.documentElement.scrollWidth") <= width
 
-    page.click(".login-trigger")
+    page.click("#mobile-menu-toggle")
+    page.click('[data-dashboard-view="connections"]')
     login_cards = page.locator("#login-cards")
     expect(login_cards).to_be_visible()
-    assert len(login_cards.evaluate("element => getComputedStyle(element).gridTemplateColumns").split()) == 2
+    expected_columns = 1 if width < 480 else 2
+    assert len(login_cards.evaluate("element => getComputedStyle(element).gridTemplateColumns").split()) == expected_columns
 
 
 @pytest.mark.parametrize("width", [375, 390, 768])

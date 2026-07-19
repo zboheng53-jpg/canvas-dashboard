@@ -212,6 +212,9 @@ The main app is `templates/index.html`: vanilla JS plus Fetch API.
 
 - The responsive desktop shell is split across `templates/dashboard/*.html` and `static/dashboard-shell.css`; keep new sidebar or right-rail work inside those boundaries when possible.
 - On desktop the overview's todo card fills the remaining viewport height below the context card; do not apply that fixed-height behavior to the narrow or mobile layouts.
+- The left console navigation is grouped by user intent: `工作区` contains `今日总览`; `计划` contains `长期项目` and `日程与课表`; `管理` contains `连接与同步`, optional `Apple Calendar`, and `偏好设置`. Keep these stable hubs instead of adding one top-level item per platform or action.
+- Platform connection cards belong only to the `连接与同步` view. The overview may summarize synchronized tasks but must not duplicate platform account controls.
+- Apple Calendar is an optional dedicated dashboard view, not a modal or account-menu action. Keep its navigation item and view behind `APPLE_CALENDAR_ENABLED`.
 
 - `renderUnifiedList()` merges Canvas, 好课, 智学盟, 智慧树, and custom todos into one list.
 - Custom todo IDs use a `c` prefix on the frontend, for example `c16`.

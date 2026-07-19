@@ -6,7 +6,7 @@
   <title>Canvas Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='dashboard-shell.css') }}">
   <script>window.CSRF_TOKEN = "{{ csrf_token() }}";</script>
@@ -43,7 +43,7 @@
           <section class="dashboard-view" id="dashboard-view-overview" data-view-panel="overview">
     <!-- Top Bar -->
     <div class="card context-card">
-    <header class="top-bar enter-top-bar">
+    <header class="top-bar header-summary enter-top-bar">
       <div class="clock-section">
         <div class="time" id="time">--:--:--</div>
         <div class="date-info">
@@ -81,36 +81,8 @@
                 <span class="last-updated" id="list-updated"></span>
                 <button class="btn-refresh" id="btn-refresh" title="&#21047;&#26032;">&#x21bb;</button>
               </div>
-              <button type="button" class="login-trigger" onclick="toggleLoginCards()">
-                <span id="login-trigger-label">&#31995;&#32479;&#30331;&#24405;</span>
-                <span class="login-trigger-arrow" id="login-trigger-arrow">&#x25b6;</span>
-              </button>
-              <div class="account-row">
-                <span>{{ username }}</span>
-                <a href="#" onclick="doLogout();return false;">&#36864;&#20986;&#30331;&#24405;</a>
-              </div>
             </div>
           </div>
-
-        <!-- Platform connection cards (collapsible) -->
-        <div class="login-cards hidden" id="login-cards">
-          <a href="/login/canvas" class="login-card" data-platform="canvas">
-            <span class="login-card-title">Canvas</span>
-            <span class="login-card-status" id="card-status-canvas">&#26816;&#26597;&#20013;...</span>
-          </a>
-          <a href="/login/haoke" class="login-card" data-platform="haoke">
-            <span class="login-card-title">&#22909;&#35838;</span>
-            <span class="login-card-status" id="card-status-haoke">&#26816;&#26597;&#20013;...</span>
-          </a>
-          <a href="/login/zhixuemeng" class="login-card" data-platform="zhixuemeng">
-            <span class="login-card-title">&#26234;&#23398;&#30431;</span>
-            <span class="login-card-status" id="card-status-zhixuemeng">&#26816;&#26597;&#20013;...</span>
-          </a>
-          <a href="/login/zhihuishu" class="login-card" data-platform="zhihuishu">
-            <span class="login-card-title">&#26234;&#24935;&#26641;</span>
-            <span class="login-card-status" id="card-status-zhihuishu">&#26816;&#26597;&#20013;...</span>
-          </a>
-        </div>
 
         <!-- Add custom todo -->
         <form class="add-todo-form" id="add-todo-form" style="margin-bottom: 0;">
@@ -171,33 +143,6 @@
       aria-label="关闭菜单"
       onclick="closeMobileMenu()"
     ></button>
-
-    {% if apple_calendar_enabled %}
-    <div
-      class="calendar-subscription-panel hidden"
-      id="calendar-subscription-panel"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="calendar-subscription-title"
-      onclick="closeCalendarSubscriptionFromBackdrop(event)"
-    >
-      <section class="calendar-subscription-dialog">
-        <button type="button" class="calendar-modal-close" aria-label="关闭苹果日历订阅" onclick="closeCalendarSubscription()">&times;</button>
-        <h2 id="calendar-subscription-title">苹果日历订阅</h2>
-        <p>请将下方私密链接添加到 iPhone 日历，不要转发给他人。</p>
-        <div class="calendar-subscription-url">
-          <input type="text" id="calendar-subscription-url" readonly aria-label="私有日历订阅地址" placeholder="生成后将在这里显示私密订阅链接">
-        </div>
-        <div class="calendar-subscription-actions">
-          <button type="button" class="calendar-panel-primary" id="calendar-subscription-create" onclick="createCalendarSubscription()">生成订阅链接</button>
-          <button type="button" id="calendar-subscription-open" onclick="openCalendarSubscription()" disabled>在日历中打开</button>
-          <button type="button" id="calendar-subscription-copy" onclick="copyCalendarSubscription()" disabled>复制链接</button>
-          <button type="button" class="calendar-panel-revoke" id="calendar-subscription-revoke" onclick="revokeCalendarSubscription()" disabled>撤销链接</button>
-        </div>
-        <p class="calendar-subscription-status" id="calendar-subscription-status" role="status">生成后可复制链接或直接在日历中打开。</p>
-      </section>
-    </div>
-    {% endif %}
   </div>
 
   <script>
@@ -207,8 +152,6 @@
     const academicSidebar = document.getElementById('academic-sidebar');
     const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
     const sidebarCollapseToggle = document.getElementById('sidebar-collapse-toggle');
-    const calendarSubscriptionPanel = document.getElementById('calendar-subscription-panel');
-    const calendarSubscriptionTrigger = document.getElementById('calendar-subscription-trigger');
     const mobileSidebarQuery = window.matchMedia('(max-width: 960px)');
 
     function syncSidebarState() {
@@ -227,26 +170,6 @@
     function closeMobileMenu() {
       dashboardShell.classList.remove('mobile-nav-open');
       syncSidebarState();
-    }
-
-    function toggleCalendarSubscription() {
-      if (!calendarSubscriptionPanel) return;
-      const willOpen = calendarSubscriptionPanel.classList.contains('hidden');
-      calendarSubscriptionPanel.classList.toggle('hidden', !willOpen);
-      calendarSubscriptionTrigger.setAttribute('aria-expanded', String(willOpen));
-      document.body.classList.toggle('calendar-modal-open', willOpen);
-      if (willOpen) closeMobileMenu();
-    }
-
-    function closeCalendarSubscription() {
-      if (!calendarSubscriptionPanel) return;
-      calendarSubscriptionPanel.classList.add('hidden');
-      calendarSubscriptionTrigger.setAttribute('aria-expanded', 'false');
-      document.body.classList.remove('calendar-modal-open');
-    }
-
-    function closeCalendarSubscriptionFromBackdrop(event) {
-      if (event.target === calendarSubscriptionPanel) closeCalendarSubscription();
     }
 
     function setCalendarSubscriptionStatus(message, isError = false) {
@@ -332,7 +255,6 @@
         return;
       }
       const isCollapsed = dashboardShell.classList.toggle('sidebar-collapsed');
-      if (isCollapsed) closeCalendarSubscription();
       sidebarCollapseToggle.setAttribute('aria-expanded', String(!isCollapsed));
       sidebarCollapseToggle.setAttribute('aria-label', isCollapsed ? '展开侧栏' : '收起侧栏');
     }
@@ -365,7 +287,6 @@
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
         closeMobileMenu();
-        closeCalendarSubscription();
       }
     });
     if (mobileSidebarQuery.addEventListener) {
@@ -762,13 +683,28 @@
       el.textContent = text;
       el.classList.remove('connected', 'attention');
       if (cls) el.classList.add(cls);
+      const attentionDot = document.getElementById('connections-attention');
+      if (attentionDot) {
+        attentionDot.classList.toggle('hidden', !document.querySelector('#login-cards .login-card-status.attention'));
+      }
     }
 
-    function toggleLoginCards() {
-      const body = document.getElementById('login-cards');
-      const arrow = document.getElementById('login-trigger-arrow');
-      body.classList.toggle('hidden');
-      arrow.innerHTML = body.classList.contains('hidden') ? '&#x25b6;' : '&#x25bc;';
+    async function refreshPlatformConnections() {
+      const button = document.getElementById('connections-refresh-button');
+      const status = document.getElementById('connections-manager-status');
+      if (button) button.disabled = true;
+      if (status) status.textContent = '正在刷新四个平台的连接状态…';
+      try {
+        await Promise.all([
+          fetchCanvasTodos(),
+          fetchHaokeTodos(),
+          fetchZhixuemengTodos(),
+          fetchZhihuishuTodos(),
+        ]);
+        if (status) status.textContent = '连接状态已刷新；待办数据也已同步。';
+      } finally {
+        if (button) button.disabled = false;
+      }
     }
 
     async function doLogout() {
@@ -786,8 +722,8 @@
         const result = await resp.json();
 
         if (result.need_setup) {
-          setCardStatus('canvas', 'setup');
-          updatedEl.textContent = 'setup';
+          setCardStatus('canvas', '未关联', 'attention');
+          updatedEl.textContent = '请先连接 Canvas';
           canvasItems = [];
           hiddenIds = [];
           highlightedIds = [];
@@ -798,7 +734,7 @@
         if (!result.ok) {
           setCardStatus('canvas', result.error || '\u83b7\u53d6\u5931\u8d25', 'attention');
         } else {
-          setCardStatus('canvas', 'connected', 'connected');
+          setCardStatus('canvas', '已连接', 'connected');
         }
 
         const now = new Date();
@@ -1258,7 +1194,7 @@
         const result = await resp.json();
 
         if (result.need_setup) {
-          setCardStatus('haoke', 'setup');
+          setCardStatus('haoke', '未关联', 'attention');
           haokeItems = [];
           haokeHiddenIds = [];
           haokeHighlightedIds = [];
@@ -1269,7 +1205,7 @@
         if (!result.ok) {
           setCardStatus('haoke', result.error || '\u83b7\u53d6\u5931\u8d25', 'attention');
         } else {
-          setCardStatus('haoke', 'connected', 'connected');
+          setCardStatus('haoke', '已连接', 'connected');
         }
 
         haokeItems = result.data || [];
@@ -1321,7 +1257,7 @@
         const result = await resp.json();
 
         if (result.need_setup) {
-          setCardStatus('zhixuemeng', 'setup');
+          setCardStatus('zhixuemeng', '未关联', 'attention');
           zhixuemengItems = [];
           zhixuemengHiddenIds = [];
           zhixuemengHighlightedIds = [];
@@ -1332,7 +1268,7 @@
         if (!result.ok) {
           setCardStatus('zhixuemeng', result.error || '\u83b7\u53d6\u5931\u8d25', 'attention');
         } else {
-          setCardStatus('zhixuemeng', 'connected', 'connected');
+          setCardStatus('zhixuemeng', '已连接', 'connected');
         }
 
         zhixuemengItems = result.data || [];
@@ -1382,13 +1318,13 @@
         const result = await resp.json();
 
         if (result.need_setup) {
-          setCardStatus('zhihuishu', result.data && result.data.length ? 'login required' : 'not logged in', 'attention');
+          setCardStatus('zhihuishu', result.data && result.data.length ? '需要重新登录' : '未关联', 'attention');
         } else if (!result.ok) {
           setCardStatus('zhihuishu', result.error || '\u83b7\u53d6\u5931\u8d25', 'attention');
         } else if (result.stale) {
           setCardStatus('zhihuishu', '\u7f13\u5b58\u8fc7\u671f', 'attention');
         } else {
-          setCardStatus('zhihuishu', 'connected', 'connected');
+          setCardStatus('zhihuishu', '已连接', 'connected');
         }
 
         zhihuishuItems = result.data || [];
