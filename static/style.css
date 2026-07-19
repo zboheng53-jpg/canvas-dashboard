@@ -416,8 +416,8 @@ a:hover { color: var(--accent-hover); }
   display: flex;
   align-items: center;
   gap: 9px;
-  margin: -2px 0 18px;
-  padding-bottom: 14px;
+  margin: 0 0 18px;
+  padding: 6px 4px 14px;
   overflow-x: auto;
   border-bottom: 1px solid var(--border);
   scrollbar-width: thin;
