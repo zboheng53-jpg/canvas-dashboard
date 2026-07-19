@@ -868,6 +868,7 @@
 
     function renderUnifiedList() {
       const container = document.getElementById('todo-list');
+      const savedScrollTop = container.scrollTop;
 
       // Build unified items
       let unified = [];
@@ -1120,6 +1121,8 @@
           <div class="todo-group-items">${group.items.map(renderTodoItem).join('')}</div>
         </section>
       `).join('');
+
+      container.scrollTop = savedScrollTop;
 
       if (doAnimate) firstItemRender = false;
 
