@@ -1310,3 +1310,192 @@
 @media (max-width: 480px) {
   .connection-platform-grid { grid-template-columns: 1fr; }
 }
+
+/* Connections Master-Detail layout */
+.connections-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+@media (min-width: 1024px) {
+  .connections-layout {
+    display: grid;
+    grid-template-columns: 380px minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.connections-list-panel {
+  min-width: 0;
+}
+
+/* For connections vertical list on desktop */
+@media (min-width: 1024px) {
+  .connections-list-panel #login-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    grid-template-columns: unset;
+  }
+  .connections-list-panel .login-card {
+    min-height: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-left: 3px solid var(--card-accent, var(--shell-border));
+    border-top: 1px solid var(--shell-border);
+    border-right: 1px solid var(--shell-border);
+    border-bottom: 1px solid var(--shell-border);
+    border-radius: var(--shell-radius);
+    text-align: left;
+    background: var(--shell-surface);
+    cursor: pointer;
+    position: relative;
+    width: 100%;
+  }
+  
+  .connections-list-panel .login-card::before {
+    display: none; /* Hide top bar on desktop list */
+  }
+
+  .connections-list-panel .login-card.is-selected {
+    background: #fdfcf9;
+    border-color: var(--card-accent, var(--sidebar-blue));
+    box-shadow: var(--shell-shadow);
+  }
+
+  .connections-list-panel .connection-platform-index {
+    display: none;
+  }
+
+  .connections-list-panel .login-card-title {
+    margin-top: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .connections-list-panel .login-card-status {
+    margin-top: 0;
+    font-size: 13px;
+  }
+
+  .connections-list-panel .connection-platform-action {
+    display: none;
+  }
+
+  /* Show chevron on right of active/hovered platform */
+  .connections-list-panel .login-card::after {
+    content: "→";
+    font-size: 14px;
+    color: var(--sidebar-muted);
+    transition: transform 0.2s;
+  }
+  .connections-list-panel .login-card.is-selected::after {
+    color: var(--sidebar-blue);
+    transform: translateX(3px);
+  }
+}
+
+/* Details Panel styling */
+.connections-detail-panel {
+  min-width: 0;
+  padding: 24px;
+  background: var(--shell-surface);
+}
+
+.detail-platform-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--shell-border-soft);
+}
+
+.detail-platform-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.detail-platform-icon-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.detail-platform-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  color: var(--shell-ink);
+}
+
+.status-badge {
+  display: inline-block;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: #f3f4f6;
+  color: #4b5563;
+}
+.status-badge.connected {
+  background: #ecfdf5;
+  color: #10b981;
+}
+.status-badge.attention {
+  background: #fef2f2;
+  color: #ef4444;
+}
+
+.detail-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--shell-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 24px;
+  margin-bottom: 12px;
+}
+
+.detail-content-box {
+  background: #fbfaf8;
+  border: 1px solid var(--shell-border-soft);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+/* Info grid */
+.status-grid {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--shell-ink);
+  margin-bottom: 20px;
+}
+.status-grid dt {
+  font-weight: 500;
+  color: var(--shell-muted);
+}
+.status-grid dd {
+  font-family: var(--font-number);
+  margin-left: 0;
+}
+
+/* Button sizing */
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+

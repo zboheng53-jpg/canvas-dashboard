@@ -75,51 +75,202 @@
 </section>
 
 <section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-connections" data-view-panel="connections">
-  <div class="card console-manager-card connections-manager-card">
-    <div class="console-manager-heading">
-      <div>
-        <span class="placeholder-kicker">CONNECTIONS</span>
-        <h1>连接与同步</h1>
-        <p>统一管理学习平台账号，并查看当前连接状态。</p>
+  <div class="connections-layout">
+    
+    <!-- Left/Middle panel: Platform List -->
+    <div class="card console-manager-card connections-list-panel">
+      <div class="console-manager-heading">
+        <div>
+          <span class="placeholder-kicker">CONNECTIONS</span>
+          <h1>连接与同步</h1>
+          <p>统一管理学习平台账号，并查看当前连接状态。</p>
+        </div>
+        <button type="button" class="console-secondary-button" id="connections-refresh-button" onclick="refreshPlatformConnections()">刷新状态</button>
       </div>
-      <button type="button" class="console-secondary-button" id="connections-refresh-button" onclick="refreshPlatformConnections()">刷新连接状态</button>
-    </div>
-    <p class="console-manager-status" id="connections-manager-status" role="status">平台状态会随待办同步自动更新。</p>
+      <p class="console-manager-status" id="connections-manager-status" role="status">平台状态会随待办同步自动更新。</p>
 
-    <div class="login-cards connection-platform-grid" id="login-cards">
-      <a href="/login/canvas" class="login-card" data-platform="canvas">
-        <span class="connection-platform-index">01</span>
-        <span class="login-card-title">Canvas</span>
-        <span class="login-card-status" id="card-status-canvas">检查中...</span>
-        <span class="connection-platform-action">管理连接 →</span>
-      </a>
-      <a href="/login/haoke" class="login-card" data-platform="haoke">
-        <span class="connection-platform-index">02</span>
-        <span class="login-card-title">好课</span>
-        <span class="login-card-status" id="card-status-haoke">检查中...</span>
-        <span class="connection-platform-action">管理连接 →</span>
-      </a>
-      <a href="/login/zhixuemeng" class="login-card" data-platform="zhixuemeng">
-        <span class="connection-platform-index">03</span>
-        <span class="login-card-title">智学盟</span>
-        <span class="login-card-status" id="card-status-zhixuemeng">检查中...</span>
-        <span class="connection-platform-action">管理连接 →</span>
-      </a>
-      <a href="/login/zhihuishu" class="login-card" data-platform="zhihuishu">
-        <span class="connection-platform-index">04</span>
-        <span class="login-card-title">智慧树</span>
-        <span class="login-card-status" id="card-status-zhihuishu">检查中...</span>
-        <span class="connection-platform-action">管理连接 →</span>
-      </a>
-    </div>
+      <div class="connections-count-header" style="font-size: 13px; color: var(--shell-muted); margin: 18px 0 8px; font-weight: 500;">4 个平台</div>
 
-    <section class="connection-sync-note" aria-labelledby="connection-sync-note-title">
-      <span class="connection-sync-mark" aria-hidden="true">↻</span>
-      <div>
-        <h2 id="connection-sync-note-title">同步如何工作</h2>
-        <p>连接成功后，各平台待办会汇入今日总览；智慧树由后台任务持续刷新，其余来源会在页面加载和手动刷新时更新。</p>
+      <div class="login-cards connection-platform-grid" id="login-cards">
+        <a href="javascript:void(0)" class="login-card" data-platform="canvas" onclick="selectConnectionPlatform('canvas')">
+          <span class="connection-platform-index">01</span>
+          <span class="login-card-title">Canvas</span>
+          <span class="login-card-status" id="card-status-canvas">检查中...</span>
+          <span class="connection-platform-action">管理连接 →</span>
+        </a>
+        <a href="javascript:void(0)" class="login-card" data-platform="haoke" onclick="selectConnectionPlatform('haoke')">
+          <span class="connection-platform-index">02</span>
+          <span class="login-card-title">好课</span>
+          <span class="login-card-status" id="card-status-haoke">检查中...</span>
+          <span class="connection-platform-action">管理连接 →</span>
+        </a>
+        <a href="javascript:void(0)" class="login-card" data-platform="zhixuemeng" onclick="selectConnectionPlatform('zhixuemeng')">
+          <span class="connection-platform-index">03</span>
+          <span class="login-card-title">智学盟</span>
+          <span class="login-card-status" id="card-status-zhixuemeng">检查中...</span>
+          <span class="connection-platform-action">管理连接 →</span>
+        </a>
+        <a href="javascript:void(0)" class="login-card" data-platform="zhihuishu" onclick="selectConnectionPlatform('zhihuishu')">
+          <span class="connection-platform-index">04</span>
+          <span class="login-card-title">智慧树</span>
+          <span class="login-card-status" id="card-status-zhihuishu">检查中...</span>
+          <span class="connection-platform-action">管理连接 →</span>
+        </a>
       </div>
-    </section>
+
+      <section class="connection-sync-note" aria-labelledby="connection-sync-note-title">
+        <span class="connection-sync-mark" aria-hidden="true">↻</span>
+        <div>
+          <h2 id="connection-sync-note-title">同步如何工作</h2>
+          <p>连接成功后，平台会按计划自动抓取并同步最新数据，系统将保持连接状态以确保任务持续运行。</p>
+        </div>
+      </section>
+    </div>
+
+    <!-- Right panel: Platform Details & Action -->
+    <div class="card console-manager-card connections-detail-panel" id="connections-detail-panel">
+      
+      <!-- Canvas Details -->
+      <div class="connection-detail-section" id="detail-canvas" style="display: none;">
+        <div class="detail-platform-header">
+          <div class="detail-platform-title-wrap">
+            <div class="detail-platform-icon-circle" style="background: #fff5f5; border: 1px solid #fbc4c4; color: var(--src-canvas);">C</div>
+            <div>
+              <h2 class="detail-platform-title">Canvas</h2>
+              <span class="status-badge" id="detail-status-badge-canvas">检查中...</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-section-title">连接配置</div>
+        <div class="detail-content-box">
+          <form class="add-todo-form" id="canvas-setup-form-inline" style="display: flex; flex-direction: column; gap: 10px;">
+            <input type="url" id="feed-url-input-inline" placeholder="粘贴日历馈送 URL（.ics）..." autocomplete="off" style="width: 100%;">
+            <button type="submit" class="btn-primary btn-wide" style="width: 100%;">保存</button>
+          </form>
+          <div class="error-banner hidden" id="canvas-error-inline" style="margin-top: 10px; padding: 10px; background: #fee2e2; border: 1px solid #fca5a5; color: #b91c1c; border-radius: 6px;"></div>
+          <p class="setup-hint" style="margin-top: 12px; font-size: 12px; color: var(--shell-muted); line-height: 1.5;">
+            请从 Canvas 获取日历馈送源 URL：<br>
+            <small>Canvas → 日历 → 日历馈送 → 复制链接</small>
+          </p>
+        </div>
+      </div>
+
+      <!-- 好课 Details -->
+      <div class="connection-detail-section" id="detail-haoke" style="display: none;">
+        <div class="detail-platform-header">
+          <div class="detail-platform-title-wrap">
+            <div class="detail-platform-icon-circle" style="background: #f4faf6; border: 1px solid #cce8d9; color: var(--src-haoke);">H</div>
+            <div>
+              <h2 class="detail-platform-title">好课</h2>
+              <span class="status-badge" id="detail-status-badge-haoke">检查中...</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-section-title">连接配置</div>
+        <div class="detail-content-box">
+          <form class="add-todo-form" id="haoke-setup-form-inline" style="display: flex; flex-direction: column; gap: 10px;">
+            <input type="text" id="haoke-username-inline" placeholder="学号" autocomplete="off" style="width: 100%;">
+            <input type="password" id="haoke-password-inline" placeholder="密码" autocomplete="off" style="width: 100%;">
+            <button type="submit" class="btn-primary btn-wide" style="width: 100%;">保存并登录</button>
+          </form>
+          <div class="error-banner hidden" id="haoke-error-inline" style="margin-top: 10px; padding: 10px; background: #fee2e2; border: 1px solid #fca5a5; color: #b91c1c; border-radius: 6px;"></div>
+          <p class="setup-hint" style="margin-top: 12px; font-size: 12px; color: var(--shell-muted); line-height: 1.5;">
+            使用同济大学统一身份认证的学号和密码登录（智图 AI 好课平台）
+          </p>
+        </div>
+      </div>
+
+      <!-- 智学盟 Details -->
+      <div class="connection-detail-section" id="detail-zhixuemeng" style="display: none;">
+        <div class="detail-platform-header">
+          <div class="detail-platform-title-wrap">
+            <div class="detail-platform-icon-circle" style="background: #f0f7ff; border: 1px solid #ccdfff; color: var(--src-zhixuemeng);">Z</div>
+            <div>
+              <h2 class="detail-platform-title">智学盟</h2>
+              <span class="status-badge" id="detail-status-badge-zhixuemeng">检查中...</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-section-title">连接配置</div>
+        <div class="detail-content-box">
+          <!-- Logged in state -->
+          <div id="zxm-logged-in-inline" class="hidden" style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 14px; font-weight: 500; color: #10b981;">已登录</span>
+              <button type="button" onclick="logoutZhixuemengInline()" class="btn-sm btn-wide" style="width: auto; background: #fecaca; color: #b91c1c; border: 1px solid #fca5a5;">登出</button>
+            </div>
+            <div class="form-group">
+              <label for="zxm-course-select-inline" style="font-size: 12px; font-weight: 500; margin-bottom: 4px; display: block; color: var(--shell-muted);">选择课程</label>
+              <select id="zxm-course-select-inline" onchange="changeZhixuemengCourseInline()" class="logged-in-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--shell-border); background: #fff;"></select>
+            </div>
+          </div>
+
+          <!-- Setup state -->
+          <div id="zxm-setup-inline" class="hidden" style="display: flex; flex-direction: column; gap: 12px;">
+            <p class="setup-hint" style="font-size: 12px; color: var(--shell-muted); margin-bottom: 4px;">请输入智学盟平台的手机号和验证码登录：</p>
+            <div class="add-todo-form" style="display: flex; gap: 8px;">
+              <input type="tel" id="zxm-phone-inline" placeholder="手机号" autocomplete="off" style="flex: 1;">
+              <button type="button" id="zxm-send-sms-btn-inline" onclick="sendZhixuemengSmsInline()" class="btn-primary" style="white-space: nowrap; font-size: 13px; padding: 0 12px;">发送验证码</button>
+            </div>
+            <div class="add-todo-form" style="display: flex; gap: 8px;">
+              <input type="text" id="zxm-captcha-inline" placeholder="验证码" autocomplete="off" style="flex: 1;">
+              <button type="button" onclick="doZhixuemengLoginInline()" class="btn-accent" style="white-space: nowrap; font-size: 13px; padding: 0 20px;">登录</button>
+            </div>
+            <div class="form-note" style="text-align: right; margin-top: 4px;">
+              <a href="#" onclick="showZxmPasswordLoginInline();return false;" style="font-size: 12px; color: var(--sidebar-blue);">使用密码登录</a>
+            </div>
+            <div id="zxm-password-login-inline" class="hidden" style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px; border-top: 1px dashed var(--shell-border-soft); padding-top: 12px;">
+              <form id="zxm-pwd-form-inline" style="display: flex; flex-direction: column; gap: 8px;">
+                <input type="text" id="zxm-username-inline" placeholder="用户名" autocomplete="off" style="width: 100%;">
+                <input type="password" id="zxm-password-inline" placeholder="密码" autocomplete="off" style="width: 100%;">
+                <button type="submit" class="btn-primary btn-wide" style="width: 100%;">登录</button>
+              </form>
+            </div>
+          </div>
+          <div class="error-banner hidden" id="zhixuemeng-error-inline" style="margin-top: 10px; padding: 10px; background: #fee2e2; border: 1px solid #fca5a5; color: #b91c1c; border-radius: 6px;"></div>
+        </div>
+      </div>
+
+      <!-- 智慧树 Details -->
+      <div class="connection-detail-section" id="detail-zhihuishu" style="display: none;">
+        <div class="detail-platform-header">
+          <div class="detail-platform-title-wrap">
+            <div class="detail-platform-icon-circle" style="background: #fdfae7; border: 1px solid #f6ecb3; color: var(--src-zhihuishu);">树</div>
+            <div>
+              <h2 class="detail-platform-title">智慧树</h2>
+              <span class="status-badge" id="detail-status-badge-zhihuishu">检查中...</span>
+            </div>
+          </div>
+          <button class="btn-refresh" type="button" onclick="loadZhihuishuStatusInline()" title="刷新" style="padding: 6px 10px; border-radius: 6px; font-size: 14px;">&#x21bb;</button>
+        </div>
+
+        <div class="detail-section-title">连接状态</div>
+        <div class="detail-content-box">
+          <dl class="status-grid">
+            <dt>登录状态</dt><dd id="zhs-session-inline">--</dd>
+            <dt>Worker</dt><dd id="zhs-worker-inline">--</dd>
+            <dt>最近保活</dt><dd id="zhs-last-keepalive-inline">--</dd>
+            <dt>最近抓取</dt><dd id="zhs-last-fetch-inline">--</dd>
+            <dt>最近成功</dt><dd id="zhs-last-success-inline">--</dd>
+            <dt>错误</dt><dd id="zhs-last-error-inline">--</dd>
+          </dl>
+        </div>
+
+        <div class="detail-section-title">操作</div>
+        <div class="detail-content-box" style="margin-bottom: 0;">
+          <div class="zhihuishu-login-actions" style="display: flex; flex-direction: column; gap: 10px;">
+            <button class="btn-primary btn-wide" type="button" id="zhs-btn-open-login-inline" onclick="openZhihuishuLoginSessionInline()" style="width: 100%;">打开智慧树登录窗口</button>
+            <button class="btn-secondary btn-wide" type="button" id="zhs-btn-complete-login-inline" onclick="completeZhihuishuLoginSessionInline()" style="width: 100%;" disabled>我已完成登录</button>
+            <button class="btn-secondary btn-wide" type="button" id="zhs-btn-cancel-login-inline" onclick="cancelZhihuishuLoginSessionInline()" style="width: 100%; color: var(--danger); background: #fff; border: 1px solid var(--shell-border);" disabled>取消当前登录会话</button>
+          </div>
+          <div class="login-session-message" id="zhs-login-session-message-inline" style="margin-top: 12px; font-size: 12px; line-height: 1.5;"></div>
+        </div>
+      </div>
+
+    </div>
   </div>
 </section>
 

@@ -277,6 +277,11 @@
       let loadPromise = Promise.resolve();
       if (viewName === 'schedule') loadPromise = loadScheduleManager();
       if (viewName === 'projects') loadPromise = loadProjects();
+      if (viewName === 'connections') {
+        if (typeof selectConnectionPlatform === 'function') {
+          selectConnectionPlatform(activeConnectionPlatform);
+        }
+      }
       closeMobileMenu();
       return loadPromise;
     }
@@ -679,10 +684,16 @@
     // ---- Platform connection card status ----
     function setCardStatus(platform, text, cls) {
       const el = document.getElementById(`card-status-${platform}`);
-      if (!el) return;
-      el.textContent = text;
-      el.classList.remove('connected', 'attention');
-      if (cls) el.classList.add(cls);
+      if (el) {
+        el.textContent = text;
+        el.classList.remove('connected', 'attention');
+        if (cls) el.classList.add(cls);
+      }
+      const detailBadge = document.getElementById(`detail-status-badge-${platform}`);
+      if (detailBadge) {
+        detailBadge.textContent = text;
+        detailBadge.className = 'status-badge ' + (cls || '');
+      }
       const attentionDot = document.getElementById('connections-attention');
       if (attentionDot) {
         attentionDot.classList.toggle('hidden', !document.querySelector('#login-cards .login-card-status.attention'));
@@ -1727,9 +1738,400 @@
       return div.innerHTML;
     }
 
+    // ---- Connections Master-Detail Controllers ----
+    let activeConnectionPlatform = 'canvas';
+
+    async function selectConnectionPlatform(platform) {
+      activeConnectionPlatform = platform;
+      
+      // Update selected class in platform list
+      document.querySelectorAll('#login-cards .login-card').forEach(card => {
+        card.classList.toggle('is-selected', card.dataset.platform === platform);
+      });
+
+      // Update right details panels visibility
+      document.querySelectorAll('.connection-detail-section').forEach(section => {
+        section.style.display = section.id === `detail-${platform}` ? 'block' : 'none';
+      });
+
+      // Load status/data for this platform
+      if (platform === 'canvas') await loadCanvasStatusInline();
+      if (platform === 'haoke') await loadHaokeStatusInline();
+      if (platform === 'zhixuemeng') await loadZhixuemengStatusInline();
+      if (platform === 'zhihuishu') await loadZhihuishuStatusInline();
+    }
+
+    // --- Canvas Detail Panel ---
+    async function loadCanvasStatusInline() {
+      const badge = document.getElementById('detail-status-badge-canvas');
+      try {
+        const resp = await fetch('/api/config');
+        const result = await resp.json();
+        badge.textContent = result.has_feed ? '已连接' : '未配置';
+        badge.className = 'status-badge ' + (result.has_feed ? 'connected' : 'attention');
+      } catch (e) {
+        badge.textContent = '状态获取失败';
+        badge.className = 'status-badge attention';
+      }
+    }
+
+    async function saveCanvasFeedUrlInline(e) {
+      e.preventDefault();
+      const input = document.getElementById('feed-url-input-inline');
+      const url = input.value.trim();
+      if (!url) return;
+
+      const btn = document.querySelector('#canvas-setup-form-inline button');
+      const err = document.getElementById('canvas-error-inline');
+      btn.textContent = '...';
+      btn.disabled = true;
+      err.classList.add('hidden');
+
+      try {
+        const resp = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ calendar_feed_url: url }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          input.value = '';
+          await loadCanvasStatusInline();
+          await fetchCanvasTodos();
+        } else {
+          err.textContent = result.error || '保存失败';
+          err.classList.remove('hidden');
+        }
+      } catch (e) {
+        err.textContent = '网络错误';
+        err.classList.remove('hidden');
+      } finally {
+        btn.textContent = '保存';
+        btn.disabled = false;
+      }
+    }
+
+    // --- 好课 Detail Panel ---
+    async function loadHaokeStatusInline() {
+      const badge = document.getElementById('detail-status-badge-haoke');
+      try {
+        const resp = await fetch('/api/haoke/config');
+        const result = await resp.json();
+        badge.textContent = result.has_credentials ? '已连接' : '未配置';
+        badge.className = 'status-badge ' + (result.has_credentials ? 'connected' : 'attention');
+      } catch (e) {
+        badge.textContent = '状态获取失败';
+        badge.className = 'status-badge attention';
+      }
+    }
+
+    async function saveHaokeCredentialsInline(e) {
+      e.preventDefault();
+      const username = document.getElementById('haoke-username-inline').value.trim();
+      const password = document.getElementById('haoke-password-inline').value.trim();
+      if (!username || !password) return;
+
+      const btn = document.querySelector('#haoke-setup-form-inline button');
+      const err = document.getElementById('haoke-error-inline');
+      btn.textContent = '...';
+      btn.disabled = true;
+      err.classList.add('hidden');
+
+      try {
+        const resp = await fetch('/api/haoke/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          document.getElementById('haoke-username-inline').value = '';
+          document.getElementById('haoke-password-inline').value = '';
+          await loadHaokeStatusInline();
+          await fetchHaokeTodos();
+        } else {
+          err.textContent = result.error || '保存失败';
+          err.classList.remove('hidden');
+        }
+      } catch (e) {
+        err.textContent = '网络错误';
+        err.classList.remove('hidden');
+      } finally {
+        btn.textContent = '保存并登录';
+        btn.disabled = false;
+      }
+    }
+
+    // --- 智学盟 Detail Panel ---
+    async function loadZhixuemengStatusInline() {
+      const badge = document.getElementById('detail-status-badge-zhixuemeng');
+      const setupDiv = document.getElementById('zxm-setup-inline');
+      const loggedInDiv = document.getElementById('zxm-logged-in-inline');
+      try {
+        const resp = await fetch('/api/zhixuemeng/config');
+        const result = await resp.json();
+        if (result.ok && result.has_token) {
+          badge.textContent = '已登录';
+          badge.className = 'status-badge connected';
+          setupDiv.classList.add('hidden');
+          loggedInDiv.classList.remove('hidden');
+          if (result.courses) {
+            const select = document.getElementById('zxm-course-select-inline');
+            select.innerHTML = '<option value="">全部课程</option>' + result.courses.map(c =>
+              `<option value="${c.courseCode}">${c.courseCode} - ${c.courseName}</option>`
+            ).join('');
+            select.value = result.selected_course || '';
+          }
+        } else {
+          badge.textContent = '未登录';
+          badge.className = 'status-badge attention';
+          setupDiv.classList.remove('hidden');
+          loggedInDiv.classList.add('hidden');
+        }
+      } catch (e) {
+        badge.textContent = '状态获取失败';
+        badge.className = 'status-badge attention';
+        setupDiv.classList.remove('hidden');
+        loggedInDiv.classList.add('hidden');
+      }
+    }
+
+    let zxmSmsCountdownInline = 0;
+    let zxmSmsTimerInline = null;
+
+    async function sendZhixuemengSmsInline() {
+      if (zxmSmsCountdownInline > 0) return;
+      const phone = document.getElementById('zxm-phone-inline').value.trim();
+      if (!phone) { alert('请输入手机号'); return; }
+
+      const btn = document.getElementById('zxm-send-sms-btn-inline');
+      btn.disabled = true;
+
+      try {
+        const resp = await fetch('/api/zhixuemeng/send-sms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          zxmSmsCountdownInline = 60;
+          if (zxmSmsTimerInline) clearInterval(zxmSmsTimerInline);
+          zxmSmsTimerInline = setInterval(() => {
+            zxmSmsCountdownInline--;
+            if (zxmSmsCountdownInline <= 0) {
+              clearInterval(zxmSmsTimerInline);
+              zxmSmsTimerInline = null;
+              btn.textContent = '发送验证码';
+              btn.disabled = false;
+            } else {
+              btn.textContent = `${zxmSmsCountdownInline}秒后发送`;
+            }
+          }, 1000);
+          btn.textContent = `${zxmSmsCountdownInline}秒后发送`;
+        } else {
+          alert(result.error || '发送失败');
+          btn.disabled = false;
+        }
+      } catch (e) {
+        alert('网络错误');
+        btn.disabled = false;
+      }
+    }
+
+    async function doZhixuemengLoginInline() {
+      const phone = document.getElementById('zxm-phone-inline').value.trim();
+      const captcha = document.getElementById('zxm-captcha-inline').value.trim();
+      if (!phone || !captcha) { alert('请输入手机号和验证码'); return; }
+
+      try {
+        const resp = await fetch('/api/zhixuemeng/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, captcha }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          document.getElementById('zxm-captcha-inline').value = '';
+          if (zxmSmsTimerInline) { clearInterval(zxmSmsTimerInline); zxmSmsTimerInline = null; zxmSmsCountdownInline = 0; }
+          document.getElementById('zxm-send-sms-btn-inline').textContent = '发送验证码';
+          document.getElementById('zxm-send-sms-btn-inline').disabled = false;
+          await loadZhixuemengStatusInline();
+          await fetchZhixuemengTodos();
+        } else {
+          alert(result.error || '登录失败');
+        }
+      } catch (e) {
+        alert('网络错误');
+      }
+    }
+
+    function showZxmPasswordLoginInline() {
+      document.getElementById('zxm-password-login-inline').classList.toggle('hidden');
+    }
+
+    async function doZhixuemengPasswordLoginInline(e) {
+      e.preventDefault();
+      const username = document.getElementById('zxm-username-inline').value.trim();
+      const password = document.getElementById('zxm-password-inline').value.trim();
+      if (!username || !password) return;
+
+      try {
+        const resp = await fetch('/api/zhixuemeng/login-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: username, password: password }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          await loadZhixuemengStatusInline();
+          await fetchZhixuemengTodos();
+        } else {
+          alert(result.error || '登录失败');
+        }
+      } catch (e) {
+        alert('网络错误');
+      }
+    }
+
+    async function changeZhixuemengCourseInline() {
+      const select = document.getElementById('zxm-course-select-inline');
+      const courseCode = select.value;
+      try {
+        await fetch('/api/zhixuemeng/course', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ course_code: courseCode }),
+        });
+        await fetchZhixuemengTodos();
+      } catch (e) { /* ignore */ }
+    }
+
+    async function logoutZhixuemengInline() {
+      try {
+        await fetch('/api/zhixuemeng/logout', { method: 'POST' });
+      } catch (e) { /* ignore */ }
+      document.getElementById('zxm-password-login-inline').classList.add('hidden');
+      document.getElementById('zhixuemeng-error-inline').classList.add('hidden');
+      await loadZhixuemengStatusInline();
+      await fetchZhixuemengTodos();
+    }
+
+    // --- 智慧树 Detail Panel ---
+    let zhsCurrentLoginTokenInline = null;
+    let zhsCurrentLoginWindowInline = null;
+    let zhsHasActiveLoginSessionInline = false;
+
+    function formatZhsTime(value) {
+      if (!value) return '--';
+      if (typeof value === 'number') return new Date(value * 1000).toLocaleString();
+      return value;
+    }
+
+    function setZhsMessageInline(text, cls) {
+      const el = document.getElementById('zhs-login-session-message-inline');
+      el.textContent = text || '';
+      el.classList.remove('attention', 'connected');
+      if (cls) el.classList.add(cls);
+    }
+
+    function setZhsSessionButtonsInline(active) {
+      document.getElementById('zhs-btn-open-login-inline').disabled = active;
+      document.getElementById('zhs-btn-complete-login-inline').disabled = !active;
+      document.getElementById('zhs-btn-cancel-login-inline').disabled = !active && !zhsHasActiveLoginSessionInline;
+    }
+
+    async function loadZhihuishuStatusInline() {
+      const badge = document.getElementById('detail-status-badge-zhihuishu');
+      try {
+        const resp = await fetch('/api/zhihuishu/config');
+        const data = await resp.json();
+        const status = data.status || {};
+        const loginSession = data.login_session || {};
+        zhsHasActiveLoginSessionInline = Boolean(loginSession.active);
+
+        // Update status badge
+        badge.textContent = status.session || '--';
+        badge.className = 'status-badge ' + (status.session === 'active' ? 'connected' : 'attention');
+
+        document.getElementById('zhs-session-inline').textContent = status.session || '--';
+        document.getElementById('zhs-worker-inline').textContent = status.worker || '--';
+        document.getElementById('zhs-last-keepalive-inline').textContent = formatZhsTime(status.last_keepalive_at);
+        document.getElementById('zhs-last-fetch-inline').textContent = formatZhsTime(status.last_fetch_at);
+        document.getElementById('zhs-last-success-inline').textContent = formatZhsTime(status.last_success_at);
+        document.getElementById('zhs-last-error-inline').textContent = status.last_error || '--';
+        
+        setZhsSessionButtonsInline(Boolean(zhsCurrentLoginTokenInline));
+        if (zhsHasActiveLoginSessionInline && !zhsCurrentLoginTokenInline) {
+          setZhsMessageInline(`已有一个登录会话正在进行，将于 ${formatZhsTime(loginSession.expires_at)} 过期。可以取消后重新打开。`, 'attention');
+        }
+      } catch (e) {
+        badge.textContent = '获取失败';
+        badge.className = 'status-badge attention';
+      }
+    }
+
+    async function openZhihuishuLoginSessionInline() {
+      setZhsMessageInline('正在打开登录窗口...');
+      try {
+        const resp = await fetch('/api/zhihuishu/login-session', { method: 'POST' });
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) throw new Error(data.error || '启动失败');
+        zhsCurrentLoginTokenInline = data.token;
+        zhsCurrentLoginWindowInline = window.open(data.url, '_blank', 'noopener,noreferrer,width=1280,height=900');
+        setZhsSessionButtonsInline(true);
+        setZhsMessageInline('登录窗口已打开。完成智慧树登录后回到这里确认。', 'connected');
+      } catch (e) {
+        setZhsMessageInline(e.message || '登录窗口启动失败', 'attention');
+      }
+    }
+
+    async function completeZhihuishuLoginSessionInline() {
+      if (!zhsCurrentLoginTokenInline) return;
+      setZhsMessageInline('正在检查登录状态...');
+      try {
+        const resp = await fetch(`/api/zhihuishu/login-session/${zhsCurrentLoginTokenInline}/complete`, { method: 'POST' });
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) throw new Error(data.error || '还没有检测到登录状态');
+        setZhsSessionButtonsInline(false);
+        zhsCurrentLoginTokenInline = null;
+        if (zhsCurrentLoginWindowInline) zhsCurrentLoginWindowInline.close();
+        setZhsMessageInline('登录成功，智慧树待办将在后台同步。', 'connected');
+        await loadZhihuishuStatusInline();
+        await fetchZhihuishuTodos();
+      } catch (e) {
+        setZhsMessageInline(e.message || '登录检查失败', 'attention');
+      }
+    }
+
+    async function cancelZhihuishuLoginSessionInline() {
+      if (zhsCurrentLoginTokenInline) {
+        await fetch(`/api/zhihuishu/login-session/${zhsCurrentLoginTokenInline}`, { method: 'DELETE' });
+      } else {
+        await fetch('/api/zhihuishu/login-session', { method: 'DELETE' });
+      }
+      if (zhsCurrentLoginWindowInline) zhsCurrentLoginWindowInline.close();
+      zhsCurrentLoginTokenInline = null;
+      zhsHasActiveLoginSessionInline = false;
+      setZhsSessionButtonsInline(false);
+      setZhsMessageInline('当前登录会话已取消。');
+      await loadZhihuishuStatusInline();
+      await fetchZhihuishuTodos();
+    }
+
+
     // ---- Init ----
     document.getElementById('add-todo-form').addEventListener('submit', addTodo);
     document.getElementById('btn-refresh').addEventListener('click', () => { fetchCanvasTodos(); fetchHaokeTodos(); fetchZhixuemengTodos(); fetchZhihuishuTodos(); });
+
+    const canvasFormInline = document.getElementById('canvas-setup-form-inline');
+    if (canvasFormInline) canvasFormInline.addEventListener('submit', saveCanvasFeedUrlInline);
+
+    const haokeFormInline = document.getElementById('haoke-setup-form-inline');
+    if (haokeFormInline) haokeFormInline.addEventListener('submit', saveHaokeCredentialsInline);
+
+    const zxmPwdFormInline = document.getElementById('zxm-pwd-form-inline');
+    if (zxmPwdFormInline) zxmPwdFormInline.addEventListener('submit', doZhixuemengPasswordLoginInline);
 
     document.getElementById('todo-list').addEventListener('click', function(e) {
       const titleEl = e.target.closest('.editable-title');
