@@ -1323,16 +1323,20 @@
   .connections-layout {
     display: grid;
     grid-template-columns: 250px minmax(0, 1fr);
-    align-items: start;
-    gap: 32px;
-    padding-top: 16px;
+    align-items: stretch;
+    gap: 20px;
+    padding-top: 20px;
     border-top: 1px solid var(--shell-border-soft);
   }
 }
 
+/* Middle / Left List Panel Sub-Card Block */
 .connections-list-panel {
   min-width: 0;
-  padding: 0;
+  padding: 16px;
+  background: #fbfaf8;
+  border: 1px solid var(--shell-border-soft);
+  border-radius: var(--shell-radius);
 }
 
 /* For connections vertical list on desktop */
@@ -1349,26 +1353,32 @@
     align-items: center;
     justify-content: space-between;
     padding: 12px 14px;
-    border-left: 3px solid var(--card-accent, var(--shell-border));
+    border-left: 4px solid var(--card-accent, var(--shell-border));
     border-top: 1px solid var(--shell-border);
     border-right: 1px solid var(--shell-border);
     border-bottom: 1px solid var(--shell-border);
-    border-radius: var(--shell-radius);
+    border-radius: 8px;
     text-align: left;
-    background: var(--shell-surface);
+    background: #ffffff;
     cursor: pointer;
     position: relative;
     width: 100%;
+    transition: all 0.2s ease;
   }
   
   .connections-list-panel .login-card::before {
     display: none; /* Hide top bar on desktop list */
   }
 
-  .connections-list-panel .login-card.is-selected {
-    background: #fdfcf9;
+  .connections-list-panel .login-card:hover {
     border-color: var(--card-accent, var(--sidebar-blue));
-    box-shadow: var(--shell-shadow);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+
+  .connections-list-panel .login-card.is-selected {
+    background: #ffffff;
+    border-color: var(--card-accent, var(--sidebar-blue));
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
   }
 
   .connections-list-panel .connection-platform-index {
@@ -1377,13 +1387,13 @@
 
   .connections-list-panel .login-card-title {
     margin-top: 0;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
   }
 
   .connections-list-panel .login-card-status {
-    margin-top: 0;
-    font-size: 13px;
+    margin-top: 2px;
+    font-size: 12px;
   }
 
   .connections-list-panel .connection-platform-action {
@@ -1403,11 +1413,14 @@
   }
 }
 
-/* Details Panel styling */
+/* Right Details Panel Sub-Card Block */
 .connections-detail-panel {
   min-width: 0;
-  padding: 0;
-  background: transparent;
+  padding: 20px 24px;
+  background: #ffffff;
+  border: 1px solid var(--shell-border-soft);
+  border-radius: var(--shell-radius);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
 }
 
 .detail-platform-header {
