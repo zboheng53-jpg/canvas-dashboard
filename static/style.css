@@ -14,8 +14,10 @@
   }
 }
 
+.enter-sidebar { animation: fadeInUp 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 .enter-top-bar { animation: fadeInUp 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 .enter-main-card { animation: fadeInUp 0.7s 0.08s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.enter-right-card { animation: fadeInUp 0.7s 0.12s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 
 .enter-item {
   animation: fadeInUp 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both;
@@ -1207,7 +1209,10 @@ a:hover { color: var(--accent-hover); }
 
 /* ---- Responsive ---- */
 @media (max-width: 768px) {
-  .enter-main-card { animation: none; }
+  .enter-sidebar,
+  .enter-top-bar,
+  .enter-main-card,
+  .enter-right-card { animation: none; }
   .dashboard { padding: 24px 14px 48px; }
   .card { padding: 16px; }
   .top-bar { grid-template-columns: minmax(0, 1fr) minmax(0, auto); align-items: flex-start; gap: 12px; padding: 0; }
