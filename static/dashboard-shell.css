@@ -1321,13 +1321,14 @@
 @media (min-width: 1024px) {
   .connections-layout {
     display: grid;
-    grid-template-columns: 380px minmax(0, 1fr);
+    grid-template-columns: 250px minmax(0, 1fr);
     align-items: start;
   }
 }
 
 .connections-list-panel {
   min-width: 0;
+  padding: 20px 16px;
 }
 
 /* For connections vertical list on desktop */
@@ -1335,7 +1336,7 @@
   .connections-list-panel #login-cards {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
     grid-template-columns: unset;
   }
   .connections-list-panel .login-card {
@@ -1343,7 +1344,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 20px;
+    padding: 12px 14px;
     border-left: 3px solid var(--card-accent, var(--shell-border));
     border-top: 1px solid var(--shell-border);
     border-right: 1px solid var(--shell-border);
