@@ -1323,12 +1323,15 @@
     display: grid;
     grid-template-columns: 250px minmax(0, 1fr);
     align-items: start;
+    gap: 32px;
+    padding-top: 16px;
+    border-top: 1px solid var(--shell-border-soft);
   }
 }
 
 .connections-list-panel {
   min-width: 0;
-  padding: 20px 16px;
+  padding: 0;
 }
 
 /* For connections vertical list on desktop */
@@ -1402,8 +1405,8 @@
 /* Details Panel styling */
 .connections-detail-panel {
   min-width: 0;
-  padding: 24px;
-  background: var(--shell-surface);
+  padding: 0;
+  background: transparent;
 }
 
 .detail-platform-header {

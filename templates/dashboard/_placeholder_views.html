@@ -75,25 +75,23 @@
 </section>
 
 <section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-connections" data-view-panel="connections">
-  <div class="connections-wrapper">
-    <!-- Top Header Card: Title and Refresh button -->
-    <div class="card console-manager-card connections-header-card" style="margin-bottom: 22px;">
-      <div class="console-manager-heading">
-        <div>
-          <span class="placeholder-kicker">CONNECTIONS</span>
-          <h1>连接与同步</h1>
-          <p>统一管理学习平台账号，并查看当前连接状态与详细配置。</p>
-        </div>
-        <button type="button" class="console-secondary-button" id="connections-refresh-button" onclick="refreshPlatformConnections()">刷新状态</button>
+  <div class="card console-manager-card connections-manager-card">
+    <!-- Main Card Header: Title and Refresh button -->
+    <div class="console-manager-heading">
+      <div>
+        <span class="placeholder-kicker">CONNECTIONS</span>
+        <h1>连接与同步</h1>
+        <p>统一管理学习平台账号，并查看当前连接状态与详细配置。</p>
       </div>
-      <p class="console-manager-status" id="connections-manager-status" role="status">平台状态会随待办同步自动更新。</p>
+      <button type="button" class="console-secondary-button" id="connections-refresh-button" onclick="refreshPlatformConnections()">刷新状态</button>
     </div>
+    <p class="console-manager-status" id="connections-manager-status" role="status" style="margin-bottom: 20px;">平台状态会随待办同步自动更新。</p>
 
     <!-- Body Layout: Middle Login Status + Right Login Details -->
     <div class="connections-layout">
       
       <!-- Middle panel: Login Status / Platform List -->
-      <div class="card console-manager-card connections-list-panel">
+      <div class="connections-list-panel">
         <div class="connections-count-header" style="font-size: 14px; font-weight: 600; color: var(--shell-ink); margin-bottom: 14px;">登录状态</div>
 
         <div class="login-cards connection-platform-grid" id="login-cards">
@@ -125,7 +123,7 @@
       </div>
 
       <!-- Right panel: Platform Details & Action -->
-    <div class="card console-manager-card connections-detail-panel" id="connections-detail-panel">
+      <div class="connections-detail-panel" id="connections-detail-panel">
       
       <!-- Canvas Details -->
       <div class="connection-detail-section" id="detail-canvas" style="display: none;">
