@@ -11,68 +11,102 @@
   <div class="card schedule-manager-card">
     <div class="schedule-manager-heading">
       <div>
-        <span class="placeholder-kicker">SCHEDULE</span>
-        <h1>日程与课表</h1>
+        <span class="placeholder-kicker">WEEKLY SCHEDULE</span>
+        <h1>周排程与课表</h1>
         <p id="schedule-term-meta">尚未导入本学期课表</p>
       </div>
-      <button type="button" class="schedule-refresh-button" id="schedule-refresh-button" onclick="refreshCourseSchedule()">导入 / 刷新课表</button>
+      <div class="schedule-header-actions">
+        <button type="button" class="btn-schedule-action" id="btn-add-schedule-item" onclick="openScheduleItemModal()">+ 添加事项</button>
+        <button type="button" class="schedule-refresh-button" id="schedule-refresh-button" onclick="refreshCourseSchedule()">导入 / 刷新课表</button>
+      </div>
     </div>
     <p class="schedule-manager-status" id="schedule-manager-status" role="status"></p>
-    <nav class="manager-subnav" aria-label="日程与课表分区">
-      <a href="#schedule-courses-heading">课表</a>
-      <a href="#schedule-recurring-heading">例行安排</a>
-      <a href="#schedule-one-off-heading">一次性安排</a>
-    </nav>
 
-    <section class="schedule-manager-section" aria-labelledby="schedule-courses-heading">
-      <div class="manager-section-heading">
-        <div>
-          <span class="manager-section-index">01</span>
-          <h2 id="schedule-courses-heading">课表</h2>
-        </div>
-        <p>从一网通办导入本学期课程，作为每日安排的基础。</p>
+    <div class="schedule-toolbar">
+      <div class="schedule-week-nav">
+        <button type="button" class="schedule-nav-btn" onclick="navigateScheduleWeek(-1)" title="上一周">‹ 上一周</button>
+        <button type="button" class="schedule-nav-btn is-current" onclick="navigateScheduleWeek(0)" title="回到本周">本周</button>
+        <button type="button" class="schedule-nav-btn" onclick="navigateScheduleWeek(1)" title="下一周">下一周 ›</button>
+        <span class="schedule-week-label" id="schedule-week-label"></span>
       </div>
-      <div class="schedule-course-list" id="schedule-course-list"></div>
-    </section>
+      <div class="schedule-legend">
+        <span class="legend-item legend-course"><i class="legend-dot"></i>课表</span>
+        <span class="legend-item legend-recurring"><i class="legend-dot"></i>每周定时</span>
+        <span class="legend-item legend-weekly"><i class="legend-dot"></i>当周任务</span>
+      </div>
+    </div>
 
-    <div class="schedule-manager-grid">
-      <section class="schedule-manager-section" aria-labelledby="schedule-recurring-heading">
-        <div class="manager-section-heading">
-          <div>
-            <span class="manager-section-index">02</span>
-            <h2 id="schedule-recurring-heading">例行安排</h2>
-          </div>
-          <p>为固定学习、训练或值班安排每周重复时段。</p>
-        </div>
-        <form class="schedule-item-form" id="recurring-schedule-form">
-          <input name="title" required maxlength="80" placeholder="固定事项名称">
-          <select name="weekday" aria-label="星期"><option value="0">周一</option><option value="1">周二</option><option value="2">周三</option><option value="3">周四</option><option value="4">周五</option><option value="5">周六</option><option value="6">周日</option></select>
-          <input name="start_time" type="time" required aria-label="开始时间">
-          <input name="end_time" type="time" required aria-label="结束时间">
-          <button type="submit">添加</button>
-        </form>
-        <div class="schedule-item-list" id="recurring-schedule-list"></div>
-      </section>
-      <section class="schedule-manager-section" aria-labelledby="schedule-one-off-heading">
-        <div class="manager-section-heading">
-          <div>
-            <span class="manager-section-index">03</span>
-            <h2 id="schedule-one-off-heading">一次性安排</h2>
-          </div>
-          <p>记录只发生一次的实验、会议或临时活动。</p>
-        </div>
-        <form class="schedule-item-form" id="one-off-schedule-form">
-          <input name="title" required maxlength="80" placeholder="事项名称">
-          <input name="date" type="date" required aria-label="日期">
-          <input name="start_time" type="time" required aria-label="开始时间">
-          <input name="end_time" type="time" required aria-label="结束时间">
-          <button type="submit">添加</button>
-        </form>
-        <div class="schedule-item-list" id="one-off-schedule-list"></div>
-      </section>
+    <div class="schedule-grid-wrapper">
+      <div class="schedule-grid" id="schedule-timetable-grid">
+        <!-- Rendered dynamically by JS -->
+      </div>
     </div>
   </div>
 </section>
+
+<!-- Modal for adding/editing schedule items -->
+<div class="schedule-modal-backdrop hidden" id="schedule-item-modal" onclick="if(event.target===this)closeScheduleItemModal()">
+  <div class="schedule-modal-card">
+    <div class="schedule-modal-header">
+      <h3 id="schedule-modal-title">添加排程事项</h3>
+      <button type="button" class="schedule-modal-close" onclick="closeScheduleItemModal()">×</button>
+    </div>
+    <form class="schedule-modal-form" id="schedule-modal-form" onsubmit="handleScheduleFormSubmit(event)">
+      <input type="hidden" name="id" id="schedule-form-id">
+      <div class="form-group">
+        <label>事项类型</label>
+        <div class="schedule-kind-selector">
+          <label class="kind-option">
+            <input type="radio" name="kind" value="recurring" checked onchange="toggleScheduleKindFields()">
+            <span>每周定时任务</span>
+          </label>
+          <label class="kind-option">
+            <input type="radio" name="kind" value="one-off" onchange="toggleScheduleKindFields()">
+            <span>当周/临时任务</span>
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="schedule-form-title">事项名称</label>
+        <input name="title" id="schedule-form-title" required maxlength="80" placeholder="例如：周六晚跑步、健身房锻炼">
+      </div>
+      <div class="form-row" id="field-recurring-weekday">
+        <div class="form-group flex-1">
+          <label for="schedule-form-weekday">重复星期</label>
+          <select name="weekday" id="schedule-form-weekday">
+            <option value="0">周一</option>
+            <option value="1">周二</option>
+            <option value="2">周三</option>
+            <option value="3">周四</option>
+            <option value="4">周五</option>
+            <option value="5">周六</option>
+            <option value="6">周日</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row hidden" id="field-one-off-date">
+        <div class="form-group flex-1">
+          <label for="schedule-form-date">任务日期</label>
+          <input name="date" type="date" id="schedule-form-date">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group flex-1">
+          <label for="schedule-form-start">开始时间</label>
+          <input name="start_time" type="time" id="schedule-form-start" required value="09:00">
+        </div>
+        <div class="form-group flex-1">
+          <label for="schedule-form-end">结束时间</label>
+          <input name="end_time" type="time" id="schedule-form-end" required value="10:00">
+        </div>
+      </div>
+      <div class="schedule-modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeScheduleItemModal()">取消</button>
+        <button type="submit" class="btn-submit">保存事项</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-connections" data-view-panel="connections">
   <div class="card console-manager-card connections-manager-card">

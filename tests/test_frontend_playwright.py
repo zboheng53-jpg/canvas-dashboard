@@ -379,9 +379,8 @@ def test_frontend_console_navigation_groups_features_without_overview_duplicates
 
     page.locator('[data-dashboard-view="schedule"]').click()
     expect(page.locator("#dashboard-view-schedule")).to_be_visible()
-    expect(page.locator("#schedule-courses-heading")).to_have_text("课表")
-    expect(page.locator("#schedule-recurring-heading")).to_have_text("例行安排")
-    expect(page.locator("#schedule-one-off-heading")).to_have_text("一次性安排")
+    expect(page.locator("#schedule-timetable-grid")).to_be_visible()
+    expect(page.locator("#schedule-week-label")).to_be_visible()
 
     for view_name in ("overview", "projects", "schedule", "connections", "calendar", "settings"):
         button = page.locator(f'[data-dashboard-view="{view_name}"]')
@@ -455,12 +454,9 @@ def test_frontend_source_filters_and_focus_views(live_app, browser):
     assert projects_width > overview_width + 300
 
     page.locator('[data-dashboard-view="schedule"]').click()
-    sidebar_box = page.locator("#academic-sidebar").bounding_box()
+    expect(page.locator("#dashboard-view-schedule")).to_be_visible()
     schedule_box = page.locator(".schedule-manager-card").bounding_box()
-    assert sidebar_box is not None and schedule_box is not None
-    assert schedule_box["y"] + schedule_box["height"] == pytest.approx(
-        sidebar_box["y"] + sidebar_box["height"], abs=2
-    )
+    assert schedule_box is not None and schedule_box["width"] > 800
 
 
 def test_frontend_v2_mobile_menu_placeholders_and_stacked_modules(live_app, browser):
@@ -500,12 +496,16 @@ def test_frontend_schedule_management_renders_today_busy_item(live_app, browser)
     register_dashboard_user(page, live_app, "schedulev2")
     page.locator('[data-dashboard-view="schedule"]').click()
     expect(page.locator("#dashboard-view-schedule")).to_be_visible()
-    page.fill('#one-off-schedule-form [name="title"]', "实验室值班")
-    page.fill('#one-off-schedule-form [name="date"]', "2026-07-09")
-    page.fill('#one-off-schedule-form [name="start_time"]', "18:00")
-    page.fill('#one-off-schedule-form [name="end_time"]', "19:00")
-    page.locator("#one-off-schedule-form button").click()
-    expect(page.locator("#one-off-schedule-list")).to_contain_text("实验室值班")
+    page.click("#btn-add-schedule-item")
+    expect(page.locator("#schedule-item-modal")).to_be_visible()
+    page.check('#schedule-modal-form input[value="one-off"]')
+    page.fill('#schedule-modal-form [name="title"]', "实验室值班")
+    page.fill('#schedule-modal-form [name="date"]', "2026-07-09")
+    page.fill('#schedule-modal-form [name="start_time"]', "18:00")
+    page.fill('#schedule-modal-form [name="end_time"]', "19:00")
+    page.click('#schedule-modal-form .btn-submit')
+    page.click('.schedule-nav-btn:has-text("上一周")')
+    expect(page.locator("#schedule-timetable-grid")).to_contain_text("实验室值班")
     page.locator('[data-dashboard-view="overview"]').click()
     expect(page.locator("#today-schedule-content")).to_contain_text("实验室值班")
 
