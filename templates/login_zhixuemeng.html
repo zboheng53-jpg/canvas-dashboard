@@ -21,12 +21,7 @@
 
       <p class="setup-hint" id="status-line">检查中...</p>
 
-      <button type="button" class="login-trigger" onclick="toggleForm()">
-        <span id="toggle-label">展开设置</span>
-        <span class="login-trigger-arrow" id="toggle-arrow">&#x25b6;</span>
-      </button>
-
-      <div class="login-body hidden" id="form-body">
+      <div class="login-body" id="form-body">
         <div id="zhixuemeng-logged-in" class="hidden logged-in-row">
           <span class="logged-in-label">已登录</span>
           <select id="zxm-course-select" onchange="changeZhixuemengCourse()" class="logged-in-select"></select>
@@ -61,16 +56,6 @@
   </div>
 
   <script>
-    function toggleForm(forceOpen) {
-      const body = document.getElementById('form-body');
-      const arrow = document.getElementById('toggle-arrow');
-      const label = document.getElementById('toggle-label');
-      const open = forceOpen !== undefined ? forceOpen : body.classList.contains('hidden');
-      body.classList.toggle('hidden', !open);
-      arrow.innerHTML = open ? '&#x25bc;' : '&#x25b6;';
-      label.textContent = open ? '收起设置' : '展开设置';
-    }
-
     async function checkZhixuemengConfig() {
       try {
         const resp = await fetch('/api/zhixuemeng/config');
@@ -90,12 +75,10 @@
           document.getElementById('status-line').textContent = '当前状态：未登录';
           document.getElementById('zhixuemeng-setup').classList.remove('hidden');
           document.getElementById('zhixuemeng-logged-in').classList.add('hidden');
-          toggleForm(true);
         }
       } catch (e) {
         document.getElementById('status-line').textContent = '状态获取失败';
         document.getElementById('zhixuemeng-setup').classList.remove('hidden');
-        toggleForm(true);
       }
     }
 
@@ -216,7 +199,6 @@
       document.getElementById('zhixuemeng-logged-in').classList.add('hidden');
       document.getElementById('zhixuemeng-error').classList.add('hidden');
       document.getElementById('zxm-password-login').classList.add('hidden');
-      toggleForm(true);
     }
 
     const zxmPwdFormEl = document.getElementById('zxm-pwd-form');
