@@ -323,7 +323,10 @@
     let currentScheduleWeekOffset = 0;
 
     function getMondayOfOffset(offset = 0) {
-      const now = new Date();
+      const todayParts = (scheduleToday || '').split('-').map(Number);
+      const now = todayParts.length === 3
+        ? new Date(todayParts[0], todayParts[1] - 1, todayParts[2])
+        : new Date();
       const day = now.getDay();
       const diffToMon = (day === 0 ? -6 : 1 - day);
       const monday = new Date(now);
@@ -388,7 +391,7 @@
       if (!gridContainer) return;
 
       const weekDates = getWeekDates(currentScheduleWeekOffset);
-      const todayISO = formatDateISO(new Date());
+      const todayISO = scheduleToday || formatDateISO(new Date());
       const semesterStart = courses.semester_start || '';
 
       const weekLabel = document.getElementById('schedule-week-label');
