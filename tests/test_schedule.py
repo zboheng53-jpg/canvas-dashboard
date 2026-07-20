@@ -1,5 +1,7 @@
 import json
+from io import BytesIO
 from datetime import date, timedelta
+from zipfile import ZipFile
 
 import app as dashboard_app
 import schedule_store
@@ -49,6 +51,24 @@ def test_parse_time_segments_supports_specified_weeks_multiple_locations_and_per
     assert sessions[1]["location"] == "东校区实验楼"
 
 
+def test_parse_live_timetable_split_tables_and_xingqi_time_format():
+    markup = """
+    <table><tr><th></th><th>新课程序号</th><th>课程名称</th><th>教师</th><th>上课时间</th><th>上课地点</th><th>校区</th></tr></table>
+    <table><tr><td></td><td>AUTO1001</td><td>匿名课程</td><td>匿名教师</td>
+    <td>星期一 1-2节 [1-16],星期三 7-8节 [2-16双]</td><td>匿名教室</td><td>四平路校区</td></tr></table>
+    """
+
+    courses = tongji_timetable.parse_selected_courses_html(markup)
+
+    assert len(courses) == 1
+    assert courses[0]["code"] == "AUTO1001"
+    assert len(courses[0]["sessions"]) == 2
+    assert courses[0]["sessions"][0]["weekday"] == 0
+    assert courses[0]["sessions"][0]["weeks"] == list(range(1, 17))
+    assert courses[0]["sessions"][0]["location"] == "四平路校区 · 匿名教室"
+    assert courses[0]["sessions"][1]["parity"] == "even"
+
+
 def test_refresh_failure_keeps_previous_course_cache(tmp_path, monkeypatch):
     client, resolve_user_dir = _client(tmp_path, monkeypatch)
     schedule_store.save_courses("alice", "测试学期", "2026-03-02", [{"name": "旧课程", "sessions": []}], "2026-03-01T00:00:00+08:00")
@@ -80,6 +100,26 @@ def test_refresh_requires_tongji_credentials(tmp_path, monkeypatch):
     response = client.post("/api/schedule/refresh", json={"username": "", "password": ""}, headers=client.csrf_headers)
     assert response.status_code == 400
     assert response.get_json()["code"] == "timetable_credentials_required"
+
+
+def test_timetable_extension_is_linked_and_downloadable(tmp_path, monkeypatch):
+    client, _ = _client(tmp_path, monkeypatch)
+    package_url = "/static/downloads/tongji-timetable-exporter-v1.2.zip"
+
+    assert package_url in client.get("/").get_data(as_text=True)
+    response = client.get(package_url)
+    assert response.status_code == 200
+    with ZipFile(BytesIO(response.data)) as archive:
+        names = set(archive.namelist())
+    expected = {
+        "tongji-timetable-exporter-v1.2/README.md",
+        "tongji-timetable-exporter-v1.2/manifest.json",
+        "tongji-timetable-exporter-v1.2/popup.css",
+        "tongji-timetable-exporter-v1.2/popup.html",
+        "tongji-timetable-exporter-v1.2/popup.js",
+        "tongji-timetable-exporter-v1.2/table-exporter.mjs",
+    }
+    assert expected <= names
 
 
 def test_schedule_items_are_isolated_and_overlap_is_reported(tmp_path, monkeypatch):

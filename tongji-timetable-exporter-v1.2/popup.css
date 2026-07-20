@@ -1,0 +1,20 @@
+:root {
+  color: #172033;
+  background: #f7f9fc;
+  font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+}
+
+body { margin: 0; width: 320px; }
+main { padding: 20px; }
+h1 { margin: 0; color: #0b3a70; font-size: 18px; }
+header p { margin: 8px 0 20px; color: #526176; font-size: 13px; line-height: 1.5; }
+button {
+  width: 100%; border: 0; border-radius: 6px; padding: 11px 14px;
+  background: #0b5cad; color: #fff; font: inherit; font-weight: 700; cursor: pointer;
+}
+button:hover { background: #084b8d; }
+button:focus-visible { outline: 3px solid #8ac5ff; outline-offset: 2px; }
+button:disabled { cursor: wait; opacity: .65; }
+#status { min-height: 20px; margin: 14px 0 0; color: #334155; font-size: 13px; line-height: 1.45; }
+#status.error { color: #a61b1b; }
+.privacy { margin: 18px 0 0; border-top: 1px solid #dbe3ee; padding-top: 12px; color: #64748b; font-size: 12px; line-height: 1.45; }

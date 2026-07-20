@@ -591,6 +591,7 @@
 .schedule-manager-status.is-error { color: #b8564d; }
 .schedule-refresh-button, .schedule-item-form button { border: 1px solid #cbdcf6; border-radius: 6px; background: #fff; color: var(--sidebar-blue); font: inherit; font-size: 12px; cursor: pointer; }
 .schedule-refresh-button { flex: 0 0 auto; padding: 9px 12px; }
+.schedule-download-link { display: inline-flex; align-items: center; text-decoration: none; }
 .schedule-refresh-button:hover, .schedule-item-form button:hover { background: var(--sidebar-blue-soft); }
 .schedule-refresh-button:disabled { cursor: wait; opacity: .55; }
 .schedule-manager-section { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--shell-border); }
@@ -1522,6 +1523,7 @@
 .schedule-header-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
 }
 

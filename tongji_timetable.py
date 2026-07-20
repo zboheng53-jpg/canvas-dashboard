@@ -72,7 +72,8 @@ def _header_index(headers, aliases):
 
 
 def _split_segments(raw_time):
-    return [part.strip() for part in re.split(r"[；;\n]+", raw_time or "") if part.strip()]
+    separator = r"[；;\n]+|[,，](?=\s*(?:(?:周|星期)[一二三四五六日天]|20\d{2}[./-]))"
+    return [part.strip() for part in re.split(separator, raw_time or "") if part.strip()]
 
 
 def _parse_weeks(text):
@@ -82,7 +83,8 @@ def _parse_weeks(text):
             weeks.update(range(int(match.group(2)), int(match.group(3)) + 1))
     for match in re.findall(r"(?:第)?([\d、，,\s]+)周", text):
         weeks.update(int(value) for value in re.findall(r"\d{1,2}", match))
-    parity = "odd" if "单周" in text else "even" if "双周" in text else None
+    bracket_parities = "".join(re.findall(r"\[([^\]]*)\]", text))
+    parity = "odd" if "单周" in text or "单" in bracket_parities else "even" if "双周" in text or "双" in bracket_parities else None
     return sorted(weeks), parity
 
 
@@ -111,7 +113,7 @@ def parse_time_segments(raw_time, fallback_locations=""):
     """Turn a course's original time string into independent meeting segments."""
     result = []
     for text in _split_segments(raw_time):
-        weekday_match = re.search(r"周([一二三四五六日天])", text)
+        weekday_match = re.search(r"(?:周|星期)([一二三四五六日天])", text)
         start_period, end_period = _parse_periods(text)
         date_start, date_end = _parse_date_range(text)
         if not weekday_match and not date_start:
@@ -119,7 +121,9 @@ def parse_time_segments(raw_time, fallback_locations=""):
         if start_period is None:
             continue
         weeks, parity = _parse_weeks(text)
-        location = re.sub(r".*?(?:第?\s*\d{1,2}\s*(?:[-~至]\s*\d{1,2})?\s*节)", "", text).strip(" ，,;；")
+        location = re.sub(r".*?(?:第?\s*\d{1,2}\s*(?:[-~至]\s*\d{1,2})?\s*节)", "", text)
+        location = re.sub(r"\[[^\]]*\]", "", location)
+        location = re.sub(r"(?:第)?[\d、，,\s~-]+周|[单双]周", "", location).strip(" ，,;；")
         result.append({
             "weekday": WEEKDAYS.get(weekday_match.group(1)) if weekday_match else None,
             "weeks": weeks,
@@ -141,11 +145,11 @@ def parse_selected_courses_html(markup):
     parser = _TableParser()
     parser.feed(markup or "")
     courses = []
-    for table in parser.tables:
+    for table_index, table in enumerate(parser.tables):
         if not table:
             continue
         headers = table[0]
-        code = _header_index(headers, ("课程代码", "课程号"))
+        code = _header_index(headers, ("新课程序号", "课程代码", "课程号"))
         name = _header_index(headers, ("课程名称",))
         teacher = _header_index(headers, ("教师", "任课教师"))
         meeting = _header_index(headers, ("上课时间", "时间"))
@@ -153,7 +157,10 @@ def parse_selected_courses_html(markup):
         campus = _header_index(headers, ("校区",))
         if name is None or meeting is None:
             continue
-        for row in table[1:]:
+        rows = table[1:]
+        if not rows:
+            rows = next((candidate for candidate in parser.tables[table_index + 1:] if candidate), [])
+        for row in rows:
             def cell(index):
                 return row[index].strip() if index is not None and index < len(row) else ""
             raw_time = cell(meeting)
