@@ -684,6 +684,62 @@ def test_frontend_mobile_todo_layout_is_compact_and_tappable(live_app, browser, 
     assert login_cards.evaluate("element => getComputedStyle(element).flexDirection") == "column"
 
 
+def test_frontend_connections_workspace_uses_aligned_master_detail_layout(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "connectionslayout")
+    page.locator('[data-dashboard-view="connections"]').click()
+
+    manager = page.locator(".connections-manager-card")
+    sidebar = page.locator("#academic-sidebar")
+    list_panel = page.locator(".connections-list-panel")
+    detail_panel = page.locator(".connections-detail-panel")
+    expect(manager).to_be_visible()
+    expect(list_panel).to_be_visible()
+    expect(detail_panel).to_be_visible()
+
+    manager_box = manager.bounding_box()
+    sidebar_box = sidebar.bounding_box()
+    list_box = list_panel.bounding_box()
+    detail_box = detail_panel.bounding_box()
+    assert manager_box is not None and sidebar_box is not None
+    assert list_box is not None and detail_box is not None
+    assert abs(manager_box["y"] - sidebar_box["y"]) < 1
+    assert abs((manager_box["y"] + manager_box["height"]) - (sidebar_box["y"] + sidebar_box["height"])) < 1
+    assert abs((list_box["y"] + list_box["height"]) - (detail_box["y"] + detail_box["height"])) < 1
+
+    cards = page.locator("#login-cards .login-card")
+    expect(cards).to_have_count(4)
+    assert page.locator("#login-cards .connection-platform-action").count() == 0
+    for index in range(4):
+        card = cards.nth(index)
+        assert card.evaluate("element => getComputedStyle(element).display") == "flex"
+        title_box = card.locator(".login-card-title").bounding_box()
+        status_box = card.locator(".login-card-status").bounding_box()
+        assert title_box is not None and status_box is not None
+        assert abs((title_box["y"] + title_box["height"] / 2) - (status_box["y"] + status_box["height"] / 2)) < 1
+
+    cards.first.click()
+    expect(page.locator("#detail-canvas")).to_be_visible()
+    input_box = page.locator("#feed-url-input-inline").bounding_box()
+    button_box = page.locator("#canvas-setup-form-inline button").bounding_box()
+    assert input_box is not None and button_box is not None
+    assert abs((input_box["y"] + input_box["height"] / 2) - (button_box["y"] + button_box["height"] / 2)) < 1
+    assert button_box["width"] >= 100
+
+
+def test_frontend_connections_workspace_stacks_cleanly_on_narrow_desktop(live_app, browser):
+    page = browser.new_page(viewport={"width": 920, "height": 1000})
+    register_dashboard_user(page, live_app, "connectionsnarrow")
+    page.locator("#mobile-menu-toggle").click()
+    page.locator('[data-dashboard-view="connections"]').click()
+
+    list_box = page.locator(".connections-list-panel").bounding_box()
+    detail_box = page.locator(".connections-detail-panel").bounding_box()
+    assert list_box is not None and detail_box is not None
+    assert detail_box["y"] >= list_box["y"] + list_box["height"]
+    assert page.evaluate("document.documentElement.scrollWidth") <= 920
+
+
 @pytest.mark.parametrize("width", [375, 390, 768])
 def test_frontend_mobile_compact_controls_and_action_menu(live_app, browser, width):
     page = browser.new_page(viewport={"width": width, "height": 844})
