@@ -1,4 +1,4 @@
-"""Parse Tongji graduate timetable rows and read them through the local CDP proxy."""
+"""Parse Tongji graduate timetable rows and fetch them from Tongji's workbench."""
 import html
 import json
 import re
@@ -18,6 +18,14 @@ PERIOD_TIMES = {
     10: ("19:20", "20:05"), 11: ("20:10", "20:55"),
 }
 WEEKDAYS = {"一": 0, "二": 1, "三": 2, "四": 3, "五": 4, "六": 5, "日": 6, "天": 6}
+
+
+class TimetableLoginError(RuntimeError):
+    """The Tongji unified-login page could not be completed automatically."""
+
+
+class TimetableFetchError(RuntimeError):
+    """The logged-in timetable page did not contain a usable course table."""
 
 
 class _TableParser(HTMLParser):
@@ -184,3 +192,79 @@ def fetch_selected_courses():
                 requests.get(f"{settings.CDP_PROXY_BASE_URL}/close", params={"target": target_id}, timeout=5)
             except requests.RequestException:
                 pass
+
+
+def _playwright():
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError as exc:
+        raise TimetableFetchError("服务器未安装浏览器运行环境") from exc
+    return sync_playwright()
+
+
+def _first_visible(locator):
+    for index in range(locator.count()):
+        candidate = locator.nth(index)
+        if candidate.is_visible():
+            return candidate
+    return None
+
+
+def _login(page, username, password):
+    username_input = _first_visible(page.locator(
+        '#j_username, input[name="username"], input#username, input[name="userName"], input#userName, input[autocomplete="username"]'
+    ))
+    password_input = _first_visible(page.locator('#j_password, input[type="password"]'))
+    if not username_input or not password_input:
+        raise TimetableLoginError("未找到统一身份认证登录表单")
+
+    username_input.fill(username)
+    password_input.fill(password)
+    username_input.blur()
+    page.wait_for_timeout(500)
+    if _first_visible(page.locator('#j_checkcode')):
+        raise TimetableLoginError("该账号需要验证码，暂时无法自动登录")
+    submit = _first_visible(page.locator(
+        '#loginButton, button[type="submit"], input[type="submit"], #loginBtn, #login, .login-btn'
+    ))
+    if not submit:
+        raise TimetableLoginError("未找到统一身份认证登录按钮")
+    submit.click()
+
+    try:
+        page.wait_for_function("() => !document.querySelector('input[type=password]')", timeout=20_000)
+    except Exception as exc:
+        raise TimetableLoginError("登录未完成，请检查账号密码或在一网通办完成验证") from exc
+
+
+def fetch_selected_courses_with_credentials(username, password):
+    """Log in in an ephemeral browser and return the current user's courses.
+
+    The browser context is never persisted, so neither passwords nor login cookies
+    are written to disk.  This is intentionally separate from the local CDP flow.
+    """
+    try:
+        with _playwright() as playwright:
+            browser = playwright.chromium.launch(headless=True)
+            try:
+                context = browser.new_context(viewport={"width": 1280, "height": 900}, locale="zh-CN")
+                page = context.new_page()
+                page.goto(TIMETABLE_URL, wait_until="domcontentloaded", timeout=60_000)
+                _login(page, username, password)
+                page.goto(TIMETABLE_URL, wait_until="networkidle", timeout=60_000)
+                try:
+                    page.wait_for_selector("table", timeout=20_000)
+                except Exception as exc:
+                    raise TimetableFetchError("已登录，但课表页面未加载完成") from exc
+                courses = parse_selected_courses_html(page.content())
+                if not courses:
+                    raise TimetableFetchError("未在课表页面找到已选课程")
+                return courses
+            finally:
+                browser.close()
+    except TimetableLoginError:
+        raise
+    except TimetableFetchError:
+        raise
+    except Exception as exc:
+        raise TimetableFetchError("课表服务暂时无法访问") from exc

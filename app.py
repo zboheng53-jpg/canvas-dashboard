@@ -1122,9 +1122,19 @@ def api_schedule():
 @app.route("/api/schedule/refresh", methods=["POST"])
 def api_schedule_refresh():
     username = session["username"]
-    courses = tongji_timetable.fetch_selected_courses()
-    if not courses:
-        return api_error("timetable_fetch_failed", "课表抓取失败，请确认已登录一网通办且 CDP proxy 正在运行", 502)
+    data = read_json_request()
+    if data is None:
+        return invalid_request_response()
+    tongji_username = (data.get("username") or "").strip()
+    password = data.get("password") or ""
+    if not tongji_username or not password:
+        return api_error("timetable_credentials_required", "请输入统一身份认证账号和密码")
+    try:
+        courses = tongji_timetable.fetch_selected_courses_with_credentials(tongji_username, password)
+    except tongji_timetable.TimetableLoginError as exc:
+        return api_error("timetable_login_failed", str(exc), 401)
+    except tongji_timetable.TimetableFetchError as exc:
+        return api_error("timetable_fetch_failed", str(exc), 502)
     term, _, semester_start = get_term_info()
     schedule_store.save_courses(username, term, semester_start, courses, datetime.now(CST).isoformat())
     return jsonify({"ok": True, "courses": schedule_store.load_courses(username)})
@@ -1545,6 +1555,5 @@ if __name__ == "__main__":
     print(f"\n  Canvas Dashboard")
     print(f"  娴忚鍣ㄦ墦寮€ 鈫?http://{settings.APP_HOST}:{settings.APP_PORT}\n")
     app.run(host=settings.APP_HOST, port=settings.APP_PORT, debug=False)
-
 
 

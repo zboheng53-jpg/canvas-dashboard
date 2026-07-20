@@ -1833,6 +1833,7 @@
 }
 
 .schedule-modal-form input[type="text"],
+.schedule-modal-form input[type="password"],
 .schedule-modal-form input[type="date"],
 .schedule-modal-form input[type="time"],
 .schedule-modal-form select {
@@ -1850,6 +1851,13 @@
   outline: none;
   border-color: var(--sidebar-blue);
   box-shadow: 0 0 0 3px rgba(47, 107, 214, 0.15);
+}
+
+.schedule-login-note {
+  margin: -4px 0 18px;
+  color: var(--shell-muted);
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .form-row {
@@ -1920,5 +1928,4 @@
   border-radius: 6px;
   cursor: pointer;
 }
-
 

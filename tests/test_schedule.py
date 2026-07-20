@@ -52,10 +52,34 @@ def test_parse_time_segments_supports_specified_weeks_multiple_locations_and_per
 def test_refresh_failure_keeps_previous_course_cache(tmp_path, monkeypatch):
     client, resolve_user_dir = _client(tmp_path, monkeypatch)
     schedule_store.save_courses("alice", "测试学期", "2026-03-02", [{"name": "旧课程", "sessions": []}], "2026-03-01T00:00:00+08:00")
-    monkeypatch.setattr(dashboard_app.tongji_timetable, "fetch_selected_courses", lambda: None)
-    response = client.post("/api/schedule/refresh", headers=client.csrf_headers)
-    assert response.status_code == 502
+    def fail_login(username, password):
+        assert (username, password) == ("alice_no", "wrong")
+        raise tongji_timetable.TimetableLoginError("登录未完成")
+    monkeypatch.setattr(dashboard_app.tongji_timetable, "fetch_selected_courses_with_credentials", fail_login)
+    response = client.post("/api/schedule/refresh", json={"username": "alice_no", "password": "wrong"}, headers=client.csrf_headers)
+    assert response.status_code == 401
     assert json.loads((resolve_user_dir("alice") / "course_schedule.json").read_text(encoding="utf-8"))["courses"][0]["name"] == "旧课程"
+
+
+def test_refresh_uses_entered_credentials_and_keeps_them_out_of_storage(tmp_path, monkeypatch):
+    client, resolve_user_dir = _client(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        dashboard_app.tongji_timetable,
+        "fetch_selected_courses_with_credentials",
+        lambda username, password: [{"name": f"{username}:{password}", "sessions": []}],
+    )
+    response = client.post("/api/schedule/refresh", json={"username": "alice_no", "password": "secret"}, headers=client.csrf_headers)
+    assert response.status_code == 200
+    saved = json.loads((resolve_user_dir("alice") / "course_schedule.json").read_text(encoding="utf-8"))
+    assert saved["courses"][0]["name"] == "alice_no:secret"
+    assert not (resolve_user_dir("alice") / "config.json").exists()
+
+
+def test_refresh_requires_tongji_credentials(tmp_path, monkeypatch):
+    client, _ = _client(tmp_path, monkeypatch)
+    response = client.post("/api/schedule/refresh", json={"username": "", "password": ""}, headers=client.csrf_headers)
+    assert response.status_code == 400
+    assert response.get_json()["code"] == "timetable_credentials_required"
 
 
 def test_schedule_items_are_isolated_and_overlap_is_reported(tmp_path, monkeypatch):

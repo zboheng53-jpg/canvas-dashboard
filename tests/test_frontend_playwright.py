@@ -493,6 +493,19 @@ def test_frontend_v2_mobile_menu_placeholders_and_stacked_modules(live_app, brow
 
 def test_frontend_schedule_management_renders_today_busy_item(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    page.add_init_script("""
+      (() => {
+        const RealDate = Date;
+        const fixedNow = new RealDate('2026-07-09T12:00:00+08:00').valueOf();
+        class FixedBrowserDate extends RealDate {
+          constructor(...args) { super(...(args.length ? args : [fixedNow])); }
+          static now() { return fixedNow; }
+        }
+        FixedBrowserDate.parse = RealDate.parse;
+        FixedBrowserDate.UTC = RealDate.UTC;
+        window.Date = FixedBrowserDate;
+      })();
+    """)
     register_dashboard_user(page, live_app, "schedulev2")
     page.locator('[data-dashboard-view="schedule"]').click()
     expect(page.locator("#dashboard-view-schedule")).to_be_visible()
@@ -504,10 +517,22 @@ def test_frontend_schedule_management_renders_today_busy_item(live_app, browser)
     page.fill('#schedule-modal-form [name="start_time"]', "18:00")
     page.fill('#schedule-modal-form [name="end_time"]', "19:00")
     page.click('#schedule-modal-form .btn-submit')
-    page.click('.schedule-nav-btn:has-text("上一周")')
+    page.wait_for_function("() => scheduleData?.items?.one_off?.some(item => item.title === '实验室值班')")
     expect(page.locator("#schedule-timetable-grid")).to_contain_text("实验室值班")
     page.locator('[data-dashboard-view="overview"]').click()
     expect(page.locator("#today-schedule-content")).to_contain_text("实验室值班")
+
+
+def test_frontend_timetable_login_dialog(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "timetablelogin")
+    page.locator('[data-dashboard-view="schedule"]').click()
+    page.click("#schedule-refresh-button")
+    expect(page.locator("#tongji-timetable-login-modal")).to_be_visible()
+    expect(page.locator("#tongji-timetable-username")).to_have_attribute("autocomplete", "username")
+    expect(page.locator("#tongji-timetable-password")).to_have_attribute("type", "password")
+    page.click("#tongji-timetable-login-modal .btn-cancel")
+    expect(page.locator("#tongji-timetable-login-modal")).to_be_hidden()
 
 
 def test_frontend_projects_overview_limits_cards_and_opens_manager(live_app, browser):
