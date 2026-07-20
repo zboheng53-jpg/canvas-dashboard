@@ -467,6 +467,32 @@ def test_frontend_connections_use_two_equal_full_height_cards(live_app, browser,
         assert detail_box["height"] == pytest.approx(first_detail["height"], abs=1)
 
 
+@pytest.mark.parametrize("width", [1024, 1440])
+def test_frontend_connections_keep_platform_statuses_and_sms_actions_aligned(live_app, browser, width):
+    page = browser.new_page(viewport={"width": width, "height": 1000})
+    register_dashboard_user(page, live_app, "connectionalignment")
+    page.locator('[data-dashboard-view="connections"]').click()
+    page.locator('#login-cards .login-card[data-platform="zhixuemeng"]').click()
+    expect(page.locator("#detail-zhixuemeng")).to_be_visible()
+
+    status_positions = page.evaluate(
+        """() => [...document.querySelectorAll('#login-cards .login-card-status')]
+            .map(status => status.getBoundingClientRect().x)"""
+    )
+    assert max(status_positions) - min(status_positions) <= 1
+
+    form_layout = page.evaluate(
+        """() => {
+            const phone = document.querySelector('#zxm-phone-inline').getBoundingClientRect();
+            const button = document.querySelector('#zxm-send-sms-btn-inline').getBoundingClientRect();
+            return { phone, button };
+        }"""
+    )
+    assert form_layout["phone"]["width"] >= 200
+    assert form_layout["button"]["width"] >= 108
+    assert form_layout["button"]["x"] - form_layout["phone"]["right"] >= 12
+
+
 def test_frontend_v2_sidebar_greeting_and_calendar_subscription_page(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "calendarv2")

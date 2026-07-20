@@ -1355,9 +1355,10 @@
   }
   .connections-list-panel .login-card {
     min-height: auto;
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 64px 16px;
     align-items: center;
-    justify-content: space-between;
+    column-gap: 10px;
     padding: 12px 14px;
     border: 1px solid var(--shell-border-soft);
     border-radius: 8px;
@@ -1399,6 +1400,7 @@
   .connections-list-panel .login-card-status {
     margin-top: 2px;
     font-size: 12px;
+    justify-self: center;
   }
 
   .connections-list-panel .connection-platform-action {
@@ -1416,6 +1418,22 @@
     color: var(--sidebar-blue);
     transform: translateX(3px);
   }
+}
+
+.connection-inline-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.connection-inline-input {
+  min-width: 0;
+}
+
+.connection-inline-form button {
+  min-width: 108px;
+  flex-shrink: 0;
 }
 
 /* Right Details Panel Sub-Card Block */
