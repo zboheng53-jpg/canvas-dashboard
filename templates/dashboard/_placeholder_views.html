@@ -137,8 +137,7 @@
 
 <section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-connections" data-view-panel="connections">
   <div class="card console-manager-card connections-manager-card">
-    <!-- Main Card Header: Title and Refresh button -->
-    <div class="console-manager-heading">
+    <div class="console-manager-heading connections-manager-heading">
       <div>
         <span class="placeholder-kicker">CONNECTIONS</span>
         <h1>连接与同步</h1>
@@ -146,51 +145,39 @@
       </div>
       <button type="button" class="console-secondary-button" id="connections-refresh-button" onclick="refreshPlatformConnections()">刷新状态</button>
     </div>
-    <p class="console-manager-status" id="connections-manager-status" role="status" style="margin-bottom: 20px;">平台状态会随待办同步自动更新。</p>
+    <p class="console-manager-status connections-manager-status" id="connections-manager-status" role="status">平台状态会随待办同步自动更新。</p>
 
-    <!-- Body Layout: Middle Login Status + Right Login Details -->
     <div class="connections-layout">
-      
-      <!-- Middle panel: Login Status / Platform List -->
-      <div class="connections-list-panel">
-        <div class="connections-count-header" style="font-size: 14px; font-weight: 600; color: var(--shell-ink); margin-bottom: 14px;">登录状态</div>
+      <section class="connections-list-panel" aria-labelledby="connections-status-heading">
+        <h2 class="connections-panel-title" id="connections-status-heading">登录状态</h2>
 
-        <div class="login-cards connection-platform-grid" id="login-cards">
+        <div class="login-cards connection-platform-list" id="login-cards">
           <a href="javascript:void(0)" class="login-card" data-platform="canvas" onclick="selectConnectionPlatform('canvas')">
-            <span class="connection-platform-index">01</span>
             <span class="login-card-title">Canvas</span>
             <span class="login-card-status" id="card-status-canvas">检查中...</span>
-            <span class="connection-platform-action">管理连接 →</span>
           </a>
           <a href="javascript:void(0)" class="login-card" data-platform="haoke" onclick="selectConnectionPlatform('haoke')">
-            <span class="connection-platform-index">02</span>
             <span class="login-card-title">好课</span>
             <span class="login-card-status" id="card-status-haoke">检查中...</span>
-            <span class="connection-platform-action">管理连接 →</span>
           </a>
           <a href="javascript:void(0)" class="login-card" data-platform="zhixuemeng" onclick="selectConnectionPlatform('zhixuemeng')">
-            <span class="connection-platform-index">03</span>
             <span class="login-card-title">智学盟</span>
             <span class="login-card-status" id="card-status-zhixuemeng">检查中...</span>
-            <span class="connection-platform-action">管理连接 →</span>
           </a>
           <a href="javascript:void(0)" class="login-card" data-platform="zhihuishu" onclick="selectConnectionPlatform('zhihuishu')">
-            <span class="connection-platform-index">04</span>
             <span class="login-card-title">智慧树</span>
             <span class="login-card-status" id="card-status-zhihuishu">检查中...</span>
-            <span class="connection-platform-action">管理连接 →</span>
           </a>
         </div>
-      </div>
+      </section>
 
-      <!-- Right panel: Platform Details & Action -->
-      <div class="connections-detail-panel" id="connections-detail-panel">
+      <section class="connections-detail-panel" id="connections-detail-panel" aria-live="polite">
       
       <!-- Canvas Details -->
       <div class="connection-detail-section" id="detail-canvas" style="display: none;">
         <div class="detail-platform-header">
           <div class="detail-platform-title-wrap">
-            <div class="detail-platform-icon-circle" style="background: #fff5f5; border: 1px solid #fbc4c4; color: var(--src-canvas);">C</div>
+            <div class="detail-platform-icon-circle">C</div>
             <div>
               <h2 class="detail-platform-title">Canvas</h2>
               <span class="status-badge" id="detail-status-badge-canvas">检查中...</span>
@@ -200,12 +187,12 @@
 
         <div class="detail-section-title">连接配置</div>
         <div class="detail-content-box">
-          <form class="add-todo-form" id="canvas-setup-form-inline" style="display: flex; flex-direction: column; gap: 10px;">
-            <input type="url" id="feed-url-input-inline" placeholder="粘贴日历馈送 URL（.ics）..." autocomplete="off" style="width: 100%;">
-            <button type="submit" class="btn-primary btn-wide" style="width: 100%;">保存</button>
+          <form class="add-todo-form connection-form connection-form-inline" id="canvas-setup-form-inline">
+            <input type="url" id="feed-url-input-inline" placeholder="粘贴日历馈送 URL（.ics）..." autocomplete="off">
+            <button type="submit" class="btn-primary">保存配置</button>
           </form>
-          <div class="error-banner hidden" id="canvas-error-inline" style="margin-top: 10px; padding: 10px; background: #fee2e2; border: 1px solid #fca5a5; color: #b91c1c; border-radius: 6px;"></div>
-          <p class="setup-hint" style="margin-top: 12px; font-size: 12px; color: var(--shell-muted); line-height: 1.5;">
+          <div class="error-banner connection-error hidden" id="canvas-error-inline"></div>
+          <p class="setup-hint connection-setup-hint">
             请从 Canvas 获取日历馈送源 URL：<br>
             <small>Canvas → 日历 → 日历馈送 → 复制链接</small>
           </p>
@@ -216,7 +203,7 @@
       <div class="connection-detail-section" id="detail-haoke" style="display: none;">
         <div class="detail-platform-header">
           <div class="detail-platform-title-wrap">
-            <div class="detail-platform-icon-circle" style="background: #f4faf6; border: 1px solid #cce8d9; color: var(--src-haoke);">H</div>
+            <div class="detail-platform-icon-circle">H</div>
             <div>
               <h2 class="detail-platform-title">好课</h2>
               <span class="status-badge" id="detail-status-badge-haoke">检查中...</span>
@@ -226,13 +213,13 @@
 
         <div class="detail-section-title">连接配置</div>
         <div class="detail-content-box">
-          <form class="add-todo-form" id="haoke-setup-form-inline" style="display: flex; flex-direction: column; gap: 10px;">
-            <input type="text" id="haoke-username-inline" placeholder="学号" autocomplete="off" style="width: 100%;">
-            <input type="password" id="haoke-password-inline" placeholder="密码" autocomplete="off" style="width: 100%;">
-            <button type="submit" class="btn-primary btn-wide" style="width: 100%;">保存并登录</button>
+          <form class="add-todo-form connection-form" id="haoke-setup-form-inline">
+            <input type="text" id="haoke-username-inline" placeholder="学号" autocomplete="off">
+            <input type="password" id="haoke-password-inline" placeholder="密码" autocomplete="off">
+            <button type="submit" class="btn-primary">保存并登录</button>
           </form>
-          <div class="error-banner hidden" id="haoke-error-inline" style="margin-top: 10px; padding: 10px; background: #fee2e2; border: 1px solid #fca5a5; color: #b91c1c; border-radius: 6px;"></div>
-          <p class="setup-hint" style="margin-top: 12px; font-size: 12px; color: var(--shell-muted); line-height: 1.5;">
+          <div class="error-banner connection-error hidden" id="haoke-error-inline"></div>
+          <p class="setup-hint connection-setup-hint">
             使用同济大学统一身份认证的学号和密码登录（智图 AI 好课平台）
           </p>
         </div>
@@ -242,7 +229,7 @@
       <div class="connection-detail-section" id="detail-zhixuemeng" style="display: none;">
         <div class="detail-platform-header">
           <div class="detail-platform-title-wrap">
-            <div class="detail-platform-icon-circle" style="background: #f0f7ff; border: 1px solid #ccdfff; color: var(--src-zhixuemeng);">Z</div>
+            <div class="detail-platform-icon-circle">Z</div>
             <div>
               <h2 class="detail-platform-title">智学盟</h2>
               <span class="status-badge" id="detail-status-badge-zhixuemeng">检查中...</span>
@@ -266,7 +253,7 @@
 
           <!-- Setup state -->
           <div id="zxm-setup-inline" class="hidden" style="display: flex; flex-direction: column; gap: 12px;">
-            <p class="setup-hint" style="font-size: 12px; color: var(--shell-muted); margin-bottom: 4px;">请输入智学盟平台的手机号和验证码登录：</p>
+            <p class="setup-hint connection-setup-hint">请输入智学盟平台的手机号和验证码登录：</p>
             <div class="add-todo-form" style="display: flex; gap: 8px;">
               <input type="tel" id="zxm-phone-inline" placeholder="手机号" autocomplete="off" style="flex: 1;">
               <button type="button" id="zxm-send-sms-btn-inline" onclick="sendZhixuemengSmsInline()" class="btn-primary" style="white-space: nowrap; font-size: 13px; padding: 0 12px;">发送验证码</button>
@@ -286,7 +273,7 @@
               </form>
             </div>
           </div>
-          <div class="error-banner hidden" id="zhixuemeng-error-inline" style="margin-top: 10px; padding: 10px; background: #fee2e2; border: 1px solid #fca5a5; color: #b91c1c; border-radius: 6px;"></div>
+          <div class="error-banner connection-error hidden" id="zhixuemeng-error-inline"></div>
         </div>
       </div>
 
@@ -294,7 +281,7 @@
       <div class="connection-detail-section" id="detail-zhihuishu" style="display: none;">
         <div class="detail-platform-header">
           <div class="detail-platform-title-wrap">
-            <div class="detail-platform-icon-circle" style="background: #fdfae7; border: 1px solid #f6ecb3; color: var(--src-zhihuishu);">树</div>
+            <div class="detail-platform-icon-circle">树</div>
             <div>
               <h2 class="detail-platform-title">智慧树</h2>
               <span class="status-badge" id="detail-status-badge-zhihuishu">检查中...</span>
@@ -371,7 +358,7 @@
         <span class="placeholder-kicker">PREFERENCES</span>
         <h1>偏好设置</h1>
         <p>集中查看当前账号与控制台功能边界。</p>
-      </div>
+      </section>
     </div>
     <div class="settings-summary-grid">
       <section class="settings-summary-card">
