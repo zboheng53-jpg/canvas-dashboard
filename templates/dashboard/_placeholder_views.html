@@ -17,7 +17,7 @@
       </div>
       <div class="schedule-header-actions">
         <button type="button" class="btn-schedule-action" id="btn-add-schedule-item" onclick="openScheduleItemModal()">+ 添加事项</button>
-        <button type="button" class="schedule-refresh-button" id="schedule-refresh-button" onclick="refreshCourseSchedule()">导入 / 刷新课表</button>
+        <button type="button" class="schedule-refresh-button" id="schedule-refresh-button" onclick="openTongjiTimetableLogin()">从统一身份认证导入课表</button>
       </div>
     </div>
     <p class="schedule-manager-status" id="schedule-manager-status" role="status"></p>
@@ -43,6 +43,30 @@
     </div>
   </div>
 </section>
+
+<div class="schedule-modal-backdrop hidden" id="tongji-timetable-login-modal" onclick="if(event.target===this)closeTongjiTimetableLogin()">
+  <div class="schedule-modal-card">
+    <div class="schedule-modal-header">
+      <h3>导入研究生课表</h3>
+      <button type="button" class="schedule-modal-close" onclick="closeTongjiTimetableLogin()">×</button>
+    </div>
+    <form class="schedule-modal-form" id="tongji-timetable-login-form" onsubmit="submitTongjiTimetableLogin(event)">
+      <p class="schedule-login-note">使用统一身份认证登录一网通办后读取已选课程。账号和密码仅用于本次导入，不会保存。</p>
+      <div class="form-group">
+        <label for="tongji-timetable-username">统一身份认证账号</label>
+        <input id="tongji-timetable-username" name="username" type="text" autocomplete="username" required>
+      </div>
+      <div class="form-group">
+        <label for="tongji-timetable-password">密码</label>
+        <input id="tongji-timetable-password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <div class="schedule-modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeTongjiTimetableLogin()">取消</button>
+        <button type="submit" class="btn-submit" id="tongji-timetable-submit">登录并导入</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <!-- Modal for adding/editing schedule items -->
 <div class="schedule-modal-backdrop hidden" id="schedule-item-modal" onclick="if(event.target===this)closeScheduleItemModal()">

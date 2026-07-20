@@ -663,13 +663,31 @@
       }
     }
 
-    async function refreshCourseSchedule() {
-      const button = document.getElementById('schedule-refresh-button');
-      button.disabled = true; setScheduleStatus('正在从一网通办读取已选课程…');
+    function openTongjiTimetableLogin() {
+      const modal = document.getElementById('tongji-timetable-login-modal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      document.getElementById('tongji-timetable-username').focus();
+    }
+
+    function closeTongjiTimetableLogin() {
+      document.getElementById('tongji-timetable-login-modal')?.classList.add('hidden');
+    }
+
+    async function submitTongjiTimetableLogin(event) {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const button = document.getElementById('tongji-timetable-submit');
+      const username = form.elements.username.value.trim();
+      const password = form.elements.password.value;
+      button.disabled = true; setScheduleStatus('正在登录统一身份认证并读取已选课程…');
       try {
-        const response = await fetch('/api/schedule/refresh', {method: 'POST'});
+        const response = await fetch('/api/schedule/refresh', {
+          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username, password}),
+        });
         const data = await response.json();
         if (!response.ok || !data.ok) throw new Error(data.error || 'refresh failed');
+        form.reset(); closeTongjiTimetableLogin();
         setScheduleStatus(`已更新 ${data.courses.courses.length} 门课程`); renderScheduleManager({courses: data.courses, items: scheduleData?.items || {recurring: [], one_off: []}}); await loadTodaySchedule();
       } catch (error) { setScheduleStatus(error.message || '课表刷新失败，已保留原有缓存', true); }
       finally { button.disabled = false; }
