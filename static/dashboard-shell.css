@@ -591,6 +591,7 @@
 .schedule-manager-status.is-error { color: #b8564d; }
 .schedule-refresh-button, .schedule-item-form button { border: 1px solid #cbdcf6; border-radius: 6px; background: #fff; color: var(--sidebar-blue); font: inherit; font-size: 12px; cursor: pointer; }
 .schedule-refresh-button { flex: 0 0 auto; padding: 9px 12px; }
+.schedule-download-link { display: inline-flex; align-items: center; text-decoration: none; }
 .schedule-refresh-button:hover, .schedule-item-form button:hover { background: var(--sidebar-blue-soft); }
 .schedule-refresh-button:disabled { cursor: wait; opacity: .55; }
 .schedule-manager-section { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--shell-border); }
@@ -1304,6 +1305,12 @@
 }
 
 /* Connections Master-Detail layout */
+.connections-manager-card {
+  display: flex;
+  flex-direction: column;
+  background: #fbfcff;
+}
+
 .connections-layout {
   display: flex;
   flex-direction: column;
@@ -1311,11 +1318,18 @@
 }
 
 @media (min-width: 1024px) {
+  .connections-manager-card {
+    height: calc(100vh - 64px);
+    min-height: 640px;
+  }
+
   .connections-layout {
     display: grid;
     grid-template-columns: 280px minmax(0, 1fr);
+    flex: 1;
     align-items: stretch;
-    gap: 0;
+    gap: 20px;
+    min-height: 0;
     padding-top: 20px;
     border-top: 1px solid var(--shell-border-soft);
   }
@@ -1325,23 +1339,14 @@
 .connections-list-panel {
   min-width: 0;
   padding: 16px;
-  background: #fbfaf8;
-  border: 1px solid var(--shell-border-soft);
-  border-radius: var(--shell-radius);
+  background: #fff;
+  border: 1px solid var(--shell-border);
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(29, 35, 43, 0.045);
 }
 
 /* For connections vertical list on desktop */
 @media (min-width: 1024px) {
-  .connections-list-panel {
-    border-right: none;
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-  }
-  .connections-detail-panel {
-    border-left: none;
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-  }
   .connections-list-panel #login-cards {
     display: flex;
     flex-direction: column;
@@ -1354,17 +1359,15 @@
     align-items: center;
     justify-content: space-between;
     padding: 12px 14px;
-    border-left: 4px solid var(--card-accent, var(--shell-border));
-    border-top: 1px solid var(--shell-border);
-    border-right: 1px solid var(--shell-border);
-    border-bottom: 1px solid var(--shell-border);
+    border: 1px solid var(--shell-border-soft);
     border-radius: 8px;
     text-align: left;
-    background: #ffffff;
+    background: #fff;
     cursor: pointer;
     position: relative;
     width: 100%;
-    transition: all 0.2s ease;
+    box-shadow: 0 2px 7px rgba(29, 35, 43, 0.025);
+    transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
   }
   
   .connections-list-panel .login-card::before {
@@ -1372,14 +1375,15 @@
   }
 
   .connections-list-panel .login-card:hover {
-    border-color: var(--card-accent, var(--sidebar-blue));
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    background: #fbfdff;
+    border-color: #bfd3f2;
+    box-shadow: 0 3px 10px rgba(47, 107, 214, 0.07);
   }
 
   .connections-list-panel .login-card.is-selected {
-    background: #ffffff;
-    border-color: var(--card-accent, var(--sidebar-blue));
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+    background: #f7faff;
+    border-color: #8fb4e8;
+    box-shadow: inset 3px 0 0 var(--sidebar-blue), 0 4px 12px rgba(47, 107, 214, 0.08);
   }
 
   .connections-list-panel .connection-platform-index {
@@ -1418,10 +1422,11 @@
 .connections-detail-panel {
   min-width: 0;
   padding: 20px 24px;
-  background: #ffffff;
-  border: 1px solid var(--shell-border-soft);
-  border-radius: var(--shell-radius);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--shell-border);
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(29, 35, 43, 0.045);
 }
 
 .detail-platform-header {
@@ -1485,11 +1490,24 @@
 }
 
 .detail-content-box {
-  background: #fbfaf8;
-  border: 1px solid var(--shell-border-soft);
-  border-radius: 8px;
+  background: #f8fbff;
+  border: 1px solid #dce7f5;
+  border-radius: 10px;
   padding: 16px;
   margin-bottom: 24px;
+}
+
+.connections-detail-panel .add-todo-form input,
+.connections-detail-panel .logged-in-select {
+  background: #fff;
+  border-color: #d6e1ef;
+}
+
+.connections-detail-panel .add-todo-form .btn-primary,
+.connections-detail-panel .add-todo-form .btn-accent {
+  color: #fff;
+  background: var(--sidebar-blue);
+  border-color: var(--sidebar-blue);
 }
 
 /* Info grid */
@@ -1522,6 +1540,7 @@
 .schedule-header-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
@@ -1920,5 +1939,3 @@
   border-radius: 6px;
   cursor: pointer;
 }
-
-

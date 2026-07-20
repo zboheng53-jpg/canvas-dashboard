@@ -397,6 +397,76 @@ def test_frontend_console_navigation_groups_features_without_overview_duplicates
     assert page_errors == []
 
 
+@pytest.mark.parametrize(("width", "height"), [(1024, 844), (1440, 1000)])
+def test_frontend_connections_use_two_equal_full_height_cards(live_app, browser, width, height):
+    page = browser.new_page(viewport={"width": width, "height": height})
+    register_dashboard_user(page, live_app, "connectioncards")
+    page.locator('[data-dashboard-view="connections"]').click()
+    expect(page.locator("#dashboard-view-connections")).to_be_visible()
+
+    panel_styles = page.evaluate(
+        """() => {
+            const read = selector => {
+                const style = getComputedStyle(document.querySelector(selector));
+                return {
+                    background: style.backgroundColor,
+                    radius: parseFloat(style.borderTopLeftRadius),
+                };
+            };
+            return {
+                list: read('.connections-list-panel'),
+                detail: read('.connections-detail-panel'),
+                content: read('.detail-content-box'),
+            };
+        }"""
+    )
+    assert panel_styles["list"]["background"] == "rgb(255, 255, 255)"
+    assert panel_styles["detail"]["background"] == "rgb(255, 255, 255)"
+    assert panel_styles["content"]["background"] == "rgb(248, 251, 255)"
+    assert panel_styles["list"]["radius"] >= 10
+    assert panel_styles["detail"]["radius"] >= 10
+
+    measurements = []
+    for platform in ("canvas", "haoke", "zhixuemeng", "zhihuishu"):
+        card = page.locator(f'#login-cards .login-card[data-platform="{platform}"]')
+        card.click()
+        expect(card).to_have_class(re.compile(r"\bis-selected\b"))
+        expect(page.locator(f"#detail-{platform}")).to_be_visible()
+        measurements.append(
+            page.evaluate(
+                """() => {
+                    const rect = selector => {
+                        const box = document.querySelector(selector).getBoundingClientRect();
+                        return {
+                            x: box.x,
+                            y: box.y,
+                            width: box.width,
+                            height: box.height,
+                            right: box.right,
+                            bottom: box.bottom,
+                        };
+                    };
+                    return {
+                        manager: rect('.connections-manager-card'),
+                        list: rect('.connections-list-panel'),
+                        detail: rect('.connections-detail-panel'),
+                    };
+                }"""
+            )
+        )
+    first_detail = measurements[0]["detail"]
+    for measurement in measurements:
+        list_box = measurement["list"]
+        detail_box = measurement["detail"]
+        assert detail_box["x"] - list_box["right"] == pytest.approx(20, abs=1)
+        assert list_box["height"] == pytest.approx(detail_box["height"], abs=1)
+        assert measurement["manager"]["bottom"] - detail_box["bottom"] <= 30
+        assert detail_box["x"] == pytest.approx(first_detail["x"], abs=1)
+        assert detail_box["y"] == pytest.approx(first_detail["y"], abs=1)
+        assert detail_box["width"] == pytest.approx(first_detail["width"], abs=1)
+        assert detail_box["height"] == pytest.approx(first_detail["height"], abs=1)
+
+
 def test_frontend_v2_sidebar_greeting_and_calendar_subscription_page(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "calendarv2")
