@@ -398,7 +398,7 @@ def test_frontend_console_navigation_groups_features_without_overview_duplicates
 
 
 @pytest.mark.parametrize(("width", "height"), [(1024, 844), (1440, 1000)])
-def test_frontend_connections_use_two_equal_full_height_cards(live_app, browser, width, height):
+def test_frontend_connections_use_compact_auto_height_panels(live_app, browser, width, height):
     page = browser.new_page(viewport={"width": width, "height": height})
     register_dashboard_user(page, live_app, "connectioncards")
     page.locator('[data-dashboard-view="connections"]').click()
@@ -410,6 +410,7 @@ def test_frontend_connections_use_two_equal_full_height_cards(live_app, browser,
                 const style = getComputedStyle(document.querySelector(selector));
                 return {
                     background: style.backgroundColor,
+                    border: style.borderTopColor,
                     radius: parseFloat(style.borderTopLeftRadius),
                 };
             };
@@ -422,49 +423,79 @@ def test_frontend_connections_use_two_equal_full_height_cards(live_app, browser,
     )
     assert panel_styles["list"]["background"] == "rgb(255, 255, 255)"
     assert panel_styles["detail"]["background"] == "rgb(255, 255, 255)"
-    assert panel_styles["content"]["background"] == "rgb(248, 251, 255)"
+    assert panel_styles["content"]["background"] == "rgb(248, 247, 243)"
+    assert panel_styles["content"]["border"] == "rgb(228, 224, 216)"
     assert panel_styles["list"]["radius"] >= 10
     assert panel_styles["detail"]["radius"] >= 10
 
-    measurements = []
-    for platform in ("canvas", "haoke", "zhixuemeng", "zhihuishu"):
-        card = page.locator(f'#login-cards .login-card[data-platform="{platform}"]')
-        card.click()
-        expect(card).to_have_class(re.compile(r"\bis-selected\b"))
-        expect(page.locator(f"#detail-{platform}")).to_be_visible()
-        measurements.append(
-            page.evaluate(
-                """() => {
-                    const rect = selector => {
-                        const box = document.querySelector(selector).getBoundingClientRect();
-                        return {
-                            x: box.x,
-                            y: box.y,
-                            width: box.width,
-                            height: box.height,
-                            right: box.right,
-                            bottom: box.bottom,
-                        };
-                    };
-                    return {
-                        manager: rect('.connections-manager-card'),
-                        list: rect('.connections-list-panel'),
-                        detail: rect('.connections-detail-panel'),
-                    };
-                }"""
-            )
-        )
-    first_detail = measurements[0]["detail"]
-    for measurement in measurements:
-        list_box = measurement["list"]
-        detail_box = measurement["detail"]
-        assert detail_box["x"] - list_box["right"] == pytest.approx(20, abs=1)
-        assert list_box["height"] == pytest.approx(detail_box["height"], abs=1)
-        assert measurement["manager"]["bottom"] - detail_box["bottom"] <= 30
-        assert detail_box["x"] == pytest.approx(first_detail["x"], abs=1)
-        assert detail_box["y"] == pytest.approx(first_detail["y"], abs=1)
-        assert detail_box["width"] == pytest.approx(first_detail["width"], abs=1)
-        assert detail_box["height"] == pytest.approx(first_detail["height"], abs=1)
+    canvas_card = page.locator('#login-cards .login-card[data-platform="canvas"]')
+    canvas_card.click()
+    expect(canvas_card).to_have_class(re.compile(r"\bis-selected\b"))
+    selected_styles = canvas_card.evaluate(
+        """card => {
+            const style = getComputedStyle(card);
+            return {
+                background: style.backgroundColor,
+                border: style.borderTopColor,
+                shadow: style.boxShadow,
+                color: style.color,
+            };
+        }"""
+    )
+    assert selected_styles == {
+        "background": "rgb(241, 239, 234)",
+        "border": "rgb(220, 215, 206)",
+        "shadow": "none",
+        "color": "rgb(41, 45, 50)",
+    }
+
+    default_card = page.locator('#login-cards .login-card[data-platform="haoke"]')
+    assert default_card.evaluate("card => getComputedStyle(card).borderTopColor") == "rgba(0, 0, 0, 0)"
+    default_card.hover()
+    page.wait_for_timeout(250)
+    assert default_card.evaluate("card => getComputedStyle(card).backgroundColor") == "rgb(248, 247, 243)"
+
+    save_button = page.locator("#canvas-setup-form-inline button")
+    expect(save_button).to_have_text("保存配置")
+    save_styles = save_button.evaluate(
+        """button => {
+            const style = getComputedStyle(button);
+            return {
+                width: style.width,
+                height: style.height,
+                background: style.backgroundColor,
+                radius: style.borderTopLeftRadius,
+            };
+        }"""
+    )
+    assert save_styles == {
+        "width": "96px",
+        "height": "40px",
+        "background": "rgb(52, 58, 54)",
+        "radius": "8px",
+    }
+    save_alignment = page.evaluate(
+        """() => {
+            const form = document.querySelector('#canvas-setup-form-inline').getBoundingClientRect();
+            const button = document.querySelector('#canvas-setup-form-inline button').getBoundingClientRect();
+            return form.right - button.right;
+        }"""
+    )
+    assert save_alignment == pytest.approx(0, abs=1)
+
+    panel_boxes = page.evaluate(
+        """() => {
+            const rect = selector => document.querySelector(selector).getBoundingClientRect();
+            return {
+                manager: rect('.connections-manager-card'),
+                layout: rect('.connections-layout'),
+                list: rect('.connections-list-panel'),
+                detail: rect('.connections-detail-panel'),
+            };
+        }"""
+    )
+    assert abs(panel_boxes["list"]["height"] - panel_boxes["detail"]["height"]) > 5
+    assert panel_boxes["manager"]["bottom"] - panel_boxes["layout"]["bottom"] < 50
 
 
 @pytest.mark.parametrize("width", [1024, 1440])
