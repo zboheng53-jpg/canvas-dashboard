@@ -590,6 +590,8 @@
 .schedule-manager-status { min-height: 18px; color: var(--sidebar-blue); }
 .schedule-manager-status.is-error { color: #b8564d; }
 .schedule-refresh-button, .schedule-item-form button { border: 1px solid #cbdcf6; border-radius: 6px; background: #fff; color: var(--sidebar-blue); font: inherit; font-size: 12px; cursor: pointer; }
+.schedule-file-input { display: none; }
+.schedule-import-button { flex: 0 0 auto; }
 .schedule-refresh-button { flex: 0 0 auto; padding: 9px 12px; }
 .schedule-download-link { display: inline-flex; align-items: center; text-decoration: none; }
 .schedule-refresh-button:hover, .schedule-item-form button:hover { background: var(--sidebar-blue-soft); }

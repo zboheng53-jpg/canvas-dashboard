@@ -5,6 +5,9 @@ import re
 import time
 from datetime import date
 from html.parser import HTMLParser
+from io import BytesIO
+from zipfile import BadZipFile, ZipFile
+from xml.etree import ElementTree
 
 import requests
 
@@ -144,8 +147,12 @@ def parse_selected_courses_html(markup):
     """Find the selected-course table by header names, never fixed column positions."""
     parser = _TableParser()
     parser.feed(markup or "")
+    return _parse_selected_courses_tables(parser.tables)
+
+
+def _parse_selected_courses_tables(tables):
     courses = []
-    for table_index, table in enumerate(parser.tables):
+    for table_index, table in enumerate(tables):
         if not table:
             continue
         headers = table[0]
@@ -159,7 +166,7 @@ def parse_selected_courses_html(markup):
             continue
         rows = table[1:]
         if not rows:
-            rows = next((candidate for candidate in parser.tables[table_index + 1:] if candidate), [])
+            rows = next((candidate for candidate in tables[table_index + 1:] if candidate), [])
         for row in rows:
             def cell(index):
                 return row[index].strip() if index is not None and index < len(row) else ""
@@ -177,6 +184,65 @@ def parse_selected_courses_html(markup):
         if courses:
             return courses
     return []
+
+
+def _xlsx_column_index(reference):
+    letters = "".join(character for character in reference if character.isalpha())
+    value = 0
+    for character in letters:
+        value = value * 26 + ord(character.upper()) - ord("A") + 1
+    return value - 1
+
+
+def _xlsx_text(element, shared_strings):
+    namespace = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+    cell_type = element.get("t")
+    if cell_type == "inlineStr":
+        return "".join(node.text or "" for node in element.findall(f".//{namespace}t"))
+    value = element.findtext(f"{namespace}v", default="")
+    if cell_type == "s" and value.isdigit() and int(value) < len(shared_strings):
+        return shared_strings[int(value)]
+    return value
+
+
+def _xlsx_rows(markup, shared_strings):
+    namespace = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+    root = ElementTree.fromstring(markup)
+    rows = []
+    for row in root.findall(f".//{namespace}row"):
+        values = []
+        for cell in row.findall(f"{namespace}c"):
+            column = _xlsx_column_index(cell.get("r", "A1"))
+            values.extend("" for _ in range(max(0, column - len(values))))
+            values.append(_xlsx_text(cell, shared_strings))
+        rows.append(values)
+    return rows
+
+
+def parse_exported_timetable_xlsx(content):
+    """Read the selected-course sheet emitted by the local Tongji exporter extension."""
+    try:
+        with ZipFile(BytesIO(content)) as archive:
+            if len(archive.infolist()) > 50 or sum(item.file_size for item in archive.infolist()) > settings.MAX_CONTENT_LENGTH_BYTES * 4:
+                raise ValueError("课表文件内容异常，请重新从插件导出")
+            if "xl/workbook.xml" not in archive.namelist():
+                raise ValueError("文件不是有效的 Excel 课表")
+            shared_strings = []
+            if "xl/sharedStrings.xml" in archive.namelist():
+                root = ElementTree.fromstring(archive.read("xl/sharedStrings.xml"))
+                namespace = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+                shared_strings = ["".join(node.text or "" for node in item.findall(f".//{namespace}t")) for item in root]
+            sheets = [
+                _xlsx_rows(archive.read(name), shared_strings)
+                for name in archive.namelist()
+                if name.startswith("xl/worksheets/") and name.endswith(".xml")
+            ]
+    except (BadZipFile, KeyError, ElementTree.ParseError) as error:
+        raise ValueError("文件不是有效的 Excel 课表") from error
+    courses = _parse_selected_courses_tables(sheets)
+    if not courses:
+        raise ValueError("未找到插件导出的“已选课程”数据，请确认上传的是课表插件导出的 .xlsx 文件")
+    return courses
 
 
 def fetch_selected_courses():

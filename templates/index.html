@@ -693,6 +693,29 @@
       finally { button.disabled = false; }
     }
 
+    async function importCourseSchedule(input) {
+      const file = input.files && input.files[0];
+      input.value = '';
+      if (!file) return;
+      const button = document.getElementById('schedule-import-button');
+      button.disabled = true;
+      setScheduleStatus('正在导入课表文件…');
+      try {
+        const body = new FormData();
+        body.append('course_file', file);
+        const response = await fetch('/api/schedule/import', {method: 'POST', body});
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || 'import failed');
+        setScheduleStatus(`已导入 ${data.courses.courses.length} 门课程`);
+        renderScheduleManager({courses: data.courses, items: scheduleData?.items || {recurring: [], one_off: []}});
+        await loadTodaySchedule();
+      } catch (error) {
+        setScheduleStatus(error.message || '课表导入失败，请确认文件来自课表插件', true);
+      } finally {
+        button.disabled = false;
+      }
+    }
+
     async function saveScheduleItem(kind, itemId, payload) {
       const url = itemId ? `/api/schedule/${kind === 'recurring' ? 'recurring' : 'one-off'}/${itemId}` : `/api/schedule/${kind === 'recurring' ? 'recurring' : 'one-off'}`;
       const response = await fetch(url, {method: itemId ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});

@@ -17,6 +17,8 @@
       </div>
       <div class="schedule-header-actions">
         <button type="button" class="btn-schedule-action" id="btn-add-schedule-item" onclick="openScheduleItemModal()">+ 添加事项</button>
+        <input class="schedule-file-input" id="schedule-file-input" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="importCourseSchedule(this)">
+        <button type="button" class="btn-schedule-action schedule-import-button" id="schedule-import-button" onclick="document.getElementById('schedule-file-input').click()">从插件文件导入</button>
         <button type="button" class="schedule-refresh-button" id="schedule-refresh-button" onclick="openTongjiTimetableLogin()">统一身份认证导入</button>
         <a class="schedule-refresh-button schedule-download-link" href="/static/downloads/tongji-timetable-exporter-v1.2.zip" download>下载课表插件 v1.2</a>
       </div>

@@ -2,6 +2,7 @@ import json
 from io import BytesIO
 from datetime import date, timedelta
 from zipfile import ZipFile
+from xml.sax.saxutils import escape
 
 import app as dashboard_app
 import schedule_store
@@ -23,6 +24,20 @@ def _client(tmp_path, monkeypatch, username="alice"):
         session["_csrf_token"] = f"csrf-{username}"
     client.csrf_headers = {"X-CSRF-Token": f"csrf-{username}"}
     return client, resolve_user_dir
+
+
+def _exported_timetable_xlsx(rows):
+    def cell(column, row_number, value):
+        return f'<c r="{column}{row_number}" t="inlineStr"><is><t>{escape(value)}</t></is></c>'
+    sheet_rows = "".join(
+        f'<row r="{row_number}">{"".join(cell(chr(65 + index), row_number, value) for index, value in enumerate(row))}</row>'
+        for row_number, row in enumerate(rows, start=1)
+    )
+    output = BytesIO()
+    with ZipFile(output, "w") as archive:
+        archive.writestr("xl/workbook.xml", '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"/>')
+        archive.writestr("xl/worksheets/sheet1.xml", f'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>{sheet_rows}</sheetData></worksheet>')
+    return output.getvalue()
 
 
 def test_parse_selected_courses_uses_headers_and_handles_week_patterns():
@@ -69,6 +84,44 @@ def test_parse_live_timetable_split_tables_and_xingqi_time_format():
     assert courses[0]["sessions"][1]["parity"] == "even"
 
 
+def test_import_exported_timetable_xlsx_replaces_only_current_users_courses(tmp_path, monkeypatch):
+    client, resolve_user_dir = _client(tmp_path, monkeypatch)
+    monkeypatch.setattr(dashboard_app, "get_term_info", lambda: ("2025-2026学年第2学期", 1, "2026-03-02"))
+    content = _exported_timetable_xlsx([
+        ["新课程序号", "课程名称", "教师", "上课时间", "上课地点", "校区"],
+        ["AUTO1001", "自动控制原理", "匿名教师", "星期一 1-2节 [1-16]，星期三 7-8节 [2-16双]", "匿名教室", "四平路校区"],
+    ])
+
+    response = client.post(
+        "/api/schedule/import",
+        data={"course_file": (BytesIO(content), "同济大学课程表.xlsx")},
+        content_type="multipart/form-data",
+        headers=client.csrf_headers,
+    )
+
+    assert response.status_code == 200
+    stored = json.loads((resolve_user_dir("alice") / "course_schedule.json").read_text(encoding="utf-8"))
+    assert stored["term"] == "2025-2026学年第2学期"
+    assert stored["courses"][0]["name"] == "自动控制原理"
+    assert len(stored["courses"][0]["sessions"]) == 2
+    assert stored["courses"][0]["sessions"][1]["parity"] == "even"
+
+
+def test_import_invalid_timetable_file_keeps_previous_course_cache(tmp_path, monkeypatch):
+    client, resolve_user_dir = _client(tmp_path, monkeypatch)
+    schedule_store.save_courses("alice", "测试学期", "2026-03-02", [{"name": "旧课程", "sessions": []}], "2026-03-01T00:00:00+08:00")
+
+    response = client.post(
+        "/api/schedule/import",
+        data={"course_file": (BytesIO(b"not an xlsx"), "课程表.xlsx")},
+        content_type="multipart/form-data",
+        headers=client.csrf_headers,
+    )
+
+    assert response.status_code == 400
+    assert json.loads((resolve_user_dir("alice") / "course_schedule.json").read_text(encoding="utf-8"))["courses"][0]["name"] == "旧课程"
+
+
 def test_refresh_failure_keeps_previous_course_cache(tmp_path, monkeypatch):
     client, resolve_user_dir = _client(tmp_path, monkeypatch)
     schedule_store.save_courses("alice", "测试学期", "2026-03-02", [{"name": "旧课程", "sessions": []}], "2026-03-01T00:00:00+08:00")
@@ -105,8 +158,12 @@ def test_refresh_requires_tongji_credentials(tmp_path, monkeypatch):
 def test_timetable_extension_is_linked_and_downloadable(tmp_path, monkeypatch):
     client, _ = _client(tmp_path, monkeypatch)
     package_url = "/static/downloads/tongji-timetable-exporter-v1.2.zip"
+    page = client.get("/").get_data(as_text=True)
 
-    assert package_url in client.get("/").get_data(as_text=True)
+    assert package_url in page
+    assert 'id="schedule-import-button"' in page
+    assert 'id="schedule-file-input"' in page
+    assert "/api/schedule/import" in page
     response = client.get(package_url)
     assert response.status_code == 200
     with ZipFile(BytesIO(response.data)) as archive:

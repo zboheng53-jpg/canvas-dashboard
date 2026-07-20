@@ -1140,6 +1140,23 @@ def api_schedule_refresh():
     return jsonify({"ok": True, "courses": schedule_store.load_courses(username)})
 
 
+@app.route("/api/schedule/import", methods=["POST"])
+def api_schedule_import():
+    uploaded = request.files.get("course_file")
+    if uploaded is None or not uploaded.filename:
+        return api_error("timetable_file_missing", "请选择课表插件导出的 .xlsx 文件")
+    if not uploaded.filename.lower().endswith(".xlsx"):
+        return api_error("timetable_file_invalid", "仅支持课表插件导出的 .xlsx 文件")
+    try:
+        courses = tongji_timetable.parse_exported_timetable_xlsx(uploaded.read())
+    except ValueError as error:
+        return api_error("timetable_file_invalid", str(error))
+    username = session["username"]
+    term, _, semester_start = get_term_info()
+    schedule_store.save_courses(username, term, semester_start, courses, datetime.now(CST).isoformat())
+    return jsonify({"ok": True, "courses": schedule_store.load_courses(username)})
+
+
 @app.route("/api/schedule/<kind>", methods=["POST"])
 def api_schedule_item_create(kind):
     if kind not in {"recurring", "one-off"}:
