@@ -1933,3 +1933,21 @@
   cursor: pointer;
 }
 
+/* Compact platform status labels. */
+.connections-layout { grid-template-columns: minmax(230px, 260px) minmax(0, 1fr); }
+.connections-list-panel { padding: 20px; background: #fcfbf9; border: 1px solid var(--shell-border-soft); border-radius: var(--shell-radius); }
+.connections-panel-title { margin: 0 0 10px; color: var(--shell-ink); font-family: var(--font-serif); font-size: 18px; font-weight: 700; }
+.connection-platform-list { display: flex; gap: 8px; margin: 0; flex-direction: column; }
+.connections-list-panel .login-card { display: flex; min-height: 46px; align-items: center; justify-content: space-between; gap: 14px; padding: 0 15px; color: var(--shell-ink); background: #fff; border: 1px solid var(--shell-border); border-left: 3px solid var(--connection-platform-accent); border-radius: 8px; font-family: var(--font-sans); text-decoration: none; box-sizing: border-box; }
+.connections-list-panel .login-card[data-platform="canvas"] { --connection-platform-accent: #c84545; }
+.connections-list-panel .login-card[data-platform="haoke"] { --connection-platform-accent: #3f9265; }
+.connections-list-panel .login-card[data-platform="zhixuemeng"] { --connection-platform-accent: #467caf; }
+.connections-list-panel .login-card[data-platform="zhihuishu"] { --connection-platform-accent: #9a762f; }
+.connections-list-panel .login-card.is-selected { background: #fff; border-color: var(--connection-platform-accent); box-shadow: none; }
+.connections-list-panel .login-card-title { margin: 0; color: var(--shell-ink); font-family: var(--font-sans); font-size: 16px; font-weight: 500; }
+.connections-list-panel .login-card-status { display: inline-flex; min-width: 68px; align-items: center; justify-content: flex-start; gap: 6px; margin: 0; color: var(--shell-muted); font-family: var(--font-sans); font-size: 13px; font-weight: 500; line-height: 1.2; white-space: nowrap; }
+.connections-list-panel .login-card-status::before { width: 6px; height: 6px; background: #a8a39b; border-radius: 50%; content: ""; }
+.connections-list-panel .login-card-status.connected { color: #4e7658; }
+.connections-list-panel .login-card-status.connected::before { background: #669a72; }
+.connections-list-panel .login-card-status.attention { color: #ad625b; }
+.connections-list-panel .login-card-status.attention::before { background: #c77b72; }
