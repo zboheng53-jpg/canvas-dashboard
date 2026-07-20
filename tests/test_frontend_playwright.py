@@ -680,8 +680,8 @@ def test_frontend_mobile_todo_layout_is_compact_and_tappable(live_app, browser, 
     page.click('[data-dashboard-view="connections"]')
     login_cards = page.locator("#login-cards")
     expect(login_cards).to_be_visible()
-    expected_columns = 1 if width < 480 else 2
-    assert len(login_cards.evaluate("element => getComputedStyle(element).gridTemplateColumns").split()) == expected_columns
+    assert login_cards.evaluate("element => getComputedStyle(element).display") == "flex"
+    assert login_cards.evaluate("element => getComputedStyle(element).flexDirection") == "column"
 
 
 @pytest.mark.parametrize("width", [375, 390, 768])
