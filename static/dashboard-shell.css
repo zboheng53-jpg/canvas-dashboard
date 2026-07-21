@@ -1821,12 +1821,12 @@
 }
 
 .connection-form-inline {
-  grid-template-columns: minmax(0, 1fr) 108px;
+  grid-template-columns: minmax(0, 1fr) 128px;
   align-items: center;
 }
 
 .connection-form-inline button {
-  width: 108px;
+  width: 128px;
 }
 
 .connection-form button:disabled,

@@ -267,6 +267,58 @@ a:hover { color: var(--accent-hover); }
   transition: all 0.2s;
 }
 
+.auth-inline-group button,
+.auth-inline-group .btn-auth-inline {
+  flex: 0 0 128px !important;
+  width: 128px !important;
+  min-width: 128px !important;
+  max-width: 128px !important;
+  height: 42px !important;
+  padding: 0 8px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  font-family: var(--font-sans) !important;
+  border-radius: var(--radius-sm) !important;
+  white-space: nowrap !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  box-shadow: none !important;
+  outline: none !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Secondary Action Button (e.g. Send SMS Code) */
+.auth-inline-group button.btn-secondary,
+.auth-inline-group .btn-auth-secondary,
+#zxm-send-sms-btn {
+  background: #eef1f7 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #2d4475 !important;
+}
+
+.auth-inline-group button.btn-secondary:hover,
+.auth-inline-group .btn-auth-secondary:hover,
+#zxm-send-sms-btn:hover {
+  background: #e2e8f0 !important;
+  border-color: #94a3b8 !important;
+  color: #1e293b !important;
+}
+
+.auth-inline-group button.btn-secondary:disabled,
+.auth-inline-group .btn-auth-secondary:disabled,
+#zxm-send-sms-btn:disabled {
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #64748b !important;
+  opacity: 1 !important;
+  cursor: not-allowed !important;
+}
+
 .btn-refresh:hover {
   border-color: var(--accent);
   color: var(--accent);
@@ -1269,8 +1321,19 @@ a:hover { color: var(--accent-hover); }
     cursor: pointer;
   }
   .add-todo-form .date-input::-webkit-datetime-edit { color: transparent; }
-  .add-todo-form .date-input::-webkit-calendar-picker-indicator { opacity: 0.65; cursor: pointer; }
-  .add-todo-form button { width: 44px; }
+  .add-todo-form button:not(.btn-wide):not(.btn-primary):not(.btn-secondary):not(.btn-accent):not(.btn-submit):not(.btn-auth-inline):not(.btn-auth-primary):not(.btn-auth-secondary) { width: 44px; }
+  .add-todo-form .btn-wide,
+  .add-todo-form .btn-primary,
+  .add-todo-form .btn-secondary,
+  .add-todo-form .btn-accent,
+  .add-todo-form .btn-submit,
+  .add-todo-form .btn-auth-inline,
+  .add-todo-form .btn-auth-primary,
+  .add-todo-form .btn-auth-secondary {
+    width: auto;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
   .item-course { display: none; }
   .unified-item {
     display: grid;

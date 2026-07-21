@@ -156,11 +156,11 @@ def _parse_selected_courses_tables(tables):
         if not table:
             continue
         headers = table[0]
-        code = _header_index(headers, ("新课程序号", "课程代码", "课程号"))
-        name = _header_index(headers, ("课程名称",))
+        code = _header_index(headers, ("新课程序号", "新课程", "课程代码", "课程号"))
+        name = _header_index(headers, ("课程名称", "课程"))
         teacher = _header_index(headers, ("教师", "任课教师"))
         meeting = _header_index(headers, ("上课时间", "时间"))
-        location = _header_index(headers, ("地点", "教室"))
+        location = _header_index(headers, ("上课地点", "地点", "教室"))
         campus = _header_index(headers, ("校区",))
         if name is None or meeting is None:
             continue
