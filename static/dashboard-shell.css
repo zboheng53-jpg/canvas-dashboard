@@ -1821,18 +1821,71 @@
 }
 
 .connection-form-inline {
-  grid-template-columns: minmax(0, 1fr) 128px;
-  align-items: center;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 128px !important;
+  gap: 10px !important;
+  align-items: center !important;
+  width: 100% !important;
+  margin-bottom: 12px !important;
 }
 
-.connection-form-inline button {
-  width: 128px;
+.connection-form-inline input {
+  min-width: 0 !important;
+  height: 42px !important;
+  padding: 0 14px !important;
+  border-radius: 6px !important;
+  background: #fff !important;
+  border: 1px solid var(--shell-border) !important;
+  color: var(--shell-ink) !important;
+  font-size: 14px !important;
+  box-sizing: border-box !important;
 }
 
-.connection-form button:disabled,
-.connections-detail-panel button:disabled {
-  cursor: wait;
-  opacity: .58;
+.connection-form-inline button,
+.connection-form-inline .btn-auth-inline {
+  width: 128px !important;
+  min-width: 128px !important;
+  max-width: 128px !important;
+  height: 42px !important;
+  padding: 0 8px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  border-radius: 6px !important;
+  white-space: nowrap !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  box-shadow: none !important;
+  outline: none !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Secondary button in connection panel (Send SMS Code) */
+.connection-form-inline button.btn-auth-secondary,
+.connections-detail-panel #zxm-send-sms-btn-inline {
+  background: #eef1f7 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #2d4475 !important;
+}
+
+.connection-form-inline button.btn-auth-secondary:disabled,
+.connections-detail-panel #zxm-send-sms-btn-inline:disabled {
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #64748b !important;
+  opacity: 1 !important;
+  cursor: not-allowed !important;
+}
+
+/* Primary button in connection panel (Login) */
+.connection-form-inline button.btn-auth-primary {
+  background: var(--sidebar-blue) !important;
+  border: 1px solid var(--sidebar-blue) !important;
+  color: #ffffff !important;
 }
 
 .connection-error {

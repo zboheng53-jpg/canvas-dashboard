@@ -414,7 +414,7 @@ a:hover { color: var(--accent-hover); }
   cursor: pointer;
 }
 
-.add-todo-form button {
+.add-todo-form button:not(.btn-wide):not(.btn-primary):not(.btn-secondary):not(.btn-accent):not(.btn-submit):not(.btn-auth-inline):not(.btn-auth-primary):not(.btn-auth-secondary) {
   width: 40px;
   height: 40px;
   border-radius: var(--radius-sm);
@@ -433,21 +433,29 @@ a:hover { color: var(--accent-hover); }
   justify-content: center;
 }
 
-.add-todo-form button:hover {
+.add-todo-form button:not(.btn-wide):not(.btn-primary):not(.btn-secondary):not(.btn-accent):not(.btn-submit):not(.btn-auth-inline):not(.btn-auth-primary):not(.btn-auth-secondary):hover {
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-subtle);
 }
 
-.add-todo-form .btn-wide {
+.add-todo-form .btn-wide,
+.add-todo-form .btn-primary,
+.add-todo-form .btn-secondary,
+.add-todo-form .btn-accent,
+.add-todo-form .btn-submit,
+.add-todo-form .btn-auth-inline,
+.add-todo-form .btn-auth-primary,
+.add-todo-form .btn-auth-secondary {
   width: auto;
+  min-width: max-content;
+  height: auto;
   padding: 9px 18px;
   font-size: 13px;
-  font-weight: 400;
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
-  height: auto;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
 }
 
 .add-todo-form .btn-wide:hover {

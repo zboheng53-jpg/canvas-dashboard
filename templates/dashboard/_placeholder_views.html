@@ -187,9 +187,9 @@
 
         <div class="detail-section-title">连接配置</div>
         <div class="detail-content-box">
-          <form class="add-todo-form connection-form connection-form-inline" id="canvas-setup-form-inline">
+          <form class="connection-form connection-form-inline" id="canvas-setup-form-inline">
             <input type="url" id="feed-url-input-inline" placeholder="粘贴日历馈送 URL（.ics）..." autocomplete="off">
-            <button type="submit" class="btn-primary">保存配置</button>
+            <button type="submit" class="btn-auth-primary">保存配置</button>
           </form>
           <div class="error-banner connection-error hidden" id="canvas-error-inline"></div>
           <p class="setup-hint connection-setup-hint">
@@ -213,10 +213,10 @@
 
         <div class="detail-section-title">连接配置</div>
         <div class="detail-content-box">
-          <form class="add-todo-form connection-form" id="haoke-setup-form-inline">
+          <form class="connection-form" id="haoke-setup-form-inline">
             <input type="text" id="haoke-username-inline" placeholder="学号" autocomplete="off">
             <input type="password" id="haoke-password-inline" placeholder="密码" autocomplete="off">
-            <button type="submit" class="btn-primary">保存并登录</button>
+            <button type="submit" class="btn-auth-primary btn-wide" style="width: 100%;">保存并登录</button>
           </form>
           <div class="error-banner connection-error hidden" id="haoke-error-inline"></div>
           <p class="setup-hint connection-setup-hint">
@@ -254,13 +254,13 @@
           <!-- Setup state -->
           <div id="zxm-setup-inline" class="hidden" style="display: flex; flex-direction: column; gap: 12px;">
             <p class="setup-hint connection-setup-hint">请输入智学盟平台的手机号和验证码登录：</p>
-            <div class="add-todo-form" style="display: flex; gap: 8px;">
-              <input type="tel" id="zxm-phone-inline" placeholder="手机号" autocomplete="off" style="flex: 1;">
-              <button type="button" id="zxm-send-sms-btn-inline" onclick="sendZhixuemengSmsInline()" class="btn-primary" style="white-space: nowrap; font-size: 13px; padding: 0 12px;">发送验证码</button>
+            <div class="connection-form connection-form-inline">
+              <input type="tel" id="zxm-phone-inline" placeholder="手机号" autocomplete="off">
+              <button type="button" id="zxm-send-sms-btn-inline" onclick="sendZhixuemengSmsInline()" class="btn-auth-secondary">发送验证码</button>
             </div>
-            <div class="add-todo-form" style="display: flex; gap: 8px;">
-              <input type="text" id="zxm-captcha-inline" placeholder="验证码" autocomplete="off" style="flex: 1;">
-              <button type="button" onclick="doZhixuemengLoginInline()" class="btn-accent" style="white-space: nowrap; font-size: 13px; padding: 0 20px;">登录</button>
+            <div class="connection-form connection-form-inline">
+              <input type="text" id="zxm-captcha-inline" placeholder="验证码" autocomplete="off">
+              <button type="button" onclick="doZhixuemengLoginInline()" class="btn-auth-primary">登录</button>
             </div>
             <div class="form-note" style="text-align: right; margin-top: 4px;">
               <a href="#" onclick="showZxmPasswordLoginInline();return false;" style="font-size: 12px; color: var(--sidebar-blue);">使用密码登录</a>
