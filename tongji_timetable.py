@@ -155,7 +155,7 @@ def parse_selected_courses_html(markup):
 
 
 def _parse_selected_courses_tables(tables):
-    courses = []
+    list_courses = []
     for table_index, table in enumerate(tables):
         if not table:
             continue
@@ -180,14 +180,118 @@ def _parse_selected_courses_tables(tables):
             if not sessions:
                 continue
             course_name = cell(name)
-            courses.append({
-                "id": f"{cell(code) or course_name}:{len(courses)}",
+            list_courses.append({
+                "id": f"{cell(code) or course_name}:{len(list_courses)}",
                 "code": cell(code), "name": course_name, "teacher": cell(teacher),
                 "raw_time": raw_time, "location": places, "sessions": sessions,
             })
-        if courses:
-            return courses
-    return []
+        if list_courses:
+            break
+
+    # Look for visual weekly timetable grid ('学生课表')
+    grid_table = None
+    for table in tables:
+        if not table:
+            continue
+        header_str = " ".join(table[0])
+        if "节次" in header_str and any(w in header_str for w in ("周一", "星期一")):
+            grid_table = table
+            break
+
+    if not grid_table:
+        return list_courses
+
+    header = grid_table[0]
+    day_cols = {}
+    for col_idx, col_name in enumerate(header):
+        col_clean = re.sub(r"\s+", "", col_name)
+        for w_name, w_val in WEEKDAYS.items():
+            if w_name in col_clean:
+                day_cols[col_idx] = w_val
+                break
+
+    grid_course_identifiers = set()
+    grid_sessions_by_code = {}
+
+    for row_idx in range(1, len(grid_table)):
+        row = grid_table[row_idx]
+        if not row:
+            continue
+        row_label = row[0]
+        p_match = re.search(r"第?\s*(\d{1,2})\s*节", row_label)
+        default_period = int(p_match.group(1)) if p_match else row_idx
+
+        for col_idx, weekday in day_cols.items():
+            if col_idx >= len(row):
+                continue
+            cell_text = row[col_idx].strip()
+            if not cell_text:
+                continue
+
+            codes = re.findall(r"\(([A-Za-z0-9]{6,10})\)", cell_text)
+            for c_code in codes:
+                grid_course_identifiers.add(c_code)
+
+            sp, ep = default_period, default_period
+            period_m = re.search(r"\[\s*(\d{1,2})\s*[-~至]\s*(\d{1,2})\s*节\s*\]", cell_text)
+            if period_m:
+                sp, ep = int(period_m.group(1)), int(period_m.group(2))
+
+            weeks_matches = re.finditer(r"(\[[^\]]+\])", cell_text)
+            for wm in weeks_matches:
+                w_str = wm.group(1)
+                if "节" in w_str:
+                    continue
+                weeks, parity = _parse_weeks(w_str)
+                if not weeks:
+                    continue
+
+                for c_code in codes:
+                    if c_code not in grid_sessions_by_code:
+                        grid_sessions_by_code[c_code] = []
+
+                    loc_m = re.search(r"(?:[A-Za-z0-9_-]+(?:楼|馆|室|场|\d{3}))", cell_text)
+                    loc = loc_m.group(0) if loc_m else ""
+
+                    raw_time = f"周{['一','二','三','四','五','六','日'][weekday]} 第{sp}-{ep}节 {w_str}"
+                    s_item = {
+                        "weekday": weekday,
+                        "weeks": weeks,
+                        "parity": parity,
+                        "start_period": sp,
+                        "end_period": ep,
+                        "start_time": PERIOD_TIMES.get(sp, ("08:00", "08:45"))[0],
+                        "end_time": PERIOD_TIMES.get(ep, ("08:00", "08:45"))[1],
+                        "date_start": None,
+                        "date_end": None,
+                        "location": loc,
+                        "raw_time": raw_time
+                    }
+
+                    s_key = (weekday, sp, ep, tuple(weeks))
+                    if not any((s['weekday'], s['start_period'], s['end_period'], tuple(s['weeks'])) == s_key for s in grid_sessions_by_code[c_code]):
+                        grid_sessions_by_code[c_code].append(s_item)
+
+    if not grid_course_identifiers:
+        return list_courses
+
+    filtered_courses = []
+    for c in list_courses:
+        c_code = c.get("code", "")
+        c_name = c.get("name", "")
+
+        matched_code = None
+        if c_code and c_code in grid_course_identifiers:
+            matched_code = c_code
+        elif any(ident in c_name or c_name in ident for ident in grid_course_identifiers):
+            matched_code = c_code
+
+        if matched_code:
+            if matched_code in grid_sessions_by_code and grid_sessions_by_code[matched_code]:
+                c["sessions"] = grid_sessions_by_code[matched_code]
+            filtered_courses.append(c)
+
+    return filtered_courses if filtered_courses else list_courses
 
 
 def _xlsx_column_index(reference):
