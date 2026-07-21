@@ -69,6 +69,10 @@ def _normalized(value):
 def _header_index(headers, aliases):
     for index, header in enumerate(headers):
         normalized = _normalized(header)
+        if any(alias == normalized for alias in aliases):
+            return index
+    for index, header in enumerate(headers):
+        normalized = _normalized(header)
         if any(alias in normalized for alias in aliases):
             return index
     return None
