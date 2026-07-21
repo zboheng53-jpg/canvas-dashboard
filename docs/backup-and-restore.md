@@ -67,7 +67,7 @@ journalctl -u canvas-dashboard-backup.service -n 50 --no-pager
 Install or repair the Windows task:
 
 ```powershell
-.\scripts\install-backup-task.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-backup-task.ps1
 ```
 
 ## Manual Backup And Recovery Drill
@@ -75,7 +75,7 @@ Install or repair the Windows task:
 Create a fresh production backup, download it, verify it, and perform a real restore into an isolated temporary directory:
 
 ```powershell
-.\scripts\pull-production-backup.ps1 -CreateBackup -RecoveryDrill
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\pull-production-backup.ps1 -CreateBackup -RecoveryDrill
 ```
 
 This command does not replace production data. It is the required pre-deployment gate and the preferred periodic recovery exercise.

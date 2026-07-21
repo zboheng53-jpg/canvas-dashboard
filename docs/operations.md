@@ -7,7 +7,7 @@ Production is served at `https://canvas-dashboard.xyz` on `ubuntu@124.222.188.10
 Run deployments from the repository root on Windows:
 
 ```powershell
-.\.agents\skills\deploy-canvas-dashboard\scripts\deploy.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\.agents\skills\deploy-canvas-dashboard\scripts\deploy.ps1
 ```
 
 The deploy script:

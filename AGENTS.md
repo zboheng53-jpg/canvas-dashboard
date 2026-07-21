@@ -51,8 +51,11 @@ canvas-dashboard/
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt pytest
-.\scripts\dev.ps1
+.\local-preview.bat
 ```
+
+Use `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\dev.ps1`
+when the server needs to stay in the foreground for diagnostics.
 
 Local development and Waitress both listen on `127.0.0.1:5000` by default. `serve.py` is the production entrypoint; systemd runs it from `/home/ubuntu/canvas-dashboard/current`.
 
@@ -61,7 +64,7 @@ Local development and Waitress both listen on `127.0.0.1:5000` by default. `serv
 Preferred local checks:
 
 ```powershell
-.\scripts\test.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1
 ```
 
 Targeted examples:
@@ -80,7 +83,7 @@ Production server: `ubuntu@124.222.188.101:/home/ubuntu/canvas-dashboard`
 Deploy through the project skill script after local verification:
 
 ```powershell
-.\.agents\skills\deploy-canvas-dashboard\scripts\deploy.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\.agents\skills\deploy-canvas-dashboard\scripts\deploy.ps1
 ```
 
 The deploy script runs the full test/compile gates, creates and restores an encrypted off-server backup in an isolated drill, uploads an immutable release through the pinned `deploy/known_hosts`, atomically switches `current`, and automatically restores the previous release on activation or health failure.

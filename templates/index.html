@@ -1000,7 +1000,12 @@
     async function refreshPlatformConnections() {
       const button = document.getElementById('connections-refresh-button');
       const status = document.getElementById('connections-manager-status');
-      if (button) button.disabled = true;
+      let refreshed = false;
+      if (button) {
+        button.dataset.defaultLabel = button.dataset.defaultLabel || button.textContent;
+        button.disabled = true;
+        button.textContent = '\u5237\u65b0\u4e2d\u2026';
+      }
       if (status) status.textContent = '正在刷新四个平台的连接状态…';
       try {
         await Promise.all([
@@ -1009,9 +1014,18 @@
           fetchZhixuemengTodos(),
           fetchZhihuishuTodos(),
         ]);
+        refreshed = true;
         if (status) status.textContent = '连接状态已刷新；待办数据也已同步。';
       } finally {
-        if (button) button.disabled = false;
+        if (button) {
+          button.disabled = false;
+          button.textContent = button.dataset.defaultLabel;
+        }
+        if (refreshed && status) {
+          const now = new Date();
+          const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+          status.textContent = `\u8fde\u63a5\u72b6\u6001\u5df2\u5237\u65b0 \u00b7 ${time}`;
+        }
       }
     }
 
@@ -2046,7 +2060,9 @@
       
       // Update selected class in platform list
       document.querySelectorAll('#login-cards .login-card').forEach(card => {
-        card.classList.toggle('is-selected', card.dataset.platform === platform);
+        const selected = card.dataset.platform === platform;
+        card.classList.toggle('is-selected', selected);
+        card.toggleAttribute('aria-current', selected);
       });
 
       // Update right details panels visibility

@@ -24,7 +24,7 @@ env/
 # Local logs.
 *.log
 *.err.log
-canvas-dashboard.tar.gz
+*.tar.gz
 
 # Browser/user profiles and automation caches.
 chrome_cdp_profile/

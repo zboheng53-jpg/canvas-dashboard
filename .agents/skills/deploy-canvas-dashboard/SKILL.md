@@ -12,7 +12,7 @@ Run the repository deployment script exactly; do not reimplement its release seq
 From the project root:
 
 ```powershell
-./.agents/skills/deploy-canvas-dashboard/scripts/deploy.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./.agents/skills/deploy-canvas-dashboard/scripts/deploy.ps1
 ```
 
 The script is the source of truth. It currently:

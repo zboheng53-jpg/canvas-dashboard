@@ -35,8 +35,23 @@ python3 -m venv .venv
 Windows development:
 
 ```powershell
-.\scripts\dev.ps1
+.\local-preview.bat
 ```
+
+For the normal review loop, start a local preview (it opens the browser once
+`/healthz` is ready):
+
+Double-click `local-preview.bat`, or run:
+
+```powershell
+.\local-preview.bat
+```
+
+Review at `http://127.0.0.1:5000`, then run tests and deploy only after the
+local result is acceptable. Use `-NoBrowser` when a script should start or
+reuse the local preview without opening a tab. If the preview cannot start,
+run `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\dev.ps1` in a terminal
+to see the application error directly.
 
 Direct entry points:
 
@@ -50,8 +65,8 @@ The app listens on `127.0.0.1:5000` by default. Override with `CANVAS_DASHBOARD_
 ## Test
 
 ```powershell
-.\scripts\test.ps1
-.\scripts\test.ps1 tests\test_healthz.py -q
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1 tests\test_healthz.py -q
 ```
 
 The script pins `.venv`, sets UTF-8 output, checks required Python packages, and then runs `pytest`.
@@ -67,7 +82,7 @@ The feed includes unfinished, visible, dated platform items; dated unfinished cu
 Run the verified release workflow from Windows:
 
 ```powershell
-.\.agents\skills\deploy-canvas-dashboard\scripts\deploy.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\.agents\skills\deploy-canvas-dashboard\scripts\deploy.ps1
 ```
 
 It runs the full test and compile gates, performs an encrypted off-server backup plus isolated recovery drill, creates an immutable release, activates it atomically, and rolls back automatically on failure. See `docs/operations.md` for service checks and manual rollback.
