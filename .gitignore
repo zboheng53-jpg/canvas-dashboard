@@ -41,3 +41,8 @@ Thumbs.db
 .claude/
 .superpowers/
 .worktrees/
+.recovery/
+
+# Manual production snapshots used only for recovery review.
+服务器版本/
+服务器版本.gz

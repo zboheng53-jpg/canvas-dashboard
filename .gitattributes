@@ -5,3 +5,20 @@
 *.ps1 text eol=crlf
 
 .agents export-ignore
+.env.example export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore
+AGENTS.md export-ignore
+CLAUDE.md export-ignore
+README.md export-ignore
+docs export-ignore
+tests export-ignore
+*.bat export-ignore
+*.vbs export-ignore
+scripts/*.ps1 export-ignore
+deploy/*.md export-ignore
+deploy/known_hosts export-ignore
+fetch_haoke_raw.py export-ignore
+generate_markdown_v4.py export-ignore
+tongji-timetable-exporter-v1.2 export-ignore
+使用教程.txt export-ignore

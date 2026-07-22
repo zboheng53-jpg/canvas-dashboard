@@ -6,6 +6,7 @@ archive=${1:?archive path is required}
 release_name=${2:?release name is required}
 releases="$root/releases"
 release="$releases/$release_name"
+release_retention=5
 
 case "$release_name" in
     *[!A-Za-z0-9._-]*|"") echo "Invalid release name" >&2; exit 2 ;;
@@ -48,6 +49,41 @@ activate_release() {
     sudo systemctl enable --now zhihuishu-login-cleanup.timer canvas-dashboard-backup.timer || return
     sudo systemctl restart canvas-dashboard.service zhihuishu-worker.service || return
     sudo systemctl reload nginx || return
+}
+
+prune_old_releases() {
+    local active rollback name candidate resolved
+    local seen=0
+    local removed=0
+
+    active=$(readlink -f "$root/current") || return
+    rollback=$(cat "$root/.previous-release") || return
+
+    while IFS= read -r name; do
+        case "$name" in
+            release-*|legacy-*) ;;
+            *) continue ;;
+        esac
+
+        candidate="$releases/$name"
+        resolved=$(readlink -f "$candidate") || return
+        case "$resolved" in
+            "$releases"/*) ;;
+            *) echo "Refusing unsafe release cleanup target: $resolved" >&2; return 1 ;;
+        esac
+
+        seen=$((seen + 1))
+        if [ "$seen" -le "$release_retention" ] ||
+           [ "$resolved" = "$active" ] ||
+           [ "$resolved" = "$rollback" ]; then
+            continue
+        fi
+
+        rm -rf -- "$candidate"
+        removed=$((removed + 1))
+    done < <(find "$releases" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -r)
+
+    echo "Pruned $removed old release(s); retained the newest $release_retention plus active rollback targets"
 }
 
 mkdir -p "$releases" "$root/incoming"
@@ -120,5 +156,8 @@ systemctl is-active --quiet canvas-dashboard.service
 systemctl is-active --quiet zhihuishu-worker.service
 systemctl is-active --quiet zhihuishu-login-cleanup.timer
 systemctl is-active --quiet canvas-dashboard-backup.timer
+if ! prune_old_releases; then
+    echo "Warning: release activation succeeded, but old release cleanup failed" >&2
+fi
 rm -f "$archive"
 echo "Activated release $release_name"

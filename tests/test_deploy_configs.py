@@ -65,6 +65,29 @@ def test_deploy_archive_uses_only_tracked_release_files():
     assert ".agents export-ignore" in attributes
 
 
+def test_deploy_archive_excludes_non_runtime_files():
+    repo_root = Path(__file__).parents[1]
+    attributes = (repo_root / ".gitattributes").read_text(encoding="utf-8")
+
+    for entry in (
+        "AGENTS.md export-ignore",
+        "CLAUDE.md export-ignore",
+        "README.md export-ignore",
+        "docs export-ignore",
+        "tests export-ignore",
+        "*.bat export-ignore",
+        "*.vbs export-ignore",
+        "scripts/*.ps1 export-ignore",
+        "deploy/*.md export-ignore",
+        "deploy/known_hosts export-ignore",
+        "fetch_haoke_raw.py export-ignore",
+        "generate_markdown_v4.py export-ignore",
+        "tongji-timetable-exporter-v1.2 export-ignore",
+        "使用教程.txt export-ignore",
+    ):
+        assert entry in attributes
+
+
 def test_release_installer_checks_and_restarts_all_units():
     repo_root = Path(__file__).parents[1]
     install = (repo_root / "deploy" / "install-release.sh").read_text(encoding="utf-8")
@@ -83,6 +106,20 @@ def test_release_installer_checks_and_restarts_all_units():
     for script in (install, rollback):
         assert "sudo test -f /etc/letsencrypt/live/canvas-dashboard.xyz/fullchain.pem" in script
         assert "--resolve canvas-dashboard.xyz:443:127.0.0.1" in script
+
+
+def test_release_installer_prunes_old_releases_after_health_checks():
+    repo_root = Path(__file__).parents[1]
+    install = (repo_root / "deploy" / "install-release.sh").read_text(encoding="utf-8")
+
+    assert "release_retention=5" in install
+    assert "prune_old_releases" in install
+    assert 'readlink -f "$root/current"' in install
+    assert 'cat "$root/.previous-release"' in install
+    assert 'rm -rf -- "$candidate"' in install
+    assert install.index("systemctl is-active --quiet canvas-dashboard-backup.timer") < install.rindex(
+        "prune_old_releases"
+    )
 
 
 def test_calendar_token_paths_are_not_written_to_nginx_access_logs():

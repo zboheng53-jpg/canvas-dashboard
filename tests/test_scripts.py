@@ -17,13 +17,31 @@ def test_local_powershell_scripts_pin_venv_and_utf8():
     assert "app.py" in dev_script.read_text(encoding="utf-8")
 
 
+def test_default_test_run_only_collects_the_repository_test_suite():
+    repo_root = Path(__file__).parents[1]
+    test_script = (repo_root / "scripts" / "test.ps1").read_text(encoding="utf-8")
+
+    assert '$PytestArgs = @("tests", "-q")' in test_script
+
+
+def test_test_script_uses_repository_owned_temp_directory():
+    repo_root = Path(__file__).parents[1]
+    test_script = (repo_root / "scripts" / "test.ps1").read_text(encoding="utf-8")
+
+    assert 'Join-Path $RepoRoot ".pytest-sandbox"' in test_script
+    assert "$env:TEMP = $TestTempRoot" in test_script
+    assert "$env:TMP = $TestTempRoot" in test_script
+
+
 def test_deploy_script_runs_repository_regression_gate_and_compile_check():
     repo_root = Path(__file__).parents[1]
     deploy_script = repo_root / ".agents" / "skills" / "deploy-canvas-dashboard" / "scripts" / "deploy.ps1"
     text = deploy_script.read_text(encoding="utf-8")
 
     assert ".\\scripts\\test.ps1" in text
-    assert "-m compileall" in text
+    assert 'git ls-files -- "*.py"' in text
+    assert "-m py_compile" in text
+    assert "-m compileall" not in text
     assert "unittest discover" not in text
     assert "StrictHostKeyChecking=no" not in text
     assert "StrictHostKeyChecking=yes" in text

@@ -14,10 +14,15 @@ $env:PYTHONUTF8 = "1"
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $Python = Join-Path $RepoRoot ".venv\Scripts\python.exe"
+$TestTempRoot = Join-Path $RepoRoot ".pytest-sandbox"
 
 if (-not (Test-Path -LiteralPath $Python)) {
     throw "Missing .venv Python. Create it with: py -m venv .venv"
 }
+
+New-Item -ItemType Directory -Path $TestTempRoot -Force | Out-Null
+$env:TEMP = $TestTempRoot
+$env:TMP = $TestTempRoot
 
 Push-Location $RepoRoot
 try {
@@ -27,7 +32,7 @@ try {
     }
 
     if ($null -eq $PytestArgs -or $PytestArgs.Count -eq 0) {
-        $PytestArgs = @("-q")
+        $PytestArgs = @("tests", "-q")
     }
 
     & $Python -m pytest @PytestArgs

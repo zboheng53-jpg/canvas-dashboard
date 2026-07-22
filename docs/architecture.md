@@ -119,6 +119,6 @@ Production state is split deliberately:
 └── incoming/             temporary upload area
 ```
 
-Each release links to the shared `data/` and `.venv/`. Activation atomically switches `current`, installs systemd/nginx configuration, restarts services, and runs local plus HTTPS health checks. A failed activation restores the previous release automatically.
+Each release links to the shared `data/` and `.venv/`. Activation atomically switches `current`, installs systemd/nginx configuration, restarts services, and runs local plus HTTPS health checks. A failed activation restores the previous release automatically. After a successful activation, the installer keeps the newest five releases and always protects the active and recorded rollback targets.
 
 Operational commands and rollback procedure are in `docs/operations.md`.

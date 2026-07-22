@@ -720,11 +720,19 @@ def test_frontend_connections_workspace_uses_aligned_master_detail_layout(live_a
 
     cards.first.click()
     expect(page.locator("#detail-canvas")).to_be_visible()
+    expect(page.locator("#schedule-refresh-button")).to_have_text("统一身份认证登录")
     input_box = page.locator("#feed-url-input-inline").bounding_box()
     button_box = page.locator("#canvas-setup-form-inline button").bounding_box()
     assert input_box is not None and button_box is not None
     assert abs((input_box["y"] + input_box["height"] / 2) - (button_box["y"] + button_box["height"] / 2)) < 1
     assert button_box["width"] >= 100
+    for selector in (
+        "#canvas-setup-form-inline button",
+        "#haoke-setup-form-inline button",
+        "#zxm-setup-inline .connection-primary-action",
+    ):
+        expect(page.locator(selector)).to_have_css("background-color", "rgb(47, 107, 214)")
+        expect(page.locator(selector)).to_have_css("color", "rgb(255, 255, 255)")
 
 
 def test_frontend_connections_workspace_stacks_cleanly_on_narrow_desktop(live_app, browser):

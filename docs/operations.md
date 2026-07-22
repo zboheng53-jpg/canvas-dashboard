@@ -14,12 +14,13 @@ The deploy script:
 
 1. runs `scripts/test.ps1` and Python compilation;
 2. creates, downloads, verifies, and restores an encrypted backup in an isolated recovery drill;
-3. packages code without `.git`, `.venv`, `data/`, caches, or agent directories;
+3. packages only production runtime and deployment files, excluding local docs, tests, Windows helpers, `.git`, `.venv`, `data/`, caches, and agent directories;
 4. uploads an immutable release through SSH with the pinned `deploy/known_hosts`;
 5. atomically activates `releases/<release-name>`;
 6. installs systemd and nginx configuration;
 7. restarts services and checks local and HTTPS health;
-8. restores the previous release automatically if activation or health checks fail.
+8. restores the previous release automatically if activation or health checks fail;
+9. after successful health checks, keeps the newest five releases while always protecting the active and recorded rollback targets.
 
 OpenSSH must be able to authenticate non-interactively through the configured key or agent. `-SkipPreDeployBackup` exists for an explicit emergency decision; it skips the off-server backup and recovery drill and should not be the normal path.
 
@@ -49,6 +50,8 @@ bash /home/ubuntu/canvas-dashboard/current/deploy/rollback-release.sh \
 ```
 
 The rollback script rejects targets outside `releases/`, reinstalls the target's service/nginx configuration, restarts the app and worker, and verifies health. It does not replace `data/`.
+
+Normal deployments prune older immutable releases automatically. Do not manually delete `current` or the path recorded in `.previous-release`; the installer protects both even if either falls outside the newest five.
 
 ## Services And Timers
 

@@ -70,7 +70,7 @@ Run the verified release workflow from Windows:
 .\.agents\skills\deploy-canvas-dashboard\scripts\deploy.ps1
 ```
 
-It runs the full test and compile gates, performs an encrypted off-server backup plus isolated recovery drill, creates an immutable release, activates it atomically, and rolls back automatically on failure. See `docs/operations.md` for service checks and manual rollback.
+It runs the full test and compile gates, performs an encrypted off-server backup plus isolated recovery drill, creates an immutable release, activates it atomically, rolls back automatically on failure, and retains only the newest five releases after successful health checks. See `docs/operations.md` for service checks and manual rollback.
 
 ## Data Safety
 

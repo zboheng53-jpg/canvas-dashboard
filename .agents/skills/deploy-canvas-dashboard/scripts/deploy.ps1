@@ -23,7 +23,9 @@ Write-Host "Starting verified release deployment..." -ForegroundColor Cyan
 Write-Host "Running local regression and compilation gates..." -ForegroundColor Yellow
 & .\scripts\test.ps1
 if ($LASTEXITCODE -ne 0) { throw "Local tests failed. Deployment aborted." }
-& .\.venv\Scripts\python.exe -m compileall -q .
+$PythonFiles = @(& git ls-files -- "*.py")
+if ($LASTEXITCODE -ne 0 -or $PythonFiles.Count -eq 0) { throw "Failed to enumerate tracked Python files." }
+& .\.venv\Scripts\python.exe -m py_compile @PythonFiles
 if ($LASTEXITCODE -ne 0) { throw "Python compilation failed. Deployment aborted." }
 
 if (-not $SkipPreDeployBackup) {

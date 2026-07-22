@@ -1881,11 +1881,36 @@
   cursor: not-allowed !important;
 }
 
-/* Primary button in connection panel (Login) */
-.connection-form-inline button.btn-auth-primary {
-  background: var(--sidebar-blue) !important;
-  border: 1px solid var(--sidebar-blue) !important;
-  color: #ffffff !important;
+/* Shared primary action for Canvas, 好课 and 智学盟. */
+.connections-detail-panel .connection-primary-action {
+  color: #fff;
+  background: #2f6bd6;
+  border: 1px solid #2f6bd6;
+  box-shadow: 0 1px 2px rgba(33, 75, 151, .18);
+  font-weight: 600;
+  transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.connections-detail-panel .connection-primary-action:hover:not(:disabled) {
+  color: #fff;
+  background: #255bbd;
+  border-color: #255bbd;
+  box-shadow: 0 3px 8px rgba(33, 75, 151, .22);
+  transform: translateY(-1px);
+}
+
+.connections-detail-panel .connection-primary-action:focus-visible {
+  outline: 3px solid rgba(47, 107, 214, .28) !important;
+  outline-offset: 2px;
+}
+
+.connections-detail-panel button.connection-primary-action:disabled {
+  color: #8aa4cc;
+  background: #dce6f6;
+  border-color: #dce6f6;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .connection-error {

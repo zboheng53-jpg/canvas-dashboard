@@ -19,7 +19,7 @@
         <button type="button" class="btn-schedule-action" id="btn-add-schedule-item" onclick="openScheduleItemModal()">+ 添加事项</button>
         <input class="schedule-file-input" id="schedule-file-input" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="importCourseSchedule(this)">
         <button type="button" class="btn-schedule-action schedule-import-button" id="schedule-import-button" onclick="document.getElementById('schedule-file-input').click()">从插件文件导入</button>
-        <button type="button" class="schedule-refresh-button" id="schedule-refresh-button" onclick="openTongjiTimetableLogin()">统一身份认证导入</button>
+        <button type="button" class="schedule-refresh-button" id="schedule-refresh-button" onclick="openTongjiTimetableLogin()">统一身份认证登录</button>
         <a class="schedule-refresh-button schedule-download-link" href="/static/downloads/tongji-timetable-exporter-v1.2.zip" download>下载课表插件 v1.2</a>
       </div>
     </div>
@@ -189,7 +189,7 @@
         <div class="detail-content-box">
           <form class="connection-form connection-form-inline" id="canvas-setup-form-inline">
             <input type="url" id="feed-url-input-inline" placeholder="粘贴日历馈送 URL（.ics）..." autocomplete="off">
-            <button type="submit" class="btn-auth-primary">保存配置</button>
+            <button type="submit" class="connection-primary-action">保存配置</button>
           </form>
           <div class="error-banner connection-error hidden" id="canvas-error-inline"></div>
           <p class="setup-hint connection-setup-hint">
@@ -216,7 +216,7 @@
           <form class="connection-form" id="haoke-setup-form-inline">
             <input type="text" id="haoke-username-inline" placeholder="学号" autocomplete="off">
             <input type="password" id="haoke-password-inline" placeholder="密码" autocomplete="off">
-            <button type="submit" class="btn-auth-primary btn-wide" style="width: 100%;">保存并登录</button>
+            <button type="submit" class="connection-primary-action btn-wide">保存并登录</button>
           </form>
           <div class="error-banner connection-error hidden" id="haoke-error-inline"></div>
           <p class="setup-hint connection-setup-hint">
@@ -260,7 +260,7 @@
             </div>
             <div class="connection-form connection-form-inline">
               <input type="text" id="zxm-captcha-inline" placeholder="验证码" autocomplete="off">
-              <button type="button" onclick="doZhixuemengLoginInline()" class="btn-auth-primary">登录</button>
+              <button type="button" onclick="doZhixuemengLoginInline()" class="connection-primary-action">登录</button>
             </div>
             <div class="form-note" style="text-align: right; margin-top: 4px;">
               <a href="#" onclick="showZxmPasswordLoginInline();return false;" style="font-size: 12px; color: var(--sidebar-blue);">使用密码登录</a>
