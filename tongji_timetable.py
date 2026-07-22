@@ -451,6 +451,18 @@ def fetch_selected_courses_with_credentials(username, password):
         raise TimetableFetchError("课表服务暂时无法访问") from exc
 
 
+def _wait_for_selected_courses(page, timeout_ms=60_000):
+    deadline = time.monotonic() + timeout_ms / 1_000
+    while True:
+        courses = parse_selected_courses_html(page.content())
+        if courses:
+            return courses
+        remaining_ms = int((deadline - time.monotonic()) * 1_000)
+        if remaining_ms <= 0:
+            raise TimetableFetchError("个人课表已经打开，但课程数据仍未加载完成；请稍后重试")
+        page.wait_for_timeout(min(1_000, remaining_ms))
+
+
 def fetch_selected_courses_from_cdp(cdp_endpoint):
     """Read the timetable from the authenticated temporary noVNC browser."""
     try:
@@ -467,14 +479,7 @@ def fetch_selected_courses_from_cdp(cdp_endpoint):
                     page.wait_for_timeout(1_000)
                 else:
                     page.goto(TIMETABLE_URL, wait_until="networkidle", timeout=60_000)
-            try:
-                page.wait_for_selector("table", timeout=20_000)
-            except Exception as exc:
-                raise TimetableFetchError("认证已完成，但未能打开课表；请在认证窗口中点击“查看课表”后重试") from exc
-            courses = parse_selected_courses_html(page.content())
-            if not courses:
-                raise TimetableFetchError("未在课表页面找到已选课程")
-            return courses
+            return _wait_for_selected_courses(page)
     except TimetableFetchError:
         raise
     except Exception as exc:

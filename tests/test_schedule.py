@@ -145,6 +145,31 @@ def test_authenticated_cdp_reader_opens_timetable_from_workbench(monkeypatch):
     assert page.goto_called is False
 
 
+def test_authenticated_cdp_reader_waits_until_courses_are_rendered(monkeypatch):
+    class Page:
+        def __init__(self):
+            self.markups = ["<main>loading</main>", "<table>ready</table>"]
+            self.waits = []
+
+        def content(self):
+            return self.markups.pop(0)
+
+        def wait_for_timeout(self, timeout):
+            self.waits.append(timeout)
+
+    monkeypatch.setattr(
+        tongji_timetable,
+        "parse_selected_courses_html",
+        lambda markup: [] if "loading" in markup else [{"name": "测试课程"}],
+    )
+    page = Page()
+
+    courses = tongji_timetable._wait_for_selected_courses(page, timeout_ms=60_000)
+
+    assert courses == [{"name": "测试课程"}]
+    assert page.waits == [1_000]
+
+
 def test_parse_live_timetable_split_tables_and_xingqi_time_format():
     markup = """
     <table><tr><th></th><th>新课程序号</th><th>课程名称</th><th>教师</th><th>上课时间</th><th>上课地点</th><th>校区</th></tr></table>
