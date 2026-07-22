@@ -28,7 +28,7 @@ Ordinary application releases are installed by the verified deployment workflow 
 
 ```bash
 cd /home/ubuntu/canvas-dashboard/current
-sudo docker build -f deploy/zhihuishu-login-browser.Dockerfile -t canvas-dashboard-zhihuishu-login:latest .
+sudo bash deploy/build-zhihuishu-login-image.sh
 ```
 
 Allow the service user to start the restricted login containers:

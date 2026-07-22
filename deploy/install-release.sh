@@ -42,10 +42,7 @@ install_configs() {
 
 build_browser_login_image() {
     local source=$1
-    sudo docker build \
-        -f "$source/deploy/zhihuishu-login-browser.Dockerfile" \
-        -t canvas-dashboard-zhihuishu-login:latest \
-        "$source" || return
+    sudo bash "$source/deploy/build-zhihuishu-login-image.sh" || return
 }
 
 activate_release() {

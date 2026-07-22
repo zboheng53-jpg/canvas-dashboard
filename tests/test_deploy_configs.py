@@ -112,10 +112,11 @@ def test_release_installer_checks_and_restarts_all_units():
 def test_release_installer_builds_the_browser_login_image_before_activation():
     repo_root = Path(__file__).parents[1]
     install = (repo_root / "deploy" / "install-release.sh").read_text(encoding="utf-8")
+    builder = (repo_root / "deploy" / "build-zhihuishu-login-image.sh").read_text(encoding="utf-8")
 
     assert "build_browser_login_image" in install
-    assert "zhihuishu-login-browser.Dockerfile" in install
-    assert "canvas-dashboard-zhihuishu-login:latest" in install
+    assert "build-zhihuishu-login-image.sh" in install
+    assert "canvas-dashboard-zhihuishu-login:latest" in builder
     assert install.index('build_browser_login_image "$release"') < install.index('activate_release "$release"')
 
 
