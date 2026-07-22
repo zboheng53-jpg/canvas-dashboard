@@ -166,9 +166,10 @@ def build_docker_command(username: str, token: str, port: int, debug_port: int) 
         "docker", "run", "-d", "--rm", "--name", _container_name(token),
         "--label", "canvas-dashboard=tongji-login", "--security-opt", "no-new-privileges",
         "--cap-drop", "ALL", "--cpus", "0.5", "--memory", "512m", "--pids-limit", "256",
-        "--shm-size", "1g", "-p", f"127.0.0.1:{port}:6080", "-p", f"127.0.0.1:{debug_port}:9222",
+        "--shm-size", "1g", "-p", f"127.0.0.1:{port}:6080", "-p", f"127.0.0.1:{debug_port}:9223",
         "-v", f"{profile}:/profile", "-e", f"LOGIN_URL={LOGIN_URL}",
-        "-e", "CHROME_REMOTE_DEBUGGING_PORT=9222", DOCKER_IMAGE,
+        "-e", "CHROME_REMOTE_DEBUGGING_PORT=9222",
+        "-e", "CHROME_REMOTE_DEBUGGING_PROXY_PORT=9223", DOCKER_IMAGE,
     ]
     if hasattr(os, "getuid") and hasattr(os, "getgid"):
         command[command.index("-p"):command.index("-p")] = ["--user", f"{os.getuid()}:{os.getgid()}"]

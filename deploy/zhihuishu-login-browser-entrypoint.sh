@@ -34,6 +34,12 @@ openbox >/tmp/openbox.log 2>&1 &
 x11vnc -display "$DISPLAY" -forever -shared -nopw -listen 127.0.0.1 -xkb >/tmp/x11vnc.log 2>&1 &
 websockify --web=/usr/share/novnc 0.0.0.0:6080 127.0.0.1:5900 >/tmp/novnc.log 2>&1 &
 
+CHROME_REMOTE_DEBUGGING_PORT="${CHROME_REMOTE_DEBUGGING_PORT:-9222}"
+CHROME_REMOTE_DEBUGGING_PROXY_PORT="${CHROME_REMOTE_DEBUGGING_PROXY_PORT:-9223}"
+socat \
+  TCP-LISTEN:"$CHROME_REMOTE_DEBUGGING_PROXY_PORT",reuseaddr,fork,bind=0.0.0.0 \
+  TCP:127.0.0.1:"$CHROME_REMOTE_DEBUGGING_PORT" >/tmp/cdp-proxy.log 2>&1 &
+
 CHROME_BIN="${CHROME_BIN:-}"
 if [ -z "$CHROME_BIN" ]; then
   if [ -d /ms-playwright ]; then
@@ -72,7 +78,7 @@ fi
   --user-data-dir="$PROFILE_DIR" \
   --window-size=1280,900 \
   --remote-debugging-address=0.0.0.0 \
-  --remote-debugging-port="${CHROME_REMOTE_DEBUGGING_PORT:-9222}" \
+  --remote-debugging-port="$CHROME_REMOTE_DEBUGGING_PORT" \
   "$LOGIN_URL" >/tmp/chromium.log 2>&1 &
 
 wait -n

@@ -121,6 +121,17 @@ def test_release_installer_builds_the_browser_login_image_before_activation():
     assert install.index('build_browser_login_image "$release"') < install.index('activate_release "$release"')
 
 
+def test_browser_login_image_proxies_loopback_only_chromium_debugger():
+    repo_root = Path(__file__).parents[1]
+    builder = (repo_root / "deploy" / "build-zhihuishu-login-image.sh").read_text(encoding="utf-8")
+    entrypoint = (repo_root / "deploy" / "zhihuishu-login-browser-entrypoint.sh").read_text(encoding="utf-8")
+
+    assert "socat" in builder
+    assert "CHROME_REMOTE_DEBUGGING_PROXY_PORT" in entrypoint
+    assert "TCP-LISTEN" in entrypoint
+    assert "TCP:127.0.0.1" in entrypoint
+
+
 def test_release_installer_prunes_old_releases_after_health_checks():
     repo_root = Path(__file__).parents[1]
     install = (repo_root / "deploy" / "install-release.sh").read_text(encoding="utf-8")

@@ -10,9 +10,10 @@ def test_tongji_session_uses_separate_ports_and_local_debugger(tmp_path, monkeyp
 
     assert "canvas-dashboard=tongji-login" in command
     assert "127.0.0.1:6207:6080" in command
-    assert "127.0.0.1:6307:9222" in command
+    assert "127.0.0.1:6307:9223" in command
     assert "LOGIN_URL=https://1.tongji.edu.cn/GraduateStudentTimeTable" in command
     assert "CHROME_REMOTE_DEBUGGING_PORT=9222" in command
+    assert "CHROME_REMOTE_DEBUGGING_PROXY_PORT=9223" in command
     assert (tmp_path / "users" / "alice" / "tongji_login_profile").is_dir()
 
 

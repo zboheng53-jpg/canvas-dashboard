@@ -21,7 +21,7 @@ fi
 
 sudo rm -rf "$ROOTFS_DIR"
 
-PACKAGES="bash,ca-certificates,chromium,dbus,dbus-x11,fonts-noto-cjk,novnc,openbox,procps,python3-cffi-backend,websockify,x11vnc,xvfb"
+PACKAGES="bash,ca-certificates,chromium,dbus,dbus-x11,fonts-noto-cjk,novnc,openbox,procps,python3-cffi-backend,socat,websockify,x11vnc,xvfb"
 
 sudo debootstrap \
   --variant=minbase \
