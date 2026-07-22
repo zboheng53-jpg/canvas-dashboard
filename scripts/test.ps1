@@ -14,7 +14,7 @@ $env:PYTHONUTF8 = "1"
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $Python = Join-Path $RepoRoot ".venv\Scripts\python.exe"
-$TestTempRoot = Join-Path $RepoRoot ".pytest-sandbox"
+$TestTempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("canvas-dashboard-pytest-" + [Guid]::NewGuid().ToString("N"))
 
 if (-not (Test-Path -LiteralPath $Python)) {
     throw "Missing .venv Python. Create it with: py -m venv .venv"
@@ -40,4 +40,5 @@ try {
 }
 finally {
     Pop-Location
+    Remove-Item -LiteralPath $TestTempRoot -Recurse -Force -ErrorAction SilentlyContinue
 }

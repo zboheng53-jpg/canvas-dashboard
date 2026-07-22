@@ -24,13 +24,15 @@ def test_default_test_run_only_collects_the_repository_test_suite():
     assert '$PytestArgs = @("tests", "-q")' in test_script
 
 
-def test_test_script_uses_repository_owned_temp_directory():
+def test_test_script_uses_a_unique_system_temp_directory():
     repo_root = Path(__file__).parents[1]
     test_script = (repo_root / "scripts" / "test.ps1").read_text(encoding="utf-8")
 
-    assert 'Join-Path $RepoRoot ".pytest-sandbox"' in test_script
+    assert "[System.IO.Path]::GetTempPath()" in test_script
+    assert '"canvas-dashboard-pytest-" + [Guid]::NewGuid().ToString("N")' in test_script
     assert "$env:TEMP = $TestTempRoot" in test_script
     assert "$env:TMP = $TestTempRoot" in test_script
+    assert "Remove-Item -LiteralPath $TestTempRoot -Recurse -Force" in test_script
 
 
 def test_deploy_script_runs_repository_regression_gate_and_compile_check():
