@@ -663,34 +663,58 @@
       }
     }
 
-    function openTongjiTimetableLogin() {
-      const modal = document.getElementById('tongji-timetable-login-modal');
-      if (!modal) return;
-      modal.classList.remove('hidden');
-      document.getElementById('tongji-timetable-username').focus();
-    }
+    let tongjiLoginSessionToken = null;
 
-    function closeTongjiTimetableLogin() {
-      document.getElementById('tongji-timetable-login-modal')?.classList.add('hidden');
-    }
-
-    async function submitTongjiTimetableLogin(event) {
-      event.preventDefault();
-      const form = event.currentTarget;
-      const button = document.getElementById('tongji-timetable-submit');
-      const username = form.elements.username.value.trim();
-      const password = form.elements.password.value;
-      button.disabled = true; setScheduleStatus('正在登录统一身份认证并读取已选课程…');
+    async function openTongjiLoginSession() {
+      const button = document.getElementById('schedule-refresh-button');
+      const popup = window.open('', 'tongji-enhanced-auth', 'popup,width=1280,height=900');
+      if (!popup) {
+        setScheduleStatus('浏览器拦截了认证窗口，请允许弹窗后重试', true);
+        return;
+      }
+      popup.document.title = '正在打开同济认证窗口';
+      popup.document.body.innerHTML = '<p style="font:16px sans-serif;padding:32px">正在打开同济统一身份认证窗口…</p>';
+      button.disabled = true;
+      setScheduleStatus('正在打开统一身份认证窗口…');
       try {
-        const response = await fetch('/api/schedule/refresh', {
-          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username, password}),
-        });
+        const response = await fetch('/api/schedule/login-session', {method: 'POST'});
         const data = await response.json();
-        if (!response.ok || !data.ok) throw new Error(data.error || 'refresh failed');
-        form.reset(); closeTongjiTimetableLogin();
-        setScheduleStatus(`已更新 ${data.courses.courses.length} 门课程`); renderScheduleManager({courses: data.courses, items: scheduleData?.items || {recurring: [], one_off: []}}); await loadTodaySchedule();
-      } catch (error) { setScheduleStatus(error.message || '课表刷新失败，已保留原有缓存', true); }
-      finally { button.disabled = false; }
+        if (!response.ok || !data.ok) throw new Error(data.error || '无法打开认证窗口');
+        tongjiLoginSessionToken = data.token;
+        popup.location.href = data.url;
+        button.textContent = '我已完成认证，导入课表';
+        button.onclick = completeTongjiLoginSession;
+        setScheduleStatus('请在新窗口中完成微信扫码或短信验证码认证，再点击“我已完成认证，导入课表”。');
+      } catch (error) {
+        const message = error.message || '认证窗口启动失败';
+        popup.document.title = '无法打开同济认证窗口';
+        popup.document.body.innerHTML = '<main style="max-width:640px;margin:64px auto;padding:0 24px;font:16px/1.6 sans-serif;color:#1f2937"><h1 style="font-size:24px">认证窗口未能启动</h1><p id="tongji-login-error"></p><p style="color:#64748b">本机调试需要 Docker Desktop 正在运行，并已构建受限浏览器镜像。</p></main>';
+        popup.document.getElementById('tongji-login-error').textContent = message;
+        setScheduleStatus(message, true);
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    async function completeTongjiLoginSession() {
+      if (!tongjiLoginSessionToken) return;
+      const button = document.getElementById('schedule-refresh-button');
+      button.disabled = true;
+      setScheduleStatus('正在读取已认证会话中的课表…');
+      try {
+        const response = await fetch(`/api/schedule/login-session/${tongjiLoginSessionToken}/complete`, {method: 'POST'});
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || '课表导入失败');
+        tongjiLoginSessionToken = null;
+        button.textContent = '统一身份认证登录';
+        button.onclick = openTongjiLoginSession;
+        setScheduleStatus(`已更新 ${data.courses.courses.length} 门课程`);
+        renderScheduleManager({courses: data.courses, items: scheduleData?.items || {recurring: [], one_off: []}});
+        await loadTodaySchedule();
+      } catch (error) {
+        setScheduleStatus(error.message || '课表导入失败，请在认证窗口完成验证后重试', true);
+        button.disabled = false;
+      }
     }
 
     async function importCourseSchedule(input) {

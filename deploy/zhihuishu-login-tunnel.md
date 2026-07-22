@@ -1,4 +1,4 @@
-# Zhihuishu User Login Sessions
+# Browser Login Sessions
 
 This app lets normal site users log in to Zhihuishu without SSH, server terminal access, or a shared server desktop.
 
@@ -24,7 +24,7 @@ Users never need:
 
 ## Admin Deployment
 
-Ordinary application releases are installed by the verified deployment workflow in `docs/operations.md`. Build the restricted browser image only when its Dockerfile or entrypoint changes:
+Ordinary application releases are installed by the verified deployment workflow in `docs/operations.md`. The same restricted browser image serves Zhihuishu login and Tongji enhanced authentication. Rebuild it whenever its Dockerfile or entrypoint changes:
 
 ```bash
 cd /home/ubuntu/canvas-dashboard/current

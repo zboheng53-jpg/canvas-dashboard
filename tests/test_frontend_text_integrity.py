@@ -47,7 +47,7 @@ def test_schedule_login_and_connection_primary_actions_have_shared_contract():
     )
     shell_css = (project_root / "static" / "dashboard-shell.css").read_text(encoding="utf-8")
 
-    assert 'id="schedule-refresh-button" onclick="openTongjiTimetableLogin()">统一身份认证登录<' in views_text
+    assert 'id="schedule-refresh-button" onclick="openTongjiLoginSession()">统一身份认证登录<' in views_text
     assert views_text.count("connection-primary-action") == 3
     assert ".connection-primary-action" in shell_css
     assert "button.connection-primary-action:disabled" in shell_css

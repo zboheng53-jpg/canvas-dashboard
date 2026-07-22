@@ -19,7 +19,7 @@
         <button type="button" class="btn-schedule-action" id="btn-add-schedule-item" onclick="openScheduleItemModal()">+ 添加事项</button>
         <input class="schedule-file-input" id="schedule-file-input" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="importCourseSchedule(this)">
         <button type="button" class="btn-schedule-action schedule-import-button" id="schedule-import-button" onclick="document.getElementById('schedule-file-input').click()">从插件文件导入</button>
-        <button type="button" class="schedule-refresh-button" id="schedule-refresh-button" onclick="openTongjiTimetableLogin()">统一身份认证登录</button>
+        <button type="button" class="schedule-refresh-button" id="schedule-refresh-button" onclick="openTongjiLoginSession()">统一身份认证登录</button>
         <a class="schedule-refresh-button schedule-download-link" href="/static/downloads/tongji-timetable-exporter-v1.2.zip" download>下载课表插件 v1.2</a>
       </div>
     </div>
@@ -46,30 +46,6 @@
     </div>
   </div>
 </section>
-
-<div class="schedule-modal-backdrop hidden" id="tongji-timetable-login-modal" onclick="if(event.target===this)closeTongjiTimetableLogin()">
-  <div class="schedule-modal-card">
-    <div class="schedule-modal-header">
-      <h3>导入研究生课表</h3>
-      <button type="button" class="schedule-modal-close" onclick="closeTongjiTimetableLogin()">×</button>
-    </div>
-    <form class="schedule-modal-form" id="tongji-timetable-login-form" onsubmit="submitTongjiTimetableLogin(event)">
-      <p class="schedule-login-note">使用统一身份认证登录一网通办后读取已选课程。账号和密码仅用于本次导入，不会保存。</p>
-      <div class="form-group">
-        <label for="tongji-timetable-username">统一身份认证账号</label>
-        <input id="tongji-timetable-username" name="username" type="text" autocomplete="username" required>
-      </div>
-      <div class="form-group">
-        <label for="tongji-timetable-password">密码</label>
-        <input id="tongji-timetable-password" name="password" type="password" autocomplete="current-password" required>
-      </div>
-      <div class="schedule-modal-actions">
-        <button type="button" class="btn-cancel" onclick="closeTongjiTimetableLogin()">取消</button>
-        <button type="submit" class="btn-submit" id="tongji-timetable-submit">登录并导入</button>
-      </div>
-    </form>
-  </div>
-</div>
 
 <!-- Modal for adding/editing schedule items -->
 <div class="schedule-modal-backdrop hidden" id="schedule-item-modal" onclick="if(event.target===this)closeScheduleItemModal()">

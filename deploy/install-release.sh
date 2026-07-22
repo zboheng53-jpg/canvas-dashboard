@@ -40,6 +40,14 @@ install_configs() {
     sudo nginx -t || return
 }
 
+build_browser_login_image() {
+    local source=$1
+    sudo docker build \
+        -f "$source/deploy/zhihuishu-login-browser.Dockerfile" \
+        -t canvas-dashboard-zhihuishu-login:latest \
+        "$source" || return
+}
+
 activate_release() {
     local target=$1
     ln -sfn "$target" "$root/current.next" || return
@@ -127,6 +135,11 @@ case "$previous" in
     *) echo "Refusing unsafe previous release: $previous" >&2; exit 2 ;;
 esac
 printf '%s\n' "$previous" > "$root/.previous-release"
+
+if ! build_browser_login_image "$release"; then
+    echo "Browser login image build failed; release was not activated" >&2
+    exit 1
+fi
 
 if ! activate_release "$release"; then
     echo "Release activation failed; restoring $previous" >&2

@@ -38,6 +38,7 @@ import zhihuishu_store
 import zhihuishu_login_sessions
 import zhihuishu_worker
 import schedule_store
+import tongji_login_sessions
 import tongji_timetable
 import project_store
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
@@ -1140,6 +1141,69 @@ def api_schedule_refresh():
     return jsonify({"ok": True, "courses": schedule_store.load_courses(username)})
 
 
+@app.route("/api/schedule/login-session", methods=["POST"])
+def api_schedule_login_session():
+    username = session["username"]
+    try:
+        login_session = tongji_login_sessions.create_session(username)
+    except Exception as exc:
+        logger.exception("Failed to create Tongji login session")
+        return api_error("timetable_login_session_failed", f"无法打开认证窗口：{exc}", 500)
+    return jsonify({
+        "ok": True,
+        "token": login_session["token"],
+        "url": login_session["url"],
+        "expires_at": login_session["expires_at"],
+    })
+
+
+@app.route("/schedule/session/<token>/")
+def schedule_login_session_page(token):
+    login_session = tongji_login_sessions.session_for_token(token)
+    if not login_session or login_session.get("username") != session.get("username"):
+        return "Not Found", 404
+    port = login_session["port"]
+    if not tongji_login_sessions.validate_session(token, port):
+        return "Not Found", 404
+    vnc_path = f"tji-vnc/{port}/{token}/websockify"
+    return redirect(f"/tji-vnc/{port}/{token}/vnc.html?autoconnect=true&resize=scale&path={vnc_path}")
+
+
+@app.route("/api/schedule/login-session-auth")
+def api_schedule_login_session_auth():
+    token = request.args.get("token", "") or request.headers.get("X-Tongji-Token", "")
+    port = request.args.get("port", "") or request.headers.get("X-Tongji-Port", "")
+    login_session = tongji_login_sessions.session_for_token(token)
+    if not tongji_login_sessions.validate_session(token, port) or not login_session:
+        return "", 401
+    if login_session.get("username") != session.get("username"):
+        return "", 401
+    return "", 204
+
+
+@app.route("/api/schedule/login-session/<token>/complete", methods=["POST"])
+def api_schedule_login_session_complete(token):
+    username = session["username"]
+    login_session = tongji_login_sessions.session_for_token(token)
+    if not login_session or login_session.get("username") != username:
+        return api_error("timetable_login_session_missing", "认证窗口不存在或已过期", 404)
+    try:
+        courses = tongji_timetable.fetch_selected_courses_from_cdp(
+            f"http://127.0.0.1:{login_session['debug_port']}"
+        )
+    except tongji_timetable.TimetableFetchError as exc:
+        return api_error("timetable_fetch_failed", str(exc), 400)
+    tongji_login_sessions.stop_session(username, token)
+    term, _, semester_start = get_term_info()
+    schedule_store.save_courses(username, term, semester_start, courses, datetime.now(CST).isoformat())
+    return jsonify({"ok": True, "courses": schedule_store.load_courses(username)})
+
+
+@app.route("/api/schedule/login-session/<token>", methods=["DELETE"])
+def api_schedule_login_session_stop(token):
+    return jsonify({"ok": tongji_login_sessions.stop_session(session["username"], token)})
+
+
 @app.route("/api/schedule/import", methods=["POST"])
 def api_schedule_import():
     uploaded = request.files.get("course_file")
@@ -1572,5 +1636,3 @@ if __name__ == "__main__":
     print(f"\n  Canvas Dashboard")
     print(f"  娴忚鍣ㄦ墦寮€ 鈫?http://{settings.APP_HOST}:{settings.APP_PORT}\n")
     app.run(host=settings.APP_HOST, port=settings.APP_PORT, debug=False)
-
-

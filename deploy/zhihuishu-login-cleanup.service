@@ -1,5 +1,5 @@
 [Unit]
-Description=Canvas Dashboard Zhihuishu login session cleanup
+Description=Canvas Dashboard browser login session cleanup
 After=docker.service
 
 [Service]
@@ -8,3 +8,4 @@ User=ubuntu
 Group=ubuntu
 WorkingDirectory=/home/ubuntu/canvas-dashboard/current
 ExecStart=/home/ubuntu/canvas-dashboard/.venv/bin/python zhihuishu_login_sessions.py --cleanup-expired
+ExecStart=/home/ubuntu/canvas-dashboard/.venv/bin/python tongji_login_sessions.py --cleanup-expired

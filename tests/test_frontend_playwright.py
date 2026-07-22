@@ -523,16 +523,13 @@ def test_frontend_schedule_management_renders_today_busy_item(live_app, browser)
     expect(page.locator("#today-schedule-content")).to_contain_text("实验室值班")
 
 
-def test_frontend_timetable_login_dialog(live_app, browser):
+def test_frontend_timetable_login_opens_vnc_directly(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "timetablelogin")
     page.locator('[data-dashboard-view="schedule"]').click()
-    page.click("#schedule-refresh-button")
-    expect(page.locator("#tongji-timetable-login-modal")).to_be_visible()
-    expect(page.locator("#tongji-timetable-username")).to_have_attribute("autocomplete", "username")
-    expect(page.locator("#tongji-timetable-password")).to_have_attribute("type", "password")
-    page.click("#tongji-timetable-login-modal .btn-cancel")
-    expect(page.locator("#tongji-timetable-login-modal")).to_be_hidden()
+    expect(page.locator("#tongji-timetable-login-modal")).to_have_count(0)
+    expect(page.locator("#schedule-refresh-button")).to_have_attribute("onclick", "openTongjiLoginSession()")
+    expect(page.locator("#schedule-refresh-button")).to_have_text("统一身份认证登录")
 
 
 def test_frontend_projects_overview_limits_cards_and_opens_manager(live_app, browser):

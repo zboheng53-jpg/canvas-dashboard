@@ -449,3 +449,27 @@ def fetch_selected_courses_with_credentials(username, password):
         raise
     except Exception as exc:
         raise TimetableFetchError("课表服务暂时无法访问") from exc
+
+
+def fetch_selected_courses_from_cdp(cdp_endpoint):
+    """Read the timetable from the authenticated temporary noVNC browser."""
+    try:
+        with _playwright() as playwright:
+            browser = playwright.chromium.connect_over_cdp(cdp_endpoint)
+            pages = [page for context in browser.contexts for page in context.pages]
+            if not pages:
+                raise TimetableFetchError("认证浏览器中没有可用页面")
+            page = next((candidate for candidate in pages if "tongji.edu.cn" in candidate.url), pages[0])
+            page.goto(TIMETABLE_URL, wait_until="networkidle", timeout=60_000)
+            try:
+                page.wait_for_selector("table", timeout=20_000)
+            except Exception as exc:
+                raise TimetableFetchError("尚未检测到认证完成，请回到认证窗口继续操作") from exc
+            courses = parse_selected_courses_html(page.content())
+            if not courses:
+                raise TimetableFetchError("未在课表页面找到已选课程")
+            return courses
+    except TimetableFetchError:
+        raise
+    except Exception as exc:
+        raise TimetableFetchError("无法读取认证后的课表") from exc

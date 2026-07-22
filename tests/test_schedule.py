@@ -155,6 +155,63 @@ def test_refresh_requires_tongji_credentials(tmp_path, monkeypatch):
     assert response.get_json()["code"] == "timetable_credentials_required"
 
 
+def test_tongji_login_session_creates_an_isolated_vnc_window(tmp_path, monkeypatch):
+    client, _ = _client(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        dashboard_app.tongji_login_sessions,
+        "create_session",
+        lambda username: {
+            "username": username,
+            "token": "tok_123456789012",
+            "port": 6207,
+            "url": "/schedule/session/tok_123456789012/",
+            "expires_at": 2000,
+        },
+    )
+
+    response = client.post("/api/schedule/login-session", headers=client.csrf_headers)
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "ok": True,
+        "token": "tok_123456789012",
+        "url": "/schedule/session/tok_123456789012/",
+        "expires_at": 2000,
+    }
+
+
+def test_tongji_login_session_completion_imports_courses_then_stops_session(tmp_path, monkeypatch):
+    client, resolve_user_dir = _client(tmp_path, monkeypatch)
+    stopped = []
+    monkeypatch.setattr(
+        dashboard_app.tongji_login_sessions,
+        "session_for_token",
+        lambda token: {"username": "alice", "token": token, "debug_port": 6307},
+    )
+    monkeypatch.setattr(
+        dashboard_app.tongji_timetable,
+        "fetch_selected_courses_from_cdp",
+        lambda endpoint: [{"name": "自动控制原理", "sessions": []}],
+    )
+    monkeypatch.setattr(
+        dashboard_app.tongji_login_sessions,
+        "stop_session",
+        lambda username, token: stopped.append((username, token)) or True,
+    )
+    monkeypatch.setattr(dashboard_app, "get_term_info", lambda: ("测试学期", 1, "2026-03-02"))
+
+    response = client.post(
+        "/api/schedule/login-session/tok_123456789012/complete",
+        headers=client.csrf_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["ok"] is True
+    assert stopped == [("alice", "tok_123456789012")]
+    saved = json.loads((resolve_user_dir("alice") / "course_schedule.json").read_text(encoding="utf-8"))
+    assert saved["courses"] == [{"name": "自动控制原理", "sessions": []}]
+
+
 def test_timetable_extension_is_linked_and_downloadable(tmp_path, monkeypatch):
     client, _ = _client(tmp_path, monkeypatch)
     package_url = "/static/downloads/tongji-timetable-exporter-v1.2.zip"

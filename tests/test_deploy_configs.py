@@ -11,6 +11,7 @@ def test_zhihuishu_login_cleanup_timer_uses_cleanup_cli():
 
     assert "WorkingDirectory=/home/ubuntu/canvas-dashboard" in service_text
     assert ".venv/bin/python zhihuishu_login_sessions.py --cleanup-expired" in service_text
+    assert ".venv/bin/python tongji_login_sessions.py --cleanup-expired" in service_text
     assert "OnBootSec=" in timer_text
     assert "OnUnitActiveSec=" in timer_text
 
@@ -108,6 +109,16 @@ def test_release_installer_checks_and_restarts_all_units():
         assert "--resolve canvas-dashboard.xyz:443:127.0.0.1" in script
 
 
+def test_release_installer_builds_the_browser_login_image_before_activation():
+    repo_root = Path(__file__).parents[1]
+    install = (repo_root / "deploy" / "install-release.sh").read_text(encoding="utf-8")
+
+    assert "build_browser_login_image" in install
+    assert "zhihuishu-login-browser.Dockerfile" in install
+    assert "canvas-dashboard-zhihuishu-login:latest" in install
+    assert install.index('build_browser_login_image "$release"') < install.index('activate_release "$release"')
+
+
 def test_release_installer_prunes_old_releases_after_health_checks():
     repo_root = Path(__file__).parents[1]
     install = (repo_root / "deploy" / "install-release.sh").read_text(encoding="utf-8")
@@ -141,6 +152,15 @@ def test_https_template_redirects_http_and_protects_calendar_tokens():
     assert "/etc/letsencrypt/live/canvas-dashboard.xyz/fullchain.pem" in https_nginx
     calendar_location = https_nginx.split("location ^~ /calendar/", 1)[1].split("}", 1)[0]
     assert "access_log off;" in calendar_location
+
+
+def test_nginx_protects_tongji_vnc_by_the_current_user_session():
+    repo_root = Path(__file__).parents[1]
+    for name in ("canvas-dashboard.nginx", "canvas-dashboard.https.nginx"):
+        nginx = (repo_root / "deploy" / name).read_text(encoding="utf-8")
+        assert "/api/schedule/login-session-auth" in nginx
+        assert "^/tji-vnc/(?<tji_port>62[0-9]{2})" in nginx
+        assert "@tongji_vnc_denied" in nginx
 
 
 def test_https_enable_script_gates_dns_certificate_and_secure_cookie():

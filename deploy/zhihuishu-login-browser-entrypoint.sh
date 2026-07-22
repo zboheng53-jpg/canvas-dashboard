@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-LOGIN_URL="${ZHIHUISHU_LOGIN_URL:-https://passport.zhihuishu.com/login}"
+LOGIN_URL="${LOGIN_URL:-${ZHIHUISHU_LOGIN_URL:-https://passport.zhihuishu.com/login}}"
 PROFILE_DIR="${CHROME_PROFILE_DIR:-/profile}"
 DISPLAY="${DISPLAY:-:99}"
 
@@ -71,6 +71,8 @@ fi
   --no-default-browser-check \
   --user-data-dir="$PROFILE_DIR" \
   --window-size=1280,900 \
+  --remote-debugging-address=0.0.0.0 \
+  --remote-debugging-port="${CHROME_REMOTE_DEBUGGING_PORT:-9222}" \
   "$LOGIN_URL" >/tmp/chromium.log 2>&1 &
 
 wait -n
