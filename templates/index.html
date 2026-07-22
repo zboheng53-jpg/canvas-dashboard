@@ -684,7 +684,7 @@
         popup.location.href = data.url;
         button.textContent = '我已完成认证，导入课表';
         button.onclick = completeTongjiLoginSession;
-        setScheduleStatus('请在新窗口中完成微信扫码或短信验证码认证，再点击“我已完成认证，导入课表”。');
+        setScheduleStatus('请在新窗口中完成微信扫码或短信验证码认证。导入时会自动打开“查看课表”。');
       } catch (error) {
         const message = error.message || '认证窗口启动失败';
         popup.document.title = '无法打开同济认证窗口';

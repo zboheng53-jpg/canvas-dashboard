@@ -460,11 +460,17 @@ def fetch_selected_courses_from_cdp(cdp_endpoint):
             if not pages:
                 raise TimetableFetchError("认证浏览器中没有可用页面")
             page = next((candidate for candidate in pages if "tongji.edu.cn" in candidate.url), pages[0])
-            page.goto(TIMETABLE_URL, wait_until="networkidle", timeout=60_000)
+            if "GraduateStudentTimeTable" not in page.url:
+                view_timetable = _first_visible(page.get_by_text("查看课表", exact=True))
+                if view_timetable:
+                    view_timetable.click()
+                    page.wait_for_timeout(1_000)
+                else:
+                    page.goto(TIMETABLE_URL, wait_until="networkidle", timeout=60_000)
             try:
                 page.wait_for_selector("table", timeout=20_000)
             except Exception as exc:
-                raise TimetableFetchError("尚未检测到认证完成，请回到认证窗口继续操作") from exc
+                raise TimetableFetchError("认证已完成，但未能打开课表；请在认证窗口中点击“查看课表”后重试") from exc
             courses = parse_selected_courses_html(page.content())
             if not courses:
                 raise TimetableFetchError("未在课表页面找到已选课程")

@@ -66,6 +66,85 @@ def test_parse_time_segments_supports_specified_weeks_multiple_locations_and_per
     assert sessions[1]["location"] == "东校区实验楼"
 
 
+def test_authenticated_cdp_reader_opens_timetable_from_workbench(monkeypatch):
+    class Link:
+        def __init__(self):
+            self.clicked = False
+
+        def is_visible(self):
+            return True
+
+        def click(self):
+            self.clicked = True
+
+    class Locator:
+        def __init__(self, link):
+            self.link = link
+
+        def count(self):
+            return 1
+
+        def nth(self, index):
+            assert index == 0
+            return self.link
+
+    class Page:
+        url = "https://1.tongji.edu.cn/workbench"
+
+        def __init__(self):
+            self.link = Link()
+            self.waited = None
+            self.goto_called = False
+
+        def get_by_text(self, text, exact):
+            assert (text, exact) == ("查看课表", True)
+            return Locator(self.link)
+
+        def wait_for_timeout(self, timeout):
+            self.waited = timeout
+
+        def goto(self, *args, **kwargs):
+            self.goto_called = True
+
+        def wait_for_selector(self, selector, timeout):
+            assert selector == "table"
+            assert timeout == 20_000
+
+        def content(self):
+            return "<table></table>"
+
+    class Context:
+        def __init__(self, page):
+            self.pages = [page]
+
+    class Browser:
+        def __init__(self, page):
+            self.contexts = [Context(page)]
+
+    class Playwright:
+        def __init__(self, page):
+            self.chromium = type("Chromium", (), {"connect_over_cdp": lambda _, endpoint: Browser(page)})()
+
+    class PlaywrightContext:
+        def __init__(self, page):
+            self.page = page
+
+        def __enter__(self):
+            return Playwright(self.page)
+
+        def __exit__(self, *args):
+            return False
+
+    page = Page()
+    monkeypatch.setattr(tongji_timetable, "_playwright", lambda: PlaywrightContext(page))
+    monkeypatch.setattr(tongji_timetable, "parse_selected_courses_html", lambda markup: [{"name": "测试课程"}])
+
+    assert tongji_timetable.fetch_selected_courses_from_cdp("http://127.0.0.1:6300") == [{"name": "测试课程"}]
+    assert page.link.clicked is True
+    assert page.waited == 1_000
+    assert page.goto_called is False
+
+
 def test_parse_live_timetable_split_tables_and_xingqi_time_format():
     markup = """
     <table><tr><th></th><th>新课程序号</th><th>课程名称</th><th>教师</th><th>上课时间</th><th>上课地点</th><th>校区</th></tr></table>
