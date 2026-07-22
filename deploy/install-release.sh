@@ -42,7 +42,10 @@ install_configs() {
 
 build_browser_login_image() {
     local source=$1
-    sudo bash "$source/deploy/build-zhihuishu-login-image.sh" || return
+    (
+        cd "$source" || exit 1
+        sudo bash deploy/build-zhihuishu-login-image.sh
+    ) || return
 }
 
 activate_release() {

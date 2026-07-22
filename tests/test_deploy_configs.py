@@ -116,6 +116,7 @@ def test_release_installer_builds_the_browser_login_image_before_activation():
 
     assert "build_browser_login_image" in install
     assert "build-zhihuishu-login-image.sh" in install
+    assert 'cd "$source"' in install
     assert "canvas-dashboard-zhihuishu-login:latest" in builder
     assert install.index('build_browser_login_image "$release"') < install.index('activate_release "$release"')
 
