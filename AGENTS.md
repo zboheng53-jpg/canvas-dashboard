@@ -49,9 +49,10 @@ canvas-dashboard/
 - **本地运行**：
   ```powershell
   .\.venv\Scripts\python.exe -m pip install -r requirements.txt pytest
-  .\local-preview.bat
-  # 或在需要前台诊断时使用：
+  # 前台开发与诊断：
   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\dev.ps1
+  # 常驻本地服务：
+  .\.venv\Scripts\python.exe serve.py
   ```
 - **自动化测试**：
   ```powershell
