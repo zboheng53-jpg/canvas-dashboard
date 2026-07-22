@@ -38,7 +38,9 @@ def _session_file(username: str) -> Path:
 
 
 def _profile_dir(username: str) -> Path:
-    return _user_dir(username) / "tongji_login_profile"
+    path = _user_dir(username) / "tongji_login_profile"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def _container_name(token: str) -> str:
