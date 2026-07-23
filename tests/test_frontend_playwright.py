@@ -566,6 +566,7 @@ def test_frontend_schedule_is_fixed_height_precise_and_editable(live_app, browse
     expect(page.locator("#schedule-scroll-viewport")).to_be_visible()
     expect(page.locator("#schedule-management-open")).to_be_visible()
     expect(page.locator("#schedule-import-button")).to_be_hidden()
+    expect(page.locator(".schedule-range-hint")).to_have_count(0)
     expect(page.locator(".schedule-header-actions > button")).to_have_count(2)
     assert page.locator(".schedule-header-actions > button").evaluate_all(
         """buttons => {

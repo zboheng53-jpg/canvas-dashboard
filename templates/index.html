@@ -583,8 +583,6 @@
       }
       grid.append(timeColumn);
 
-      const beforeByDay = [];
-      const afterByDay = [];
       weekDates.forEach((dateObj, dayIdx) => {
         const dateISO = formatDateISO(dateObj);
         const dayColumn = scheduleElement('div', `schedule-day-column${dateISO === todayISO ? ' is-today' : ''}`);
@@ -607,8 +605,6 @@
         }
 
         const events = collectScheduleEvents(data, courses, dateObj, dayIdx, semesterStart);
-        beforeByDay.push({day: dayIdx, events: events.filter(event => timeToMinutes(event.start_time) < scheduleDefaultStartMinutes)});
-        afterByDay.push({day: dayIdx, events: events.filter(event => timeToMinutes(event.end_time) > scheduleDefaultEndMinutes)});
         scheduleEventGroups(events).forEach((group) => {
           const visibleEvents = group.events.slice(0, 2);
           visibleEvents.forEach((event, lane) => dayColumn.append(buildScheduleCard(event, dateISO, lane, visibleEvents.length)));
@@ -638,8 +634,6 @@
       header.style.width = `${viewport.clientWidth}px`;
       header.style.marginRight = `${scrollbarWidth}px`;
       header.style.paddingRight = '0px';
-      renderScheduleRangeHint(document.getElementById('schedule-range-before'), 'before', beforeByDay);
-      renderScheduleRangeHint(document.getElementById('schedule-range-after'), 'after', afterByDay);
       if (!viewport.dataset.scheduleScrollBound) {
         viewport.addEventListener('scroll', updateScheduleScrollAffordance, {passive: true});
         viewport.dataset.scheduleScrollBound = 'true';

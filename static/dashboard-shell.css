@@ -2808,37 +2808,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.schedule-range-hint {
-  position: sticky;
-  left: 72px;
-  z-index: 30;
-  width: fit-content;
-  max-width: calc(100% - 84px);
-  margin: 0 auto;
-  padding: 4px 9px;
-  border: 1px solid rgba(210, 205, 196, .92);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, .94);
-  color: #777169;
-  font-size: 9px;
-  line-height: 16px;
-  box-shadow: 0 3px 10px rgba(35, 40, 47, .08);
-  backdrop-filter: blur(5px);
-}
-
-.schedule-range-hint-top { top: 7px; height: 0; transform: translateY(7px); }
-.schedule-range-hint-bottom { bottom: 7px; height: 0; transform: translateY(-28px); }
-
-.schedule-range-day {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: #4d6f9d;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
 .schedule-return-default {
   position: sticky;
   bottom: 9px;
