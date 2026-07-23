@@ -1,8 +1,8 @@
 # Browser Login Sessions
 
-This app lets normal site users log in to Zhihuishu without SSH, server terminal access, or a shared server desktop.
+This app lets normal site users complete Zhihuishu login and Tongji enhanced authentication without SSH, server terminal access, or a shared server desktop.
 
-## User Flow
+## Zhihuishu User Flow
 
 1. User opens `https://canvas-dashboard.xyz`.
 2. User logs in with their site account.
@@ -21,6 +21,17 @@ Users never need:
 - `124.222.188.101:6080`
 - Ubuntu terminal access
 - server passwords
+
+## Tongji Timetable User Flow
+
+1. User opens **日程与课表** and clicks **统一身份认证登录**.
+2. The app creates an isolated, short-lived browser and opens its tokenized URL in a popup.
+3. User completes WeChat QR or SMS enhanced authentication and waits for **个人课表** to load.
+4. User returns to the dashboard and clicks **我已完成认证，导入课表**.
+5. Flask reads the visible timetable through the container's loopback-only CDP endpoint, saves the parsed courses, and stops the session.
+6. The temporary Tongji browser profile is deleted after completion, cancellation, or expiry.
+
+If the popup is blocked, allow popups for the dashboard and retry. Do not ask users to enter their Tongji password into the dashboard form; the current frontend uses the isolated authentication window.
 
 ## Admin Deployment
 
@@ -87,6 +98,8 @@ sudo systemctl reload nginx
 - Login sessions expire after 10 minutes.
 - A user can have only one active Zhihuishu login session; starting a new one stops the old container.
 - `zhihuishu-login-cleanup.timer` removes expired session files and orphaned login containers every 5 minutes.
+- Tongji uses a separate token and port range under `/tji-vnc/<port>/<token>/...`; nginx authorizes it through `/api/schedule/login-session-auth`.
+- Tongji CDP ports bind only to loopback, and the ephemeral `tongji_login_profile/` is removed with the session.
 
 ## Diagnostics
 
@@ -96,6 +109,7 @@ journalctl -u zhihuishu-worker.service -n 100 --no-pager
 systemctl list-timers zhihuishu-login-cleanup.timer
 journalctl -u zhihuishu-login-cleanup.service -n 50 --no-pager
 docker ps --filter "label=canvas-dashboard=zhihuishu-login"
+docker ps --filter "label=canvas-dashboard=tongji-login"
 curl -fsS http://127.0.0.1:5000/healthz
 ```
 

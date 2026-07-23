@@ -56,6 +56,12 @@ The app listens on `127.0.0.1:5000` by default. Override with `CANVAS_DASHBOARD_
 
 The script pins `.venv`, sets UTF-8 output, checks required Python packages, and then runs `pytest`.
 
+## Tongji Timetable
+
+Open **日程与课表** and click **统一身份认证登录**. A short-lived browser window opens directly; complete WeChat QR or SMS enhanced authentication there and wait for the personal timetable to appear. Return to the dashboard and click **我已完成认证，导入课表**.
+
+The server reads only the currently rendered timetable tables from that isolated browser session. It does not store the Tongji password or retain the temporary browser profile after completion or expiry. A failed refresh leaves the last successful course cache untouched. The Excel extension remains available as a manual fallback.
+
 ## Apple Calendar
 
 After signing in to the production dashboard, open **日历订阅** from the bottom of the sidebar. The panel can generate and copy the private HTTPS feed URL or revoke it. Treat the URL like a password: anyone holding it can read that account's exported task titles and dates.

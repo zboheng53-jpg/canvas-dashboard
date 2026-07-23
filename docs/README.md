@@ -7,7 +7,7 @@
 - `operations.md`: production deployment, rollback, services, health, TLS, and incident commands.
 - `backup-and-restore.md`: encrypted backups, key ownership, recovery drills, corruption handling, and production restoration.
 - `zhihuishu-reusable-web-patterns.md`: reusable browser-worker/login-window design.
-- `../deploy/zhihuishu-login-tunnel.md`: concrete 智慧树 production runbook.
+- `../deploy/zhihuishu-login-tunnel.md`: concrete 智慧树 and Tongji browser-login production runbook.
 - `../AGENTS.md`: coding-agent rules and current implementation contracts.
 
 ## Historical

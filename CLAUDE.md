@@ -25,8 +25,9 @@ canvas-dashboard/
 ├── auth.py                        # 站点多用户系统、密码哈希与旧数据迁移
 ├── user_paths.py                  # 用户独立数据路径管理 (data/users/<username>/)
 ├── storage.py                     # 并发安全 JSON 读写与原子替换
-├── tongji_timetable.py             # 一网通办课表 CDP 抓取与解析
-├── schedule_store.py               # 课程与日程项存储
+├── tongji_timetable.py            # 一网通办课表 CDP 抓取与解析
+├── tongji_login_sessions.py       # 同济加强认证短时 noVNC 窗口
+├── schedule_store.py              # 课程与日程项存储
 ├── project_store.py                # 长期项目存储
 ├── canvas_auth.py                 # Canvas iCal 订阅抓取与解析
 ├── haoke_client.py                # 好课 API 客户端与缓存管理
@@ -79,3 +80,4 @@ canvas-dashboard/
   - **好课**：凭据加密存储，`/api/haoke/todos` 缓存优先，后台守护进程异步刷新。
   - **智学盟**：使用 `X-Access-Token`，支持课程与作业列表抓取。
   - **智慧树**：路由只读缓存/状态；后台通过 `zhihuishu_worker.py --all-users` 定时拉取；独立 Chromium profile 运行；支持 noVNC 远程登录窗口。
+  - **同济课表**：前端直接打开短时 noVNC 认证窗口；用户完成微信扫码或短信加强认证后，后端通过该窗口的 CDP 读取当前可见课表。只解析渲染中的表格并展开 `rowspan`/`colspan`，失败时保留上次成功缓存，认证结束或过期后删除临时 profile。

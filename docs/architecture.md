@@ -15,7 +15,9 @@ nginx :80/:443
         |      +--> local JSON data under data/
         |      +--> private token-authenticated ICS feed
         |
-        +--> token-gated noVNC login container
+        +--> token-gated noVNC login containers
+               +--> persistent per-user 智慧树 profile
+               +--> ephemeral per-user Tongji profile
 
 zhihuishu-worker.service
         +--> one isolated child process per user refresh
@@ -37,7 +39,8 @@ The Flask request path never launches a 智慧树 browser. Platform caches let t
 | `zhixuemeng_client.py` | Token login, course selection, assignment fetch, cache, and logout cleanup |
 | `zhihuishu_worker.py` | User discovery, per-user timeout isolation, refresh scheduling, and status updates |
 | `zhihuishu_browser.py` | Playwright session checks, keepalive, and assignment extraction |
-| `zhihuishu_login_sessions.py` | Short tokenized Docker/noVNC login windows |
+| `zhihuishu_login_sessions.py` | Short tokenized Docker/noVNC login windows backed by persistent per-user profiles |
+| `tongji_login_sessions.py` | Short tokenized Docker/noVNC enhanced-auth windows with ephemeral per-user profiles |
 | `apple_calendar.py` | Hashed subscription-token lifecycle and RFC 5545 serialization |
 | `tongji_timetable.py`, `schedule_store.py` | Authenticated CDP timetable parsing plus per-user course and schedule-item storage |
 | `project_store.py` | Atomic per-user long-term projects and weekly goals |
@@ -101,7 +104,9 @@ Dashboard V2 keeps the original unified todo and platform flows in the central c
 
 `project_store.py` writes `projects.json`; `schedule_store.py` writes `course_schedule.json` and `schedule_items.json`. All three files live under `data/users/<username>/`, use the shared locked/atomic JSON helpers, and fail closed on corruption. Mutating routes remain behind the site session and global CSRF boundary.
 
-The timetable refresh reuses the authenticated local CDP proxy session and never stores the Tongji password or browser cookies. A failed or unauthenticated refresh leaves the previous successful course cache untouched. The homepage today endpoint reads existing platform caches for deadlines; it does not issue a second upstream task refresh.
+The timetable button creates a short-lived, site-session-bound noVNC browser and opens the Tongji personal-timetable URL directly. The user completes WeChat QR or SMS enhanced authentication inside that window. On confirmation, Flask connects to that container's loopback-only CDP endpoint, waits for the personal timetable, and parses only rendered `table:visible` elements. Browser-side normalization expands `rowspan` and `colspan`; the selected-course list remains authoritative for weekday, periods, weeks, and locations, while the visible timetable grid filters out stale or hidden-term course codes.
+
+The flow never persists a Tongji password. Its temporary profile is removed when the session completes, expires, or is cancelled. A failed or unauthenticated refresh leaves the previous successful course cache untouched. Frontend academic-week calculations use local calendar-day components so every Monday-through-Sunday row maps to the same week. The homepage today endpoint reads existing platform caches for deadlines; it does not issue a second upstream task refresh.
 
 The two right-rail components keep separate DOM, state, rendering functions, and manager views. At desktop width they share the fixed-height rail; narrower layouts move the rail below the central todo column, and mobile stacks the project and schedule cards vertically.
 

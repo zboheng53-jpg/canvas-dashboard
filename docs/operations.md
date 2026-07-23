@@ -109,6 +109,8 @@ journalctl -u zhihuishu-login-cleanup.service -n 50 --no-pager
 journalctl -u canvas-dashboard-backup.service -n 50 --no-pager
 sudo nginx -t
 sudo tail -n 100 /var/log/nginx/error.log
+docker ps --filter "label=canvas-dashboard=tongji-login"
+docker ps --filter "label=canvas-dashboard=zhihuishu-login"
 ```
 
 Do not print `config.json`, encryption keys, session keys, subscription URLs, platform tokens, cookies, or decrypted backup contents into shared logs.
@@ -143,6 +145,6 @@ sudo certbot renew --dry-run
 
 - JSON corruption: stop writes to the affected file and follow `docs/backup-and-restore.md`; never replace it with an empty object.
 - Bad release: use `rollback-release.sh`; do not edit an immutable release in place.
-- 智慧树 login/worker issue: follow `deploy/zhihuishu-login-tunnel.md`.
+- 智慧树 login/worker or Tongji enhanced-auth window issue: follow `deploy/zhihuishu-login-tunnel.md`.
 - Data loss or key mismatch: stop the app and worker before any restore; follow the staged restore procedure in `docs/backup-and-restore.md`.
 - Certificate issue: keep port 80 ACME challenge handling intact, inspect `certbot.timer`, then validate nginx before reload.
