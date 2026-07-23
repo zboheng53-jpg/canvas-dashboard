@@ -545,6 +545,107 @@ def test_frontend_schedule_management_renders_today_busy_item(live_app, browser)
     expect(page.locator("#today-schedule-content")).to_contain_text("实验室值班")
 
 
+def test_frontend_schedule_is_fixed_height_precise_and_editable(live_app, browser):
+    page = browser.new_page(viewport={"width": 2048, "height": 1110})
+    page.add_init_script("""
+      (() => {
+        const RealDate = Date;
+        const fixedNow = new RealDate('2026-07-23T17:26:00+08:00').valueOf();
+        class FixedBrowserDate extends RealDate {
+          constructor(...args) { super(...(args.length ? args : [fixedNow])); }
+          static now() { return fixedNow; }
+        }
+        FixedBrowserDate.parse = RealDate.parse;
+        FixedBrowserDate.UTC = RealDate.UTC;
+        window.Date = FixedBrowserDate;
+      })();
+    """)
+    register_dashboard_user(page, live_app, "scheduleworkspace")
+    page.locator('[data-dashboard-view="schedule"]').click()
+
+    expect(page.locator("#schedule-scroll-viewport")).to_be_visible()
+    expect(page.locator("#schedule-management-open")).to_be_visible()
+    expect(page.locator("#schedule-import-button")).to_be_hidden()
+    expect(page.locator(".schedule-header-actions > button")).to_have_count(2)
+    assert page.locator(".schedule-header-actions > button").evaluate_all(
+        """buttons => {
+          const boxes = buttons.map(button => button.getBoundingClientRect());
+          return Math.abs(boxes[0].width - boxes[1].width) < 0.5
+            && Math.abs(boxes[0].height - boxes[1].height) < 0.5;
+        }"""
+    )
+    assert page.evaluate(
+        """() => {
+          const header = document.getElementById('schedule-grid-header');
+          const viewport = document.getElementById('schedule-scroll-viewport');
+          const headerCells = [...document.querySelectorAll('#schedule-grid-header .schedule-grid-header-cell')];
+          const bodyColumns = [
+            document.querySelector('.schedule-time-column'),
+            ...document.querySelectorAll('.schedule-day-column')
+          ];
+          return Math.abs(parseFloat(header.style.width) - viewport.clientWidth) < 0.5
+            && headerCells.every((cell, index) =>
+            Math.abs(cell.getBoundingClientRect().right - bodyColumns[index].getBoundingClientRect().right) < 0.5
+            );
+        }"""
+    )
+    page.locator("#schedule-management-open").click()
+    expect(page.locator("#schedule-management-modal")).to_be_visible()
+    expect(page.locator("#schedule-refresh-button")).to_be_visible()
+    expect(page.locator("#schedule-import-button")).to_be_visible()
+    expect(page.locator(".schedule-download-link")).to_be_visible()
+    page.locator("#schedule-management-modal .schedule-modal-close").click()
+    assert page.evaluate("document.documentElement.scrollHeight <= window.innerHeight + 2")
+    assert page.locator("#schedule-scroll-viewport").evaluate(
+        "element => element.scrollHeight > element.clientHeight"
+    )
+    assert page.locator("#schedule-scroll-viewport").evaluate(
+        """element => {
+          const hourHeight = Number(getComputedStyle(document.getElementById('schedule-timetable-grid')).getPropertyValue('--schedule-hour-height').replace('px', ''));
+          const visibleHours = element.clientHeight / hourHeight;
+          return visibleHours >= 9 && visibleHours <= 9.25;
+        }"""
+    )
+    assert page.locator("#schedule-scroll-viewport").evaluate(
+        "element => Math.abs(element.scrollTop - (8 * Number(getComputedStyle(document.getElementById('schedule-timetable-grid')).getPropertyValue('--schedule-hour-height').replace('px', '')) - 6)) < 2"
+    )
+    initial_grid_scroll = page.locator("#schedule-scroll-viewport").evaluate("element => element.scrollTop")
+    page.locator("#schedule-scroll-viewport").hover()
+    page.mouse.wheel(0, 600)
+    page.wait_for_function(
+        "initial => document.getElementById('schedule-scroll-viewport').scrollTop > initial + 100",
+        arg=initial_grid_scroll,
+    )
+    assert page.evaluate("window.scrollY") == 0
+    expect(page.locator("#schedule-return-default")).to_have_text("返回 08:00—17:00")
+    expect(page.locator(".schedule-now-line")).to_have_count(1)
+
+    wednesday = page.locator('.schedule-day-column[data-date="2026-07-22"]')
+    wednesday.locator(".schedule-time-slot").nth(39).click()
+    expect(page.locator("#schedule-item-modal")).to_be_visible()
+    expect(page.locator('#schedule-modal-form input[value="one-off"]')).to_be_checked()
+    expect(page.locator('#schedule-modal-form [name="date"]')).to_have_value("2026-07-22")
+    expect(page.locator('#schedule-modal-form [name="start_time"]')).to_have_value("19:30")
+    expect(page.locator('#schedule-modal-form [name="end_time"]')).to_have_value("20:30")
+    page.fill('#schedule-modal-form [name="title"]', "蓝桥杯讨论")
+    page.fill('#schedule-modal-form [name="location"]', "图书馆")
+    page.fill('#schedule-modal-form [name="start_time"]', "19:15")
+    page.fill('#schedule-modal-form [name="end_time"]', "20:05")
+    page.click('#schedule-modal-form .btn-submit')
+
+    card = page.locator('.schedule-card-oneoff').filter(has_text="蓝桥杯讨论")
+    expect(card).to_be_visible()
+    expect(card).to_contain_text("图书馆")
+    assert card.evaluate("""(element) => {
+      const hourHeight = Number(getComputedStyle(document.getElementById('schedule-timetable-grid')).getPropertyValue('--schedule-hour-height').replace('px', ''));
+      return Math.abs(parseFloat(element.style.top) - 19.25 * hourHeight) < 1;
+    }""")
+    card.click()
+    expect(page.locator("#schedule-modal-title")).to_have_text("编辑排程事项")
+    expect(page.locator('#schedule-modal-form [name="location"]')).to_have_value("图书馆")
+    expect(page.locator("#schedule-item-delete")).to_be_visible()
+
+
 def test_frontend_schedule_uses_one_academic_week_for_all_seven_days(live_app, browser):
     context = browser.new_context(timezone_id="Asia/Shanghai", viewport={"width": 1440, "height": 1000})
     page = context.new_page()
