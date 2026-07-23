@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='dashboard-shell.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='dashboard-shell.css') }}?v=align2">
   <script>window.CSRF_TOKEN = "{{ csrf_token() }}";</script>
   <script src="{{ url_for('static', filename='csrf.js') }}"></script>
 </head>
@@ -274,6 +274,7 @@
       });
       document.getElementById('dashboard-right-rail').classList.toggle('hidden', viewName !== 'overview');
       workspaceStack.classList.toggle('is-focus-view', viewName !== 'overview');
+      dashboardShell.classList.toggle('schedule-workspace-active', viewName === 'schedule');
       let loadPromise = Promise.resolve();
       if (viewName === 'schedule') loadPromise = loadScheduleManager();
       if (viewName === 'projects') loadPromise = loadProjects();
@@ -320,12 +321,21 @@
       return element;
     }
 
+    const scheduleDefaultStartMinutes = 8 * 60;
+    const scheduleDefaultEndMinutes = 17 * 60;
     let currentScheduleWeekOffset = 0;
+    let scheduleHourHeight = 44;
+    let scheduleHasRendered = false;
+    let scheduleEditingKind = null;
+    let scheduleEditingItem = null;
+    let scheduleEditingOccurrenceDate = null;
+    let scheduleNowTimer = null;
+    let scheduleResizeFrame = null;
 
     function getMondayOfOffset(offset = 0) {
       const now = new Date();
       const day = now.getDay();
-      const diffToMon = (day === 0 ? -6 : 1 - day);
+      const diffToMon = day === 0 ? -6 : 1 - day;
       const monday = new Date(now);
       monday.setDate(now.getDate() + diffToMon + (offset * 7));
       monday.setHours(0, 0, 0, 0);
@@ -334,35 +344,29 @@
 
     function getWeekDates(offset = 0) {
       const monday = getMondayOfOffset(offset);
-      const dates = [];
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(monday);
-        d.setDate(monday.getDate() + i);
-        dates.push(d);
-      }
-      return dates;
+      return Array.from({length: 7}, (_, index) => {
+        const date = new Date(monday);
+        date.setDate(monday.getDate() + index);
+        return date;
+      });
     }
 
-    function formatDateISO(d) {
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const date = String(d.getDate()).padStart(2, '0');
-      return `${year}-${month}-${date}`;
-    }
-
-    function navigateScheduleWeek(offsetDelta) {
-      if (offsetDelta === 0) {
-        currentScheduleWeekOffset = 0;
-      } else {
-        currentScheduleWeekOffset += offsetDelta;
-      }
-      renderScheduleManager(scheduleData || {courses: {}, items: {recurring: [], one_off: []}});
+    function formatDateISO(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     }
 
     function timeToMinutes(timeStr) {
       if (!timeStr) return 0;
-      const [h, m] = timeStr.split(':').map(Number);
-      return (h || 0) * 60 + (m || 0);
+      const [hour, minute] = timeStr.split(':').map(Number);
+      return (hour || 0) * 60 + (minute || 0);
+    }
+
+    function minutesToTime(minutes) {
+      const bounded = Math.max(0, Math.min(1439, minutes));
+      return `${String(Math.floor(bounded / 60)).padStart(2, '0')}:${String(bounded % 60).padStart(2, '0')}`;
     }
 
     function calculateWeekNumber(dateObj, semesterStartStr) {
@@ -376,280 +380,432 @@
       return weekNum > 0 ? weekNum : null;
     }
 
+    function navigateScheduleWeek(offsetDelta) {
+      currentScheduleWeekOffset = offsetDelta === 0 ? 0 : currentScheduleWeekOffset + offsetDelta;
+      renderScheduleManager(scheduleData || {courses: {}, items: {recurring: [], one_off: []}});
+    }
+
+    function scheduleEventGroups(events) {
+      const sorted = [...events].sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time) || timeToMinutes(a.end_time) - timeToMinutes(b.end_time));
+      const groups = [];
+      sorted.forEach((event) => {
+        const start = timeToMinutes(event.start_time);
+        const last = groups[groups.length - 1];
+        if (!last || start >= last.end) {
+          groups.push({events: [event], end: timeToMinutes(event.end_time)});
+        } else {
+          last.events.push(event);
+          last.end = Math.max(last.end, timeToMinutes(event.end_time));
+        }
+      });
+      return groups;
+    }
+
+    function collectScheduleEvents(data, courses, dateObj, dayIdx, semesterStart) {
+      const dateISO = formatDateISO(dateObj);
+      const weekNum = calculateWeekNumber(dateObj, semesterStart);
+      const events = [];
+
+      (courses.courses || []).forEach((course, courseIndex) => {
+        (course.sessions || []).forEach((session, sessionIndex) => {
+          if (session.weekday !== dayIdx) return;
+          let valid = true;
+          if (session.date_start && session.date_end) {
+            valid = session.date_start <= dateISO && dateISO <= session.date_end;
+          } else if (session.weeks?.length && weekNum) {
+            valid = session.weeks.includes(weekNum);
+          }
+          if (session.parity === 'odd' && weekNum && weekNum % 2 === 0) valid = false;
+          if (session.parity === 'even' && weekNum && weekNum % 2 !== 0) valid = false;
+          if (!valid) return;
+          events.push({
+            uid: `course-${courseIndex}-${sessionIndex}`,
+            kind: 'course',
+            title: course.name,
+            location: session.location || course.location || '',
+            start_time: session.start_time,
+            end_time: session.end_time,
+            raw: course
+          });
+        });
+      });
+
+      (data.items?.recurring || []).forEach((item) => {
+        const inRange = (!item.start_date || item.start_date <= dateISO) && (!item.end_date || dateISO <= item.end_date);
+        if (!item.enabled || !inRange || item.weekday !== dayIdx || item.skipped_dates?.includes(dateISO)) return;
+        events.push({
+          uid: `recurring-${item.id}`,
+          kind: 'recurring',
+          title: item.title,
+          location: item.location || '',
+          start_time: item.start_time,
+          end_time: item.end_time,
+          raw: item
+        });
+      });
+
+      (data.items?.one_off || []).forEach((item) => {
+        if (item.date !== dateISO) return;
+        events.push({
+          uid: `one-off-${item.id}`,
+          kind: 'one-off',
+          title: item.title,
+          location: item.location || '',
+          start_time: item.start_time,
+          end_time: item.end_time,
+          raw: item
+        });
+      });
+      return events;
+    }
+
+    function buildScheduleCard(event, dateISO, lane = 0, laneCount = 1) {
+      const duration = Math.max(1, timeToMinutes(event.end_time) - timeToMinutes(event.start_time));
+      const cardKind = event.kind === 'one-off' ? 'oneoff' : event.kind;
+      const card = scheduleElement('button', `schedule-card schedule-card-${cardKind}${duration <= 30 ? ' is-compact' : ''}`);
+      card.type = 'button';
+      card.style.top = `${timeToMinutes(event.start_time) / 60 * scheduleHourHeight}px`;
+      card.style.height = `${duration / 60 * scheduleHourHeight}px`;
+      if (laneCount > 1) {
+        card.style.left = `calc(${lane / laneCount * 100}% + 3px)`;
+        card.style.width = `calc(${100 / laneCount}% - 5px)`;
+        card.style.right = 'auto';
+      }
+      const fullDescription = [event.title, `${event.start_time} - ${event.end_time}`, event.location].filter(Boolean).join('\n');
+      card.title = fullDescription;
+      card.setAttribute('aria-label', fullDescription.replaceAll('\n', '，'));
+      card.append(scheduleElement('span', 'schedule-card-title', event.title));
+      if (duration <= 30) {
+        card.append(scheduleElement('span', 'schedule-card-summary', `${event.start_time} - ${event.end_time}${event.location ? ` · ${event.location}` : ''}`));
+      } else {
+        card.append(scheduleElement('span', 'schedule-card-time', `${event.start_time} - ${event.end_time}`));
+        if (event.location) card.append(scheduleElement('span', 'schedule-card-loc', event.location));
+      }
+      card.addEventListener('click', (clickEvent) => {
+        clickEvent.stopPropagation();
+        onScheduleCardClick(event, dateISO);
+      });
+      return card;
+    }
+
+    function renderScheduleRangeHint(element, direction, dayEvents) {
+      element.replaceChildren();
+      const entries = dayEvents.filter((entry) => entry.events.length);
+      element.classList.toggle('hidden', entries.length === 0);
+      if (!entries.length) return;
+      element.append(scheduleElement(
+        'span',
+        '',
+        direction === 'before'
+          ? `↑ ${minutesToTime(scheduleDefaultStartMinutes)} 前：`
+          : `↓ ${minutesToTime(scheduleDefaultEndMinutes)} 后：`
+      ));
+      entries.forEach((entry, index) => {
+        const button = scheduleElement('button', 'schedule-range-day', `${weekdayLabels[entry.day]} ${entry.events.length} 项`);
+        button.type = 'button';
+        const targetMinute = direction === 'before'
+          ? Math.min(...entry.events.map(event => timeToMinutes(event.start_time)))
+          : Math.max(...entry.events.map(event => timeToMinutes(event.start_time)));
+        button.addEventListener('click', () => scrollScheduleToMinute(targetMinute));
+        element.append(button);
+        if (index < entries.length - 1) element.append(document.createTextNode(' · '));
+      });
+    }
+
+    function updateScheduleScrollAffordance() {
+      const viewport = document.getElementById('schedule-scroll-viewport');
+      const returnButton = document.getElementById('schedule-return-default');
+      if (!viewport || !returnButton) return;
+      returnButton.classList.toggle('hidden', Math.abs(viewport.scrollTop - getScheduleDefaultScrollTop()) < scheduleHourHeight / 2);
+    }
+
+    function scrollScheduleToMinute(minute, behavior = 'smooth') {
+      const viewport = document.getElementById('schedule-scroll-viewport');
+      if (!viewport) return;
+      viewport.scrollTo({top: Math.max(0, minute / 60 * scheduleHourHeight - 12), behavior});
+    }
+
+    function scrollScheduleToDefault() {
+      const viewport = document.getElementById('schedule-scroll-viewport');
+      if (!viewport) return;
+      viewport.scrollTo({top: getScheduleDefaultScrollTop(), behavior: 'smooth'});
+    }
+
+    function getScheduleDefaultScrollTop() {
+      return Math.max(0, scheduleDefaultStartMinutes / 60 * scheduleHourHeight - 6);
+    }
+
     function renderScheduleManager(data) {
       scheduleData = data;
       const courses = data.courses || {};
-      const meta = document.getElementById('schedule-term-meta');
-      if (meta) {
-        meta.textContent = courses.updated_at
-          ? `${courses.term || '当前学期'} · 上次更新 ${new Date(courses.updated_at).toLocaleString('zh-CN')}`
-          : '尚未导入本学期课表';
-      }
+      const viewport = document.getElementById('schedule-scroll-viewport');
+      const grid = document.getElementById('schedule-timetable-grid');
+      const header = document.getElementById('schedule-grid-header');
+      if (!viewport || !grid || !header) return;
+      const preservedScrollMinute = scheduleHasRendered ? viewport.scrollTop / scheduleHourHeight * 60 : null;
+      const defaultVisibleHours = (scheduleDefaultEndMinutes - scheduleDefaultStartMinutes) / 60;
+      scheduleHourHeight = Math.max(52, Math.min(90, (viewport.clientHeight - 12) / defaultVisibleHours || 52));
+      grid.style.setProperty('--schedule-hour-height', `${scheduleHourHeight}px`);
+      header.style.setProperty('--schedule-hour-height', `${scheduleHourHeight}px`);
 
-      const gridContainer = document.getElementById('schedule-timetable-grid');
-      if (!gridContainer) return;
+      const meta = document.getElementById('schedule-term-meta');
+      const summary = document.getElementById('schedule-management-summary');
+      const metaText = courses.updated_at
+        ? `${courses.term || '当前学期'} · 更新于 ${new Date(courses.updated_at).toLocaleDateString('zh-CN')}`
+        : '尚未导入本学期课表';
+      if (meta) meta.textContent = metaText;
+      if (summary) summary.textContent = `${metaText} · 已导入 ${(courses.courses || []).length} 门课程`;
 
       const weekDates = getWeekDates(currentScheduleWeekOffset);
       const todayISO = formatDateISO(new Date());
       const semesterStart = courses.semester_start || '';
+      const monday = weekDates[0];
+      const sunday = weekDates[6];
+      const weekNum = calculateWeekNumber(monday, semesterStart);
+      document.getElementById('schedule-week-label').textContent =
+        `${monday.getMonth() + 1}月${monday.getDate()}日—${sunday.getMonth() + 1}月${sunday.getDate()}日${weekNum ? ` · 第 ${weekNum} 周` : ''}`;
 
-      const weekLabel = document.getElementById('schedule-week-label');
-      if (weekLabel) {
-        const mon = weekDates[0];
-        const sun = weekDates[6];
-        const monStr = `${mon.getFullYear()}年${mon.getMonth() + 1}月${mon.getDate()}日`;
-        const sunStr = `${sun.getMonth() + 1}月${sun.getDate()}日`;
-        const weekNum = calculateWeekNumber(mon, semesterStart);
-        weekLabel.textContent = `${monStr} - ${sunStr}${weekNum ? ` (第${weekNum}周)` : ''}`;
-      }
-
-      gridContainer.replaceChildren();
-
-      const cornerHeader = scheduleElement('div', 'schedule-grid-header-cell', '时间');
-      gridContainer.append(cornerHeader);
-
-      weekDates.forEach((dateObj, idx) => {
-        const dateISO = formatDateISO(dateObj);
-        const isToday = dateISO === todayISO;
+      header.replaceChildren(scheduleElement('div', 'schedule-grid-header-cell', '时间'));
+      weekDates.forEach((dateObj, dayIdx) => {
+        const isToday = formatDateISO(dateObj) === todayISO;
         const cell = scheduleElement('div', `schedule-grid-header-cell${isToday ? ' is-today' : ''}`);
-        const dayName = weekdayLabels[idx];
-        const monthDay = `${dateObj.getMonth() + 1}/${dateObj.getDate()}`;
-        cell.append(document.createTextNode(dayName));
-        cell.append(scheduleElement('small', '', monthDay));
-        gridContainer.append(cell);
+        cell.append(document.createTextNode(weekdayLabels[dayIdx]), scheduleElement('small', '', `${dateObj.getMonth() + 1}/${dateObj.getDate()}`));
+        header.append(cell);
       });
 
-      const startHour = 8;
-      const endHour = 22;
-      const hourHeight = 52;
-
-      const timeCol = scheduleElement('div', 'schedule-time-column');
-      for (let h = startHour; h < endHour; h++) {
-        const label = `${String(h).padStart(2, '0')}:00`;
-        const timeCell = scheduleElement('div', 'schedule-time-cell', label);
-        timeCol.append(timeCell);
+      grid.replaceChildren();
+      const timeColumn = scheduleElement('div', 'schedule-time-column');
+      timeColumn.style.height = `${24 * scheduleHourHeight}px`;
+      for (let hour = 0; hour <= 24; hour += 1) {
+        const label = scheduleElement('span', 'schedule-time-label', `${String(hour).padStart(2, '0')}:00`);
+        label.style.top = `${hour * scheduleHourHeight}px`;
+        timeColumn.append(label);
       }
-      gridContainer.append(timeCol);
+      grid.append(timeColumn);
 
+      const beforeByDay = [];
+      const afterByDay = [];
       weekDates.forEach((dateObj, dayIdx) => {
         const dateISO = formatDateISO(dateObj);
-        const isToday = dateISO === todayISO;
-        const dayCol = scheduleElement('div', `schedule-day-column${isToday ? ' is-today' : ''}`);
-        dayCol.dataset.date = dateISO;
-        dayCol.dataset.weekday = dayIdx;
-
-        for (let h = startHour; h < endHour; h++) {
-          const slot = scheduleElement('div', 'schedule-time-slot');
-          const timeStr = `${String(h).padStart(2, '0')}:00`;
-          slot.title = `${weekdayLabels[dayIdx]} ${timeStr} - 点击添加事项`;
-          slot.onclick = (e) => {
-            if (e.target === slot) {
-              openScheduleItemModal('one-off', null, {date: dateISO, start_time: timeStr, weekday: dayIdx});
-            }
-          };
-          dayCol.append(slot);
+        const dayColumn = scheduleElement('div', `schedule-day-column${dateISO === todayISO ? ' is-today' : ''}`);
+        dayColumn.dataset.date = dateISO;
+        dayColumn.dataset.weekday = dayIdx;
+        dayColumn.style.height = `${24 * scheduleHourHeight}px`;
+        for (let halfHour = 0; halfHour < 48; halfHour += 1) {
+          const minute = halfHour * 30;
+          const slot = scheduleElement('button', `schedule-time-slot${halfHour % 2 === 0 ? ' is-hour' : ' is-half-hour'}`);
+          slot.type = 'button';
+          slot.style.height = `${scheduleHourHeight / 2}px`;
+          slot.title = `${weekdayLabels[dayIdx]} ${minutesToTime(minute)} - 点击添加事项`;
+          slot.addEventListener('click', () => openScheduleItemModal('one-off', null, {
+            date: dateISO,
+            weekday: dayIdx,
+            start_time: minutesToTime(minute),
+            end_time: minutesToTime(minute + 60)
+          }));
+          dayColumn.append(slot);
         }
 
-        const events = [];
-        const weekNumForDay = calculateWeekNumber(dateObj, semesterStart);
-
-        (courses.courses || []).forEach(course => {
-          (course.sessions || []).forEach(session => {
-            if (session.weekday === dayIdx) {
-              let validWeek = true;
-              if (session.weeks && session.weeks.length > 0 && weekNumForDay) {
-                validWeek = session.weeks.includes(weekNumForDay);
-              }
-              if (session.parity === 'odd' && weekNumForDay && weekNumForDay % 2 === 0) validWeek = false;
-              if (session.parity === 'even' && weekNumForDay && weekNumForDay % 2 !== 0) validWeek = false;
-
-              if (validWeek) {
-                events.push({
-                  kind: 'course',
-                  title: course.name,
-                  location: session.location || course.location || '',
-                  start_time: session.start_time,
-                  end_time: session.end_time,
-                  raw: course
-                });
-              }
-            }
-          });
-        });
-
-        (data.items?.recurring || []).forEach(item => {
-          if (item.weekday === dayIdx) {
-            const isSkipped = item.skipped_dates && item.skipped_dates.includes(dateISO);
-            if (!isSkipped) {
-              events.push({
-                kind: 'recurring',
-                title: item.title,
-                location: item.enabled ? '' : '(已暂停)',
-                start_time: item.start_time,
-                end_time: item.end_time,
-                enabled: item.enabled,
-                raw: item
-              });
-            }
-          }
-        });
-
-        (data.items?.one_off || []).forEach(item => {
-          if (item.date === dateISO) {
-            events.push({
-              kind: 'one-off',
-              title: item.title,
-              location: '当周任务',
-              start_time: item.start_time,
-              end_time: item.end_time,
-              raw: item
+        const events = collectScheduleEvents(data, courses, dateObj, dayIdx, semesterStart);
+        beforeByDay.push({day: dayIdx, events: events.filter(event => timeToMinutes(event.start_time) < scheduleDefaultStartMinutes)});
+        afterByDay.push({day: dayIdx, events: events.filter(event => timeToMinutes(event.end_time) > scheduleDefaultEndMinutes)});
+        scheduleEventGroups(events).forEach((group) => {
+          const visibleEvents = group.events.slice(0, 2);
+          visibleEvents.forEach((event, lane) => dayColumn.append(buildScheduleCard(event, dateISO, lane, visibleEvents.length)));
+          if (group.events.length > 2) {
+            const more = scheduleElement('button', 'schedule-overlap-more', `+${group.events.length - 2} 项`);
+            more.type = 'button';
+            more.style.top = `${timeToMinutes(group.events[0].start_time) / 60 * scheduleHourHeight + 24}px`;
+            more.addEventListener('click', (clickEvent) => {
+              clickEvent.stopPropagation();
+              openScheduleOverlapPopover(group.events, dateISO, more);
             });
+            dayColumn.append(more);
           }
         });
 
-        events.forEach(evt => {
-          const startMins = timeToMinutes(evt.start_time);
-          const endMins = timeToMinutes(evt.end_time);
-          const gridStartMins = startHour * 60;
-          const topMins = Math.max(0, startMins - gridStartMins);
-          const durMins = Math.max(30, endMins - startMins);
-
-          const topPx = (topMins / 60) * hourHeight;
-          const heightPx = Math.max(28, (durMins / 60) * hourHeight);
-
-          const card = scheduleElement('div', `schedule-card schedule-card-${evt.kind === 'one-off' ? 'oneoff' : evt.kind}${evt.kind === 'recurring' && !evt.enabled ? ' is-paused' : ''}`);
-          card.style.top = `${topPx}px`;
-          card.style.height = `${heightPx - 4}px`;
-
-          const titleEl = scheduleElement('div', 'schedule-card-title', evt.title);
-          const timeEl = scheduleElement('div', 'schedule-card-time', `${evt.start_time} - ${evt.end_time}`);
-          card.append(titleEl, timeEl);
-
-          if (evt.location) {
-            const locEl = scheduleElement('div', 'schedule-card-loc', evt.location);
-            card.append(locEl);
-          }
-
-          card.onclick = (e) => {
-            e.stopPropagation();
-            onScheduleCardClick(evt, dateISO);
-          };
-
-          dayCol.append(card);
-        });
-
-        gridContainer.append(dayCol);
+        if (currentScheduleWeekOffset === 0 && dateISO === todayISO) {
+          const now = new Date();
+          const nowLine = scheduleElement('div', 'schedule-now-line');
+          nowLine.style.top = `${(now.getHours() * 60 + now.getMinutes()) / 60 * scheduleHourHeight}px`;
+          nowLine.dataset.time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+          dayColumn.append(nowLine);
+        }
+        grid.append(dayColumn);
       });
-    }
 
-    function onScheduleCardClick(evt, dateISO) {
-      if (evt.kind === 'course') {
-        const c = evt.raw;
-        alert(`【课程】${c.name}\n时间：${evt.start_time} - ${evt.end_time}\n地点：${evt.location || '按课表安排'}\n教师：${c.teacher || '未指定'}`);
-      } else if (evt.kind === 'recurring') {
-        const item = evt.raw;
-        const action = prompt(`【每周定时任务】${item.title} (${weekdayLabels[item.weekday]} ${item.start_time}-${item.end_time})\n\n输入指令数字：\n1. 编辑\n2. ${item.enabled ? '暂停' : '启用'}\n3. 删除\n4. 本次跳过`, '1');
-        if (action === '1') {
-          openScheduleItemModal('recurring', item);
-        } else if (action === '2') {
-          saveScheduleItem('recurring', item.id, {...item, enabled: !item.enabled});
-        } else if (action === '3') {
-          if (confirm(`确定删除定时任务「${item.title}」吗？`)) deleteScheduleItem('recurring', item.id);
-        } else if (action === '4') {
-          const skipped = [...(item.skipped_dates || []), dateISO];
-          saveScheduleItem('recurring', item.id, {...item, skipped_dates: skipped});
-        }
-      } else if (evt.kind === 'one-off') {
-        const item = evt.raw;
-        const action = prompt(`【当周任务】${item.title} (${item.date} ${item.start_time}-${item.end_time})\n\n输入指令数字：\n1. 编辑\n2. 删除`, '1');
-        if (action === '1') {
-          openScheduleItemModal('one-off', item);
-        } else if (action === '2') {
-          if (confirm(`确定删除任务「${item.title}」吗？`)) deleteScheduleItem('one-off', item.id);
-        }
+      const scrollbarWidth = Math.max(0, viewport.offsetWidth - viewport.clientWidth);
+      header.style.width = `${viewport.clientWidth}px`;
+      header.style.marginRight = `${scrollbarWidth}px`;
+      header.style.paddingRight = '0px';
+      renderScheduleRangeHint(document.getElementById('schedule-range-before'), 'before', beforeByDay);
+      renderScheduleRangeHint(document.getElementById('schedule-range-after'), 'after', afterByDay);
+      if (!viewport.dataset.scheduleScrollBound) {
+        viewport.addEventListener('scroll', updateScheduleScrollAffordance, {passive: true});
+        viewport.dataset.scheduleScrollBound = 'true';
       }
+      viewport.scrollTop = preservedScrollMinute === null
+        ? getScheduleDefaultScrollTop()
+        : preservedScrollMinute / 60 * scheduleHourHeight;
+      scheduleHasRendered = true;
+      updateScheduleScrollAffordance();
+      clearInterval(scheduleNowTimer);
+      scheduleNowTimer = setInterval(updateScheduleNowLine, 60000);
     }
 
-    function openScheduleItemModal(defaultKind = 'recurring', item = null, presets = {}) {
+    function updateScheduleNowLine() {
+      const line = document.querySelector('.schedule-now-line');
+      if (!line || currentScheduleWeekOffset !== 0) return;
+      const now = new Date();
+      line.style.top = `${(now.getHours() * 60 + now.getMinutes()) / 60 * scheduleHourHeight}px`;
+      line.dataset.time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    }
+
+    window.addEventListener('resize', () => {
+      if (!scheduleData || document.getElementById('dashboard-view-schedule')?.classList.contains('hidden')) return;
+      cancelAnimationFrame(scheduleResizeFrame);
+      scheduleResizeFrame = requestAnimationFrame(() => renderScheduleManager(scheduleData));
+    });
+
+    function onScheduleCardClick(event, dateISO) {
+      if (event.kind === 'course') {
+        const course = event.raw;
+        alert(`【课程】${course.name}\n时间：${event.start_time} - ${event.end_time}\n地点：${event.location || '按课表安排'}\n教师：${course.teacher || '未指定'}`);
+        return;
+      }
+      openScheduleItemModal(event.kind, event.raw, {date: dateISO});
+    }
+
+    function openScheduleOverlapPopover(events, dateISO, anchor) {
+      const popover = document.getElementById('schedule-overlap-popover');
+      const list = document.getElementById('schedule-overlap-list');
+      list.replaceChildren();
+      events.forEach((event) => {
+        const button = scheduleElement('button', 'schedule-overlap-item');
+        button.type = 'button';
+        button.append(
+          scheduleElement('strong', '', event.title),
+          scheduleElement('span', '', `${event.start_time} - ${event.end_time}${event.location ? ` · ${event.location}` : ''}`)
+        );
+        button.addEventListener('click', () => {
+          closeScheduleOverlapPopover();
+          onScheduleCardClick(event, dateISO);
+        });
+        list.append(button);
+      });
+      const box = anchor.getBoundingClientRect();
+      popover.style.left = `${Math.min(window.innerWidth - 300, box.left)}px`;
+      popover.style.top = `${Math.min(window.innerHeight - 260, box.bottom + 6)}px`;
+      popover.classList.remove('hidden');
+    }
+
+    function closeScheduleOverlapPopover() {
+      document.getElementById('schedule-overlap-popover')?.classList.add('hidden');
+    }
+
+    function defaultScheduleStartTime() {
+      const now = new Date();
+      const rounded = Math.ceil((now.getHours() * 60 + now.getMinutes()) / 30) * 30;
+      return minutesToTime(Math.max(8 * 60, Math.min(20 * 60, rounded)));
+    }
+
+    function openScheduleItemModal(defaultKind = 'one-off', item = null, presets = {}) {
       const modal = document.getElementById('schedule-item-modal');
       const form = document.getElementById('schedule-modal-form');
       if (!modal || !form) return;
-
       form.reset();
-      document.getElementById('schedule-form-id').value = item ? item.id : '';
+      scheduleEditingKind = item ? (item.date ? 'one-off' : 'recurring') : null;
+      scheduleEditingItem = item;
+      scheduleEditingOccurrenceDate = presets.date || item?.date || formatDateISO(new Date());
+      const kind = scheduleEditingKind || defaultKind || 'one-off';
+      document.getElementById('schedule-form-id').value = item?.id || '';
       document.getElementById('schedule-modal-title').textContent = item ? '编辑排程事项' : '添加排程事项';
-
-      const kindVal = item ? (item.date ? 'one-off' : 'recurring') : defaultKind;
-      const radios = form.elements['kind'];
-      if (radios) {
-        for (let r of radios) {
-          r.checked = r.value === kindVal;
-        }
+      for (const radio of form.elements.kind) {
+        radio.checked = radio.value === kind;
+        radio.disabled = Boolean(item) && radio.value !== kind;
       }
-
+      const startTime = item?.start_time || presets.start_time || defaultScheduleStartTime();
+      document.getElementById('schedule-form-title').value = item?.title || '';
+      document.getElementById('schedule-form-start').value = startTime;
+      document.getElementById('schedule-form-end').value = item?.end_time || presets.end_time || minutesToTime(timeToMinutes(startTime) + 60);
+      document.getElementById('schedule-form-location').value = item?.location || '';
+      document.getElementById('schedule-form-date').value = item?.date || presets.date || formatDateISO(new Date());
+      const currentWeekday = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
+      document.getElementById('schedule-form-weekday').value = item?.weekday ?? presets.weekday ?? currentWeekday;
+      document.getElementById('schedule-form-repeat-start').value = item?.start_date || presets.date || formatDateISO(new Date());
+      document.getElementById('schedule-form-repeat-end').value = item?.end_date || '';
+      document.getElementById('schedule-edit-scope').classList.toggle('hidden', !(item && kind === 'recurring'));
+      document.getElementById('schedule-item-delete').classList.toggle('hidden', !item);
       toggleScheduleKindFields();
-
-      if (item) {
-        document.getElementById('schedule-form-title').value = item.title || '';
-        document.getElementById('schedule-form-start').value = item.start_time || '09:00';
-        document.getElementById('schedule-form-end').value = item.end_time || '10:00';
-        if (kindVal === 'recurring') {
-          document.getElementById('schedule-form-weekday').value = item.weekday !== undefined ? item.weekday : '0';
-        } else {
-          document.getElementById('schedule-form-date').value = item.date || presets.date || formatDateISO(new Date());
-        }
-      } else {
-        if (presets.start_time) document.getElementById('schedule-form-start').value = presets.start_time;
-        if (presets.weekday !== undefined) document.getElementById('schedule-form-weekday').value = presets.weekday;
-        if (presets.date) document.getElementById('schedule-form-date').value = presets.date;
-        else document.getElementById('schedule-form-date').value = formatDateISO(new Date());
-      }
-
       modal.classList.remove('hidden');
+      document.getElementById('schedule-form-title').focus();
     }
 
     function closeScheduleItemModal() {
-      const modal = document.getElementById('schedule-item-modal');
-      if (modal) modal.classList.add('hidden');
+      document.getElementById('schedule-item-modal')?.classList.add('hidden');
     }
 
     function toggleScheduleKindFields() {
       const form = document.getElementById('schedule-modal-form');
       if (!form) return;
-      const kind = form.elements['kind'].value;
-      const recurringGroup = document.getElementById('field-recurring-weekday');
-      const oneoffGroup = document.getElementById('field-one-off-date');
-      if (kind === 'recurring') {
-        recurringGroup.classList.remove('hidden');
-        oneoffGroup.classList.add('hidden');
-      } else {
-        recurringGroup.classList.add('hidden');
-        oneoffGroup.classList.remove('hidden');
-      }
+      const kind = form.elements.kind.value;
+      const recurring = document.getElementById('field-recurring-weekday');
+      const oneOff = document.getElementById('field-one-off-date');
+      recurring.classList.toggle('hidden', kind !== 'recurring');
+      oneOff.classList.toggle('hidden', kind === 'recurring');
+      document.getElementById('schedule-form-date').required = kind === 'one-off';
+      document.getElementById('schedule-form-weekday').required = kind === 'recurring';
+      document.getElementById('schedule-form-repeat-start').required = kind === 'recurring';
     }
 
     async function handleScheduleFormSubmit(event) {
       event.preventDefault();
-      const form = event.currentTarget;
-      const formData = new FormData(form);
-      const itemId = formData.get('id');
+      const formData = new FormData(event.currentTarget);
       const kind = formData.get('kind');
-
       const payload = {
         title: formData.get('title'),
         start_time: formData.get('start_time'),
-        end_time: formData.get('end_time')
+        end_time: formData.get('end_time'),
+        location: formData.get('location')
       };
-
       if (kind === 'recurring') {
         payload.weekday = Number(formData.get('weekday'));
-        payload.enabled = true;
+        payload.start_date = formData.get('start_date');
+        payload.end_date = formData.get('end_date');
+        payload.enabled = scheduleEditingItem?.enabled ?? true;
+        payload.skipped_dates = scheduleEditingItem?.skipped_dates || [];
       } else {
         payload.date = formData.get('date');
       }
-
       closeScheduleItemModal();
-      await saveScheduleItem(kind, itemId ? Number(itemId) : null, payload);
+      if (scheduleEditingKind === 'recurring' && formData.get('scope') === 'occurrence') {
+        const skippedDates = [...new Set([...(scheduleEditingItem.skipped_dates || []), scheduleEditingOccurrenceDate])];
+        await saveScheduleItem('recurring', scheduleEditingItem.id, {...scheduleEditingItem, skipped_dates: skippedDates});
+        await saveScheduleItem('one-off', null, {...payload, date: scheduleEditingOccurrenceDate});
+        return;
+      }
+      await saveScheduleItem(kind, scheduleEditingItem?.id || null, payload);
+    }
+
+    async function deleteScheduleItemFromModal() {
+      if (!scheduleEditingItem || !confirm(`确定删除「${scheduleEditingItem.title}」吗？`)) return;
+      const form = document.getElementById('schedule-modal-form');
+      const scope = new FormData(form).get('scope');
+      closeScheduleItemModal();
+      if (scheduleEditingKind === 'recurring' && scope === 'occurrence') {
+        const skippedDates = [...new Set([...(scheduleEditingItem.skipped_dates || []), scheduleEditingOccurrenceDate])];
+        await saveScheduleItem('recurring', scheduleEditingItem.id, {...scheduleEditingItem, skipped_dates: skippedDates});
+      } else {
+        await deleteScheduleItem(scheduleEditingKind, scheduleEditingItem.id);
+      }
+    }
+
+    function openScheduleManagementModal() {
+      document.getElementById('schedule-management-modal')?.classList.remove('hidden');
+    }
+
+    function closeScheduleManagementModal() {
+      document.getElementById('schedule-management-modal')?.classList.add('hidden');
     }
 
     async function loadScheduleManager() {
@@ -747,7 +903,7 @@
       const response = await fetch(url, {method: itemId ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
       const data = await response.json();
       if (!response.ok || !data.ok) { setScheduleStatus(data.error || '保存失败', true); return; }
-      setScheduleStatus(data.overlap ? '已保存；该事项与同类日程时间重叠' : '已保存');
+      setScheduleStatus(data.overlap ? '已保存；该事项与其他日程时间重叠' : '已保存');
       await loadScheduleManager(); await loadTodaySchedule();
     }
 
@@ -756,13 +912,6 @@
       const data = await response.json();
       if (!response.ok || !data.ok) { setScheduleStatus('删除失败', true); return; }
       await loadScheduleManager(); await loadTodaySchedule();
-    }
-
-    function editScheduleItem(kind, item) {
-      const title = window.prompt('事项名称', item.title); if (title === null) return;
-      const start = window.prompt('开始时间（HH:MM）', item.start_time); if (start === null) return;
-      const end = window.prompt('结束时间（HH:MM）', item.end_time); if (end === null) return;
-      saveScheduleItem(kind, item.id, {...item, title, start_time: start, end_time: end});
     }
 
     function formatScheduleTitle(title) {

@@ -13,14 +13,13 @@
       <div>
         <span class="placeholder-kicker">WEEKLY SCHEDULE</span>
         <h1>周排程与课表</h1>
-        <p id="schedule-term-meta">尚未导入本学期课表</p>
+        <div class="schedule-meta-line">
+          <p id="schedule-term-meta">尚未导入本学期课表</p>
+        </div>
       </div>
       <div class="schedule-header-actions">
-        <button type="button" class="btn-schedule-action" id="btn-add-schedule-item" onclick="openScheduleItemModal()">+ 添加事项</button>
-        <input class="schedule-file-input" id="schedule-file-input" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="importCourseSchedule(this)">
-        <button type="button" class="btn-schedule-action schedule-import-button" id="schedule-import-button" onclick="document.getElementById('schedule-file-input').click()">从插件文件导入</button>
-        <button type="button" class="schedule-refresh-button" id="schedule-refresh-button" onclick="openTongjiLoginSession()">统一身份认证登录</button>
-        <a class="schedule-refresh-button schedule-download-link" href="/static/downloads/tongji-timetable-exporter-v1.2.zip" download>下载课表插件 v1.2</a>
+        <button type="button" class="btn-schedule-action btn-schedule-secondary" id="schedule-management-open" onclick="openScheduleManagementModal()">课表管理</button>
+        <button type="button" class="btn-schedule-action btn-schedule-primary" id="btn-add-schedule-item" onclick="openScheduleItemModal('one-off')">＋ 添加事项</button>
       </div>
     </div>
     <p class="schedule-manager-status" id="schedule-manager-status" role="status"></p>
@@ -34,14 +33,20 @@
       </div>
       <div class="schedule-legend">
         <span class="legend-item legend-course"><i class="legend-dot"></i>课表</span>
-        <span class="legend-item legend-recurring"><i class="legend-dot"></i>每周定时</span>
-        <span class="legend-item legend-weekly"><i class="legend-dot"></i>当周任务</span>
+        <span class="legend-item legend-recurring"><i class="legend-dot"></i>每周重复</span>
+        <span class="legend-item legend-weekly"><i class="legend-dot"></i>单次事项</span>
       </div>
     </div>
 
     <div class="schedule-grid-wrapper">
-      <div class="schedule-grid" id="schedule-timetable-grid">
-        <!-- Rendered dynamically by JS -->
+      <div class="schedule-grid schedule-grid-header" id="schedule-grid-header" aria-hidden="true"></div>
+      <div class="schedule-scroll-viewport" id="schedule-scroll-viewport">
+        <div class="schedule-range-hint schedule-range-hint-top hidden" id="schedule-range-before"></div>
+        <div class="schedule-grid schedule-grid-body" id="schedule-timetable-grid">
+          <!-- Rendered dynamically by JS -->
+        </div>
+        <div class="schedule-range-hint schedule-range-hint-bottom hidden" id="schedule-range-after"></div>
+        <button type="button" class="schedule-return-default hidden" id="schedule-return-default" onclick="scrollScheduleToDefault()">返回 08:00—17:00</button>
       </div>
     </div>
   </div>
@@ -49,29 +54,16 @@
 
 <!-- Modal for adding/editing schedule items -->
 <div class="schedule-modal-backdrop hidden" id="schedule-item-modal" onclick="if(event.target===this)closeScheduleItemModal()">
-  <div class="schedule-modal-card">
+  <div class="schedule-modal-card" role="dialog" aria-modal="true" aria-labelledby="schedule-modal-title">
     <div class="schedule-modal-header">
       <h3 id="schedule-modal-title">添加排程事项</h3>
-      <button type="button" class="schedule-modal-close" onclick="closeScheduleItemModal()">×</button>
+      <button type="button" class="schedule-modal-close" onclick="closeScheduleItemModal()" aria-label="关闭">×</button>
     </div>
     <form class="schedule-modal-form" id="schedule-modal-form" onsubmit="handleScheduleFormSubmit(event)">
       <input type="hidden" name="id" id="schedule-form-id">
       <div class="form-group">
-        <label>事项类型</label>
-        <div class="schedule-kind-selector">
-          <label class="kind-option">
-            <input type="radio" name="kind" value="recurring" checked onchange="toggleScheduleKindFields()">
-            <span>每周定时任务</span>
-          </label>
-          <label class="kind-option">
-            <input type="radio" name="kind" value="one-off" onchange="toggleScheduleKindFields()">
-            <span>当周/临时任务</span>
-          </label>
-        </div>
-      </div>
-      <div class="form-group">
         <label for="schedule-form-title">事项名称</label>
-        <input name="title" id="schedule-form-title" required maxlength="80" placeholder="例如：周六晚跑步、健身房锻炼">
+        <input name="title" id="schedule-form-title" required maxlength="80" placeholder="例如：蓝桥杯讨论">
       </div>
       <div class="form-row" id="field-recurring-weekday">
         <div class="form-group flex-1">
@@ -86,10 +78,18 @@
             <option value="6">周日</option>
           </select>
         </div>
+        <div class="form-group flex-1">
+          <label for="schedule-form-repeat-start">开始日期</label>
+          <input name="start_date" type="date" id="schedule-form-repeat-start">
+        </div>
+        <div class="form-group flex-1">
+          <label for="schedule-form-repeat-end">结束日期（可选）</label>
+          <input name="end_date" type="date" id="schedule-form-repeat-end">
+        </div>
       </div>
       <div class="form-row hidden" id="field-one-off-date">
         <div class="form-group flex-1">
-          <label for="schedule-form-date">任务日期</label>
+          <label for="schedule-form-date">日期</label>
           <input name="date" type="date" id="schedule-form-date">
         </div>
       </div>
@@ -103,12 +103,64 @@
           <input name="end_time" type="time" id="schedule-form-end" required value="10:00">
         </div>
       </div>
+      <div class="form-group">
+        <label for="schedule-form-location">地点（可选）</label>
+        <input name="location" id="schedule-form-location" maxlength="120" placeholder="例如：四平路校区 · 北229">
+      </div>
+      <div class="form-group">
+        <label>事项类型</label>
+        <div class="schedule-kind-selector">
+          <label class="kind-option">
+            <input type="radio" name="kind" value="one-off" checked onchange="toggleScheduleKindFields()">
+            <span>单次事项</span>
+          </label>
+          <label class="kind-option">
+            <input type="radio" name="kind" value="recurring" onchange="toggleScheduleKindFields()">
+            <span>每周重复</span>
+          </label>
+        </div>
+      </div>
+      <fieldset class="schedule-edit-scope hidden" id="schedule-edit-scope">
+        <legend>应用到</legend>
+        <label><input type="radio" name="scope" value="occurrence" checked> 仅本次</label>
+        <label><input type="radio" name="scope" value="series"> 整个重复事项</label>
+      </fieldset>
       <div class="schedule-modal-actions">
+        <button type="button" class="btn-delete hidden" id="schedule-item-delete" onclick="deleteScheduleItemFromModal()">删除事项</button>
+        <span class="schedule-modal-action-spacer"></span>
         <button type="button" class="btn-cancel" onclick="closeScheduleItemModal()">取消</button>
         <button type="submit" class="btn-submit">保存事项</button>
       </div>
     </form>
   </div>
+</div>
+
+<div class="schedule-modal-backdrop hidden" id="schedule-management-modal" onclick="if(event.target===this)closeScheduleManagementModal()">
+  <div class="schedule-modal-card schedule-management-modal-card" role="dialog" aria-modal="true" aria-labelledby="schedule-management-title">
+    <div class="schedule-modal-header">
+      <div>
+        <span class="placeholder-kicker">TIMETABLE SETTINGS</span>
+        <h3 id="schedule-management-title">课表管理</h3>
+      </div>
+      <button type="button" class="schedule-modal-close" onclick="closeScheduleManagementModal()" aria-label="关闭">×</button>
+    </div>
+    <p class="schedule-management-summary" id="schedule-management-summary">尚未导入课程</p>
+    <div class="schedule-management-actions">
+      <button type="button" class="schedule-refresh-button" id="schedule-refresh-button" onclick="openTongjiLoginSession()">统一身份认证登录</button>
+      <input class="schedule-file-input" id="schedule-file-input" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="importCourseSchedule(this)">
+      <button type="button" class="schedule-refresh-button schedule-import-button" id="schedule-import-button" onclick="document.getElementById('schedule-file-input').click()">从插件文件导入</button>
+      <a class="schedule-refresh-button schedule-download-link" href="/static/downloads/tongji-timetable-exporter-v1.2.zip" download>下载课表插件 v1.2</a>
+    </div>
+    <p class="schedule-login-note">统一身份认证会打开短时认证窗口；导入失败时会保留上次成功课表。</p>
+  </div>
+</div>
+
+<div class="schedule-overlap-popover hidden" id="schedule-overlap-popover" role="dialog" aria-label="重叠事项">
+  <div class="schedule-overlap-heading">
+    <strong>同一时段的事项</strong>
+    <button type="button" onclick="closeScheduleOverlapPopover()" aria-label="关闭">×</button>
+  </div>
+  <div id="schedule-overlap-list"></div>
 </div>
 
 <section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-connections" data-view-panel="connections">
