@@ -66,6 +66,74 @@ def test_parse_time_segments_supports_specified_weeks_multiple_locations_and_per
     assert sessions[1]["location"] == "东校区实验楼"
 
 
+def test_visual_grid_filters_courses_without_overwriting_list_meeting_times():
+    tables = [
+        [["新课程序号", "课程名称", "教师", "上课时间", "上课地点"]],
+        [["AUTO1001", "匿名课程", "匿名教师", "星期二 7-8节 [11-14]", "北229"]],
+        [
+            ["节次/周次", "周一", "周二", "周三", "周四", "周五", "周六", "周日"],
+            ["第7节课", "匿名教师 匿名课程(AUTO1001) [11-14] 北229", "", "", "", "", "", ""],
+        ],
+    ]
+
+    courses = tongji_timetable._parse_selected_courses_tables(tables)
+
+    assert len(courses) == 1
+    assert courses[0]["sessions"] == tongji_timetable.parse_time_segments(
+        "星期二 7-8节 [11-14]", "北229"
+    )
+    assert courses[0]["sessions"][0]["weekday"] == 1
+
+
+def test_reference_timetable_maps_every_course_for_weeks_1_to_16():
+    raw_times = {
+        "CST160202": "星期三 5-6节 [7-16],星期三 5-6节 [1-6]",
+        "CMS120407": "星期三 3-4节 [1, 3, 5, 7, 9, 11, 13, 15],星期一 1-2节 [1-16],星期五 5-6节 [1-16]",
+        "DPE1102A4": "星期四 3-4节 [1-16]",
+        "CST120102": "星期一 3-4节 [1-16]",
+        "PSE121601": "星期四 1-2节 [1-16],星期三 7-8节 [2-16双]",
+        "PSE161001": "星期五 1-2节 [1-16]",
+        "CSE121003": "星期二 1-2节 [1-16],星期三 7-8节 [1, 3, 5, 7, 9, 11, 13, 15]",
+        "CMS121702": "星期一 9-11节 [1-16],星期五 3-4节 [1-16]",
+        "QDC190111": "星期一 5-8节 [4],星期四 5-8节 [7-8],星期一 5-8节 [7-8],星期一 5-8节 [5-6],星期一 5-8节 [11-16],星期四 5-8节 [9-10],星期一 5-8节 [9-10],星期一 5-8节 [1-3],星期四 5-8节 [1-4],星期四 5-8节 [11-16],星期四 5-8节 [5-6]",
+        "CMA110111": "星期三 9-11节 [1-16]",
+        "CMA110421": "星期二 7-8节 [11-14]",
+    }
+    tables = [
+        [["新课程序号", "课程名称", "上课时间"]],
+        [[code, code, raw_time] for code, raw_time in raw_times.items()],
+    ]
+
+    courses = tongji_timetable._parse_selected_courses_tables(tables)
+
+    always = {
+        (0, 1, 2, "CMS120407"), (0, 3, 4, "CST120102"),
+        (0, 5, 8, "QDC190111"), (0, 9, 11, "CMS121702"),
+        (1, 1, 2, "CSE121003"),
+        (2, 5, 6, "CST160202"), (2, 9, 11, "CMA110111"),
+        (3, 1, 2, "PSE121601"), (3, 3, 4, "DPE1102A4"),
+        (3, 5, 8, "QDC190111"),
+        (4, 1, 2, "PSE161001"), (4, 3, 4, "CMS121702"),
+        (4, 5, 6, "CMS120407"),
+    }
+    for week in range(1, 17):
+        actual = {
+            (session["weekday"], session["start_period"], session["end_period"], course["code"])
+            for course in courses
+            for session in course["sessions"]
+            if (not session["weeks"] or week in session["weeks"])
+            and (session["parity"] != "odd" or week % 2 == 1)
+            and (session["parity"] != "even" or week % 2 == 0)
+        }
+        expected = set(always)
+        if week % 2:
+            expected.add((2, 3, 4, "CMS120407"))
+        expected.add((2, 7, 8, "CSE121003" if week % 2 else "PSE121601"))
+        if 11 <= week <= 14:
+            expected.add((1, 7, 8, "CMA110421"))
+        assert actual == expected, f"第{week}周映射不一致"
+
+
 def test_authenticated_cdp_reader_opens_timetable_from_workbench(monkeypatch):
     class Link:
         def __init__(self):
@@ -137,7 +205,7 @@ def test_authenticated_cdp_reader_opens_timetable_from_workbench(monkeypatch):
 
     page = Page()
     monkeypatch.setattr(tongji_timetable, "_playwright", lambda: PlaywrightContext(page))
-    monkeypatch.setattr(tongji_timetable, "parse_selected_courses_html", lambda markup: [{"name": "测试课程"}])
+    monkeypatch.setattr(tongji_timetable, "_wait_for_selected_courses", lambda current_page: [{"name": "测试课程"}])
 
     assert tongji_timetable.fetch_selected_courses_from_cdp("http://127.0.0.1:6300") == [{"name": "测试课程"}]
     assert page.link.clicked is True
@@ -148,25 +216,18 @@ def test_authenticated_cdp_reader_opens_timetable_from_workbench(monkeypatch):
 def test_authenticated_cdp_reader_waits_until_courses_are_rendered(monkeypatch):
     class Page:
         def __init__(self):
-            self.markups = ["<main>loading</main>", "<table>ready</table>"]
             self.waits = []
-
-        def content(self):
-            return self.markups.pop(0)
 
         def wait_for_timeout(self, timeout):
             self.waits.append(timeout)
 
-    monkeypatch.setattr(
-        tongji_timetable,
-        "parse_selected_courses_html",
-        lambda markup: [] if "loading" in markup else [{"name": "测试课程"}],
-    )
     page = Page()
+    visible_tables = iter([[], [[["课程名称", "上课时间"], ["测试课程", "周一 1-2节 [1-16]"]]]])
+    monkeypatch.setattr(tongji_timetable, "_visible_timetable_tables", lambda _: next(visible_tables))
 
     courses = tongji_timetable._wait_for_selected_courses(page, timeout_ms=60_000)
 
-    assert courses == [{"name": "测试课程"}]
+    assert [course["name"] for course in courses] == ["测试课程"]
     assert page.waits == [1_000]
 
 

@@ -367,9 +367,11 @@
 
     function calculateWeekNumber(dateObj, semesterStartStr) {
       if (!semesterStartStr) return null;
-      const start = new Date(semesterStartStr);
-      if (isNaN(start.getTime())) return null;
-      const diffDays = Math.floor((dateObj - start) / (1000 * 60 * 60 * 24));
+      const parts = semesterStartStr.split('-').map(Number);
+      if (parts.length !== 3 || parts.some(value => !Number.isInteger(value))) return null;
+      const startDay = Date.UTC(parts[0], parts[1] - 1, parts[2]);
+      const currentDay = Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+      const diffDays = Math.floor((currentDay - startDay) / (1000 * 60 * 60 * 24));
       const weekNum = Math.floor(diffDays / 7) + 1;
       return weekNum > 0 ? weekNum : null;
     }

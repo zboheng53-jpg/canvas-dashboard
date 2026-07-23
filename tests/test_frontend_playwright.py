@@ -7,6 +7,7 @@ import pytest
 from werkzeug.serving import make_server
 
 import app as dashboard_app
+import tongji_timetable
 import user_paths
 
 playwright_api = pytest.importorskip("playwright.sync_api")
@@ -115,6 +116,27 @@ def register_dashboard_user(page, live_app, username):
     page.fill("#register-password", "strong-password")
     page.click("#register-form button")
     page.wait_for_url(f"{live_app}/")
+
+
+def test_timetable_dom_reader_ignores_hidden_tables_and_expands_rowspans(browser):
+    page = browser.new_page()
+    page.set_content("""
+      <div style="display:none">
+        <table><tr><th>节次/周次</th><th>周一</th><th>周二</th></tr><tr><td>旧课表</td></tr></table>
+      </div>
+      <table>
+        <tr><th>节次/周次</th><th>周一</th><th>周二</th></tr>
+        <tr><td>第1节课</td><td rowspan="2">周一课程</td><td>周二第一节</td></tr>
+        <tr><td>第2节课</td><td>周二第二节</td></tr>
+      </table>
+    """)
+
+    assert tongji_timetable._visible_timetable_tables(page) == [[
+        ["节次/周次", "周一", "周二"],
+        ["第1节课", "周一课程", "周二第一节"],
+        ["第2节课", "", "周二第二节"],
+    ]]
+    page.close()
 
 
 def test_frontend_new_todo_date_defaults_to_server_today(live_app, browser):
@@ -521,6 +543,113 @@ def test_frontend_schedule_management_renders_today_busy_item(live_app, browser)
     expect(page.locator("#schedule-timetable-grid")).to_contain_text("实验室值班")
     page.locator('[data-dashboard-view="overview"]').click()
     expect(page.locator("#today-schedule-content")).to_contain_text("实验室值班")
+
+
+def test_frontend_schedule_uses_one_academic_week_for_all_seven_days(live_app, browser):
+    context = browser.new_context(timezone_id="Asia/Shanghai", viewport={"width": 1440, "height": 1000})
+    page = context.new_page()
+    register_dashboard_user(page, live_app, "scheduleweek")
+
+    week_numbers = page.evaluate(
+        """() => Array.from(
+          {length: 7},
+          (_, day) => calculateWeekNumber(new Date(2026, 5, 22 + day), '2026-03-02')
+        )"""
+    )
+
+    assert week_numbers == [17, 17, 17, 17, 17, 17, 17]
+    context.close()
+
+
+def test_imported_reference_timetable_renders_weeks_1_to_16(live_app, browser, monkeypatch):
+    reference = [
+        ("高级语言程序设计实验", "CST160202", "星期三 5-6节 [7-16],星期三 5-6节 [1-6]"),
+        ("高等数学(B)下", "CMS120407", "星期三 3-4节 [1, 3, 5, 7, 9, 11, 13, 15],星期一 1-2节 [1-16],星期五 5-6节 [1-16]"),
+        ("体育(2)", "DPE1102A4", "星期四 3-4节 [1-16]"),
+        ("高级语言程序设计", "CST120102", "星期一 3-4节 [1-16]"),
+        ("普通物理(卓)下", "PSE121601", "星期四 1-2节 [1-16],星期三 7-8节 [2-16双]"),
+        ("物理实验(卓)下", "PSE161001", "星期五 1-2节 [1-16]"),
+        ("普通化学(卓)", "CSE121003", "星期二 1-2节 [1-16],星期三 7-8节 [1, 3, 5, 7, 9, 11, 13, 15]"),
+        ("线性代数(荣)", "CMS121702", "星期一 9-11节 [1-16],星期五 3-4节 [1-16]"),
+        ("工程智能基础", "QDC190111", "星期一 5-8节 [4],星期四 5-8节 [7-8],星期一 5-8节 [7-8],星期一 5-8节 [5-6],星期一 5-8节 [11-16],星期四 5-8节 [9-10],星期一 5-8节 [9-10],星期一 5-8节 [1-3],星期四 5-8节 [1-4],星期四 5-8节 [11-16],星期四 5-8节 [5-6]"),
+        ("中国近现代史纲要", "CMA110111", "星期三 9-11节 [1-16]"),
+        ("形势与政策(2)", "CMA110421", "星期二 7-8节 [11-14]"),
+    ]
+    courses = [
+        {"id": code, "name": name, "code": code, "sessions": tongji_timetable.parse_time_segments(raw_time)}
+        for name, code, raw_time in reference
+    ]
+    monkeypatch.setattr(
+        dashboard_app.tongji_timetable,
+        "fetch_selected_courses_with_credentials",
+        lambda username, password: courses if (username, password) == ("student", "password") else [],
+    )
+    monkeypatch.setattr(dashboard_app, "get_term_info", lambda: ("2025-2026学年 第二学期", 1, "2026-03-02"))
+
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    page.add_init_script("""
+      (() => {
+        const RealDate = Date;
+        const fixedNow = new RealDate('2026-03-02T12:00:00+08:00').valueOf();
+        class FixedBrowserDate extends RealDate {
+          constructor(...args) { super(...(args.length ? args : [fixedNow])); }
+          static now() { return fixedNow; }
+        }
+        FixedBrowserDate.parse = RealDate.parse;
+        FixedBrowserDate.UTC = RealDate.UTC;
+        window.Date = FixedBrowserDate;
+      })();
+    """)
+    register_dashboard_user(page, live_app, "referenceweeks")
+    result = page.evaluate("""async () => {
+      const response = await fetch('/api/schedule/refresh', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username: 'student', password: 'password'})
+      });
+      return {status: response.status, body: await response.json()};
+    }""")
+    assert result["status"] == 200
+    assert len(result["body"]["courses"]["courses"]) == 11
+    page.locator('[data-dashboard-view="schedule"]').click()
+
+    always = {
+        (0, "高等数学(B)下", "08:00 - 09:35"),
+        (0, "高级语言程序设计", "10:00 - 11:35"),
+        (0, "工程智能基础", "13:30 - 17:05"),
+        (0, "线性代数(荣)", "18:30 - 20:55"),
+        (1, "普通化学(卓)", "08:00 - 09:35"),
+        (2, "高级语言程序设计实验", "13:30 - 15:05"),
+        (2, "中国近现代史纲要", "18:30 - 20:55"),
+        (3, "普通物理(卓)下", "08:00 - 09:35"),
+        (3, "体育(2)", "10:00 - 11:35"),
+        (3, "工程智能基础", "13:30 - 17:05"),
+        (4, "物理实验(卓)下", "08:00 - 09:35"),
+        (4, "线性代数(荣)", "10:00 - 11:35"),
+        (4, "高等数学(B)下", "13:30 - 15:05"),
+    }
+    for week in range(1, 17):
+        page.evaluate("week => { currentScheduleWeekOffset = week - 1; renderScheduleManager(scheduleData); }", week)
+        actual = {
+            tuple(item)
+            for item in page.locator(".schedule-day-column").evaluate_all("""columns => columns.flatMap(
+              (column, day) => Array.from(column.querySelectorAll('.schedule-card-course')).map(card => [
+                day,
+                card.querySelector('.schedule-card-title').textContent,
+                card.querySelector('.schedule-card-time').textContent
+              ])
+            )""")
+        }
+        expected = set(always)
+        if week % 2:
+            expected.add((2, "高等数学(B)下", "10:00 - 11:35"))
+            expected.add((2, "普通化学(卓)", "15:30 - 17:05"))
+        else:
+            expected.add((2, "普通物理(卓)下", "15:30 - 17:05"))
+        if 11 <= week <= 14:
+            expected.add((1, "形势与政策(2)", "15:30 - 17:05"))
+        assert actual == expected, f"第{week}周前端显示与参考课表不一致"
+    page.close()
 
 
 def test_frontend_timetable_login_opens_vnc_directly(live_app, browser):

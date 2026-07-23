@@ -90,6 +90,9 @@ def _parse_weeks(text):
             weeks.update(range(int(match.group(2)), int(match.group(3)) + 1))
     for match in re.findall(r"(?:第)?([\d、，,\s]+)周", text):
         weeks.update(int(value) for value in re.findall(r"\d{1,2}", match))
+    for bracket in re.findall(r"\[([^\]]*)\]", text):
+        if re.fullmatch(r"[\d、，,\s]+", bracket):
+            weeks.update(int(value) for value in re.findall(r"\d{1,2}", bracket))
     bracket_parities = "".join(re.findall(r"\[([^\]]*)\]", text))
     parity = "odd" if "单周" in text or "单" in bracket_parities else "even" if "双周" in text or "双" in bracket_parities else None
     return sorted(weeks), parity
@@ -154,6 +157,43 @@ def parse_selected_courses_html(markup):
     return _parse_selected_courses_tables(parser.tables)
 
 
+_VISIBLE_TABLES_SCRIPT = r"""
+tables => tables.map(table => {
+  const clean = value => String(value ?? "")
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .trim();
+  const grid = [];
+  Array.from(table.rows).forEach((row, rowIndex) => {
+    grid[rowIndex] ||= [];
+    let column = 0;
+    Array.from(row.cells).forEach(cell => {
+      while (grid[rowIndex][column] !== undefined) column += 1;
+      const rowSpan = cell.rowSpan || 1;
+      const colSpan = cell.colSpan || 1;
+      for (let rowOffset = 0; rowOffset < rowSpan; rowOffset += 1) {
+        grid[rowIndex + rowOffset] ||= [];
+        for (let colOffset = 0; colOffset < colSpan; colOffset += 1) {
+          grid[rowIndex + rowOffset][column + colOffset] = rowOffset || colOffset
+            ? ""
+            : clean(cell.innerText || cell.textContent);
+        }
+      }
+      column += colSpan;
+    });
+  });
+  const width = Math.max(0, ...grid.map(row => row.length));
+  return grid.map(row => Array.from({length: width}, (_, index) => row[index] ?? ""));
+})
+"""
+
+
+def _visible_timetable_tables(page):
+    """Return only rendered timetable tables, with rowspan/colspan expanded."""
+    return page.locator("table:visible").evaluate_all(_VISIBLE_TABLES_SCRIPT)
+
+
 def _parse_selected_courses_tables(tables):
     list_courses = []
     for table_index, table in enumerate(tables):
@@ -211,17 +251,11 @@ def _parse_selected_courses_tables(tables):
                 break
 
     grid_course_identifiers = set()
-    grid_sessions_by_code = {}
-
-    for row_idx in range(1, len(grid_table)):
-        row = grid_table[row_idx]
+    for row in grid_table[1:]:
         if not row:
             continue
-        row_label = row[0]
-        p_match = re.search(r"第?\s*(\d{1,2})\s*节", row_label)
-        default_period = int(p_match.group(1)) if p_match else row_idx
 
-        for col_idx, weekday in day_cols.items():
+        for col_idx in day_cols:
             if col_idx >= len(row):
                 continue
             cell_text = row[col_idx].strip()
@@ -231,46 +265,6 @@ def _parse_selected_courses_tables(tables):
             codes = re.findall(r"\(([A-Za-z0-9]{6,10})\)", cell_text)
             for c_code in codes:
                 grid_course_identifiers.add(c_code)
-
-            sp, ep = default_period, default_period
-            period_m = re.search(r"\[\s*(\d{1,2})\s*[-~至]\s*(\d{1,2})\s*节\s*\]", cell_text)
-            if period_m:
-                sp, ep = int(period_m.group(1)), int(period_m.group(2))
-
-            weeks_matches = re.finditer(r"(\[[^\]]+\])", cell_text)
-            for wm in weeks_matches:
-                w_str = wm.group(1)
-                if "节" in w_str:
-                    continue
-                weeks, parity = _parse_weeks(w_str)
-                if not weeks:
-                    continue
-
-                for c_code in codes:
-                    if c_code not in grid_sessions_by_code:
-                        grid_sessions_by_code[c_code] = []
-
-                    loc_m = re.search(r"(?:[A-Za-z0-9_-]+(?:楼|馆|室|场|\d{3}))", cell_text)
-                    loc = loc_m.group(0) if loc_m else ""
-
-                    raw_time = f"周{['一','二','三','四','五','六','日'][weekday]} 第{sp}-{ep}节 {w_str}"
-                    s_item = {
-                        "weekday": weekday,
-                        "weeks": weeks,
-                        "parity": parity,
-                        "start_period": sp,
-                        "end_period": ep,
-                        "start_time": PERIOD_TIMES.get(sp, ("08:00", "08:45"))[0],
-                        "end_time": PERIOD_TIMES.get(ep, ("08:00", "08:45"))[1],
-                        "date_start": None,
-                        "date_end": None,
-                        "location": loc,
-                        "raw_time": raw_time
-                    }
-
-                    s_key = (weekday, sp, ep, tuple(weeks))
-                    if not any((s['weekday'], s['start_period'], s['end_period'], tuple(s['weeks'])) == s_key for s in grid_sessions_by_code[c_code]):
-                        grid_sessions_by_code[c_code].append(s_item)
 
     if not grid_course_identifiers:
         return list_courses
@@ -287,8 +281,6 @@ def _parse_selected_courses_tables(tables):
             matched_code = c_code
 
         if matched_code:
-            if matched_code in grid_sessions_by_code and grid_sessions_by_code[matched_code]:
-                c["sessions"] = grid_sessions_by_code[matched_code]
             filtered_courses.append(c)
 
     return filtered_courses if filtered_courses else list_courses
@@ -437,10 +429,7 @@ def fetch_selected_courses_with_credentials(username, password):
                     page.wait_for_selector("table", timeout=20_000)
                 except Exception as exc:
                     raise TimetableFetchError("已登录，但课表页面未加载完成") from exc
-                courses = parse_selected_courses_html(page.content())
-                if not courses:
-                    raise TimetableFetchError("未在课表页面找到已选课程")
-                return courses
+                return _wait_for_selected_courses(page)
             finally:
                 browser.close()
     except TimetableLoginError:
@@ -454,7 +443,7 @@ def fetch_selected_courses_with_credentials(username, password):
 def _wait_for_selected_courses(page, timeout_ms=60_000):
     deadline = time.monotonic() + timeout_ms / 1_000
     while True:
-        courses = parse_selected_courses_html(page.content())
+        courses = _parse_selected_courses_tables(_visible_timetable_tables(page))
         if courses:
             return courses
         remaining_ms = int((deadline - time.monotonic()) * 1_000)
