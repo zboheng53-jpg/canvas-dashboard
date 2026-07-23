@@ -38,13 +38,10 @@ except Exception:
 
 def _is_port_in_use(host: str, port: int) -> bool:
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            s.settimeout(1)
-            s.bind((host, port))
-            return False
+        with socket.create_connection((host, port), timeout=1):
+            return True
     except OSError:
-        return True
+        return False
 
 
 def main():

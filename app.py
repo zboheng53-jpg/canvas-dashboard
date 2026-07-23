@@ -1066,12 +1066,26 @@ def _schedule_item_payload(data, kind):
     end_time = (data.get("end_time") or "").strip()
     if not title or not re.fullmatch(r"\d{2}:\d{2}", start_time) or not re.fullmatch(r"\d{2}:\d{2}", end_time) or start_time >= end_time:
         return None
-    payload = {"title": title, "start_time": start_time, "end_time": end_time}
+    payload = {
+        "title": title,
+        "start_time": start_time,
+        "end_time": end_time,
+        "location": (data.get("location") or "").strip(),
+    }
     if kind == "recurring":
         weekday = data.get("weekday")
         if not isinstance(weekday, int) or not 0 <= weekday <= 6:
             return None
         payload.update({"weekday": weekday, "enabled": bool(data.get("enabled", True))})
+        for field in ("start_date", "end_date"):
+            value = (data.get(field) or "").strip()
+            if value:
+                try:
+                    payload[field] = date.fromisoformat(value).isoformat()
+                except ValueError:
+                    return None
+        if payload.get("end_date") and payload.get("start_date") and payload["end_date"] < payload["start_date"]:
+            return None
         if "skipped_dates" in data:
             payload["skipped_dates"] = [value for value in data["skipped_dates"] if isinstance(value, str)]
     else:

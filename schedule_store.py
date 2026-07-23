@@ -73,10 +73,12 @@ def today_entries(username, today, semester_start):
             if in_dates or valid_week:
                 timed.append({"kind": "course", "title": course.get("name", "课程"), "location": session.get("location") or course.get("location", ""), "start_time": session["start_time"], "end_time": session["end_time"]})
     for item in items.get("recurring", []):
-        if item.get("enabled", True) and item.get("weekday") == today.weekday() and today.isoformat() not in item.get("skipped_dates", []):
-            timed.append({"kind": "recurring", "title": item["title"], "location": "", "start_time": item["start_time"], "end_time": item["end_time"]})
+        today_iso = today.isoformat()
+        in_range = (not item.get("start_date") or item["start_date"] <= today_iso) and (not item.get("end_date") or today_iso <= item["end_date"])
+        if item.get("enabled", True) and in_range and item.get("weekday") == today.weekday() and today_iso not in item.get("skipped_dates", []):
+            timed.append({"kind": "recurring", "title": item["title"], "location": item.get("location", ""), "start_time": item["start_time"], "end_time": item["end_time"]})
     for item in items.get("one_off", []):
         if item.get("date") == today.isoformat():
-            timed.append({"kind": "one_off", "title": item["title"], "location": "", "start_time": item["start_time"], "end_time": item["end_time"]})
+            timed.append({"kind": "one_off", "title": item["title"], "location": item.get("location", ""), "start_time": item["start_time"], "end_time": item["end_time"]})
     timed.sort(key=lambda item: (item["start_time"], item["end_time"], item["title"]))
     return {"timed": timed, "deadlines": deadlines, "term": cache.get("term", ""), "updated_at": cache.get("updated_at")}

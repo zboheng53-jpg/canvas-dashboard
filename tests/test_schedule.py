@@ -414,6 +414,42 @@ def test_schedule_items_are_isolated_and_overlap_is_reported(tmp_path, monkeypat
     assert bob.get("/api/schedule").get_json()["items"]["one_off"] == []
 
 
+def test_schedule_items_preserve_location_and_recurring_date_range(tmp_path, monkeypatch):
+    client, _ = _client(tmp_path, monkeypatch)
+
+    recurring = client.post(
+        "/api/schedule/recurring",
+        json={
+            "title": "实验室开放",
+            "weekday": 2,
+            "start_time": "19:15",
+            "end_time": "20:05",
+            "location": "济事楼 205",
+            "start_date": "2026-07-01",
+            "end_date": "2026-08-31",
+        },
+        headers=client.csrf_headers,
+    )
+    one_off = client.post(
+        "/api/schedule/one-off",
+        json={
+            "title": "蓝桥杯讨论",
+            "date": "2026-07-23",
+            "start_time": "20:00",
+            "end_time": "20:30",
+            "location": "图书馆",
+        },
+        headers=client.csrf_headers,
+    )
+
+    assert recurring.status_code == 200
+    assert recurring.get_json()["item"]["location"] == "济事楼 205"
+    assert recurring.get_json()["item"]["start_date"] == "2026-07-01"
+    assert recurring.get_json()["item"]["end_date"] == "2026-08-31"
+    assert one_off.status_code == 200
+    assert one_off.get_json()["item"]["location"] == "图书馆"
+
+
 def test_one_off_items_on_different_dates_do_not_overlap(tmp_path, monkeypatch):
     client, _ = _client(tmp_path, monkeypatch)
     first = client.post(
@@ -453,10 +489,11 @@ def test_today_schedule_only_returns_busy_items_and_date_only_deadlines(tmp_path
     today = date.today()
     semester_start = today - timedelta(days=today.weekday())
     schedule_store.save_courses("alice", "测试学期", semester_start.isoformat(), [{"name": "自动控制", "location": "北229", "sessions": [{"weekday": today.weekday(), "weeks": [1], "parity": None, "start_time": "08:00", "end_time": "09:35", "date_start": None, "date_end": None, "location": "北229"}]}], "2026-07-01T00:00:00+08:00")
-    schedule_store.create_item("alice", "recurring", {"title": "实验", "weekday": today.weekday(), "start_time": "10:00", "end_time": "11:00", "enabled": True})
-    schedule_store.create_item("alice", "one_off", {"title": "组会", "date": today.isoformat(), "start_time": "14:00", "end_time": "15:00"})
+    schedule_store.create_item("alice", "recurring", {"title": "实验", "weekday": today.weekday(), "start_time": "10:00", "end_time": "11:00", "location": "电信楼", "enabled": True})
+    schedule_store.create_item("alice", "one_off", {"title": "组会", "date": today.isoformat(), "start_time": "14:00", "end_time": "15:00", "location": "图书馆"})
     dashboard_app._save_todos("alice", [{"id": 1, "text": "Python学习", "done": False, "due_date": None, "subtasks": [{"id": 1, "text": "周度复盘", "done": False, "due_date": today.isoformat()}]}, {"id": 2, "text": "实验报告", "done": False, "due_date": today.isoformat(), "subtasks": []}])
     monkeypatch.setattr(dashboard_app, "get_term_info", lambda: ("测试学期", 1, semester_start.isoformat()))
     data = client.get("/api/schedule/today").get_json()
     assert [item["title"] for item in data["timed"]] == ["自动控制", "实验", "组会"]
+    assert [item["location"] for item in data["timed"]] == ["北229", "电信楼", "图书馆"]
     assert data["deadlines"] == [{"title": "周度复盘", "course": "Python学习"}, {"title": "实验报告"}]
