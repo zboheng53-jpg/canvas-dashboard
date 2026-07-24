@@ -113,6 +113,7 @@
           <button type="button" class="todo-source-filter" data-todo-source="haoke" aria-pressed="false" onclick="setTodoSourceFilter('haoke')">好课 (0)</button>
           <button type="button" class="todo-source-filter" data-todo-source="zhixuemeng" aria-pressed="false" onclick="setTodoSourceFilter('zhixuemeng')">智学盟 (0)</button>
           <button type="button" class="todo-source-filter" data-todo-source="zhihuishu" aria-pressed="false" onclick="setTodoSourceFilter('zhihuishu')">智慧树 (0)</button>
+          <button type="button" class="todo-source-filter" data-todo-source="project" aria-pressed="false" onclick="setTodoSourceFilter('project')">项目 (0)</button>
           <button type="button" class="todo-source-filter" data-todo-source="custom" aria-pressed="false" onclick="setTodoSourceFilter('custom')">自定义 (0)</button>
         </div>
 
@@ -994,45 +995,7 @@
 
     loadTodaySchedule();
 
-    // ---- Long-term projects ----
-    let projects = []; let selectedProjectId = null;
-    const projectNode = (tag, text, className = '') => { const el = document.createElement(tag); el.textContent = text; el.className = className; return el; };
-    function setProjectStatus(message, error = false) { const el = document.getElementById('project-manager-status'); if (el) { el.textContent = message; el.classList.toggle('is-error', error); } }
-    function projectGoalSummary(project) { const goals = project.goals || []; return `${goals.filter(goal => goal.done).length}/${goals.length} 本周目标`; }
-    function projectCard(project) { const button = projectNode('button', '', 'project-overview-item'); button.type = 'button'; button.onclick = () => openProjectDetail(project.id); const title = projectNode('strong', project.name); const meter = projectNode('span', `${project.progress}%`, 'project-overview-progress'); const meta = projectNode('small', `${project.due_date ? `截止 ${project.due_date} · ` : ''}${projectGoalSummary(project)}`); const action = projectNode('small', project.next_action || '尚未填写下一步行动'); button.append(title, meter, meta, action); return button; }
-    function renderProjectOverview(data) { const container = document.getElementById('project-overview-content'); if (!container) return; container.replaceChildren(); if (!data.projects.length) { const empty = projectNode('div', '', 'rail-empty-state'); const copy = projectNode('div', ''); copy.append(projectNode('strong', '暂无长期项目'), projectNode('p', '从一个清晰的下一步开始')); const create = projectNode('button', '新建项目', 'project-empty-create'); create.id = 'project-empty-create'; create.type = 'button'; create.onclick = () => openProjectDetail(null, true); empty.append(copy, create); container.append(empty); return; } data.projects.forEach(project => container.append(projectCard(project))); if (data.has_more) { const more = projectNode('button', '查看全部项目', 'project-overview-more'); more.type = 'button'; more.onclick = () => switchDashboardView('projects'); container.append(more); } }
-    function renderProjectOverviewState(title, detail, isError = false) { const container = document.getElementById('project-overview-content'); if (!container) return; const state = projectNode('div', '', `rail-empty-state${isError ? ' is-error' : ''}`); state.append(projectNode('strong', title), projectNode('p', detail)); container.replaceChildren(state); }
-    async function loadProjectOverview() { const container = document.getElementById('project-overview-content'); if (container) container.setAttribute('aria-busy', 'true'); try { const response = await fetch('/api/projects/overview'); const data = await response.json(); if (!response.ok || !data.ok) throw new Error(data.error || 'load failed'); renderProjectOverview(data); } catch (error) { renderProjectOverviewState('长期项目加载失败', '请稍后重试', true); } finally { if (container) container.setAttribute('aria-busy', 'false'); } }
-    function renderProjectList() { const list = document.getElementById('project-manager-list'); if (!list) return; list.replaceChildren(); const ordered = [...projects].sort((a,b) => (a.status === b.status ? 0 : a.status === 'active' ? -1 : 1)); if (!ordered.length) list.append(projectNode('p', '暂无项目', 'project-list-empty')); ordered.forEach(project => { const item = projectNode('button', `${project.name} · ${project.progress}%`, `project-list-item${project.id === selectedProjectId ? ' is-selected' : ''}`); item.type = 'button'; item.onclick = () => openProjectDetail(project.id); list.append(item); }); }
-    function renderProjectDetail() { const detail = document.getElementById('project-detail'); if (!detail) return; detail.replaceChildren(); const project = projects.find(item => item.id === selectedProjectId); if (!project) { detail.append(projectNode('p', '选择一个项目查看详情', 'project-list-empty')); return; } const form = document.createElement('form'); form.className = 'project-edit-form'; form.innerHTML = `<input name="name" required maxlength="100"><input name="progress" type="number" min="0" max="100"><input name="due_date" type="date"><input name="next_action" maxlength="200" placeholder="下一步行动"><button>保存修改</button>`; form.name.value = project.name; form.progress.value = project.progress; form.due_date.value = project.due_date || ''; form.next_action.value = project.next_action || ''; form.onsubmit = event => { event.preventDefault(); const value = Object.fromEntries(new FormData(form)); value.progress = Number(value.progress); saveProject(project.id, value, form); }; detail.append(form); const archive = projectNode('button', project.status === 'archived' ? '已归档' : '归档项目', 'project-archive-button'); archive.type = 'button'; archive.disabled = project.status === 'archived'; archive.onclick = () => archiveProject(project.id); detail.append(archive); const goals = projectNode('div', '', 'project-goals'); goals.append(projectNode('h2', '本周目标')); const goalForm = document.createElement('form'); goalForm.className = 'project-goal-form'; goalForm.innerHTML = '<input name="text" required maxlength="160" placeholder="添加本周目标"><button>添加</button>'; goalForm.onsubmit = event => { event.preventDefault(); createGoal(project.id, goalForm.text.value, goalForm); }; goals.append(goalForm); (project.goals || []).forEach((goal, index) => { const row = projectNode('div', '', 'project-goal-row'); const done = document.createElement('input'); done.type = 'checkbox'; done.checked = goal.done; done.onchange = () => saveGoal(project.id, goal.id, {done: done.checked}); const text = projectNode('button', goal.text, goal.done ? 'is-done' : ''); text.type = 'button'; text.onclick = () => { const value = prompt('目标内容', goal.text); if (value !== null) saveGoal(project.id, goal.id, {text: value}); }; const up = projectNode('button', '↑'); up.type = 'button'; up.disabled = index === 0; up.onclick = () => reorderGoals(project, index, index - 1); const down = projectNode('button', '↓'); down.type = 'button'; down.disabled = index === project.goals.length - 1; down.onclick = () => reorderGoals(project, index, index + 1); const remove = projectNode('button', '删除'); remove.type = 'button'; remove.onclick = () => deleteGoal(project.id, goal.id); row.append(done, text, up, down, remove); goals.append(row); }); detail.append(goals); }
-    function renderProjects() { renderProjectList(); renderProjectDetail(); }
-    async function loadProjects() { setProjectStatus('正在加载项目…'); try { const response = await fetch('/api/projects'); const data = await response.json(); if (!response.ok || !data.ok) throw new Error(data.error || 'load failed'); projects = data.projects; renderProjects(); setProjectStatus(''); return true; } catch (error) { setProjectStatus('项目加载失败，请稍后重试', true); return false; } }
-    function showProjectComposer() { document.getElementById('project-composer').classList.remove('hidden'); }
-    async function saveProject(id, payload, form) {
-      try {
-        const response = await fetch(id ? `/api/projects/${id}` : '/api/projects', {method: id ? 'PUT' : 'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
-        const data = await response.json();
-        if (!response.ok || !data.ok) {
-          setProjectStatus(data.error || '保存失败，已保留当前输入', true);
-          return;
-        }
-        selectedProjectId = data.project.id;
-        setProjectStatus('已保存');
-        if (!id) document.getElementById('project-composer').classList.add('hidden');
-        await loadProjects();
-        await loadProjectOverview();
-      } catch (error) {
-        setProjectStatus('保存失败，已保留当前输入', true);
-      }
-    }
-    async function archiveProject(id) { const response = await fetch(`/api/projects/${id}/archive`, {method:'POST'}); const data = await response.json(); if (!response.ok || !data.ok) { setProjectStatus('归档失败', true); return; } await loadProjects(); await loadProjectOverview(); }
-    async function createGoal(projectId, text, form) { const response = await fetch(`/api/projects/${projectId}/goals`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({text})}); const data = await response.json(); if (!response.ok || !data.ok) { setProjectStatus(data.error || '保存失败', true); return; } form.reset(); await loadProjects(); await loadProjectOverview(); }
-    async function saveGoal(projectId, goalId, payload) { const response = await fetch(`/api/projects/${projectId}/goals/${goalId}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); const data = await response.json(); if (!response.ok || !data.ok) { setProjectStatus(data.error || '保存失败', true); return; } await loadProjects(); await loadProjectOverview(); }
-    async function deleteGoal(projectId, goalId) { await fetch(`/api/projects/${projectId}/goals/${goalId}`, {method:'DELETE'}); await loadProjects(); await loadProjectOverview(); }
-    async function reorderGoals(project, from, to) { const ids = project.goals.map(goal => goal.id); [ids[from], ids[to]] = [ids[to], ids[from]]; const response = await fetch(`/api/projects/${project.id}/goals/reorder`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({goal_ids:ids})}); if (response.ok) await loadProjects(); }
-    function openProjectDetail(id, create = false) { selectedProjectId = id; switchDashboardView('projects').then(() => { if (create) showProjectComposer(); }); }
-    document.getElementById('project-composer').addEventListener('submit', event => { event.preventDefault(); const value = Object.fromEntries(new FormData(event.currentTarget)); value.progress = Number(value.progress); saveProject(null, value, event.currentTarget); });
-    loadProjectOverview();
+    // Long-term projects are implemented in /static/projects.js.
 
     // ---- Clock & Greeting ----
     let serverTime = null;
@@ -1147,6 +1110,7 @@
     // ---- Unified Todo Data ----
     let canvasItems = [];
     let customItems = [];
+    let projectItems = [];
     let expandedCustomTodoIds = [];
     let openMobileActionItemId = null;
     let hiddenIds = [];
@@ -1323,9 +1287,10 @@
         haoke: '好课',
         zhixuemeng: '智学盟',
         zhihuishu: '智慧树',
+        project: '项目',
         custom: '自定义',
       };
-      const counts = { all: items.length, canvas: 0, haoke: 0, zhixuemeng: 0, zhihuishu: 0, custom: 0 };
+      const counts = { all: items.length, canvas: 0, haoke: 0, zhixuemeng: 0, zhihuishu: 0, project: 0, custom: 0 };
       items.forEach((item) => { counts[item.source] += 1; });
       document.querySelectorAll('[data-todo-source]').forEach((button) => {
         const source = button.dataset.todoSource;
@@ -1446,6 +1411,27 @@
         });
       });
 
+      projectItems.forEach(item => {
+        unified.push({
+          id: `p${item.id}`,
+          source: 'project',
+          title: item.title,
+          course: item.project_name,
+          due_str: item.due_date || '',
+          due_ts: item.due_date ? `${item.due_date}T23:59:59` : null,
+          type: '项目',
+          url: '',
+          done: false,
+          hidden: false,
+          highlighted: Boolean(item.flagged),
+          rawId: item.id,
+          manualHighlighted: Boolean(item.flagged),
+          projectId: item.project_id,
+          taskId: item.task_id,
+          projectKind: item.kind,
+        });
+      });
+
       customItems.forEach(item => {
         const today = window.customToday || new Date().toISOString().split('T')[0];
         const isOverdue = item.due_date && item.due_date < today && !item.done;
@@ -1545,6 +1531,11 @@
             <button class="btn-dismiss" onclick="toggleZhihuishuHide('${item.rawId}', ${isDismissed})" title="${dismissTitle}">&times;</button>
             <button class="btn-delete" onclick="toggleZhihuishuDelete('${item.rawId}')" title="\u5220\u9664">&#x1f5d1;</button>
           `;
+        } else if (item.source === 'project') {
+          actionsHtml = `
+            <button class="${flagClass}" onclick="toggleProjectTodoFlag(${item.projectId}, ${item.taskId === null ? 'null' : item.taskId}, '${item.projectKind}', ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}">${flagIcon}</button>
+            <button class="btn-dismiss" onclick="completeProjectTodo(${item.projectId}, ${item.taskId === null ? 'null' : item.taskId}, '${item.projectKind}')" title="完成" aria-label="完成">✓</button>
+          `;
         }
 
         const titleHtml = item.url
@@ -1555,7 +1546,15 @@
 
         const dueHtml = item.source === 'custom'
           ? `<span class="item-due editable-due" data-id="${item.rawId}" data-field="due_date">${item.due_str}</span>`
+          : item.source === 'project'
+            ? `<button class="item-due project-due-editable" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" aria-label="修改截止日期">${item.due_str}</button>`
           : `<span class="item-due">${item.due_str}</span>`;
+
+        const courseHtml = item.source === 'project'
+          ? `<button class="item-course project-todo-link" onclick="openProjectsView(${item.projectId})">${escapeHtml(item.course)} ↗</button>`
+          : item.course
+            ? `<span class="item-course">${escapeHtml(item.course)}</span>`
+            : '';
           
         const labelsHtml = item.labels && item.labels.length > 0
           ? `<div class="item-labels">${item.labels.map(label => `<span class="label-badge">${escapeHtml(label)}</span>`).join('')}</div>`
@@ -1576,7 +1575,7 @@
           <div class="todo-item unified-item ${urgencyClass} ${manualFlag ? 'manual-flagged' : ''} ${isDismissed ? 'dismissed' : ''} ${animAttr}">
             <span class="item-source-badge src-${item.source}">${item.type}</span>
             ${titleHtml}
-            ${item.course ? `<span class="item-course">${escapeHtml(item.course)}</span>` : ''}
+            ${courseHtml}
             ${labelsHtml}
             ${dueHtml}
             <span class="item-subtask-slot">${subtaskToggleHtml}</span>
@@ -2614,7 +2613,7 @@
 
     // ---- Init ----
     document.getElementById('add-todo-form').addEventListener('submit', addTodo);
-    document.getElementById('btn-refresh').addEventListener('click', () => { fetchCanvasTodos(); fetchHaokeTodos(); fetchZhixuemengTodos(); fetchZhihuishuTodos(); });
+    document.getElementById('btn-refresh').addEventListener('click', () => { fetchCanvasTodos(); fetchHaokeTodos(); fetchZhixuemengTodos(); fetchZhihuishuTodos(); fetchProjectTodos(); });
 
     const canvasFormInline = document.getElementById('canvas-setup-form-inline');
     if (canvasFormInline) canvasFormInline.addEventListener('submit', saveCanvasFeedUrlInline);
@@ -2626,6 +2625,8 @@
     if (zxmPwdFormInline) zxmPwdFormInline.addEventListener('submit', doZhixuemengPasswordLoginInline);
 
     document.getElementById('todo-list').addEventListener('click', function(e) {
+      const projectDueEl = e.target.closest('.project-due-editable');
+      if (projectDueEl) { startProjectTodoDueEdit(projectDueEl); return; }
       const titleEl = e.target.closest('.editable-title');
       if (titleEl) { startInlineEdit(titleEl, 'text'); return; }
       const dueEl = e.target.closest('.editable-due');
@@ -2650,5 +2651,6 @@
     setInterval(fetchTerm, 60 * 1000);
     setInterval(fetchWeather, 60 * 60 * 1000);
   </script>
+  <script src="/static/projects.js"></script>
 </body>
 </html>

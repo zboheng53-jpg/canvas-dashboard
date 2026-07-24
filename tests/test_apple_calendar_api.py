@@ -4,6 +4,7 @@ import pytest
 
 import app as dashboard_app
 import apple_calendar
+import project_store
 import user_paths
 import zhihuishu_store
 
@@ -85,6 +86,15 @@ def test_calendar_subscription_reads_only_active_cached_tasks(calendar_client, m
         encoding="utf-8",
     )
     zhihuishu_store.save_cache("alice", [{"id": "zhs-41", "title": "Zhs visible", "due_ts": "2099-07-12T12:00:00+08:00"}])
+    project = project_store.create_project(
+        "alice",
+        {"name": "Python 学习", "due_date": "2099-09-01"},
+    )
+    project_task = project_store.create_task(
+        "alice",
+        project["id"],
+        {"name": "NumPy 数组练习", "due_date": "2099-08-02"},
+    )
 
     monkeypatch.setattr(dashboard_app, "fetch_canvas_planner", lambda username: pytest.fail("calendar subscription must not fetch Canvas"))
     monkeypatch.setattr(dashboard_app, "fetch_haoke_todos", lambda username: pytest.fail("calendar subscription must not fetch 好课"))
@@ -109,6 +119,8 @@ def test_calendar_subscription_reads_only_active_cached_tasks(calendar_client, m
         "Haoke visible",
         "Zxm visible",
         "Zhs visible",
+        "NumPy 数组练习 · Python 学习",
+        "项目截止 · Python 学习",
     ):
         assert title in body
     assert "DTSTART;VALUE=DATE:20990711" in body
@@ -116,6 +128,8 @@ def test_calendar_subscription_reads_only_active_cached_tasks(calendar_client, m
     assert "DTSTART;VALUE=DATE:20990714" in body
     assert "UID:custom-1-subtask-1@canvas-dashboard" in body
     assert "UID:custom-3-subtask-1@canvas-dashboard" in body
+    assert f"UID:project-task-{project['id']}-{project_task['id']}@canvas-dashboard" in body
+    assert f"UID:project-due-{project['id']}@canvas-dashboard" in body
     assert "Completed custom" not in body
     assert "Completed subtask" not in body
     assert "Undated subtask" not in body
@@ -138,6 +152,78 @@ def test_calendar_subscription_token_is_revocable(calendar_client):
     with dashboard_app.app.test_client() as anonymous_client:
         assert anonymous_client.get(path).status_code == 404
         assert anonymous_client.get("/calendar/not-a-token.ics").status_code == 404
+
+
+def test_project_calendar_events_keep_uids_through_renames_and_follow_status(calendar_client):
+    client, _ = calendar_client
+    project = project_store.create_project(
+        "alice",
+        {"name": "Python 学习", "due_date": "2099-09-01"},
+    )
+    task = project_store.create_task(
+        "alice",
+        project["id"],
+        {"name": "NumPy 练习", "due_date": "2099-08-02"},
+    )
+    bob = project_store.create_project(
+        "bob",
+        {"name": "Bob 私有项目", "due_date": "2099-09-03"},
+    )
+    project_store.create_task(
+        "bob",
+        bob["id"],
+        {"name": "Bob 私有任务", "due_date": "2099-08-04"},
+    )
+    path = client.post(
+        "/api/apple-calendar/subscription",
+        headers=client.csrf_headers,
+    ).get_json()["path"]
+
+    with dashboard_app.app.test_client() as anonymous:
+        before = anonymous.get(path).get_data(as_text=True)
+
+    task_uid = f"UID:project-task-{project['id']}-{task['id']}@canvas-dashboard"
+    due_uid = f"UID:project-due-{project['id']}@canvas-dashboard"
+    assert before.count(task_uid) == 1
+    assert before.count(due_uid) == 1
+    assert "Bob 私有项目" not in before
+    assert "Bob 私有任务" not in before
+
+    client.put(
+        f"/api/projects/{project['id']}",
+        json={"name": "Python 数据处理", "due_date": "2099-09-05"},
+        headers=client.csrf_headers,
+    )
+    client.put(
+        f"/api/projects/{project['id']}/tasks/{task['id']}",
+        json={"name": "数组练习", "due_date": "2099-08-06"},
+        headers=client.csrf_headers,
+    )
+    with dashboard_app.app.test_client() as anonymous:
+        renamed = anonymous.get(path).get_data(as_text=True)
+    assert renamed.count(task_uid) == 1
+    assert renamed.count(due_uid) == 1
+    assert "SUMMARY:数组练习 · Python 数据处理" in renamed
+    assert "DTSTART;VALUE=DATE:20990806" in renamed
+    assert "NumPy 练习" not in renamed
+
+    client.post(
+        f"/api/projects/{project['id']}/archive",
+        headers=client.csrf_headers,
+    )
+    with dashboard_app.app.test_client() as anonymous:
+        archived = anonymous.get(path).get_data(as_text=True)
+    assert task_uid not in archived
+    assert due_uid not in archived
+
+    client.post(
+        f"/api/projects/{project['id']}/reopen",
+        headers=client.csrf_headers,
+    )
+    with dashboard_app.app.test_client() as anonymous:
+        reopened = anonymous.get(path).get_data(as_text=True)
+    assert reopened.count(task_uid) == 1
+    assert reopened.count(due_uid) == 1
 
 
 def test_calendar_subscription_is_unavailable_until_https_activation(calendar_client, monkeypatch):

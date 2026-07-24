@@ -662,6 +662,33 @@ a:hover { color: var(--accent-hover); }
   border: 1px solid #ddd;
 }
 
+.item-source-badge.src-project {
+  color: #4f6b59;
+  background: #edf4ef;
+  border-color: #d9e7dc;
+}
+
+.project-todo-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.project-todo-link:hover { color: var(--accent); }
+
+.project-due-editable {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
 /* Title */
 .item-title {
   flex: 1;

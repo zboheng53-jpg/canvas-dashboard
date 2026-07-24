@@ -410,6 +410,15 @@ def _calendar_items(username):
     add_cached("Zhixuemeng", zxm_cache.get("items", []) if isinstance(zxm_cache, dict) else [], load_zxm_state(username))
     zhs_cache = zhihuishu_store.load_cache(username)
     add_cached("Zhihuishu", zhs_cache["items"], zhihuishu_store.load_state(username))
+    for item in project_store.todo_items(username):
+        items.append({
+            "source": "Project",
+            "id": item["id"],
+            "uid": item["uid"],
+            "title": item["calendar_title"],
+            "due_date": item["due_date"],
+            "course": item["project_name"],
+        })
     return items
 
 
@@ -1303,21 +1312,62 @@ def _project_payload(data, partial=False):
     payload = {}
     if not partial or "name" in data:
         name = (data.get("name") or "").strip()
-        if not name or len(name) > 100: return None
+        if not name or len(name) > 100:
+            return None
         payload["name"] = name
-    if "progress" in data:
-        progress = data["progress"]
-        if not isinstance(progress, int) or isinstance(progress, bool) or not 0 <= progress <= 100: return None
-        payload["progress"] = progress
+    if "objective" in data:
+        objective = (data.get("objective") or "").strip()
+        if len(objective) > 240:
+            return None
+        payload["objective"] = objective
     if "due_date" in data:
         raw = (data.get("due_date") or "").strip()
-        try: payload["due_date"] = date.fromisoformat(raw).isoformat() if raw else None
-        except ValueError: return None
-    if "next_action" in data:
-        action = (data.get("next_action") or "").strip()
-        if len(action) > 200: return None
-        payload["next_action"] = action
+        try:
+            payload["due_date"] = date.fromisoformat(raw).isoformat() if raw else None
+        except ValueError:
+            return None
+    if "due_highlighted" in data:
+        if not isinstance(data["due_highlighted"], bool):
+            return None
+        payload["due_highlighted"] = data["due_highlighted"]
     return payload
+
+
+def _project_task_payload(data, partial=False):
+    if data is None:
+        return None
+    payload = {}
+    if not partial or "name" in data:
+        name = (data.get("name") or "").strip()
+        if not name or len(name) > 160:
+            return None
+        payload["name"] = name
+    if "group_id" in data:
+        group_id = data.get("group_id")
+        if group_id is not None and (not isinstance(group_id, int) or isinstance(group_id, bool) or group_id < 1):
+            return None
+        payload["group_id"] = group_id
+    if "due_date" in data:
+        raw = (data.get("due_date") or "").strip()
+        try:
+            payload["due_date"] = date.fromisoformat(raw).isoformat() if raw else None
+        except ValueError:
+            return None
+    for field in ("done", "highlighted", "is_next_action"):
+        if field in data:
+            if not isinstance(data[field], bool):
+                return None
+            payload[field] = data[field]
+    if payload.get("done") and payload.get("is_next_action"):
+        return None
+    return payload
+
+
+def _project_group_name(data):
+    if data is None:
+        return None
+    name = (data.get("name") or "").strip()
+    return name if name and len(name) <= 80 else None
 
 
 @app.route("/api/projects", methods=["GET", "POST"])
@@ -1325,68 +1375,199 @@ def api_projects():
     username = session["username"]
     if request.method == "POST":
         payload = _project_payload(read_json_request())
-        if payload is None: return invalid_request_response()
+        if payload is None:
+            return invalid_request_response()
         return jsonify({"ok": True, "project": project_store.create_project(username, payload)})
-    return jsonify({"ok": True, "projects": project_store.load_projects(username)})
+    state = project_store.load_state(username)
+    return jsonify({
+        "ok": True,
+        "projects": project_store.load_projects(username),
+        "main_project_id": state["main_project_id"],
+        "last_viewed_project_id": state["last_viewed_project_id"],
+    })
 
 
 @app.route("/api/projects/overview")
 def api_projects_overview():
-    active = [project for project in project_store.load_projects(session["username"]) if project.get("status") == "active"]
-    return jsonify({"ok": True, "projects": active[:3], "has_more": len(active) > 3})
+    return jsonify({
+        "ok": True,
+        **project_store.overview(session["username"], today=datetime.now(CST).date()),
+    })
+
+
+@app.route("/api/projects/todos")
+def api_project_todos():
+    items = project_store.todo_items(session["username"])
+    items.sort(key=lambda item: (item.get("due_date") or "9999-12-31", item["project_id"], item["id"]))
+    return jsonify({"ok": True, "items": items, "count": len(items)})
 
 
 @app.route("/api/projects/<int:project_id>", methods=["PUT"])
 def api_project(project_id):
     payload = _project_payload(read_json_request(), partial=True)
-    if payload is None or not payload: return invalid_request_response()
+    if payload is None or not payload:
+        return invalid_request_response()
     project = project_store.update_project(session["username"], project_id, payload)
-    if project is None: return api_error("project_not_found", "项目不存在", 404)
+    if project is None:
+        return api_error("project_not_found", "项目不存在", 404)
     return jsonify({"ok": True, "project": project})
+
+
+@app.route("/api/projects/<int:project_id>/set-main", methods=["POST"])
+def api_project_set_main(project_id):
+    main_project_id = project_store.set_main_project(session["username"], project_id)
+    if main_project_id is None:
+        return api_error("project_not_active", "只能将进行中的项目设为主项目", 400)
+    return jsonify({"ok": True, "main_project_id": main_project_id})
+
+
+def _project_status_response(project_id, operation):
+    project, main_project_id = operation(session["username"], project_id)
+    if project is None:
+        return api_error("project_not_found", "项目不存在", 404)
+    return jsonify({
+        "ok": True,
+        "project": project,
+        "main_project_id": main_project_id,
+    })
+
+
+@app.route("/api/projects/<int:project_id>/complete", methods=["POST"])
+def api_project_complete(project_id):
+    return _project_status_response(project_id, project_store.complete_project)
 
 
 @app.route("/api/projects/<int:project_id>/archive", methods=["POST"])
 def api_project_archive(project_id):
-    project = project_store.update_project(session["username"], project_id, {"status": "archived"})
-    if project is None: return api_error("project_not_found", "项目不存在", 404)
-    return jsonify({"ok": True, "project": project})
+    return _project_status_response(project_id, project_store.archive_project)
 
 
-@app.route("/api/projects/<int:project_id>/goals", methods=["POST"])
-def api_project_goal_create(project_id):
-    data = read_json_request(); text = (data.get("text") or "").strip() if data else ""
-    if not text or len(text) > 160: return invalid_request_response()
-    goal = project_store.create_goal(session["username"], project_id, text)
-    if goal is None: return api_error("project_not_found", "项目不存在", 404)
-    return jsonify({"ok": True, "goal": goal})
+@app.route("/api/projects/<int:project_id>/reopen", methods=["POST"])
+def api_project_reopen(project_id):
+    return _project_status_response(project_id, project_store.reopen_project)
 
 
-@app.route("/api/projects/<int:project_id>/goals/<int:goal_id>", methods=["PUT", "DELETE"])
-def api_project_goal(project_id, goal_id):
-    if request.method == "DELETE":
-        return jsonify({"ok": project_store.delete_goal(session["username"], project_id, goal_id)})
+@app.route("/api/projects/reorder", methods=["POST"])
+def api_projects_reorder():
     data = read_json_request()
-    if not data or ("text" not in data and "done" not in data): return invalid_request_response()
-    changes = {}
-    if "text" in data:
-        text = (data.get("text") or "").strip()
-        if not text or len(text) > 160: return invalid_request_response()
-        changes["text"] = text
-    if "done" in data:
-        if not isinstance(data["done"], bool): return invalid_request_response()
-        changes["done"] = data["done"]
-    goal = project_store.update_goal(session["username"], project_id, goal_id, changes)
-    if goal is None: return api_error("goal_not_found", "目标不存在", 404)
-    return jsonify({"ok": True, "goal": goal})
+    project_ids = data.get("project_ids") if data else None
+    if (
+        not isinstance(project_ids, list)
+        or not all(isinstance(value, int) and not isinstance(value, bool) for value in project_ids)
+    ):
+        return invalid_request_response()
+    projects = project_store.reorder_projects(session["username"], project_ids)
+    if projects is None:
+        return api_error("project_order_invalid", "项目顺序无效", 400)
+    return jsonify({"ok": True, "projects": projects})
 
 
-@app.route("/api/projects/<int:project_id>/goals/reorder", methods=["POST"])
-def api_project_goal_reorder(project_id):
-    data = read_json_request(); goal_ids = data.get("goal_ids") if data else None
-    if not isinstance(goal_ids, list) or not all(isinstance(value, int) for value in goal_ids): return invalid_request_response()
-    goals = project_store.reorder_goals(session["username"], project_id, goal_ids)
-    if goals is None: return api_error("goal_order_invalid", "目标顺序无效", 400)
-    return jsonify({"ok": True, "goals": goals})
+@app.route("/api/projects/<int:project_id>/viewed", methods=["POST"])
+def api_project_viewed(project_id):
+    viewed_id = project_store.set_last_viewed(session["username"], project_id)
+    if viewed_id is None:
+        return api_error("project_not_found", "项目不存在", 404)
+    return jsonify({"ok": True, "last_viewed_project_id": viewed_id})
+
+
+@app.route("/api/projects/<int:project_id>/groups", methods=["POST"])
+def api_project_group_create(project_id):
+    name = _project_group_name(read_json_request())
+    if name is None:
+        return invalid_request_response()
+    group = project_store.create_group(session["username"], project_id, name)
+    if group is None:
+        return api_error("project_not_found", "项目不存在", 404)
+    return jsonify({"ok": True, "group": group})
+
+
+@app.route("/api/projects/<int:project_id>/groups/<int:group_id>", methods=["PUT", "DELETE"])
+def api_project_group(project_id, group_id):
+    if request.method == "DELETE":
+        if not project_store.delete_group(session["username"], project_id, group_id):
+            return api_error("group_not_found", "分组不存在", 404)
+        return jsonify({"ok": True})
+    name = _project_group_name(read_json_request())
+    if name is None:
+        return invalid_request_response()
+    group = project_store.update_group(session["username"], project_id, group_id, name)
+    if group is None:
+        return api_error("group_not_found", "分组不存在", 404)
+    return jsonify({"ok": True, "group": group})
+
+
+@app.route("/api/projects/<int:project_id>/groups/reorder", methods=["POST"])
+def api_project_groups_reorder(project_id):
+    data = read_json_request()
+    group_ids = data.get("group_ids") if data else None
+    if (
+        not isinstance(group_ids, list)
+        or not all(isinstance(value, int) and not isinstance(value, bool) for value in group_ids)
+    ):
+        return invalid_request_response()
+    groups = project_store.reorder_groups(session["username"], project_id, group_ids)
+    if groups is None:
+        return api_error("group_order_invalid", "分组顺序无效", 400)
+    return jsonify({"ok": True, "groups": groups})
+
+
+@app.route("/api/projects/<int:project_id>/tasks", methods=["POST"])
+def api_project_task_create(project_id):
+    payload = _project_task_payload(read_json_request())
+    if payload is None:
+        return invalid_request_response()
+    task = project_store.create_task(session["username"], project_id, payload)
+    if task is None:
+        return api_error("project_or_group_not_found", "项目或分组不存在", 404)
+    return jsonify({"ok": True, "task": task})
+
+
+@app.route("/api/projects/<int:project_id>/tasks/<int:task_id>", methods=["PUT", "DELETE"])
+def api_project_task(project_id, task_id):
+    if request.method == "DELETE":
+        if not project_store.delete_task(session["username"], project_id, task_id):
+            return api_error("task_not_found", "任务不存在", 404)
+        return jsonify({"ok": True})
+    payload = _project_task_payload(read_json_request(), partial=True)
+    if payload is None or not payload:
+        return invalid_request_response()
+    task = project_store.update_task(session["username"], project_id, task_id, payload)
+    if task is None:
+        return api_error("task_update_invalid", "任务不存在或分组无效", 400)
+    return jsonify({"ok": True, "task": task})
+
+
+@app.route("/api/projects/<int:project_id>/tasks/<int:task_id>/set-next", methods=["POST"])
+def api_project_task_set_next(project_id, task_id):
+    task = project_store.set_next_task(session["username"], project_id, task_id)
+    if task is None:
+        return api_error("next_action_invalid", "只能选择进行中项目的未完成任务", 400)
+    return jsonify({"ok": True, "task": task})
+
+
+@app.route("/api/projects/<int:project_id>/tasks/reorder", methods=["POST"])
+def api_project_tasks_reorder(project_id):
+    data = read_json_request()
+    placements = data.get("tasks") if data else None
+    if not isinstance(placements, list) or not all(isinstance(item, dict) for item in placements):
+        return invalid_request_response()
+    for item in placements:
+        task_id = item.get("id")
+        group_id = item.get("group_id")
+        if (
+            not isinstance(task_id, int)
+            or isinstance(task_id, bool)
+            or task_id < 1
+            or (
+                group_id is not None
+                and (not isinstance(group_id, int) or isinstance(group_id, bool) or group_id < 1)
+            )
+        ):
+            return invalid_request_response()
+    tasks = project_store.reorder_tasks(session["username"], project_id, placements)
+    if tasks is None:
+        return api_error("task_order_invalid", "任务顺序无效", 400)
+    return jsonify({"ok": True, "tasks": tasks})
 
 
 # ---- School Term / Week ----

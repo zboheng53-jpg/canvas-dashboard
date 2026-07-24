@@ -80,9 +80,11 @@ def build_calendar(username: str, items: list[dict], now: datetime) -> str:
             continue
         source = str(item.get("source") or "task").lower()
         item_id = str(item.get("id") or "unknown")
+        explicit_uid = str(item.get("uid") or "").replace("\r", "").replace("\n", "")
+        event_uid = explicit_uid or f"{source}-{item_id}@canvas-dashboard"
         lines.extend([
             "BEGIN:VEVENT",
-            f"UID:{source}-{item_id}@canvas-dashboard",
+            f"UID:{event_uid}",
             f"DTSTAMP:{now_utc}",
         ])
         due_ts = item.get("due_ts")

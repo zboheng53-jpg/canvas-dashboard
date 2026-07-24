@@ -1,11 +1,123 @@
 <section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-projects" data-view-panel="projects">
   <div class="card project-manager-card">
-    <div class="project-manager-heading"><div><span class="placeholder-kicker">PROJECTS</span><h1>长期项目</h1><p>集中管理需要持续推进的目标与本周行动。</p></div><button type="button" id="project-new-button" onclick="showProjectComposer()">新建项目</button></div>
+    <div class="project-manager-heading">
+      <div>
+        <span class="placeholder-kicker">PROJECTS</span>
+        <h1>长期项目</h1>
+        <p>在这里组织长期目标；有截止日期的任务会自动进入统一待办。</p>
+      </div>
+      <button type="button" id="project-new-button" onclick="openProjectModal()">＋ 新建项目</button>
+    </div>
     <p id="project-manager-status" class="project-manager-status" role="status"></p>
-    <form id="project-composer" class="project-composer hidden"><input name="name" required maxlength="100" placeholder="项目名称"><input name="progress" type="number" min="0" max="100" value="0" aria-label="进度"><input name="due_date" type="date" aria-label="截止日期"><input name="next_action" maxlength="200" placeholder="下一步行动（可选）"><button type="submit">保存项目</button></form>
-    <div class="project-manager-layout"><div id="project-manager-list" class="project-manager-list"></div><section id="project-detail" class="project-detail"><p class="project-list-empty">选择一个项目查看详情</p></section></div>
+    <div class="project-manager-layout">
+      <aside class="project-browser" aria-label="项目列表">
+        <section class="project-list-section">
+          <div class="project-list-heading"><h2>进行中的项目</h2><span id="active-project-count">0</span></div>
+          <div id="project-manager-list" class="project-manager-list" aria-live="polite"></div>
+        </section>
+        <details class="project-history-section" id="completed-projects-section">
+          <summary>已完成项目 <span id="completed-project-count">0</span></summary>
+          <div id="completed-project-list" class="project-manager-list"></div>
+        </details>
+        <details class="project-history-section" id="archived-projects-section">
+          <summary>已归档项目 <span id="archived-project-count">0</span></summary>
+          <div id="archived-project-list" class="project-manager-list"></div>
+        </details>
+      </aside>
+      <section id="project-detail" class="project-detail" aria-live="polite">
+        <div class="project-detail-empty">
+          <strong>选择一个项目查看详情</strong>
+          <p>项目任务可以按分组整理，也可以保留在未分组区域。</p>
+        </div>
+      </section>
+    </div>
   </div>
 </section>
+
+<div class="project-modal-backdrop hidden" id="project-editor-modal">
+  <div class="project-modal-card" role="dialog" aria-modal="true" aria-labelledby="project-editor-title">
+    <div class="project-modal-header">
+      <div><span class="placeholder-kicker">PROJECT</span><h2 id="project-editor-title">新建项目</h2></div>
+      <button type="button" class="project-modal-close" onclick="closeProjectModal()" aria-label="关闭">×</button>
+    </div>
+    <form id="project-editor-form" class="project-modal-form">
+      <input type="hidden" name="project_id">
+      <label>项目名称<input name="name" required maxlength="100" autocomplete="off"></label>
+      <label>一句话目标<textarea name="objective" maxlength="240" rows="3" placeholder="这个项目最终希望达成什么？"></textarea></label>
+      <label>项目截止日期（可选）<input name="due_date" type="date"></label>
+      <p class="project-modal-error" id="project-editor-error" role="alert"></p>
+      <div class="project-modal-actions">
+        <button type="button" class="project-button-secondary" onclick="closeProjectModal()">取消</button>
+        <button type="submit" class="project-button-primary">保存项目</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="project-modal-backdrop hidden" id="project-task-modal">
+  <div class="project-modal-card" role="dialog" aria-modal="true" aria-labelledby="project-task-title">
+    <div class="project-modal-header">
+      <div><span class="placeholder-kicker">TASK</span><h2 id="project-task-title">添加任务</h2></div>
+      <button type="button" class="project-modal-close" onclick="closeProjectTaskModal()" aria-label="关闭">×</button>
+    </div>
+    <form id="project-task-form" class="project-modal-form">
+      <input type="hidden" name="project_id">
+      <input type="hidden" name="task_id">
+      <label>任务名称<input name="name" required maxlength="160" autocomplete="off"></label>
+      <label>所属分组<select name="group_id"></select></label>
+      <label>最晚截止日期（可选）<input name="due_date" type="date"></label>
+      <label class="project-check-option"><input name="is_next_action" type="checkbox"> 设为下一步行动</label>
+      <p class="project-modal-error" id="project-task-error" role="alert"></p>
+      <div class="project-modal-actions">
+        <button type="button" class="project-button-secondary" onclick="closeProjectTaskModal()">取消</button>
+        <button type="submit" class="project-button-primary">保存任务</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="project-modal-backdrop hidden" id="project-group-modal">
+  <div class="project-modal-card project-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="project-group-title">
+    <div class="project-modal-header">
+      <div><span class="placeholder-kicker">GROUP</span><h2 id="project-group-title">新建分组</h2></div>
+      <button type="button" class="project-modal-close" onclick="closeProjectGroupModal()" aria-label="关闭">×</button>
+    </div>
+    <form id="project-group-form" class="project-modal-form">
+      <input type="hidden" name="project_id">
+      <input type="hidden" name="group_id">
+      <label>分组名称<input name="name" required maxlength="80" autocomplete="off"></label>
+      <p class="project-modal-error" id="project-group-error" role="alert"></p>
+      <div class="project-modal-actions">
+        <button type="button" class="project-button-secondary" onclick="closeProjectGroupModal()">取消</button>
+        <button type="submit" class="project-button-primary">保存分组</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="project-modal-backdrop hidden" id="project-choice-modal">
+  <div class="project-modal-card project-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="project-choice-title">
+    <div class="project-modal-header">
+      <div><span class="placeholder-kicker">NEXT ACTION</span><h2 id="project-choice-title">选择下一步</h2></div>
+      <button type="button" class="project-modal-close" onclick="closeProjectChoiceModal()" aria-label="关闭">×</button>
+    </div>
+    <div class="project-choice-list" id="project-choice-list"></div>
+  </div>
+</div>
+
+<div class="project-modal-backdrop hidden" id="project-confirm-modal">
+  <div class="project-modal-card project-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="project-confirm-title">
+    <div class="project-modal-header">
+      <div><span class="placeholder-kicker">CONFIRM</span><h2 id="project-confirm-title">确认操作</h2></div>
+      <button type="button" class="project-modal-close" onclick="closeProjectConfirmModal(false)" aria-label="关闭">×</button>
+    </div>
+    <p class="project-confirm-copy" id="project-confirm-copy"></p>
+    <div class="project-modal-actions">
+      <button type="button" class="project-button-secondary" onclick="closeProjectConfirmModal(false)">取消</button>
+      <button type="button" class="project-button-danger" id="project-confirm-submit">确认</button>
+    </div>
+  </div>
+</div>
 
 <section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-schedule" data-view-panel="schedule">
   <div class="card schedule-manager-card">

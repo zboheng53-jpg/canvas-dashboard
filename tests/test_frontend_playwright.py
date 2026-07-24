@@ -763,34 +763,97 @@ def test_frontend_timetable_login_opens_vnc_directly(live_app, browser):
     expect(page.locator("#schedule-refresh-button")).to_have_text("统一身份认证登录")
 
 
-def test_frontend_projects_overview_limits_cards_and_opens_manager(live_app, browser):
+def test_frontend_projects_create_without_automatic_main_and_preserve_failed_edit(live_app, browser):
     page = browser.new_page(viewport={"width": 390, "height": 844})
-    project_requests = []
-    page.on(
-        "request",
-        lambda request: project_requests.append(request.url)
-        if request.url.endswith("/api/projects")
-        else None,
-    )
     register_dashboard_user(page, live_app, "projectsv2")
     expect(page.locator("#project-overview-content")).to_contain_text("暂无长期项目")
-    page.locator("#project-empty-create").click()
+    page.get_by_role("button", name="新建项目").last.click()
     expect(page.locator("#dashboard-view-projects")).to_be_visible()
-    expect(page.locator("#project-composer")).to_be_visible()
-    assert len(project_requests) == 1
-    page.fill('#project-composer [name="name"]', "毕业设计")
-    page.locator("#project-composer button").click()
+    expect(page.locator("#project-editor-modal")).to_be_visible()
+    page.fill('#project-editor-form [name="name"]', "毕业设计")
+    page.fill('#project-editor-form [name="objective"]', "完成可演示的自动化系统")
+    page.locator('#project-editor-form [type="submit"]').click()
     expect(page.locator("#project-manager-list")).to_contain_text("毕业设计")
+    expect(page.locator("#project-detail")).to_contain_text("项目已创建")
+    expect(page.locator("#project-detail")).to_contain_text("设为主项目")
+    expect(page.locator("#project-manager-list")).not_to_contain_text("主项目")
+
     page.route(
         "**/api/projects/*",
         lambda route: route.abort()
         if route.request.method == "PUT"
         else route.continue_(),
     )
-    page.fill('.project-edit-form [name="name"]', "保留的项目名称")
-    page.locator(".project-edit-form button").click()
-    expect(page.locator('#project-detail [name="name"]')).to_have_value("保留的项目名称")
-    expect(page.locator("#project-manager-status")).to_contain_text("保存失败")
+    page.evaluate("openProjectModal(selectedProjectId)")
+    page.fill('#project-editor-form [name="name"]', "保留的项目名称")
+    page.locator('#project-editor-form [type="submit"]').click()
+    expect(page.locator('#project-editor-form [name="name"]')).to_have_value("保留的项目名称")
+    expect(page.locator("#project-editor-error")).to_contain_text("当前输入已保留")
+
+
+def test_frontend_project_main_card_groups_tasks_and_todo_jump(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "projectflow")
+    seeded = page.evaluate("""
+      async () => {
+        const json = async (url, method = 'GET', body = null) => {
+          const response = await fetch(url, {
+            method,
+            headers: body ? {'Content-Type':'application/json'} : {},
+            body: body ? JSON.stringify(body) : null
+          });
+          return response.json();
+        };
+        const project = (await json('/api/projects', 'POST', {
+          name:'Python 学习',
+          objective:'能够完成数学建模数据处理',
+          due_date:'2026-09-01'
+        })).project;
+        const group = (await json(`/api/projects/${project.id}/groups`, 'POST', {name:'数据处理'})).group;
+        const nextTask = (await json(`/api/projects/${project.id}/tasks`, 'POST', {
+          name:'完成 NumPy 数组练习',
+          group_id:group.id,
+          due_date:'2026-07-10',
+          is_next_action:true
+        })).task;
+        await json(`/api/projects/${project.id}/tasks`, 'POST', {name:'复习 pandas', due_date:'2026-07-11'});
+        await json(`/api/projects/${project.id}/tasks`, 'POST', {name:'无日期任务'});
+        await json(`/api/projects/${project.id}/tasks`, 'POST', {name:'另一项无日期任务'});
+        await json(`/api/projects/${project.id}/set-main`, 'POST');
+        await Promise.all([loadProjectOverview(), fetchProjectTodos(), loadProjects(project.id)]);
+        return {projectId: project.id, taskId: nextTask.id};
+      }
+    """)
+
+    expect(page.locator("#project-overview-content")).to_contain_text("Python 学习")
+    expect(page.locator("#project-overview-content")).to_contain_text("完成 NumPy 数组练习")
+    expect(page.locator("#project-overview-content .project-overview-task")).to_have_count(3)
+    expect(page.locator("#project-overview-content")).to_contain_text("还有 1 项")
+
+    page.locator('[data-todo-source="project"]').click()
+    expect(page.locator("#todo-list .unified-item")).to_have_count(3)
+    project_task = page.locator("#todo-list .unified-item").filter(has_text="完成 NumPy 数组练习")
+    expect(project_task).to_be_visible()
+    expect(project_task.locator(".btn-delete")).to_have_count(0)
+    project_task.locator(".project-todo-link").click()
+    expect(page.locator("#dashboard-view-projects")).to_be_visible()
+    expect(page.locator("#project-detail")).to_contain_text("Python 学习")
+    expect(page.locator("#project-detail")).to_contain_text("数据处理")
+
+    page.locator(f'.project-task-row[data-task-id="{seeded["taskId"]}"] input[type="checkbox"]').check()
+    expect(page.locator("#project-detail .project-completed-tasks")).to_contain_text("已完成 1 项")
+    expect(page.locator("#project-detail .project-completed-tasks")).not_to_have_attribute("open", "")
+
+
+@pytest.mark.parametrize("width", [375, 390, 768])
+def test_frontend_projects_narrow_screen_has_no_horizontal_overflow(live_app, browser, width):
+    page = browser.new_page(viewport={"width": width, "height": 844})
+    register_dashboard_user(page, live_app, f"projectmobile{width}")
+    page.get_by_role("button", name="新建项目").last.click()
+    page.fill('#project-editor-form [name="name"]', "窄屏长期项目")
+    page.locator('#project-editor-form [type="submit"]').click()
+    expect(page.locator("#dashboard-view-projects")).to_be_visible()
+    assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
 
 
 def test_frontend_right_rail_distinguishes_loading_failures_from_empty_states(live_app, browser):

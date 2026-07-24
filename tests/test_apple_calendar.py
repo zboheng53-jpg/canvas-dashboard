@@ -51,3 +51,39 @@ def test_calendar_ics_includes_only_active_dated_items():
     assert "DTSTART;TZID=Asia/Shanghai:20260711T200000" in calendar
     assert "Done" not in calendar
     assert "No date" not in calendar
+
+
+def test_calendar_uses_explicit_stable_uid_and_skips_one_invalid_item():
+    cst = timezone(timedelta(hours=8))
+    calendar = apple_calendar.build_calendar(
+        "alice",
+        [
+            {
+                "source": "Project",
+                "id": "renamed",
+                "uid": "project-task-7-9@canvas-dashboard",
+                "title": "新任务名 · 新项目名",
+                "due_date": "2026-08-02",
+            },
+            {
+                "source": "Project",
+                "id": "invalid",
+                "uid": "project-task-7-10@canvas-dashboard",
+                "title": "非法日期",
+                "due_date": "not-a-date",
+            },
+            {
+                "source": "Project",
+                "id": "due-7",
+                "uid": "project-due-7@canvas-dashboard",
+                "title": "项目截止 · 新项目名",
+                "due_date": "2026-09-01",
+            },
+        ],
+        now=datetime(2026, 7, 10, 8, 0, tzinfo=cst),
+    )
+
+    assert "UID:project-task-7-9@canvas-dashboard" in calendar
+    assert "UID:project-due-7@canvas-dashboard" in calendar
+    assert "SUMMARY:新任务名 · 新项目名" in calendar
+    assert "非法日期" not in calendar
