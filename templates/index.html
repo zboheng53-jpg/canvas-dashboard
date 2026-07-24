@@ -1547,7 +1547,7 @@
         const dueHtml = item.source === 'custom'
           ? `<span class="item-due editable-due" data-id="${item.rawId}" data-field="due_date">${item.due_str}</span>`
           : item.source === 'project'
-            ? `<button class="item-due project-due-editable" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" aria-label="修改截止日期">${item.due_str}</button>`
+            ? `<button class="item-due project-due-editable" onclick="startProjectTodoDueEdit(this)" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" aria-label="修改截止日期">${item.due_str}</button>`
           : `<span class="item-due">${item.due_str}</span>`;
 
         const courseHtml = item.source === 'project'
