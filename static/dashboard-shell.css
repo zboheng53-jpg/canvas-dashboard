@@ -689,7 +689,7 @@
 .project-group-actions { display: flex; align-items: center; gap: 5px; }
 .project-group-actions > button { padding: 4px 6px; border: 0; background: transparent; color: var(--sidebar-blue); font: inherit; font-size: 10px; cursor: pointer; }
 .project-task-list { display: grid; gap: 5px; margin-top: 8px; }
-.project-task-row { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto 30px; align-items: center; gap: 7px; min-width: 0; padding: 8px 8px; background: #fff; border: 1px solid transparent; border-radius: 6px; }
+.project-task-row { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto auto; align-items: center; gap: 7px; min-width: 0; padding: 8px 8px; background: #fff; border: 1px solid transparent; border-radius: 6px; }
 .project-task-row:hover { border-color: #e2e6eb; }
 .project-task-row[draggable="true"] { cursor: grab; }
 .project-task-row input { width: 14px; height: 14px; margin: 0; accent-color: var(--sidebar-blue); cursor: pointer; }
@@ -697,6 +697,11 @@
 .project-task-copy span { overflow: hidden; color: var(--shell-ink); font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .project-task-copy small { overflow: hidden; color: var(--shell-muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .project-task-row.is-done .project-task-copy span { color: var(--shell-muted); text-decoration: line-through; }
+.project-task-actions { display: flex; align-items: center; gap: 2px; }
+.project-task-action-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--shell-muted); cursor: pointer; transition: all 0.15s ease; }
+.project-task-action-btn:hover { background: #f0f3f6; color: var(--shell-ink); }
+.project-task-action-btn.is-danger:hover { background: #fdf2f2; color: #b8564d; }
+.project-task-action-btn.is-active-next { color: #3b82f6; background: #eff6ff; }
 .project-task-empty { margin: 9px 7px 4px; color: var(--shell-muted); font-size: 10px; }
 .project-completed-tasks { margin-top: 7px; border-top: 1px solid var(--shell-border-soft); }
 .project-completed-tasks > summary { padding: 8px 7px 2px; color: var(--shell-muted); font-size: 10px; cursor: pointer; }

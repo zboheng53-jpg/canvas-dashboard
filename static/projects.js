@@ -454,14 +454,19 @@ function renderProjectTask(project, task, active) {
         <small>${pEscape(taskMeta(project, task) || "未设置日期")}</small>
       </button>
       ${task.is_next_action ? '<span class="project-next-badge">下一步</span>' : ""}
-      <details class="project-more-menu project-task-menu">
-        <summary aria-label="${pEscape(task.name)}更多操作">•••</summary>
-        <div>
-          ${active ? `<button type="button" onclick="openProjectTaskModal(${project.id}, ${task.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="project-menu-icon"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> 编辑或移动</button>` : ""}
-          ${active && !task.done && !task.is_next_action ? `<button type="button" onclick="chooseProjectNextTask(${project.id}, ${task.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="project-menu-icon"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg> 设为下一步</button>` : ""}
-          <button type="button" class="is-danger" onclick="confirmDeleteProjectTask(${project.id}, ${task.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="project-menu-icon"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> 删除任务</button>
-        </div>
-      </details>
+      <div class="project-task-actions">
+        ${active ? `
+          <button type="button" class="project-task-action-btn" title="编辑或移动" aria-label="编辑或移动" onclick="openProjectTaskModal(${project.id}, ${task.id})">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+          </button>` : ""}
+        ${active && !task.done ? `
+          <button type="button" class="project-task-action-btn${task.is_next_action ? " is-active-next" : ""}" title="${task.is_next_action ? "当前已是下一步行动" : "设为下一步"}" aria-label="设为下一步" onclick="chooseProjectNextTask(${project.id}, ${task.id})">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+          </button>` : ""}
+        <button type="button" class="project-task-action-btn is-danger" title="删除任务" aria-label="删除任务" onclick="confirmDeleteProjectTask(${project.id}, ${task.id})">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        </button>
+      </div>
     </article>
   `;
 }
@@ -860,7 +865,7 @@ function renderProjectOverview(data) {
       <p class="project-overview-stats">已完成 ${project.completed_count} 项 · 待完成 ${project.pending_count} 项</p>
       ${project.due_date ? `<p class="project-overview-due${project.due_state === "overdue" ? " is-overdue" : ""}">${pEscape(projectDueText(project))}</p>` : ""}
       <section class="project-overview-section">
-        <div class="project-overview-section-heading"><span>下一步行动</span>${project.next_action ? "" : `<button type="button" onclick="openProjectChoiceModal(${project.id})">选择下一步</button>`}</div>
+        <div class="project-overview-section-heading"><span>下一步行动</span><button type="button" onclick="openProjectChoiceModal(${project.id})">${project.next_action ? "更换下一步" : "选择下一步"}</button></div>
         ${project.next_action
           ? overviewTaskRow(project, project.next_action, true)
           : '<p class="project-overview-empty-line">暂无下一步行动</p>'}
