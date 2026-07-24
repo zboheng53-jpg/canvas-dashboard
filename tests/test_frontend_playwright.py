@@ -455,9 +455,10 @@ def test_frontend_source_filters_and_focus_views(live_app, browser):
     register_dashboard_user(page, live_app, "groupingv2")
 
     source_filters = page.locator("[data-todo-source]")
-    expect(source_filters).to_have_count(6)
+    expect(source_filters).to_have_count(7)
     expect(page.locator('[data-todo-source="all"]')).to_have_text("全部 (1)")
     expect(page.locator('[data-todo-source="canvas"]')).to_have_text("Canvas (1)")
+    expect(page.locator('[data-todo-source="project"]')).to_contain_text("项目 (0)")
     expect(page.locator('[data-todo-source="custom"]')).to_have_text("自定义 (0)")
     expect(page.locator(".todo-group-heading").first).to_contain_text("之后")
     page.fill("#new-todo-input", "Tag grouping task #automation")
