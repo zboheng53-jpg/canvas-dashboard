@@ -75,6 +75,10 @@ canvas-dashboard/
 - **用户隔离与路由**：
   - 所有 API 均需要站点 Session（除 `/healthz`、`/login`、`/register`、`/api/auth/*` 及 `/calendar/<token>.ics` 外）。
   - 用户独立数据存放于 `data/users/<username>/`，全局配置包含 `users.json`, `.flask_secret_key`, `.encryption_key` 等。
+- **长期项目 (`project_store.py`)**：
+  - 存储位于 `data/users/<username>/projects.json` (v2)，采用锁 + 原子写。
+  - 唯一主项目与 Next Action 原子维护，支持活动/完成/归档状态与重新开启。
+  - 有日期未完成任务及项目截止事项接入统一待办与 Apple 日历（导出稳定 UID `project-task-...` / `project-due-...`）。
 - **第三方平台特点**：
   - **Canvas**：解析 iCal feed，缓存于 `canvas_cache.json`。
   - **好课**：凭据加密存储，`/api/haoke/todos` 缓存优先，后台守护进程异步刷新。
