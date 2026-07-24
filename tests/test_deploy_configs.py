@@ -81,10 +81,10 @@ def test_deploy_archive_excludes_non_runtime_files():
         "scripts/*.ps1 export-ignore",
         "deploy/*.md export-ignore",
         "deploy/known_hosts export-ignore",
-        "fetch_haoke_raw.py export-ignore",
-        "generate_markdown_v4.py export-ignore",
+        "drafts export-ignore",
         "tongji-timetable-exporter-v1.2 export-ignore",
         "使用教程.txt export-ignore",
+
     ):
         assert entry in attributes
 

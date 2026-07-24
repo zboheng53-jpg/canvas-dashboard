@@ -47,3 +47,9 @@ Thumbs.db
 # Manual production snapshots used only for recovery review.
 服务器版本/
 服务器版本.gz
+
+# Local drafts and trash bin directory
+drafts/*
+!drafts/.gitkeep
+!drafts/README.md
+
