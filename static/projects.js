@@ -349,8 +349,8 @@ function renderProjectDetail() {
           <details class="project-more-menu">
             <summary aria-label="更多项目操作">•••</summary>
             <div>
-              <button type="button" onclick="openProjectModal(${project.id})">编辑项目信息</button>
-              ${active ? `<button type="button" class="is-danger" onclick="confirmArchiveProject(${project.id})">归档项目</button>` : ""}
+              <button type="button" onclick="openProjectModal(${project.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="project-menu-icon"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> 编辑项目信息</button>
+              ${active ? `<button type="button" class="is-danger" onclick="confirmArchiveProject(${project.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="project-menu-icon"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg> 归档项目</button>` : ""}
             </div>
           </details>
         </div>
@@ -419,8 +419,8 @@ function renderProjectGroup(project, group) {
               <details class="project-more-menu">
                 <summary aria-label="${pEscape(group.name)}分组操作">•••</summary>
                 <div>
-                  <button type="button" onclick="openProjectGroupModal(${project.id}, ${group.id})">重命名</button>
-                  <button type="button" class="is-danger" onclick="deleteProjectGroup(${project.id}, ${group.id})">删除分组</button>
+                  <button type="button" onclick="openProjectGroupModal(${project.id}, ${group.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="project-menu-icon"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> 重命名</button>
+                  <button type="button" class="is-danger" onclick="deleteProjectGroup(${project.id}, ${group.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="project-menu-icon"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> 删除分组</button>
                 </div>
               </details>` : ""}
           </div>` : ""}
@@ -457,9 +457,9 @@ function renderProjectTask(project, task, active) {
       <details class="project-more-menu project-task-menu">
         <summary aria-label="${pEscape(task.name)}更多操作">•••</summary>
         <div>
-          ${active ? `<button type="button" onclick="openProjectTaskModal(${project.id}, ${task.id})">编辑或移动</button>` : ""}
-          ${active && !task.done && !task.is_next_action ? `<button type="button" onclick="chooseProjectNextTask(${project.id}, ${task.id})">设为下一步</button>` : ""}
-          <button type="button" class="is-danger" onclick="confirmDeleteProjectTask(${project.id}, ${task.id})">删除任务</button>
+          ${active ? `<button type="button" onclick="openProjectTaskModal(${project.id}, ${task.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="project-menu-icon"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> 编辑或移动</button>` : ""}
+          ${active && !task.done && !task.is_next_action ? `<button type="button" onclick="chooseProjectNextTask(${project.id}, ${task.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="project-menu-icon"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg> 设为下一步</button>` : ""}
+          <button type="button" class="is-danger" onclick="confirmDeleteProjectTask(${project.id}, ${task.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="project-menu-icon"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> 删除任务</button>
         </div>
       </details>
     </article>
