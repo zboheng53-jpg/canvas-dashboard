@@ -994,7 +994,7 @@
       }
     }
 
-    const isDemoScheduleLoad = window.location.protocol === 'file:' || window.location.hostname === '';
+    const isDemoScheduleLoad = !window.__OPEN_DESIGN_PREVIEW__ && (window.location.protocol === 'file:' || window.location.hostname === '');
     if (!isDemoScheduleLoad) {
       loadTodaySchedule();
     }
@@ -2683,7 +2683,7 @@
     });
 
     // Demo mode: prevent fetches from clearing the static sample data
-    const isDemoMode = window.location.protocol === 'file:' || window.location.hostname === '';
+    const isDemoMode = !window.__OPEN_DESIGN_PREVIEW__ && (window.location.protocol === 'file:' || window.location.hostname === '');
 
     updateGreeting(new Date());
     if (!isDemoMode) {

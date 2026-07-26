@@ -1096,7 +1096,7 @@ document.addEventListener("keydown", (event) => {
   closeTrackedModal(modal.id);
 });
 
-if (!(window.location.protocol === 'file:' || window.location.hostname === '' || window.location.hostname === 'canvas-dashboard.xyz')) {
+if (!(window.location.protocol === 'file:' || window.location.hostname === '' || window.location.hostname === 'canvas-dashboard.xyz') || window.__OPEN_DESIGN_PREVIEW__) {
   loadProjectOverview();
   fetchProjectTodos();
 }

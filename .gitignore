@@ -53,3 +53,5 @@ drafts/*
 !drafts/.gitkeep
 !drafts/README.md
 
+# Generated static page for importing the real Flask/Jinja dashboard into Open Design.
+frontend/open-design-preview/
