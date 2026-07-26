@@ -36,8 +36,9 @@ canvas-dashboard/
 ├── zhihuishu_worker.py            # 智慧树后台多进程刷新 Worker
 ├── zhihuishu_browser.py           # 智慧树 Playwright 浏览器自动化
 ├── zhihuishu_login_sessions.py    # 智慧树短时 noVNC 登录窗口
-├── templates/                     # 前端页面 (index.html 主控制台, auth_*, login_*)
-├── static/                        # 静态样式 (style.css, dashboard-shell.css)
+├── frontend/                      # 可独立打开的前端工作区
+│   ├── templates/                 # Jinja 页面 (index.html 主控制台, auth_*, login_*)
+│   └── assets/                    # css、js 与 downloads；仍通过 /static/ 提供
 ├── tests/                         # Pytest 单元测试与 Playwright 回归测试
 ├── deploy/                        # Nginx 与 systemd 部署参考配置
 ├── data/                          # 本地运行时数据 (不可随意篡改)

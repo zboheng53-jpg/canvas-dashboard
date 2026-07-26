@@ -2,32 +2,32 @@
   <div class="card project-manager-card">
     <div class="project-manager-heading">
       <div>
-        <span class="placeholder-kicker">PROJECTS</span>
+        <span class="placeholder-kicker">项目</span>
         <h1>长期项目</h1>
-        <p>在这里组织长期目标；有截止日期的任务会自动进入统一待办。</p>
+        <p>在左侧快速切换项目，在右侧持续推进下一步行动。</p>
       </div>
-      <button type="button" id="project-new-button" onclick="openProjectModal()">＋ 新建项目</button>
+      <div class="project-header-actions">
+        <button type="button" class="project-button-secondary" id="project-new-group-header-btn" onclick="if (selectedProjectId) openProjectGroupModal(selectedProjectId)">新建分组</button>
+        <button type="button" class="project-button-primary" id="project-new-header-btn" onclick="openProjectModal()">＋ 新建项目</button>
+      </div>
     </div>
     <p id="project-manager-status" class="project-manager-status" role="status"></p>
     <div class="project-manager-layout">
       <aside class="project-browser" aria-label="项目列表">
-        <section class="project-list-section">
-          <div class="project-list-heading"><h2>进行中的项目</h2><span id="active-project-count">0</span></div>
-          <div id="project-manager-list" class="project-manager-list" aria-live="polite"></div>
-        </section>
-        <details class="project-history-section" id="completed-projects-section">
-          <summary>已完成项目 <span id="completed-project-count">0</span></summary>
-          <div id="completed-project-list" class="project-manager-list"></div>
-        </details>
-        <details class="project-history-section" id="archived-projects-section">
-          <summary>已归档项目 <span id="archived-project-count">0</span></summary>
-          <div id="archived-project-list" class="project-manager-list"></div>
-        </details>
+        <div class="project-tabs" role="tablist">
+          <button type="button" class="project-tab-btn active" data-tab="active" onclick="switchProjectTab('active')">进行中 <span id="active-project-count">0</span></button>
+          <button type="button" class="project-tab-btn" data-tab="completed" onclick="switchProjectTab('completed')">已完成 <span id="completed-project-count">0</span></button>
+          <button type="button" class="project-tab-btn" data-tab="archived" onclick="switchProjectTab('archived')">已归档 <span id="archived-project-count">0</span></button>
+        </div>
+        <div id="project-manager-list" class="project-manager-list" aria-live="polite" aria-busy="false">
+          <p class="project-list-empty">还没有进行中的项目</p>
+        </div>
       </aside>
       <section id="project-detail" class="project-detail" aria-live="polite">
         <div class="project-detail-empty">
-          <strong>选择一个项目查看详情</strong>
-          <p>项目任务可以按分组整理，也可以保留在未分组区域。</p>
+          <strong>暂无长期项目</strong>
+          <p>新建一个项目，开始组织长期目标。</p>
+          <button type="button" class="project-button-primary" onclick="openProjectModal()">新建项目</button>
         </div>
       </section>
     </div>

@@ -1,10 +1,16 @@
 <aside class="academic-sidebar" id="academic-sidebar" aria-label="主导航" aria-hidden="false">
   <div class="sidebar-heading enter-sidebar">
     <div class="sidebar-brand">
-      <span class="sidebar-brand-mark {% if is_night %}is-night{% else %}is-daytime{% endif %}" id="sidebar-greeting-icon" aria-hidden="true">{{ greeting_icon or "☀" }}</span>
-      <span class="sidebar-brand-copy">
-        <strong id="sidebar-greeting" data-username="{{ username }}">{{ greeting_text or "早上好" }}，{{ username }}</strong>
-      </span>
+      <div class="sidebar-avatar-container">
+        <div class="sidebar-avatar-circle">{{ username[:1] | upper }}</div>
+        <span class="sidebar-brand-mark {% if is_night %}is-night{% else %}is-daytime{% endif %}" id="sidebar-greeting-icon" aria-hidden="true">
+          <svg class="weather-outline-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5"></circle><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.28 5.28l1.42 1.42M17.3 17.3l1.42 1.42M18.72 5.28 17.3 6.7M6.7 17.3l-1.42 1.42"></path></svg>
+        </span>
+      </div>
+      <div class="sidebar-brand-copy">
+        <span id="sidebar-greeting-title" class="sidebar-greeting-title">{{ greeting_text or "早上好" }}，</span>
+        <strong id="sidebar-greeting" data-username="{{ username }}">{{ username }}</strong>
+      </div>
     </div>
     <button
       type="button"

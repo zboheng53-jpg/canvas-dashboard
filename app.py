@@ -44,7 +44,12 @@ import project_store
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger("app")
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    static_folder="frontend/assets",
+    static_url_path="/static",
+    template_folder="frontend/templates",
+)
 app.json.ensure_ascii = False
 app.secret_key = auth.get_secret_key()
 app.permanent_session_lifetime = auth.SESSION_LIFETIME

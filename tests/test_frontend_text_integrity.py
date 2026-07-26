@@ -4,7 +4,7 @@ import settings
 
 
 def test_index_template_has_valid_visible_chinese_and_no_leaked_tags():
-    templates = Path(__file__).parents[1] / "templates"
+    templates = Path(__file__).parents[1] / "frontend" / "templates"
     index_text = (templates / "index.html").read_text(encoding="utf-8")
     sidebar_text = (templates / "dashboard" / "_academic_sidebar.html").read_text(encoding="utf-8")
     views_text = (templates / "dashboard" / "_placeholder_views.html").read_text(encoding="utf-8")
@@ -42,10 +42,10 @@ def test_default_term_label_is_readable_chinese():
 
 def test_schedule_login_and_connection_primary_actions_have_shared_contract():
     project_root = Path(__file__).parents[1]
-    views_text = (project_root / "templates" / "dashboard" / "_placeholder_views.html").read_text(
+    views_text = (project_root / "frontend" / "templates" / "dashboard" / "_placeholder_views.html").read_text(
         encoding="utf-8"
     )
-    shell_css = (project_root / "static" / "dashboard-shell.css").read_text(encoding="utf-8")
+    shell_css = (project_root / "frontend" / "assets" / "css" / "dashboard-shell.css").read_text(encoding="utf-8")
 
     assert 'id="schedule-refresh-button" onclick="openTongjiLoginSession()">统一身份认证登录<' in views_text
     assert views_text.count("connection-primary-action") == 3

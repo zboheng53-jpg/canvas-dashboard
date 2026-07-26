@@ -7,10 +7,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='dashboard-shell.css') }}?v=align2">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard-shell.css') }}?v=align2">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard-v103.css') }}?v=104">
   <script>window.CSRF_TOKEN = "{{ csrf_token() }}";</script>
-  <script src="{{ url_for('static', filename='csrf.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/weather-icons.js') }}"></script>
 </head>
 <body>
   <div class="dashboard dashboard-shell" id="dashboard-shell">
@@ -43,28 +45,26 @@
           <section class="dashboard-view" id="dashboard-view-overview" data-view-panel="overview">
     <!-- Top Bar -->
     <div class="card context-card">
-    <header class="top-bar header-summary enter-top-bar">
-      <div class="clock-section">
-        <div class="time" id="time">--:--:--</div>
-        <div class="date-info">
+    <header class="top-bar opt1-header enter-top-bar">
+      <div class="opt1-col left">
+        <div class="opt1-temp-row">
+          <span class="weather-icn-opt1 weather-emoji" id="weather-emoji" role="img" aria-label="天气">
+            <svg class="weather-outline-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5"></circle><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.28 5.28l1.42 1.42M17.3 17.3l1.42 1.42M18.72 5.28 17.3 6.7M6.7 17.3l-1.42 1.42"></path></svg>
+          </span>
+          <span class="weather-temp" id="weather-temp">--&deg;</span>
+        </div>
+        <div class="opt1-weather-detail"><span id="weather-desc" class="weather-desc">&#21152;&#36733;&#20013;...</span> · <span id="weather-detail" class="weather-detail"></span></div>
+      </div>
+      <div class="opt1-col center">
+        <div class="opt1-time" id="time">--:--:--</div>
+        <div class="opt1-date">
           <span id="date">----&#24180;--&#26376;--&#26085;</span>
           <span id="weekday">&#26143;&#26399;-</span>
         </div>
       </div>
-      <div class="top-right-group">
-        <div class="weather-card" id="weather-card">
-          <div class="weather-left">
-            <span class="weather-emoji" id="weather-emoji">--</span>
-            <span class="weather-temp" id="weather-temp">--&deg;</span>
-          </div>
-          <div class="weather-right">
-            <span class="weather-desc" id="weather-desc">&#21152;&#36733;&#20013;...</span>
-            <span class="weather-detail" id="weather-detail"></span>
-          </div>
-        </div>
-        <div class="term-info" id="term-info-container">
-          <span id="term-info">&#21152;&#36733;&#20013;...</span>
-        </div>
+      <div class="opt1-col right">
+        <div class="opt1-week-pill" id="term-week-badge">--</div>
+        <div class="opt1-term" id="term-info">&#21152;&#36733;&#20013;...</div>
       </div>
     </header>
     </div>
@@ -75,8 +75,17 @@
         <!-- Unified Main Card -->
         <div class="card enter-main-card">
           <div class="section-header">
-            <h2>&#24453;&#21150;&#28165;&#21333;</h2>
+            <div class="header-left-group"><h2>&#24453;&#21150;&#28165;&#21333;</h2></div>
             <div class="header-right">
+              <select id="todo-source-select" class="todo-source-select" onchange="setTodoSourceFilter(this.value)" aria-label="按来源筛选待办">
+                <option value="all">全部</option>
+                <option value="canvas">Canvas</option>
+                <option value="haoke">好课</option>
+                <option value="zhixuemeng">智学盟</option>
+                <option value="zhihuishu">智慧树</option>
+                <option value="project">项目</option>
+                <option value="custom">自定义</option>
+              </select>
               <div class="header-info">
                 <span class="last-updated" id="list-updated"></span>
                 <button class="btn-refresh" id="btn-refresh" title="&#21047;&#26032;">&#x21bb;</button>
@@ -85,29 +94,21 @@
           </div>
 
         <!-- Add custom todo -->
-        <form class="add-todo-form" id="add-todo-form" style="margin-bottom: 0;">
+        <form class="add-todo-form" id="add-todo-form">
           <input type="text" id="new-todo-input" placeholder="&#28155;&#21152;&#26032;&#24453;&#21150;..." autocomplete="off">
           <input type="date" id="new-todo-due" class="date-input" aria-label="截止日期" title="截止日期">
           <button type="submit">+</button>
         </form>
 
         <!-- Stats Bar -->
-        <div class="stats-bar" id="stats-bar">
-          <div class="stat-item">
-            <span>&#24453;&#23436;&#25104;</span>
-            <span class="stat-count" id="stat-total">0</span>
-            <span>&#39033;</span>
-          </div>
-          <div class="stat-item">
-            <span>&#21363;&#23558;&#21040;&#26399;</span>
-            <span class="stat-count urgent" id="stat-urgent">0</span>
-            <span>&#39033;</span>
-          </div>
+        <div class="stats-bar-under-add" id="stats-bar">
+          <span class="stat-pill">&#24453;&#23436;&#25104; <b class="stat-count" id="stat-total">0</b> &#39033;</span>
+          <span class="stat-pill urgent">&#21363;&#23558;&#21040;&#26399; <b class="stat-count urgent" id="stat-urgent">0</b> &#39033;</span>
         </div>
 
-        <hr class="section-divider">
+        <div class="todo-header-divider"></div>
 
-        <div class="todo-source-filters" id="todo-source-filters" role="group" aria-label="按来源筛选待办">
+        <div class="todo-source-filters hidden" id="todo-source-filters" role="group" aria-label="按来源筛选待办">
           <button type="button" class="todo-source-filter is-active" data-todo-source="all" aria-pressed="true" onclick="setTodoSourceFilter('all')">全部 (0)</button>
           <button type="button" class="todo-source-filter" data-todo-source="canvas" aria-pressed="false" onclick="setTodoSourceFilter('canvas')">Canvas (0)</button>
           <button type="button" class="todo-source-filter" data-todo-source="haoke" aria-pressed="false" onclick="setTodoSourceFilter('haoke')">好课 (0)</button>
@@ -118,7 +119,7 @@
         </div>
 
         <!-- Unified todo list -->
-        <div class="todo-list" id="todo-list">
+        <div class="todo-list" id="todo-list" data-layout-mode="hybrid">
           <div class="empty-state">&#21152;&#36733;&#20013;...</div>
         </div>
         </div><!-- /.card -->
@@ -147,7 +148,7 @@
   </div>
 
   <script>
-    // ---- Dashboard V2 shell ----
+// ---- Dashboard V2 shell ----
     const dashboardShell = document.getElementById('dashboard-shell');
     const workspaceStack = document.getElementById('workspace-stack');
     const academicSidebar = document.getElementById('academic-sidebar');
@@ -993,9 +994,12 @@
       }
     }
 
-    loadTodaySchedule();
+    const isDemoScheduleLoad = !!(window.location.protocol === 'file:' || window.location.hostname === '' || window.location.hostname === 'canvas-dashboard.xyz');
+    if (!isDemoScheduleLoad) {
+      loadTodaySchedule();
+    }
 
-    // Long-term projects are implemented in /static/projects.js.
+    // Long-term projects are implemented in /static/js/projects.js.
 
     // ---- Clock & Greeting ----
     let serverTime = null;
@@ -1021,18 +1025,21 @@
 
     function updateGreeting(nowDate) {
       const greetingEl = document.getElementById('sidebar-greeting');
-      if (!greetingEl) return;
-      const username = greetingEl.getAttribute('data-username') || '{{ username }}';
+      const titleEl = document.getElementById('sidebar-greeting-title');
+      if (!greetingEl && !titleEl) return;
+
       const info = getGreetingInfo(nowDate || new Date());
-      const targetText = `${info.greeting}，${username}`;
-      if (greetingEl.textContent !== targetText) {
-        greetingEl.textContent = targetText;
+
+      if (titleEl) {
+        titleEl.textContent = `${info.greeting}，`;
+      }
+      if (greetingEl) {
+        const username = greetingEl.getAttribute('data-username') || 'anuode';
+        greetingEl.textContent = username;
       }
       const iconEl = document.getElementById('sidebar-greeting-icon');
       if (iconEl) {
-        if (iconEl.textContent !== info.icon) {
-          iconEl.textContent = info.icon;
-        }
+        window.DashboardWeatherIcons.renderGreeting(iconEl, info.icon);
         iconEl.classList.toggle('is-night', info.isNight);
         iconEl.classList.toggle('is-daytime', !info.isNight);
       }
@@ -1077,7 +1084,11 @@
         const resp = await fetch('/api/weather');
         const data = await resp.json();
         if (data.ok) {
-          document.getElementById('weather-emoji').textContent = data.weather_emoji;
+          window.DashboardWeatherIcons.renderWeather(
+            document.getElementById('weather-emoji'),
+            data.weather_desc,
+            data.weather_emoji,
+          );
           document.getElementById('weather-temp').textContent = `${data.temperature}\u00b0C`;
           document.getElementById('weather-desc').textContent = data.weather_desc;
           document.getElementById('weather-detail').textContent =
@@ -1091,16 +1102,20 @@
         const resp = await fetch('/api/term');
         const data = await resp.json();
         if (data.ok) {
-          const holidayHint = data.is_holiday
-            ? ` \u00b7 ${data.holiday_name}`
-            : '';
-          document.getElementById('term-info').textContent =
-            `${data.term} \u7b2c ${data.week} \u5468${holidayHint}`;
+          const holidayHint = data.is_holiday ? ` · ${data.holiday_name}` : '';
+          const weekBadge = document.getElementById('term-week-badge');
+          if (weekBadge) weekBadge.textContent = `第 ${data.week} 周${holidayHint}`;
+          const termEl = document.getElementById('term-info');
+          if (termEl) termEl.textContent = data.term;
         } else {
-          document.getElementById('term-info').textContent = '\u5b66\u671f\u4fe1\u606f\u83b7\u53d6\u5931\u8d25';
+          const weekBadge = document.getElementById('term-week-badge');
+          if (weekBadge) weekBadge.textContent = '获取失败';
+          const termEl = document.getElementById('term-info');
+          if (termEl) termEl.textContent = '学期信息获取失败';
         }
       } catch (e) {
-        document.getElementById('term-info').textContent = '\u5b66\u671f\u4fe1\u606f\u52a0\u8f7d\u5931\u8d25';
+        const termEl = document.getElementById('term-info');
+        if (termEl) termEl.textContent = '学期信息加载失败';
       }
     }
 
@@ -1272,10 +1287,17 @@
 
     function setTodoSourceFilter(source) {
       todoSourceFilter = source;
-      document.querySelectorAll('[data-todo-source]').forEach((button) => {
-        const isActive = button.dataset.todoSource === source;
-        button.classList.toggle('is-active', isActive);
-        button.setAttribute('aria-pressed', String(isActive));
+      const selectEl = document.getElementById('todo-source-select');
+      if (selectEl && selectEl.value !== source) {
+        selectEl.value = source;
+      }
+      document.querySelectorAll('[data-todo-source]').forEach((element) => {
+        const sourceVal = element.dataset.todoSource || element.value;
+        const isActive = sourceVal === source;
+        element.classList.toggle('is-active', isActive);
+        if (element.tagName === 'BUTTON') {
+          element.setAttribute('aria-pressed', String(isActive));
+        }
       });
       renderUnifiedList();
     }
@@ -1291,10 +1313,22 @@
         custom: '自定义',
       };
       const counts = { all: items.length, canvas: 0, haoke: 0, zhixuemeng: 0, zhihuishu: 0, project: 0, custom: 0 };
-      items.forEach((item) => { counts[item.source] += 1; });
-      document.querySelectorAll('[data-todo-source]').forEach((button) => {
+      items.forEach((item) => { if (counts[item.source] !== undefined) counts[item.source] += 1; });
+
+      const selectEl = document.getElementById('todo-source-select');
+      if (selectEl) {
+        selectEl.value = todoSourceFilter;
+        Array.from(selectEl.options).forEach((opt) => {
+          const source = opt.value || opt.dataset.todoSource;
+          if (labels[source]) {
+            opt.textContent = `${labels[source]} (${counts[source] || 0})`;
+          }
+        });
+      }
+
+      document.querySelectorAll('button[data-todo-source]').forEach((button) => {
         const source = button.dataset.todoSource;
-        button.textContent = `${labels[source]} (${counts[source]})`;
+        button.textContent = `${labels[source]} (${counts[source] || 0})`;
         const isActive = source === todoSourceFilter;
         button.classList.toggle('is-active', isActive);
         button.setAttribute('aria-pressed', String(isActive));
@@ -1486,10 +1520,21 @@
         let urgencyClass = '';
         if (!isDismissed) {
           if (item.due_ts) {
+            const todayStr = window.customToday || new Date().toISOString().split('T')[0];
+            const dueStr = item.due_ts.split('T')[0];
             const dueTime = new Date(item.due_ts).getTime();
-            const hoursLeft = (dueTime - Date.now()) / 3600000;
-            if (hoursLeft <= 24) urgencyClass = 'urgent';
-            else if (hoursLeft <= 72) urgencyClass = 'approaching';
+            const now = Date.now();
+            const hoursLeft = (dueTime - now) / 3600000;
+
+            if (dueStr < todayStr || hoursLeft < 0) {
+              urgencyClass = 'urgent is-overdue';
+            } else if (dueStr === todayStr || (hoursLeft >= 0 && hoursLeft <= 24)) {
+              urgencyClass = 'urgent is-today';
+            } else if (hoursLeft <= 72) {
+              urgencyClass = 'approaching is-approaching';
+            } else {
+              urgencyClass = 'remote is-normal';
+            }
           } else {
             urgencyClass = 'remote';
           }
@@ -1550,15 +1595,17 @@
             ? `<button class="item-due project-due-editable" onclick="startProjectTodoDueEdit(this)" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" aria-label="修改截止日期">${item.due_str}</button>`
           : `<span class="item-due">${item.due_str}</span>`;
 
-        const courseHtml = item.source === 'project'
-          ? `<button class="item-course project-todo-link" onclick="openProjectsView(${item.projectId})">${escapeHtml(item.course)} ↗</button>`
-          : item.course
-            ? `<span class="item-course">${escapeHtml(item.course)}</span>`
-            : '';
-          
-        const labelsHtml = item.labels && item.labels.length > 0
-          ? `<div class="item-labels">${item.labels.map(label => `<span class="label-badge">${escapeHtml(label)}</span>`).join('')}</div>`
-          : '';
+        let courseHtml = '';
+        if (item.source === 'project') {
+          courseHtml = `<button class="item-course project-todo-link" onclick="openProjectsView(${item.projectId})">${escapeHtml(item.course)} ↗</button>`;
+        } else if (item.course) {
+          courseHtml = `<span class="item-course">${escapeHtml(item.course)}</span>`;
+        } else if (item.labels && item.labels.length > 0) {
+          courseHtml = `<span class="item-course label-badge">${escapeHtml(item.labels[0])}</span>`;
+        } else {
+          courseHtml = `<span class="item-course item-course-empty">—</span>`;
+        }
+        const labelsHtml = '';
 
         const subtasks = item.subtasks || [];
         const isSubtaskExpanded = item.source === 'custom' && expandedCustomTodoIds.includes(item.rawId);
@@ -1604,7 +1651,7 @@
         <section class="todo-group">
           <div class="todo-group-heading">
             <h3>${escapeHtml(group.title)}</h3>
-            <span>${group.items.length}</span>
+            <span>(${group.items.length})</span>
           </div>
           <div class="todo-group-items">${group.items.map(renderTodoItem).join('')}</div>
         </section>
@@ -1626,8 +1673,10 @@
           if (hoursLeft <= 72) urgent++;
         }
       });
-      document.getElementById('stat-total').textContent = pending;
-      document.getElementById('stat-urgent').textContent = urgent;
+      const totalEl = document.getElementById('stat-total');
+      const urgentEl = document.getElementById('stat-urgent');
+      if (totalEl) totalEl.textContent = pending;
+      if (urgentEl) urgentEl.textContent = urgent;
     }
 
     function renderSubtaskPanel(todoId, subtasks) {
@@ -2633,24 +2682,84 @@
       if (dueEl) { startInlineEdit(dueEl, 'due_date'); return; }
     });
 
-    updateGreeting(new Date());
-    initClock();
-    tickClock();
-    fetchWeather();
-    fetchTerm();
-    fetchCanvasTodos();
-    fetchCustomTodos();
-    fetchHaokeTodos();
-    fetchZhixuemengTodos();
-    fetchZhihuishuTodos();
+    // Demo mode: prevent fetches from clearing the static sample data
+    const isDemoMode = window.location.protocol === 'file:' || window.location.hostname === '' || window.location.hostname === 'canvas-dashboard.xyz';
 
-    setInterval(fetchCanvasTodos, 30 * 60 * 1000);
-    setInterval(fetchHaokeTodos, 30 * 60 * 1000);
-    setInterval(fetchZhixuemengTodos, 30 * 60 * 1000);
-    setInterval(fetchZhihuishuTodos, 30 * 60 * 1000);
-    setInterval(fetchTerm, 60 * 1000);
-    setInterval(fetchWeather, 60 * 60 * 1000);
-  </script>
-  <script src="/static/projects.js"></script>
+    updateGreeting(new Date());
+    if (!isDemoMode) {
+      initClock();
+    }
+    tickClock();
+
+    if (!isDemoMode) {
+      fetchWeather();
+      fetchTerm();
+      fetchCanvasTodos();
+      fetchCustomTodos();
+      fetchHaokeTodos();
+      fetchZhixuemengTodos();
+      fetchZhihuishuTodos();
+    } else {
+      window.customToday = '2026-07-25';
+      const dueInput = document.getElementById('new-todo-due');
+      if (dueInput && !dueInput.value) dueInput.value = window.customToday;
+      const updatedEl = document.getElementById('list-updated');
+      if (updatedEl) updatedEl.textContent = '已更新 · 15:18:42';
+
+      canvasItems = [
+        { id: 1, title: '《自动控制原理》第七章课后练习提交', course: '自动控制原理', type: '作业', due_str: '2026-07-25', due_ts: '2026-07-25T23:59:00', url: '' },
+        { id: 2, title: '《自动控制原理》课件整理与重排版', course: '自动控制原理', type: '课件', due_str: '—', due_ts: null, url: '' },
+      ];
+      highlightedIds = [];
+      hiddenIds = [];
+      canvasDeletedIds = [];
+
+      haokeItems = [
+        { id: 1, title: '线性代数 第六次直播课签到与随堂练习', course: '线性代数', type: '直播', due_str: '2026-07-23', due_ts: '2026-07-23T20:00:00', url: '' },
+      ];
+      haokeHighlightedIds = [1];
+      haokeHiddenIds = [];
+      haokeDeletedIds = [];
+
+      zhixuemengItems = [
+        { id: 1, title: '《工程伦理》阶段测试（客观题 40 道）', course: '工程伦理', type: '测验', due_str: '2026-07-27', due_ts: '2026-07-27T23:59:00', url: '' },
+      ];
+      zhixuemengHighlightedIds = [];
+      zhixuemengHiddenIds = [];
+      zhixuemengDeletedIds = [];
+
+      zhihuishuItems = [
+        { id: 1, title: '《大学物理》第三章作业（光学部分）', course: '大学物理', type: '作业', due_str: '2026-07-26', due_ts: '2026-07-26T23:59:00', url: '' },
+      ];
+      zhihuishuHighlightedIds = [];
+      zhihuishuHiddenIds = [];
+      zhihuishuDeletedIds = [];
+
+      projectItems = [
+        { id: 101, project_id: 1, task_id: 11, kind: 'task', title: '全国大学生数学建模竞赛 · 选题与组内分工', project_name: '数学建模竞赛', due_date: '2026-07-27', flagged: false },
+      ];
+
+      customItems = [
+        { id: 2001, text: '实验室周报提交', due_date: '2026-07-25', labels: ['实验室'], highlighted: false, done: false, subtasks: [] },
+        { id: 2002, text: '整理自动化专业笔记归档', due_date: null, labels: ['学习笔记', '归档'], highlighted: false, done: false, subtasks: [] },
+      ];
+
+      // Pin the demo clock so tickClock() does not retry /api/clock every second
+      serverTime = new Date('2026-07-25T15:19:42').getTime();
+      clockStart = Date.now();
+
+      renderUnifiedList();
+    }
+
+    if (!isDemoMode) {
+      setInterval(fetchCanvasTodos, 30 * 60 * 1000);
+      setInterval(fetchHaokeTodos, 30 * 60 * 1000);
+      setInterval(fetchZhixuemengTodos, 30 * 60 * 1000);
+      setInterval(fetchZhihuishuTodos, 30 * 60 * 1000);
+      setInterval(fetchTerm, 60 * 1000);
+      setInterval(fetchWeather, 60 * 60 * 1000);
+    }
+</script>
+  <script src="{{ url_for('static', filename='js/projects.js') }}"></script>
 </body>
 </html>

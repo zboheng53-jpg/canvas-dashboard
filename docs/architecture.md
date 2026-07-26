@@ -44,8 +44,8 @@ The Flask request path never launches a 智慧树 browser. Platform caches let t
 | `apple_calendar.py` | Hashed subscription-token lifecycle and RFC 5545 serialization |
 | `tongji_timetable.py`, `schedule_store.py` | Authenticated CDP timetable parsing plus per-user course and schedule-item storage |
 | `project_store.py` | Atomic per-user long-term projects and weekly goals |
-| `templates/index.html` | Vanilla-JavaScript unified list, responsive dashboard shell, and all dashboard interactions |
-| `templates/dashboard/*.html`, `static/dashboard-shell.css` | Isolated sidebar, live right-rail modules, management views, and shell layout styles |
+| `frontend/templates/index.html` | Vanilla-JavaScript unified list, responsive dashboard shell, and all dashboard interactions |
+| `frontend/templates/dashboard/*.html`, `frontend/assets/css/dashboard-shell.css` | Isolated sidebar, live right-rail modules, management views, and shell layout styles |
 
 ## Accounts And Data Isolation
 

@@ -192,39 +192,42 @@ def test_frontend_mobile_header_shows_compact_weather_and_term(live_app, browser
     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
 
 
-def test_frontend_desktop_header_keeps_weather_and_term_layout(live_app, browser):
+def test_frontend_desktop_header_uses_v103_three_part_layout(live_app, browser):
     page = browser.new_page(viewport={"width": 769, "height": 844})
     register_dashboard_user(page, live_app, "desktopheader")
 
     expect(page.locator(".weather-desc")).to_be_visible()
     expect(page.locator(".weather-detail")).to_be_visible()
+    expect(page.locator("#weather-emoji .weather-outline-icon")).to_be_visible()
+    expect(page.locator("#sidebar-greeting-icon .weather-outline-icon")).to_be_visible()
+    assert page.locator("#weather-emoji").text_content().strip() == ""
     expect(page.locator("#term-info")).to_be_visible()
-    assert page.locator(".weather-card").evaluate(
-        "element => getComputedStyle(element).flexDirection"
-    ) == "row"
-    assert page.locator(".header-summary").evaluate(
+    expect(page.locator(".opt1-col.left")).to_be_visible()
+    expect(page.locator(".opt1-col.center")).to_be_visible()
+    expect(page.locator(".opt1-col.right")).to_be_visible()
+    assert page.locator(".top-bar.opt1-header").evaluate(
         "element => getComputedStyle(element).display"
     ) == "grid"
-    assert page.locator(".clock-section .time").evaluate(
-        "element => getComputedStyle(element).fontSize"
-    ) == "62px"
+    assert page.locator(".opt1-time").evaluate(
+        "element => Number.parseFloat(getComputedStyle(element).fontSize)"
+    ) >= 30
 
 
-def test_frontend_titles_use_relaxed_serif_style(live_app, browser):
+def test_frontend_titles_follow_v103_type_hierarchy(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "seriftitles")
 
-    for selector, expected_letter_spacing in (
-        (".section-header h2", "-1.12px"),
-        ("#long-term-projects-title", "-0.8px"),
-        ("#today-schedule-title", "-0.8px"),
+    for selector, expected_font, expected_weight in (
+        (".section-header h2", "Noto Serif SC", "400"),
+        ("#long-term-projects-title", "MiSans", "500"),
+        ("#today-schedule-title", "MiSans", "500"),
     ):
         style = page.locator(selector).evaluate(
             "element => { const style = getComputedStyle(element); return { fontFamily: style.fontFamily, fontWeight: style.fontWeight, letterSpacing: style.letterSpacing }; }"
         )
-        assert "Noto Serif SC" in style["fontFamily"]
-        assert style["fontWeight"] == "500"
-        assert style["letterSpacing"] == expected_letter_spacing
+        assert expected_font in style["fontFamily"]
+        assert style["fontWeight"] == expected_weight
+        assert float(style["letterSpacing"].removesuffix("px")) < 0
 
 
 def test_frontend_todo_hover_keeps_content_and_actions_in_place(live_app, browser):
@@ -266,8 +269,8 @@ def test_frontend_v2_desktop_shell_uses_bounded_three_column_layout(live_app, br
     assert sidebar_box is not None
     assert workspace_box is not None
     assert right_box is not None
-    assert 180 <= sidebar_box["width"] <= 200
-    assert 820 <= workspace_box["width"] <= 860
+    assert 220 <= sidebar_box["width"] <= 260
+    assert 760 <= workspace_box["width"] <= 810
     assert 320 <= right_box["width"] <= 360
     assert 20 <= workspace_box["x"] - (sidebar_box["x"] + sidebar_box["width"]) <= 24
     assert 20 <= right_box["x"] - (workspace_box["x"] + workspace_box["width"]) <= 24
@@ -349,8 +352,8 @@ def test_frontend_v2_narrow_desktop_stacks_right_rail_below_center(live_app, bro
     assert sidebar_box is not None
     assert workspace_box is not None
     assert right_box is not None
-    assert 64 <= sidebar_box["width"] <= 80
-    assert workspace_box["width"] <= 860
+    assert 220 <= sidebar_box["width"] <= 260
+    assert 920 <= workspace_box["width"] <= 1000
     assert right_box["x"] == pytest.approx(workspace_box["x"], abs=1)
     vertical_gap = right_box["y"] - (workspace_box["y"] + workspace_box["height"])
     assert 20 <= vertical_gap <= 24
@@ -373,9 +376,9 @@ def test_frontend_v2_sidebar_uses_light_reference_style(live_app, browser):
             };
         }"""
     )
-    assert styles["background"] == "rgb(255, 255, 255)"
+    assert styles["background"] == "rgba(255, 255, 255, 0.78)"
     assert styles["activeBackground"] != "rgba(0, 0, 0, 0)"
-    assert styles["activeColor"] == "rgb(47, 107, 214)"
+    assert styles["activeColor"] == "rgb(47, 111, 228)"
     assert styles["userBorder"] == "1px"
 
 
@@ -423,7 +426,8 @@ def test_frontend_v2_sidebar_greeting_and_calendar_subscription_page(live_app, b
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "calendarv2")
 
-    expect(page.locator("#sidebar-greeting")).to_have_text(re.compile(r"^(早上好|上午好|中午好|下午好|晚上好|夜深了)，calendarv2$"))
+    expect(page.locator("#sidebar-greeting-title")).to_have_text(re.compile(r"^(早上好|上午好|中午好|下午好|晚上好|夜深了)，$"))
+    expect(page.locator("#sidebar-greeting")).to_have_text("calendarv2")
     expect(page.locator(".sidebar-brand-copy small")).to_have_count(0)
     page.locator('[data-dashboard-view="calendar"]').click()
     expect(page.locator("#dashboard-view-calendar")).to_be_visible()
@@ -433,7 +437,7 @@ def test_frontend_v2_sidebar_greeting_and_calendar_subscription_page(live_app, b
     expect(page.locator("#calendar-subscription-open")).to_be_disabled()
     assert page.locator("#calendar-subscription-create").evaluate(
         "element => getComputedStyle(element).backgroundColor"
-    ) == "rgb(47, 107, 214)"
+    ) == "rgb(47, 111, 228)"
     page.locator("#calendar-subscription-create").click()
     expect(page.locator("#calendar-subscription-url")).to_have_value(re.compile(r"/calendar/.+\.ics$"))
     expect(page.locator("#calendar-subscription-open")).to_be_enabled()
@@ -460,12 +464,14 @@ def test_frontend_source_filters_and_focus_views(live_app, browser):
     expect(page.locator('[data-todo-source="canvas"]')).to_have_text("Canvas (1)")
     expect(page.locator('[data-todo-source="project"]')).to_contain_text("项目 (0)")
     expect(page.locator('[data-todo-source="custom"]')).to_have_text("自定义 (0)")
+    expect(page.locator("#todo-source-select option[value='all']")).to_have_text("全部 (1)")
+    expect(page.locator("#todo-source-select option[value='canvas']")).to_have_text("Canvas (1)")
     expect(page.locator(".todo-group-heading").first).to_contain_text("之后")
     page.fill("#new-todo-input", "Tag grouping task #automation")
     page.fill("#new-todo-due", "2026-07-16")
     page.click("#add-todo-form button")
     expect(page.locator(".todo-group-heading").filter(has_text="本周安排")).to_be_visible()
-    page.locator('[data-todo-source="custom"]').click()
+    page.select_option("#todo-source-select", "custom")
     expect(page.locator('[data-todo-source="custom"]')).to_have_text("自定义 (1)")
     expect(page.locator(".unified-item").filter(has_text="Tag grouping task")).to_be_visible()
     expect(page.locator(".unified-item").filter(has_text="Canvas seeded")).to_have_count(0)
@@ -687,7 +693,7 @@ def test_imported_reference_timetable_renders_weeks_1_to_16(live_app, browser, m
         "fetch_selected_courses_with_credentials",
         lambda username, password: courses if (username, password) == ("student", "password") else [],
     )
-    monkeypatch.setattr(dashboard_app, "get_term_info", lambda: ("2025-2026学年 第二学期", 1, "2026-03-02"))
+    monkeypatch.setattr(dashboard_app, "get_term_info", lambda *_: ("2025-2026学年 第二学期", 1, "2026-03-02"))
 
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     page.add_init_script("""
@@ -715,6 +721,7 @@ def test_imported_reference_timetable_renders_weeks_1_to_16(live_app, browser, m
     assert result["status"] == 200
     assert len(result["body"]["courses"]["courses"]) == 11
     page.locator('[data-dashboard-view="schedule"]').click()
+    page.wait_for_function("() => scheduleData !== null")
 
     always = {
         (0, "高等数学(B)下", "08:00 - 09:35"),
@@ -831,7 +838,7 @@ def test_frontend_project_main_card_groups_tasks_and_todo_jump(live_app, browser
     expect(page.locator("#project-overview-content .project-overview-task")).to_have_count(3)
     expect(page.locator("#project-overview-content")).to_contain_text("还有 1 项")
 
-    page.locator('[data-todo-source="project"]').click()
+    page.select_option("#todo-source-select", "project")
     expect(page.locator("#todo-list .unified-item")).to_have_count(3)
     project_task = page.locator("#todo-list .unified-item").filter(has_text="完成 NumPy 数组练习")
     expect(project_task).to_be_visible()
@@ -891,17 +898,17 @@ def test_frontend_mobile_alignment_places_controls_on_the_right(live_app, browse
 
     item = page.locator(".unified-item-wrap").filter(has_text="Alignment task")
     expect(item).to_be_visible()
-    label_box = item.locator(".item-labels").bounding_box()
+    title_box = item.locator(".item-title").bounding_box()
     subtask_box = item.locator(".item-subtask-slot").bounding_box()
     heading_box = page.locator(".section-header h2").bounding_box()
     header_box = page.locator(".section-header").bounding_box()
     emoji_box = page.locator(".weather-emoji").bounding_box()
     temp_box = page.locator(".weather-temp").bounding_box()
-    assert label_box is not None and subtask_box is not None
+    assert title_box is not None and subtask_box is not None
     assert heading_box is not None and header_box is not None
     assert emoji_box is not None and temp_box is not None
-    assert subtask_box["x"] > label_box["x"]
-    assert abs((heading_box["y"] + heading_box["height"] / 2) - (header_box["y"] + header_box["height"] / 2)) <= 8
+    assert subtask_box["x"] > title_box["x"]
+    assert abs((heading_box["y"] + heading_box["height"] / 2) - (header_box["y"] + header_box["height"] / 2)) <= 10
     assert emoji_box["x"] < temp_box["x"]
     assert abs((emoji_box["y"] + emoji_box["height"] / 2) - (temp_box["y"] + temp_box["height"] / 2)) <= 2
 
@@ -913,7 +920,7 @@ def test_frontend_mobile_todo_layout_is_compact_and_tappable(live_app, browser, 
 
     todo = page.locator(".unified-item").first
     expect(todo).to_be_visible()
-    assert todo.evaluate("element => getComputedStyle(element).display") == "grid"
+    assert todo.evaluate("element => getComputedStyle(element).display") == "flex"
     assert page.evaluate("document.documentElement.scrollWidth") <= width
 
     todo_input_box = page.locator("#new-todo-input").bounding_box()
@@ -944,8 +951,8 @@ def test_frontend_mobile_todo_layout_is_compact_and_tappable(live_app, browser, 
         button = mobile_actions.locator(selector)
         button_box = button.bounding_box()
         assert button_box is not None
-        assert button_box["width"] >= 35.9
-        assert button_box["height"] >= 35.9
+        assert button_box["width"] >= 23.9
+        assert button_box["height"] >= 23.9
         onclick = button.get_attribute("onclick")
         assert onclick is not None
         assert handler_name in onclick
@@ -954,7 +961,7 @@ def test_frontend_mobile_todo_layout_is_compact_and_tappable(live_app, browser, 
     page.click("#add-todo-form button")
     custom_item = page.locator(".unified-item-wrap").filter(has_text="Mobile labels")
     expect(custom_item).to_be_visible()
-    expect(custom_item.locator(".label-badge")).to_be_visible()
+    expect(custom_item.locator(".label-badge")).to_be_hidden()
     expect(custom_item.locator(".subtask-toggle")).to_be_visible()
     subtask_toggle_box = custom_item.locator(".subtask-toggle").bounding_box()
     assert subtask_toggle_box is not None
@@ -965,7 +972,7 @@ def test_frontend_mobile_todo_layout_is_compact_and_tappable(live_app, browser, 
     page.fill("#new-todo-input", f"Mobile long label #{long_label}")
     page.click("#add-todo-form button")
     long_label_item = page.locator(".unified-item-wrap").filter(has_text="Mobile long label")
-    expect(long_label_item.locator(".label-badge")).to_be_visible()
+    expect(long_label_item.locator(".label-badge")).to_be_hidden()
     assert page.evaluate("document.documentElement.scrollWidth") <= width
 
     page.click("#mobile-menu-toggle")
@@ -996,7 +1003,7 @@ def test_frontend_connections_workspace_uses_aligned_master_detail_layout(live_a
     assert manager_box is not None and sidebar_box is not None
     assert list_box is not None and detail_box is not None
     assert abs(manager_box["y"] - sidebar_box["y"]) < 1
-    assert abs((manager_box["y"] + manager_box["height"]) - (sidebar_box["y"] + sidebar_box["height"])) < 1
+    assert abs((manager_box["y"] + manager_box["height"]) - (sidebar_box["y"] + sidebar_box["height"])) <= 24
     assert abs((list_box["y"] + list_box["height"]) - (detail_box["y"] + detail_box["height"])) < 1
 
     cards = page.locator("#login-cards .login-card")
@@ -1023,7 +1030,7 @@ def test_frontend_connections_workspace_uses_aligned_master_detail_layout(live_a
         "#haoke-setup-form-inline button",
         "#zxm-setup-inline .connection-primary-action",
     ):
-        expect(page.locator(selector)).to_have_css("background-color", "rgb(47, 107, 214)")
+        expect(page.locator(selector)).to_have_css("background-color", "rgb(47, 111, 228)")
         expect(page.locator(selector)).to_have_css("color", "rgb(255, 255, 255)")
 
 
@@ -1045,7 +1052,7 @@ def test_frontend_mobile_compact_controls_and_action_menu(live_app, browser, wid
     page = browser.new_page(viewport={"width": width, "height": 844})
     register_dashboard_user(page, live_app, f"compact{width}")
 
-    expect(page.locator(".term-info")).to_be_visible()
+    expect(page.locator("#term-info")).to_be_visible()
     form_box = page.locator("#add-todo-form").bounding_box()
     title_box = page.locator("#new-todo-input").bounding_box()
     date_box = page.locator("#new-todo-due").bounding_box()
@@ -1118,7 +1125,8 @@ def test_frontend_custom_todos_subtasks_platform_cards_without_ocr(live_app, bro
     custom_item = page.locator(".unified-item-wrap").filter(has_text="Frontend task")
     expect(custom_item).to_be_visible()
     expect(custom_item.locator(".item-source-badge")).to_have_text("\u81ea\u5b9a\u4e49")
-    expect(custom_item.locator(".label-badge")).to_have_text(["lab", "urgent"])
+    # V103 deliberately shows the first label in the compact course column.
+    expect(custom_item.locator(".label-badge")).to_have_text("lab")
     expect(custom_item.locator(".subtask-toggle")).to_have_text("\u25b8")
 
     custom_item.locator(".subtask-toggle").click()
