@@ -994,7 +994,7 @@
       }
     }
 
-    const isDemoScheduleLoad = !!(window.location.protocol === 'file:' || window.location.hostname === '' || window.location.hostname === 'canvas-dashboard.xyz');
+    const isDemoScheduleLoad = window.location.protocol === 'file:' || window.location.hostname === '';
     if (!isDemoScheduleLoad) {
       loadTodaySchedule();
     }
@@ -2683,7 +2683,7 @@
     });
 
     // Demo mode: prevent fetches from clearing the static sample data
-    const isDemoMode = window.location.protocol === 'file:' || window.location.hostname === '' || window.location.hostname === 'canvas-dashboard.xyz';
+    const isDemoMode = window.location.protocol === 'file:' || window.location.hostname === '';
 
     updateGreeting(new Date());
     if (!isDemoMode) {

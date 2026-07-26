@@ -40,6 +40,14 @@ def test_default_term_label_is_readable_chinese():
     assert settings.TERM_LABEL == "2025-2026\u5b66\u5e74 \u7b2c\u4e8c\u5b66\u671f"
 
 
+def test_dashboard_template_never_treats_production_domain_as_demo():
+    index_text = (Path(__file__).parents[1] / "frontend" / "templates" / "index.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert "canvas-dashboard.xyz" not in index_text
+
+
 def test_schedule_login_and_connection_primary_actions_have_shared_contract():
     project_root = Path(__file__).parents[1]
     views_text = (project_root / "frontend" / "templates" / "dashboard" / "_placeholder_views.html").read_text(
