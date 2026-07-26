@@ -19,6 +19,12 @@ def test_export_open_design_preview_renders_jinja_and_uses_relative_assets(tmp_p
     assert 'src="../assets/js/open-design-mock.js"' in html
 
 
+def test_project_overview_initializes_on_production_hostname():
+    script = (Path(__file__).parents[1] / "frontend" / "assets" / "js" / "projects.js").read_text(encoding="utf-8")
+
+    assert "canvas-dashboard.xyz" not in script
+
+
 def test_exported_preview_loads_project_and_schedule_mock_data(tmp_path: Path):
     playwright_api = pytest.importorskip("playwright.sync_api")
     preview_root = tmp_path / "frontend"
