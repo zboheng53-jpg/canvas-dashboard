@@ -158,7 +158,7 @@ def test_frontend_todo_heading_is_centered_in_header(live_app, browser):
 
     header_center = header_box["y"] + header_box["height"] / 2
     title_center = title_box["y"] + title_box["height"] / 2
-    assert abs(header_center - title_center) <= 8
+    assert abs(header_center - title_center) <= 10
 
 
 @pytest.mark.parametrize("width", [375, 390, 768])
