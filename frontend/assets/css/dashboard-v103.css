@@ -6843,3 +6843,286 @@ a:hover { color: var(--accent-hover); }
     .btn-wide {
       width: 100% !important;
     }
+
+    /* v103 overview content and project task cards */
+    .project-overview-main {
+      gap: 9px !important;
+      padding: 14px !important;
+      background: rgba(248, 250, 252, 0.72) !important;
+      border: 1px solid rgba(226, 232, 240, 0.95) !important;
+      border-radius: 10px !important;
+      box-shadow: 0 2px 7px rgba(15, 23, 42, 0.025) !important;
+      transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease !important;
+    }
+
+    .project-overview-main:hover {
+      background: #FFFFFF !important;
+      border-color: rgba(47, 111, 228, 0.28) !important;
+      box-shadow: 0 7px 16px rgba(15, 23, 42, 0.055) !important;
+      transform: translateY(-1px) !important;
+    }
+
+    .project-overview-title {
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 10px !important;
+    }
+
+    .project-overview-title button {
+      font-family: var(--font-body) !important;
+      font-size: 15px !important;
+      font-weight: 600 !important;
+      line-height: 1.35 !important;
+      letter-spacing: -0.012em !important;
+      color: #0F172A !important;
+    }
+
+    .project-overview-title span {
+      padding: 2px 7px !important;
+      border: 0 !important;
+      border-radius: 5px !important;
+      background: rgba(30, 41, 59, 0.06) !important;
+      color: #475569 !important;
+      font-family: var(--font-number) !important;
+      font-size: 10.5px !important;
+      font-weight: 500 !important;
+      letter-spacing: 0.01em !important;
+    }
+
+    .project-overview-objective {
+      color: #64748B !important;
+      font-family: var(--font-body) !important;
+      font-size: 12px !important;
+      line-height: 1.55 !important;
+      letter-spacing: 0.01em !important;
+    }
+
+    .project-overview-stats,
+    .project-overview-due {
+      color: #64748B !important;
+      font-family: var(--font-number) !important;
+      font-size: 11px !important;
+      line-height: 1.45 !important;
+      letter-spacing: 0.01em !important;
+    }
+
+    .project-overview-section {
+      gap: 7px !important;
+      padding-top: 10px !important;
+      border-top: 1px dashed #E2E8F0 !important;
+    }
+
+    .project-overview-section-heading {
+      color: #94A3B8 !important;
+      font-family: var(--font-kicker) !important;
+      font-size: 10px !important;
+      font-weight: 500 !important;
+      letter-spacing: 0.05em !important;
+    }
+
+    .project-overview-section-heading button,
+    .project-overview-add,
+    .project-overview-links button {
+      color: #2F6FE4 !important;
+      font-family: var(--font-sans) !important;
+      font-size: 11px !important;
+      font-weight: 500 !important;
+      letter-spacing: 0 !important;
+    }
+
+    .project-overview-task {
+      grid-template-columns: 14px minmax(0, 1fr) !important;
+      gap: 8px !important;
+      padding: 3px 0 !important;
+    }
+
+    .project-overview-task strong {
+      color: #0F172A !important;
+      font-family: var(--font-body) !important;
+      font-size: 12px !important;
+      font-weight: 500 !important;
+      line-height: 1.45 !important;
+      letter-spacing: 0.005em !important;
+    }
+
+    .project-overview-task small {
+      color: #64748B !important;
+      font-family: var(--font-number) !important;
+      font-size: 11px !important;
+      line-height: 1.4 !important;
+      letter-spacing: 0.01em !important;
+    }
+
+    .today-schedule-list {
+      margin-top: 8px !important;
+      gap: 8px !important;
+    }
+
+    .today-schedule-row {
+      grid-template-columns: 82px minmax(0, 1fr) !important;
+      gap: 10px !important;
+      padding: 9px 12px !important;
+      background: #F8FAFC !important;
+      border: 1px solid #E2E8F0 !important;
+      border-radius: 8px !important;
+      transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
+    }
+
+    .today-schedule-row:hover {
+      background: #FFFFFF !important;
+      border-color: #CBD5E1 !important;
+      box-shadow: 0 2px 4px rgba(15, 23, 42, 0.03) !important;
+    }
+
+    .today-schedule-row time {
+      color: #1E293B !important;
+      font-family: var(--font-number) !important;
+      font-size: 11.5px !important;
+      font-weight: 500 !important;
+      line-height: 1.45 !important;
+      letter-spacing: 0.01em !important;
+      font-variant-numeric: tabular-nums !important;
+    }
+
+    .today-schedule-row strong {
+      color: #0F172A !important;
+      font-family: var(--font-body) !important;
+      font-size: 12.5px !important;
+      font-weight: 600 !important;
+      line-height: 1.45 !important;
+      letter-spacing: 0.005em !important;
+    }
+
+    .today-schedule-row small {
+      margin-top: 3px !important;
+      color: #475569 !important;
+      font-family: var(--font-body) !important;
+      font-size: 11px !important;
+      line-height: 1.4 !important;
+      letter-spacing: 0.01em !important;
+    }
+
+    .today-deadlines {
+      margin-top: 10px !important;
+      padding-top: 10px !important;
+      border-top: 1px solid #E2E8F0 !important;
+      gap: 7px !important;
+    }
+
+    .today-deadlines > span {
+      color: #94A3B8 !important;
+      font-family: var(--font-kicker) !important;
+      font-size: 10px !important;
+      font-weight: 500 !important;
+      letter-spacing: 0.05em !important;
+    }
+
+    .today-deadline-item {
+      align-items: center !important;
+      flex-direction: row !important;
+      justify-content: space-between !important;
+      gap: 10px !important;
+      padding: 3px 0 !important;
+    }
+
+    .today-deadlines strong {
+      color: #1E293B !important;
+      font-family: var(--font-body) !important;
+      font-size: 12px !important;
+      font-weight: 500 !important;
+      letter-spacing: 0.005em !important;
+    }
+
+    .today-deadline-course {
+      margin-top: 0 !important;
+      padding: 1px 6px !important;
+      border-radius: 4px !important;
+      background: var(--color-primary-soft) !important;
+      color: var(--color-primary) !important;
+      font-family: var(--font-body) !important;
+      font-size: 11px !important;
+      white-space: nowrap !important;
+    }
+
+    .project-groups {
+      gap: 14px !important;
+    }
+
+    .project-group-card {
+      padding: 14px !important;
+      background: rgba(248, 250, 252, 0.72) !important;
+      border: 1px solid rgba(226, 232, 240, 0.95) !important;
+      border-radius: 10px !important;
+      box-shadow: 0 2px 7px rgba(15, 23, 42, 0.025) !important;
+      transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease !important;
+    }
+
+    .project-group-card:hover {
+      background: rgba(255, 255, 255, 0.96) !important;
+      border-color: rgba(47, 111, 228, 0.24) !important;
+      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.045) !important;
+    }
+
+    .project-group-heading {
+      margin-bottom: 10px !important;
+    }
+
+    .project-group-heading h4 {
+      color: #1E293B !important;
+      font-family: var(--font-body) !important;
+      font-size: 13px !important;
+      font-weight: 600 !important;
+      letter-spacing: -0.005em !important;
+    }
+
+    .project-group-add-task-btn {
+      padding: 3px 7px !important;
+      border: 1px solid rgba(47, 111, 228, 0.16) !important;
+      border-radius: 5px !important;
+      background: rgba(47, 111, 228, 0.055) !important;
+      color: #2F6FE4 !important;
+      font-family: var(--font-sans) !important;
+      font-size: 10.5px !important;
+      font-weight: 500 !important;
+      letter-spacing: 0 !important;
+    }
+
+    .project-task-list {
+      gap: 6px !important;
+      margin-top: 0 !important;
+    }
+
+    .project-task-row {
+      display: grid !important;
+      grid-template-columns: 16px minmax(0, 1fr) auto auto !important;
+      gap: 8px !important;
+      padding: 9px 10px !important;
+      background: #FFFFFF !important;
+      border: 1px solid rgba(226, 232, 240, 0.9) !important;
+      border-radius: 7px !important;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.018) !important;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease !important;
+    }
+
+    .project-task-row:hover,
+    .project-task-row:focus-within {
+      background: #FFFFFF !important;
+      border-color: #CBD5E1 !important;
+      box-shadow: 0 3px 8px rgba(15, 23, 42, 0.045) !important;
+    }
+
+    .project-task-name-btn {
+      color: #1E293B !important;
+      font-family: var(--font-body) !important;
+      font-size: 12px !important;
+      font-weight: 500 !important;
+      letter-spacing: 0.005em !important;
+      line-height: 1.45 !important;
+    }
+
+    .project-task-date {
+      color: #64748B !important;
+      font-family: var(--font-number) !important;
+      font-size: 10.5px !important;
+      letter-spacing: 0.01em !important;
+    }

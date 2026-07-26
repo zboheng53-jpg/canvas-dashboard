@@ -59,3 +59,23 @@ def test_schedule_login_and_connection_primary_actions_have_shared_contract():
     assert views_text.count("connection-primary-action") == 3
     assert ".connection-primary-action" in shell_css
     assert "button.connection-primary-action:disabled" in shell_css
+
+
+def test_v103_overview_and_project_task_cards_keep_the_refined_card_hierarchy():
+    css_text = (Path(__file__).parents[1] / "frontend" / "assets" / "css" / "dashboard-v103.css").read_text(
+        encoding="utf-8"
+    )
+
+    expected_rules = [
+        "/* v103 overview content and project task cards */",
+        "background: rgba(248, 250, 252, 0.72) !important;",
+        "border: 1px solid rgba(226, 232, 240, 0.95) !important;",
+        ".today-schedule-row time {",
+        "letter-spacing: 0.01em !important;",
+        ".project-group-card {",
+        "box-shadow: 0 2px 7px rgba(15, 23, 42, 0.025) !important;",
+        ".project-task-row {",
+        "background: #FFFFFF !important;",
+    ]
+    for rule in expected_rules:
+        assert rule in css_text
