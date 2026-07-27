@@ -76,6 +76,9 @@ canvas-dashboard/
 - **用户隔离与路由**：
   - 所有 API 均需要站点 Session（除 `/healthz`、`/login`、`/register`、`/api/auth/*` 及 `/calendar/<token>.ics` 外）。
   - 用户独立数据存放于 `data/users/<username>/`，全局配置包含 `users.json`, `.flask_secret_key`, `.encryption_key` 等。
+  - 生产 Session 必须校验不可变 `account_id` 与 `session_version`；永久删除必须经 `auth.delete_account()`，并保留不参与常规备份的删除账本以防旧备份复活账户。
+- **统一待办状态**：
+  - 平台缓存不得被本地完成、隐藏、标红、删除或标题/截止时间覆盖直接改写；统一通过各平台 `PlatformStateStore` 状态文件叠加，并允许恢复上游显示值。
 - **长期项目 (`project_store.py`)**：
   - 存储位于 `data/users/<username>/projects.json` (v2)，采用锁 + 原子写。
   - 唯一主项目与 Next Action 原子维护，支持活动/完成/归档状态与重新开启。

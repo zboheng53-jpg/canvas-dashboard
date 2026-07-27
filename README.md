@@ -92,6 +92,12 @@ It runs the full test and compile gates, performs an encrypted off-server backup
 
 `data/` is the core runtime asset and is not deployed from git. Do not commit, overwrite, delete, or migrate it casually.
 
+## Account Lifecycle
+
+Every site account has an immutable internal ID. A username may be registered again after deletion, but the new account never receives the former account's session, platform connections, caches, todos, calendar subscription, or browser profile. In **偏好设置**, a user can permanently remove the current account only after entering its password and the exact confirmation text `永久删除`; this also signs out the browser and stops any short-lived platform login window.
+
+Trusted operators can suspend or resume an account, or issue a short-lived password-reset credential, with `scripts/account_admin.py`. See `docs/operations.md`; do not paste a reset credential into a ticket, chat transcript, or shared terminal log.
+
 Must preserve:
 
 - `data/users.json`

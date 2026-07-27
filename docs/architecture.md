@@ -55,6 +55,12 @@ The non-backup `.account_deletion_ledger.json` contains only deleted account IDs
 
 The first registered account may claim eligible legacy top-level runtime files. Never create a throwaway first production account when legacy data may still exist.
 
+### Account Lifecycle
+
+Production sessions bind the username to both `account_id` and `session_version`; username-only session cookies are rejected. Suspending an account, resetting its password, or permanently deleting it invalidates existing browser sessions. A reset credential is stored only as a hash, expires after 30 minutes, and is single-use. The local-only `scripts/account_admin.py` command issues that credential for out-of-band delivery, and can suspend or resume an account with an audit reason.
+
+Permanent deletion is a self-service operation in **偏好设置**. It requires the current password plus the exact confirmation text `永久删除`, records the immutable ID in the deletion ledger, stops short-lived platform login sessions, removes the account record and `data/users/<username>/`, and clears the current browser session. The ledger deliberately stays outside routine backups so restoring an older archive cannot revive a later-deleted account.
+
 Global secrets and shared settings live under `data/`:
 
 - `.flask_secret_key` signs sessions; replacing it logs everyone out.
@@ -82,6 +88,14 @@ These locks are process-local. A future multi-process application deployment mus
 - 好课 serves an existing cache immediately; a stale cache starts at most one in-process refresh per user. The first load without a cache remains synchronous.
 - 智学盟 caches assignments for 30 minutes and clears both token and cache on logout.
 - 智慧树 runs outside Flask. Every all-user round rediscovers account directories. Each user runs in a child process with a 180-second default timeout, so one stuck account does not block later users. Per-user `last_success_at` values are summarized by `/healthz`.
+
+## Unified Todo Semantics
+
+Imported platform items retain their upstream fields in each platform cache. Per-user platform state is stored separately and survives a refresh: users may hide, highlight, delete, complete, or uncomplete an imported item without mutating upstream data. A completed imported item is returned as `done: true`; a later cache refresh does not clear that local completion state.
+
+The optional local title and deadline overlay uses `POST /api/platform/<platform>/override` for Canvas, 好课, 智学盟, and 智慧树. The response keeps the upstream values in `platform_title` and `platform_due_ts`; `DELETE` on the same route removes the overlay and restores the upstream display values. Only a non-empty title of at most 240 characters and a valid ISO deadline are accepted.
+
+Custom completed todos remain visible through the later of their original due day and completion day, then are removed by the normal list cleanup. The dashboard groups unfinished work as overdue/today, the remainder of the current natural week through Sunday, and later work; the boundary is based on local calendar days.
 
 ## Custom Todos And Calendar
 
