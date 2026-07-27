@@ -514,10 +514,24 @@
         <span class="manager-section-index">DATA &amp; ACCOUNT</span>
         <h2>永久删除账户</h2>
         <p>将删除网站账号、平台连接、缓存、日历订阅、自定义待办、项目、课表与排程。历史加密备份中的副本会按备份轮换到期。</p>
-        <label>当前密码<input id="account-delete-password" type="password" autocomplete="current-password"></label>
-        <label>确认文字（永久删除）<input id="account-delete-confirmation" autocomplete="off"></label>
-        <button type="button" class="settings-danger-button" onclick="deleteCurrentAccount()">永久删除账户</button>
-        <p id="account-delete-status" class="calendar-subscription-status" role="status"></p>
+        <div class="account-delete-warning" role="note">
+          <span aria-hidden="true">!</span>
+          <p>此操作不可撤销。请先完成两步确认，避免误删当前账号。</p>
+        </div>
+        <form class="account-delete-form" onsubmit="event.preventDefault(); deleteCurrentAccount();">
+          <label class="account-delete-field" for="account-delete-password">
+            <span><b>1</b> 当前网站密码</span>
+            <input id="account-delete-password" type="password" autocomplete="current-password" placeholder="输入当前密码" oninput="syncDeleteAccountForm()">
+          </label>
+          <label class="account-delete-field" for="account-delete-confirmation">
+            <span><b>2</b> 确认文字 <em>永久删除</em></span>
+            <input id="account-delete-confirmation" autocomplete="off" placeholder="永久删除" oninput="syncDeleteAccountForm()">
+          </label>
+          <div class="account-delete-action-row">
+            <p id="account-delete-status" class="calendar-subscription-status" role="status">完成两项确认后，才能永久删除账户。</p>
+            <button type="submit" class="settings-danger-button" disabled>永久删除账户</button>
+          </div>
+        </form>
       </section>
     </div>
   </div>

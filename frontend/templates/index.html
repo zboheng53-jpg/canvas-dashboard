@@ -289,10 +289,30 @@
       return loadPromise;
     }
 
+    function syncDeleteAccountForm() {
+      const password = document.getElementById('account-delete-password');
+      const confirmation = document.getElementById('account-delete-confirmation');
+      const button = document.querySelector('.settings-danger-button');
+      const status = document.getElementById('account-delete-status');
+      if (!password || !confirmation || !button || !status) return;
+      const ready = Boolean(password.value) && confirmation.value === '永久删除';
+      button.disabled = !ready;
+      status.classList.remove('is-error');
+      status.textContent = ready
+        ? '确认信息已完整。点击按钮后将再次请求最终确认。'
+        : confirmation.value && confirmation.value !== '永久删除'
+          ? '确认文字需准确输入“永久删除”。'
+          : '完成两项确认后，才能永久删除账户。';
+    }
+
     async function deleteCurrentAccount() {
       const password = document.getElementById('account-delete-password').value;
       const confirmation = document.getElementById('account-delete-confirmation').value;
       const status = document.getElementById('account-delete-status');
+      if (!password || confirmation !== '永久删除') {
+        syncDeleteAccountForm();
+        return;
+      }
       if (!window.confirm('此操作不可撤销。确认永久删除当前账户及全部在线数据？')) return;
       status.textContent = '正在停止同步并删除在线数据…';
       try {

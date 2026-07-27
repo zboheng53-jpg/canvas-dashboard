@@ -965,10 +965,23 @@
   font-weight: 600;
 }
 
-.settings-danger-zone { border-color: rgba(171, 66, 48, .35); }
-.settings-danger-zone label { display: grid; gap: 6px; margin-top: 12px; color: var(--shell-muted); font-size: 12px; }
-.settings-danger-zone input { min-width: 0; padding: 9px 10px; border: 1px solid var(--shell-line); border-radius: 8px; background: var(--shell-paper); color: var(--shell-ink); font: inherit; }
-.settings-danger-button { margin-top: 14px; padding: 9px 12px; border: 1px solid #a33f30; border-radius: 8px; background: #fff7f5; color: #8b3023; cursor: pointer; font: inherit; font-weight: 650; }
+.settings-danger-zone { grid-column: 1 / -1; min-height: 0; border-color: rgba(184, 74, 57, .42); }
+.account-delete-warning { display: flex; gap: 10px; align-items: flex-start; max-width: 760px; margin-top: 16px; padding: 11px 13px; color: #8b3023; background: #fff7f5; border: 1px solid #f0c6bf; border-radius: 8px; }
+.account-delete-warning span { display: grid; flex: 0 0 18px; width: 18px; height: 18px; place-items: center; color: #fff; background: #be4d3d; border-radius: 50%; font-family: var(--font-number); font-size: 12px; font-weight: 700; }
+.account-delete-warning p { margin: 0; color: inherit; font-family: var(--font-sans); }
+.account-delete-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; max-width: 760px; margin-top: 16px; }
+#dashboard-view-settings .account-delete-field { display: grid; gap: 7px; margin: 0; color: var(--shell-ink); font-size: 12px; font-weight: 650; }
+.account-delete-field > span { display: flex; align-items: center; gap: 7px; }
+.account-delete-field b { display: inline-grid; width: 18px; height: 18px; place-items: center; color: #8b3023; background: #fff0ed; border: 1px solid #efc1b9; border-radius: 50%; font-family: var(--font-number); font-size: 10px; }
+.account-delete-field em { color: #b74334; font-style: normal; font-weight: 700; }
+#dashboard-view-settings .account-delete-field input { width: 100%; min-width: 0; height: 42px; padding: 0 13px; box-sizing: border-box; color: var(--shell-ink); background: #fff; border: 1px solid #d9c8c2; border-radius: 7px; box-shadow: 0 1px 3px rgba(68, 39, 33, .05); font: inherit; font-size: 14px; }
+#dashboard-view-settings .account-delete-field input::placeholder { color: #a9a0a0; }
+#dashboard-view-settings .account-delete-field input:focus { border-color: #be4d3d; outline: 0; box-shadow: 0 0 0 3px rgba(190, 77, 61, .13); }
+.account-delete-action-row { display: flex; grid-column: 1 / -1; align-items: center; justify-content: space-between; gap: 16px; padding-top: 2px; }
+.account-delete-action-row .calendar-subscription-status { margin: 0; }
+.settings-danger-button { min-height: 42px; padding: 0 16px; border: 1px solid #a33f30; border-radius: 7px; background: #fff7f5; color: #8b3023; cursor: pointer; font: inherit; font-weight: 700; transition: background .16s ease, color .16s ease, transform .16s ease; }
+.settings-danger-button:not(:disabled):hover { color: #fff; background: #a93e31; transform: translateY(-1px); }
+.settings-danger-button:disabled { color: #aa9c99; background: #f5f1ef; border-color: #ded6d3; cursor: not-allowed; }
 
 .manager-subnav {
   display: flex;
@@ -1454,6 +1467,9 @@
   .console-manager-heading { align-items: stretch; flex-direction: column; }
   .console-secondary-button { align-self: flex-start; }
   .settings-summary-grid { grid-template-columns: 1fr; }
+  .account-delete-form { grid-template-columns: 1fr; }
+  .account-delete-action-row { align-items: stretch; flex-direction: column; gap: 12px; }
+  .settings-danger-button { width: 100%; }
   .connection-platform-grid .login-card { min-height: 124px; }
   .calendar-subscription-workspace { padding: 18px; }
   .calendar-subscription-actions { display: grid; grid-template-columns: 1fr; }
