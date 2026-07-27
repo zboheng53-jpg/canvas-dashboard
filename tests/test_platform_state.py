@@ -39,7 +39,7 @@ def test_state_store_preserves_string_ids(tmp_path):
 def test_normalize_state_adds_missing_keys_and_casts_ids():
     state = normalize_state({"hidden": ["1"], "highlighted": [2]}, int)
 
-    assert state == {"hidden": [1], "highlighted": [2], "deleted": []}
+    assert state == {"hidden": [1], "highlighted": [2], "deleted": [], "completed": [], "overrides": {}}
 
 
 def test_build_platform_todos_response_filters_deleted_and_adds_state():
@@ -96,4 +96,21 @@ def test_build_platform_todos_response_auto_deletes_expired_hidden_item():
     assert response["data"] == [{"id": 2, "due_ts": (now + timedelta(hours=1)).isoformat()}]
     assert response["hidden"] == []
     assert response["deleted"] == [1]
-    assert saved == [{"hidden": [], "highlighted": [], "deleted": [1]}]
+    assert saved == [{"hidden": [], "highlighted": [], "deleted": [1], "completed": [], "overrides": {}}]
+
+
+def test_platform_local_completion_and_overrides_survive_source_refresh(tmp_path):
+    store = PlatformStateStore(lambda username: tmp_path / username / "state.json", str)
+    store.update("alice", "complete", "task-1")
+    state = store.update_override("alice", "task-1", {"title": "本地标题", "due_ts": "2026-07-12T09:00:00+08:00"})
+
+    response = build_platform_todos_response(
+        {"ok": True, "data": [{"id": "task-1", "title": "平台标题", "due_ts": "2026-07-11T09:00:00+08:00", "course": "不可修改"}]},
+        state,
+    )
+
+    item = response["data"][0]
+    assert item["done"] is True
+    assert item["title"] == "本地标题"
+    assert item["platform_title"] == "平台标题"
+    assert item["course"] == "不可修改"

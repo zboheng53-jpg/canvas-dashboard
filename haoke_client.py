@@ -97,6 +97,16 @@ def save_credentials(username: str, haoke_username: str, password: str):
     _token_cache.pop(username, None)
 
 
+def clear_credentials(username: str):
+    """Disconnect without deleting the last trusted assignment cache."""
+    config_file = user_dir(username) / "config.json"
+    config = read_json_file(config_file, {})
+    config.pop("haoke_username", None)
+    config.pop("haoke_password_encrypted", None)
+    write_json_file(config_file, config)
+    _token_cache.pop(username, None)
+
+
 def _get_credentials(username: str):
     """Get decrypted haoke credentials."""
     config_file = user_dir(username) / "config.json"
@@ -543,3 +553,7 @@ def save_state(username: str, state: dict):
 def update_state(username: str, action: str, item_id: int) -> dict:
     """Apply a state action: hide, unhide, highlight, unhighlight."""
     return _state_store.update(username, action, item_id)
+
+
+def update_override(username: str, item_id, patch=None, restore=False) -> dict:
+    return _state_store.update_override(username, item_id, patch, restore)

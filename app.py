@@ -18,12 +18,12 @@ import settings
 from platform_state import build_platform_todos_response
 from storage import JsonFileCorruptionError, locked_json_update, read_json_file, write_json_file
 from user_paths import user_dir
-from canvas_auth import fetch_canvas_planner, has_feed_url, save_feed_url, load_state, update_state, save_state
+from canvas_auth import fetch_canvas_planner, has_feed_url, save_feed_url, remove_feed_url, load_state, update_state, update_override as update_canvas_override, save_state
 from haoke_client import (
     fetch_haoke_todos, has_credentials as has_haoke_credentials,
-    save_credentials as save_haoke_credentials,
+    save_credentials as save_haoke_credentials, clear_credentials as clear_haoke_credentials,
     load_state as load_haoke_state, update_state as update_haoke_state,
-    save_state as save_haoke_state,
+    save_state as save_haoke_state, update_override as update_haoke_override,
     get_cached_todos as get_haoke_cached_todos,
     start_background_refresh as start_haoke_background_refresh,
 )
@@ -32,7 +32,7 @@ from zhixuemeng_client import (
     fetch_assignments as fetch_zxm_assignments, fetch_courses as fetch_zxm_courses,
     load_state as load_zxm_state, update_state as update_zxm_state,
     save_state as save_zxm_state,
-    save_selected_course, get_selected_course, logout as zxm_logout,
+    save_selected_course, get_selected_course, logout as zxm_logout, update_override as update_zxm_override,
 )
 import zhihuishu_store
 import zhihuishu_login_sessions
@@ -71,6 +71,8 @@ _LOGIN_EXEMPT_ENDPOINTS = {
     "api_auth_login",
     "calendar_subscription",
     "healthz",
+    "site_password_reset_page",
+    "api_auth_password_reset",
     "static",
 }
 _CSRF_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
@@ -247,7 +249,18 @@ def _haoke_default_error_code(result):
 def _require_login():
     if request.endpoint in _LOGIN_EXEMPT_ENDPOINTS or request.endpoint is None:
         return
-    if not session.get("username"):
+    username = session.get("username")
+    if not username:
+        if request.path.startswith("/api/"):
+            return jsonify({"ok": False, "error": "unauthorized"}), 401
+        return redirect("/login")
+    # New sessions bind to a non-reusable account identity and a session
+    # version.  TESTING keeps legacy fixture sessions concise; production does
+    # not accept username-only cookies.
+    if not app.testing and not auth.validate_session_identity(
+        username, session.get("account_id"), session.get("session_version")
+    ):
+        session.clear()
         if request.path.startswith("/api/"):
             return jsonify({"ok": False, "error": "unauthorized"}), 401
         return redirect("/login")
@@ -324,7 +337,10 @@ def _normalize_todos(todos):
         if "subtasks" not in todo:
             todo["subtasks"] = []
         if "updated_at" not in todo:
-            todo["updated_at"] = todo.get("created_at") or _todo_timestamp()
+            # Legacy completed records have no completion timestamp. Preserve
+            # their historic expiry behaviour rather than treating migration
+            # time as a fresh completion.
+            todo["updated_at"] = todo.get("created_at") or (todo.get("due_date") if todo.get("done") and todo.get("due_date") else _todo_timestamp())
     return todos
 
 
@@ -340,13 +356,18 @@ def _remove_expired_completed_todos(username, today):
     def remove_expired(todos):
         remaining = []
         for todo in _normalize_todos(todos):
-            if todo.get("done") and todo.get("due_date"):
+            if todo.get("done"):
+                expiry_dates = []
+                if todo.get("due_date"):
+                    try:
+                        expiry_dates.append(datetime.fromisoformat(todo["due_date"]).date())
+                    except (ValueError, TypeError):
+                        pass
                 try:
-                    due_date = datetime.fromisoformat(todo["due_date"]).date()
+                    expiry_dates.append(datetime.fromisoformat(todo.get("completed_at") or todo.get("updated_at")).date())
                 except (ValueError, TypeError):
-                    remaining.append(todo)
-                    continue
-                if due_date < today:
+                    pass
+                if expiry_dates and max(expiry_dates) < today:
                     continue
             remaining.append(todo)
         return remaining
@@ -395,16 +416,20 @@ def _calendar_items(username):
     def add_cached(source, cached_items, state):
         hidden = set(state.get("hidden", []))
         deleted = set(state.get("deleted", []))
+        completed = set(state.get("completed", []))
+        overrides = state.get("overrides", {}) if isinstance(state.get("overrides", {}), dict) else {}
         for item in cached_items:
             item_id = item.get("id")
-            due_at = _parse_calendar_due(item.get("due_ts"))
-            if item_id in hidden or item_id in deleted or due_at is None or due_at < now:
+            override = overrides.get(str(item_id), {})
+            due_ts = override.get("due_ts", item.get("due_ts"))
+            due_at = _parse_calendar_due(due_ts)
+            if item_id in hidden or item_id in deleted or item_id in completed or item.get("done") or due_at is None or due_at < now:
                 continue
             items.append({
                 "source": source,
                 "id": item_id,
-                "title": item.get("title"),
-                "due_ts": item.get("due_ts"),
+                "title": override.get("title", item.get("title")),
+                "due_ts": due_ts,
                 "course": item.get("course"),
                 "url": item.get("url"),
             })
@@ -484,7 +509,8 @@ def calendar_subscription(token):
     if not settings.APPLE_CALENDAR_ENABLED:
         abort(404)
     username = apple_calendar.username_for_token(token)
-    if not username:
+    account = auth.account_metadata(username) if username else None
+    if not username or (not app.testing and (not account or account.get("status") != "active")):
         return "Not Found", 404
     response = app.response_class(
         apple_calendar.build_calendar(username, _calendar_items(username), datetime.now(CST)),
@@ -526,7 +552,12 @@ def api_auth_register():
     ok, error = auth.register(username, password)
     if not ok:
         return jsonify({"ok": False, "error": error}), 400
-    session["username"] = username
+    account_id, session_version = auth.session_identity(username)
+    csrf_token = session.get(_CSRF_SESSION_KEY)
+    session.clear()
+    session.update(username=username, account_id=account_id, session_version=session_version)
+    if csrf_token:
+        session[_CSRF_SESSION_KEY] = csrf_token
     session.permanent = True
     return jsonify({"ok": True})
 
@@ -545,13 +576,64 @@ def api_auth_login():
         return _rate_limited_response(retry_after)
     if not auth.verify_login(username, password):
         return jsonify({"ok": False, "error": "用户名或密码错误"}), 401
-    session["username"] = username
+    account_id, session_version = auth.session_identity(username)
+    csrf_token = session.get(_CSRF_SESSION_KEY)
+    session.clear()
+    session.update(username=username, account_id=account_id, session_version=session_version)
+    if csrf_token:
+        session[_CSRF_SESSION_KEY] = csrf_token
     session.permanent = True
     return jsonify({"ok": True})
 
 
 @app.route("/api/auth/logout", methods=["POST"])
 def api_auth_logout():
+    session.clear()
+    return jsonify({"ok": True})
+
+
+@app.route("/reset-password")
+def site_password_reset_page():
+    return render_template("auth_reset_password.html", icp_number=settings.ICP_NUMBER)
+
+
+@app.route("/api/auth/reset-password", methods=["POST"])
+def api_auth_password_reset():
+    data = read_json_request()
+    if data is None:
+        return invalid_request_response()
+    username = (data.get("username") or "").strip()
+    ok, error = auth.reset_password(username, data.get("token") or "", data.get("password") or "")
+    if not ok:
+        return jsonify({"ok": False, "error": error}), 400
+    return jsonify({"ok": True})
+
+
+@app.route("/api/account", methods=["GET", "DELETE"])
+def api_account():
+    username = session["username"]
+    if request.method == "GET":
+        metadata = auth.account_metadata(username)
+        if not metadata:
+            return api_error("account_missing", "账号不存在", 404)
+        return jsonify({"ok": True, "account": metadata})
+
+    data = read_json_request()
+    if data is None:
+        return invalid_request_response()
+    # Stop resources before removing the directory.  Worker discovery is
+    # record-based (not directory-based), so deleted accounts cannot be picked
+    # up by a later cycle.
+    zhihuishu_login_sessions.stop_session(username)
+    tongji_login_sessions.stop_session(username)
+    try:
+        zhixuemeng_client = __import__("zhixuemeng_client")
+        zhixuemeng_client.logout(username)
+    except Exception:
+        logger.warning("Could not clear in-memory 智学盟 state for account deletion")
+    ok, error = auth.delete_account(username, data.get("password") or "", data.get("confirmation") or "")
+    if not ok:
+        return jsonify({"ok": False, "error": error}), 400
     session.clear()
     return jsonify({"ok": True})
 
@@ -598,9 +680,12 @@ def api_weather():
         return jsonify({"ok": False, "error": "weather fetch failed"})
 
 
-@app.route("/api/config", methods=["GET", "POST"])
+@app.route("/api/config", methods=["GET", "POST", "DELETE"])
 def api_config():
     username = session["username"]
+    if request.method == "DELETE":
+        remove_feed_url(username)
+        return jsonify({"ok": True, "disconnected": True})
     if request.method == "POST":
         data = read_json_request()
         if data is None:
@@ -639,7 +724,7 @@ def api_canvas_state():
             return invalid_request_response()
         action = data.get("action", "")
         item_id = data.get("id")
-        if action not in ("hide", "unhide", "highlight", "unhighlight", "delete", "undelete") or not item_id:
+        if action not in ("hide", "unhide", "highlight", "unhighlight", "delete", "undelete", "complete", "uncomplete") or item_id is None:
             return jsonify({"ok": False, "error": "鏃犳晥鎿嶄綔"}), 400
         state = update_state(username, action, item_id)
         return jsonify({"ok": True, "state": state})
@@ -649,9 +734,12 @@ def api_canvas_state():
 # ---- Haoke Platform ----
 
 
-@app.route("/api/haoke/config", methods=["GET", "POST"])
+@app.route("/api/haoke/config", methods=["GET", "POST", "DELETE"])
 def api_haoke_config():
     username = session["username"]
+    if request.method == "DELETE":
+        clear_haoke_credentials(username)
+        return jsonify({"ok": True, "disconnected": True})
     if request.method == "POST":
         data = read_json_request()
         if data is None:
@@ -702,7 +790,7 @@ def api_haoke_state():
             return invalid_request_response()
         action = data.get("action", "")
         item_id = data.get("id")
-        if action not in ("hide", "unhide", "highlight", "unhighlight", "delete", "undelete") or not item_id:
+        if action not in ("hide", "unhide", "highlight", "unhighlight", "delete", "undelete", "complete", "uncomplete") or item_id is None:
             return jsonify({"ok": False, "error": "鏃犳晥鎿嶄綔"}), 400
         state = update_haoke_state(username, action, item_id)
         return jsonify({"ok": True, "state": state})
@@ -812,7 +900,7 @@ def api_zxm_state():
             return invalid_request_response()
         action = data.get("action", "")
         item_id = data.get("id")
-        if action not in ("hide", "unhide", "highlight", "unhighlight", "delete", "undelete") or not item_id:
+        if action not in ("hide", "unhide", "highlight", "unhighlight", "delete", "undelete", "complete", "uncomplete") or item_id is None:
             return jsonify({"ok": False, "error": "鏃犳晥鎿嶄綔"}), 400
         state = update_zxm_state(username, action, item_id)
         return jsonify({"ok": True, "state": state})
@@ -822,9 +910,16 @@ def api_zxm_state():
 # ---- Zhihuishu Platform ----
 
 
-@app.route("/api/zhihuishu/config")
+@app.route("/api/zhihuishu/config", methods=["GET", "DELETE"])
 def api_zhihuishu_config():
     username = session["username"]
+    if request.method == "DELETE":
+        zhihuishu_login_sessions.stop_session(username)
+        profile = user_dir(username) / "zhihuishu_chromium_profile"
+        import shutil
+        shutil.rmtree(profile, ignore_errors=True)
+        status = zhihuishu_store.save_status(username, {"session": "disconnected", "last_error": "已断开智慧树连接"})
+        return jsonify({"ok": True, "disconnected": True, "status": status})
     status = zhihuishu_store.load_status(username)
     login_session = zhihuishu_login_sessions.load_session(username)
     session_summary = {"active": False}
@@ -876,11 +971,44 @@ def api_zhihuishu_state():
             return jsonify({"ok": False, "error": "鏃犳晥璇锋眰"}), 400
         action = data.get("action", "")
         item_id = data.get("id")
-        if action not in ("hide", "unhide", "highlight", "unhighlight", "delete", "undelete") or not item_id:
+        if action not in ("hide", "unhide", "highlight", "unhighlight", "delete", "undelete", "complete", "uncomplete") or item_id is None:
             return jsonify({"ok": False, "error": "鏃犳晥鎿嶄綔"}), 400
         state = zhihuishu_store.update_state(username, action, item_id)
         return jsonify({"ok": True, "state": state})
     return jsonify({"ok": True, "state": zhihuishu_store.load_state(username)})
+
+
+@app.route("/api/platform/<platform>/override", methods=["POST", "DELETE"])
+def api_platform_override(platform):
+    """Store a user-local display title/due override without touching source data."""
+    stores = {
+        "canvas": update_canvas_override,
+        "haoke": update_haoke_override,
+        "zhixuemeng": update_zxm_override,
+        "zhihuishu": zhihuishu_store.update_override,
+    }
+    update = stores.get(platform)
+    if update is None:
+        abort(404)
+    data = read_json_request()
+    if data is None or data.get("id") is None:
+        return invalid_request_response()
+    patch = {}
+    if request.method == "POST":
+        if "title" in data:
+            title = (data.get("title") or "").strip()
+            if not title or len(title) > 240:
+                return invalid_request_response()
+            patch["title"] = title
+        if "due_ts" in data:
+            raw_due = data.get("due_ts")
+            if raw_due is not None and _parse_calendar_due(raw_due) is None:
+                return invalid_request_response()
+            patch["due_ts"] = raw_due
+        if not patch:
+            return invalid_request_response()
+    state = update(session["username"], data["id"], patch, restore=request.method == "DELETE")
+    return jsonify({"ok": True, "state": state})
 
 
 @app.route("/api/zhihuishu/login-required", methods=["POST"])
@@ -1042,6 +1170,7 @@ def api_custom_todo_item(todo_id):
                         break
                     if "done" in data:
                         t["done"] = data["done"]
+                        t["completed_at"] = _todo_timestamp() if data["done"] else None
                     if "text" in data:
                         t["text"] = data["text"]
                     if "due_date" in data:

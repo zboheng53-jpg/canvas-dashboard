@@ -34,6 +34,7 @@ def _is_excluded(relative: PurePosixPath) -> bool:
             "zhihuishu_status.json",
             "zhihuishu_login_session.json",
             "zhihuishu_worker.lock",
+            ".account_deletion_ledger.json",
         }
         or name.startswith("server.log")
         or ".corrupt-" in name
@@ -327,6 +328,23 @@ def _consume_archive(input_path: Path, private_key_path: Path, output_dir: Path 
     return {"ok": True, "file_count": len(actual), "created_at": manifest["created_at"]}
 
 
+def apply_deletion_ledger(restored_data_dir: Path, ledger_path: Path) -> list[str]:
+    """Prevent a restore from reviving account IDs deleted after that backup."""
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8")) if ledger_path.exists() else {}
+    deleted_ids = set(ledger.get("deleted_accounts", {}))
+    users_file = restored_data_dir / "users.json"
+    users = json.loads(users_file.read_text(encoding="utf-8")) if users_file.exists() else {}
+    removed = []
+    for username, record in list(users.items()):
+        if isinstance(record, dict) and record.get("account_id") in deleted_ids:
+            users.pop(username, None)
+            shutil.rmtree(restored_data_dir / "users" / username, ignore_errors=True)
+            removed.append(username)
+    if removed:
+        users_file.write_text(json.dumps(users, ensure_ascii=False, indent=2), encoding="utf-8")
+    return removed
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -344,6 +362,7 @@ def main(argv=None) -> int:
         command_parser.add_argument("--private-key", type=Path, required=True)
         if name == "restore":
             command_parser.add_argument("--output-dir", type=Path, required=True)
+            command_parser.add_argument("--deletion-ledger", type=Path)
     args = parser.parse_args(argv)
     try:
         if args.command == "keygen":
@@ -357,6 +376,8 @@ def main(argv=None) -> int:
             if output_dir is not None:
                 output_dir.mkdir(parents=True, exist_ok=False)
             result = _consume_archive(args.input, args.private_key, output_dir)
+            if args.command == "restore" and args.deletion_ledger:
+                result["deleted_accounts_reapplied"] = apply_deletion_ledger(output_dir / "data", args.deletion_ledger)
         print(json.dumps(result, ensure_ascii=False))
         return 0
     except Exception as exc:

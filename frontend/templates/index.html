@@ -289,6 +289,46 @@
       return loadPromise;
     }
 
+    function syncDeleteAccountForm() {
+      const password = document.getElementById('account-delete-password');
+      const confirmation = document.getElementById('account-delete-confirmation');
+      const button = document.querySelector('.settings-danger-button');
+      const status = document.getElementById('account-delete-status');
+      if (!password || !confirmation || !button || !status) return;
+      const ready = Boolean(password.value) && confirmation.value === '永久删除';
+      button.disabled = !ready;
+      status.classList.remove('is-error');
+      status.textContent = ready
+        ? '确认信息已完整。点击按钮后将再次请求最终确认。'
+        : confirmation.value && confirmation.value !== '永久删除'
+          ? '确认文字需准确输入“永久删除”。'
+          : '完成两项确认后，才能永久删除账户。';
+    }
+
+    async function deleteCurrentAccount() {
+      const password = document.getElementById('account-delete-password').value;
+      const confirmation = document.getElementById('account-delete-confirmation').value;
+      const status = document.getElementById('account-delete-status');
+      if (!password || confirmation !== '永久删除') {
+        syncDeleteAccountForm();
+        return;
+      }
+      if (!window.confirm('此操作不可撤销。确认永久删除当前账户及全部在线数据？')) return;
+      status.textContent = '正在停止同步并删除在线数据…';
+      try {
+        const response = await fetch('/api/account', {
+          method: 'DELETE', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({password, confirmation}),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || '删除失败');
+        window.location.href = '/login';
+      } catch (error) {
+        status.textContent = error.message || '删除失败，请检查当前密码与确认文字。';
+        status.classList.add('is-error');
+      }
+    }
+
     document.querySelectorAll('[data-dashboard-view]').forEach((button) => {
       button.addEventListener('click', () => switchDashboardView(button.dataset.dashboardView));
     });
@@ -1338,17 +1378,26 @@
     function timeGroupForTodo(item) {
       const today = window.customToday || new Date().toISOString().slice(0, 10);
       const weekEnd = new Date(`${today}T00:00:00Z`);
-      weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+      weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
       const dueDate = item.due_ts ? item.due_ts.slice(0, 10) : '';
-      if (!item.done && (item.manualHighlighted || (dueDate && dueDate <= today))) return 'today';
-      if (!item.done && dueDate && dueDate <= weekEnd.toISOString().slice(0, 10)) return 'week';
+      if (item.done) return 'today';
+      if (dueDate && dueDate <= today) return 'today';
+      if (dueDate && dueDate <= weekEnd.toISOString().slice(0, 10)) return 'week';
       return 'later';
     }
 
     function buildTodoGroups(items) {
       const labels = { today: '今日优先', week: '本周安排', later: '之后' };
       const groups = { today: [], week: [], later: [] };
+      const today = window.customToday || new Date().toISOString().slice(0, 10);
+      const dueKey = (item) => item.due_ts || '9999-12-31T23:59:59';
       items.forEach((item) => groups[timeGroupForTodo(item)].push(item));
+      groups.today.sort((a, b) => {
+        const rank = (item) => item.done ? 4 : (item.due_ts && item.due_ts.slice(0, 10) < today ? (item.manualHighlighted ? 0 : 1) : (item.manualHighlighted ? 2 : 3));
+        return rank(a) - rank(b) || dueKey(a).localeCompare(dueKey(b)) || a._stableIndex - b._stableIndex;
+      });
+      groups.week.sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || (b.manualHighlighted ? 1 : 0) - (a.manualHighlighted ? 1 : 0) || dueKey(a).localeCompare(dueKey(b)) || a._stableIndex - b._stableIndex);
+      groups.later.sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || (b.manualHighlighted ? 1 : 0) - (a.manualHighlighted ? 1 : 0) || dueKey(a).localeCompare(dueKey(b)) || a._stableIndex - b._stableIndex);
       return Object.entries(groups)
         .filter(([, groupedItems]) => groupedItems.length)
         .map(([key, groupedItems]) => ({ title: labels[key], items: groupedItems }));
@@ -1374,7 +1423,7 @@
           due_ts: item.due_ts,
           type: item.type,
           url: item.url,
-          done: isHidden,
+          done: Boolean(item.done) || isHidden,
           hidden: isHidden,
           highlighted: isHighlighted,
           rawId: item.id,
@@ -1395,7 +1444,7 @@
           due_ts: item.due_ts,
           type: item.type,
           url: item.url,
-          done: isHidden,
+          done: Boolean(item.done) || isHidden,
           hidden: isHidden,
           highlighted: isHighlighted,
           rawId: item.id,
@@ -1416,7 +1465,7 @@
           due_ts: item.due_ts,
           type: item.type,
           url: item.url,
-          done: isHidden,
+          done: Boolean(item.done) || isHidden,
           hidden: isHidden,
           highlighted: isHighlighted,
           rawId: item.id,
@@ -1437,7 +1486,7 @@
           due_ts: item.due_ts,
           type: item.type || 'zhihuishu',
           url: item.url,
-          done: isHidden,
+          done: Boolean(item.done) || isHidden,
           hidden: isHidden,
           highlighted: isHighlighted,
           rawId: item.id,
@@ -1489,14 +1538,10 @@
         });
       });
 
-      // Sort
-      unified.sort((a, b) => {
-        if (a.done !== b.done) return a.done ? 1 : -1;
-        if (a.due_ts && !b.due_ts) return -1;
-        if (!a.due_ts && b.due_ts) return 1;
-        if (a.due_ts && b.due_ts) return a.due_ts.localeCompare(b.due_ts);
-        return 0;
-      });
+      // Stable sorting happens inside each requested time group: highlighted
+      // tasks never leap across a due-date group, and completed tasks remain
+      // at that group's quiet bottom until their normal retention expires.
+      unified.forEach((item, index) => { item._stableIndex = index; });
 
       renderTodoSourceFilters(unified);
       updateStatsBar(unified);
@@ -1543,19 +1588,19 @@
         const flagIcon = manualFlag ? '&#x2691;' : '&#x2690;';
         const flagTitle = manualFlag ? '\u53d6\u6d88\u6807\u7ea2' : '\u6807\u7ea2';
         const flagClass = manualFlag ? 'btn-flag active' : 'btn-flag';
-        const dismissTitle = isDismissed ? (item.source === 'custom' ? '\u53d6\u6d88\u5b8c\u6210' : '\u53d6\u6d88\u9690\u85cf') : (item.source === 'custom' ? '\u5b8c\u6210' : '\u9690\u85cf');
+        const dismissTitle = isDismissed ? '\u53d6\u6d88\u5b8c\u6210' : '\u5b8c\u6210';
 
         let actionsHtml = '';
         if (item.source === 'canvas') {
           actionsHtml = `
             <button class="${flagClass}" onclick="toggleHighlight('${item.id}', ${manualFlag})" title="${flagTitle}">${flagIcon}</button>
-            <button class="btn-dismiss" onclick="toggleHide('${item.id}', ${isDismissed})" title="${dismissTitle}">&times;</button>
+            <button class="btn-dismiss" onclick="togglePlatformCompletion('canvas', ${item.rawId}, ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="btn-delete" onclick="toggleCanvasDelete(${item.rawId})" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'haoke') {
           actionsHtml = `
             <button class="${flagClass}" onclick="toggleHaokeHighlight('${item.id}', ${manualFlag})" title="${flagTitle}">${flagIcon}</button>
-            <button class="btn-dismiss" onclick="toggleHaokeHide('${item.id}', ${isDismissed})" title="${dismissTitle}">&times;</button>
+            <button class="btn-dismiss" onclick="togglePlatformCompletion('haoke', ${item.rawId}, ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="btn-delete" onclick="toggleHaokeDelete(${item.rawId})" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'custom') {
@@ -1567,13 +1612,13 @@
         } else if (item.source === 'zhixuemeng') {
           actionsHtml = `
             <button class="${flagClass}" onclick="toggleZhixuemengHighlight('${item.id.substring(1)}', ${manualFlag})" title="${flagTitle}">${flagIcon}</button>
-            <button class="btn-dismiss" onclick="toggleZhixuemengHide('${item.id.substring(1)}', ${isDismissed})" title="${dismissTitle}">&times;</button>
+            <button class="btn-dismiss" onclick="togglePlatformCompletion('zhixuemeng', '${item.id.substring(1)}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="btn-delete" onclick="toggleZhixuemengDelete('${item.id.substring(1)}')" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'zhihuishu') {
           actionsHtml = `
             <button class="${flagClass}" onclick="toggleZhihuishuHighlight('${item.rawId}', ${manualFlag})" title="${flagTitle}">${flagIcon}</button>
-            <button class="btn-dismiss" onclick="toggleZhihuishuHide('${item.rawId}', ${isDismissed})" title="${dismissTitle}">&times;</button>
+            <button class="btn-dismiss" onclick="togglePlatformCompletion('zhihuishu', '${item.rawId}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="btn-delete" onclick="toggleZhihuishuDelete('${item.rawId}')" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'project') {
@@ -1677,6 +1722,19 @@
       const urgentEl = document.getElementById('stat-urgent');
       if (totalEl) totalEl.textContent = pending;
       if (urgentEl) urgentEl.textContent = urgent;
+    }
+
+    async function togglePlatformCompletion(platform, id, done) {
+      const endpoint = `/api/${platform}/state`;
+      const response = await fetch(endpoint, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: done ? 'uncomplete' : 'complete', id}),
+      });
+      if (!response.ok) return;
+      const collections = {canvas: canvasItems, haoke: haokeItems, zhixuemeng: zhixuemengItems, zhihuishu: zhihuishuItems};
+      const item = (collections[platform] || []).find((entry) => String(entry.id) === String(id));
+      if (item) item.done = !done;
+      renderUnifiedList();
     }
 
     function renderSubtaskPanel(todoId, subtasks) {

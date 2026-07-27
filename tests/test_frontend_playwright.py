@@ -470,7 +470,7 @@ def test_frontend_source_filters_and_focus_views(live_app, browser):
     page.fill("#new-todo-input", "Tag grouping task #automation")
     page.fill("#new-todo-due", "2026-07-16")
     page.click("#add-todo-form button")
-    expect(page.locator(".todo-group-heading").filter(has_text="本周安排")).to_be_visible()
+    expect(page.locator(".todo-group-heading").filter(has_text="之后")).to_be_visible()
     page.select_option("#todo-source-select", "custom")
     expect(page.locator('[data-todo-source="custom"]')).to_have_text("自定义 (1)")
     expect(page.locator(".unified-item").filter(has_text="Tag grouping task")).to_be_visible()
@@ -945,7 +945,7 @@ def test_frontend_mobile_todo_layout_is_compact_and_tappable(live_app, browser, 
     expect(mobile_actions).to_be_visible()
     for selector, handler_name in (
         (".btn-flag", "toggleHighlight"),
-        (".btn-dismiss", "toggleHide"),
+            (".btn-dismiss", "togglePlatformCompletion"),
         (".btn-delete", "toggleCanvasDelete"),
     ):
         button = mobile_actions.locator(selector)
@@ -1179,3 +1179,37 @@ def test_frontend_v2_preserves_core_todo_actions(live_app, browser):
     expect(custom_item.locator(".unified-item")).not_to_have_class(re.compile(r"\bdismissed\b"))
     custom_item.locator(".item-desktop-actions .btn-delete").click()
     expect(custom_item).to_have_count(0)
+
+
+def test_account_deletion_confirmation_panel_has_clear_inputs_and_guard(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "deletepanel")
+    page.locator('[data-dashboard-view="settings"]').click()
+
+    panel = page.locator(".account-delete-form")
+    expect(panel).to_be_visible()
+    expect(panel.locator("input")).to_have_count(2)
+    expect(panel.locator("input[type='password']")).to_be_visible()
+    expect(page.locator("#account-delete-confirmation")).to_have_attribute("placeholder", "永久删除")
+    button = page.locator(".settings-danger-button")
+    expect(button).to_be_disabled()
+    page.fill("#account-delete-password", "a-password")
+    page.fill("#account-delete-confirmation", "永久删除")
+    expect(button).to_be_enabled()
+
+
+def test_account_deletion_confirmation_panel_stacks_on_mobile(live_app, browser):
+    page = browser.new_page(viewport={"width": 390, "height": 844})
+    register_dashboard_user(page, live_app, "deletepanelmobile")
+    page.locator("#mobile-menu-toggle").click()
+    page.locator('[data-dashboard-view="settings"]').click()
+
+    password = page.locator("#account-delete-password")
+    confirmation = page.locator("#account-delete-confirmation")
+    expect(password).to_be_visible()
+    expect(confirmation).to_be_visible()
+    password_box = password.bounding_box()
+    confirmation_box = confirmation.bounding_box()
+    assert password_box is not None and confirmation_box is not None
+    assert confirmation_box["y"] > password_box["y"] + password_box["height"]
+    assert page.evaluate("document.documentElement.scrollWidth") <= 390

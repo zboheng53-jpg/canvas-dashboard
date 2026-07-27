@@ -59,6 +59,15 @@ def has_feed_url(username):
     return bool(get_feed_url(username))
 
 
+def remove_feed_url(username):
+    config_file = user_dir(username) / "config.json"
+    def remove(config):
+        config.pop("calendar_feed_url", None)
+        return config
+    from storage import locked_json_update
+    locked_json_update(config_file, {}, remove)
+
+
 def _extract_stable_id(url, uid):
     """Extract Canvas assignment/event ID from URL fragment, fall back to UID hash."""
     if url and "#" in url:
@@ -127,6 +136,10 @@ def save_state(username, state):
 def update_state(username, action, item_id):
     """Apply a state action: hide, unhide, highlight, unhighlight."""
     return _state_store.update(username, action, item_id)
+
+
+def update_override(username, item_id, patch=None, restore=False):
+    return _state_store.update_override(username, item_id, patch, restore)
 
 
 def fetch_canvas_planner(username):

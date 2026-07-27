@@ -8,7 +8,9 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import settings
+import auth
 import zhihuishu_store
+from storage import read_json_file
 
 KEEPALIVE_INTERVAL_SECONDS = settings.ZHIHUISHU_KEEPALIVE_INTERVAL_SECONDS
 FETCH_INTERVAL_SECONDS = settings.ZHIHUISHU_FETCH_INTERVAL_SECONDS
@@ -47,10 +49,24 @@ def single_instance_lock():
 
 
 def _all_usernames() -> list[str]:
+    # Account records are authoritative; an orphaned directory must never
+    # cause a deleted/suspended account to be synchronised or recreated.
+    if auth.DATA_DIR.resolve() == zhihuishu_store.DATA_DIR.resolve():
+        usernames = []
+        for username in auth.active_usernames():
+            status_path = zhihuishu_store.DATA_DIR / "users" / username / "zhihuishu_status.json"
+            if status_path.exists() and read_json_file(status_path, {}).get("session") == "disconnected":
+                continue
+            usernames.append(username)
+        return usernames
+    # Isolated test/maintenance roots deliberately monkeypatch only the
+    # worker store.  They have no account registry to consult.
     users_dir = zhihuishu_store.DATA_DIR / "users"
-    if not users_dir.exists():
-        return []
-    return sorted(path.name for path in users_dir.iterdir() if path.is_dir())
+    return sorted(path.name for path in users_dir.iterdir() if path.is_dir()) if users_dir.exists() else []
+
+
+def _is_active_username(username: str) -> bool:
+    return username in _all_usernames()
 
 
 def _browser_module():
@@ -62,8 +78,12 @@ def _browser_module():
 
 
 def run_scheduled_cycle(username: str, now: float | None = None, force_fetch: bool = False) -> bool:
+    if not _is_active_username(username):
+        return False
     now = now or time.time()
     status = zhihuishu_store.load_status(username)
+    if status.get("session") == "disconnected":
+        return False
     browser = _browser_module()
 
     if not browser.check_session(username):
@@ -86,6 +106,8 @@ def run_scheduled_cycle(username: str, now: float | None = None, force_fetch: bo
     should_fetch = force_fetch or not last_fetch_at or (now - float(last_fetch_at)) >= FETCH_INTERVAL_SECONDS
     if should_fetch:
         items = browser.fetch_assignments(username)
+        if not _is_active_username(username):
+            return False
         zhihuishu_store.save_cache(username, items, fetched_at=now)
         updates["last_fetch_at"] = now
         updates["last_success_at"] = now
