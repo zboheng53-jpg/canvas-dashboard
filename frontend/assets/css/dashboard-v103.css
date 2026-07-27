@@ -6249,11 +6249,41 @@ a:hover { color: var(--accent-hover); }
         margin: 0 !important;
       }
 
-      .unified-item .mobile-action-trigger, .todo-item .mobile-action-trigger,
-      .unified-item .item-mobile-actions, .todo-item .item-mobile-actions {
-        display: none !important;
-      }
+    .unified-item .mobile-action-trigger, .todo-item .mobile-action-trigger,
+    .unified-item .item-mobile-actions, .todo-item .item-mobile-actions {
+      display: none !important;
     }
+
+    /* Keep the subtask toggle and its three item actions on one even rhythm. */
+    .unified-item, .todo-item {
+      grid-template-columns: 55px minmax(120px, 1fr) 140px 100px 114px !important;
+    }
+
+    .unified-item .item-subtask-slot, .todo-item .item-subtask-slot {
+      grid-column: 5 !important;
+      justify-self: start !important;
+      width: 24px !important;
+      min-height: 24px !important;
+    }
+
+    .unified-item .item-desktop-actions, .todo-item .item-desktop-actions {
+      grid-column: 5 !important;
+      justify-self: end !important;
+      gap: 6px !important;
+    }
+
+    .unified-item .item-subtask-slot .subtask-toggle,
+    .unified-item .item-desktop-actions button,
+    .todo-item .item-subtask-slot .subtask-toggle,
+    .todo-item .item-desktop-actions button {
+      width: 24px !important;
+      height: 24px !important;
+      padding: 0 !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+  }
 
     /* ==========================================================================
        Redesigned Layout Structures for Projects and Connections (image-1 & image-3)
