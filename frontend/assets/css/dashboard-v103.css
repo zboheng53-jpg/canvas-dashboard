@@ -6261,6 +6261,7 @@ a:hover { color: var(--accent-hover); }
 
     .unified-item .item-subtask-slot, .todo-item .item-subtask-slot {
       grid-column: 5 !important;
+      grid-row: 1 !important;
       justify-self: start !important;
       width: 24px !important;
       min-height: 24px !important;
@@ -6268,6 +6269,7 @@ a:hover { color: var(--accent-hover); }
 
     .unified-item .item-desktop-actions, .todo-item .item-desktop-actions {
       grid-column: 5 !important;
+      grid-row: 1 !important;
       justify-self: end !important;
       gap: 6px !important;
     }
