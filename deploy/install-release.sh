@@ -23,6 +23,8 @@ install_configs() {
         zhihuishu-worker.service \
         zhihuishu-login-cleanup.service \
         zhihuishu-login-cleanup.timer \
+        canvas-dashboard-account-cleanup.service \
+        canvas-dashboard-account-cleanup.timer \
         canvas-dashboard-backup.service \
         canvas-dashboard-backup.timer
     do
@@ -54,7 +56,7 @@ activate_release() {
     mv -Tf "$root/current.next" "$root/current" || return
     install_configs "$target" || return
     sudo systemctl enable canvas-dashboard.service zhihuishu-worker.service || return
-    sudo systemctl enable --now zhihuishu-login-cleanup.timer canvas-dashboard-backup.timer || return
+    sudo systemctl enable --now zhihuishu-login-cleanup.timer canvas-dashboard-account-cleanup.timer canvas-dashboard-backup.timer || return
     sudo systemctl restart canvas-dashboard.service zhihuishu-worker.service || return
     sudo systemctl reload nginx || return
 }
@@ -168,6 +170,7 @@ fi
 systemctl is-active --quiet canvas-dashboard.service
 systemctl is-active --quiet zhihuishu-worker.service
 systemctl is-active --quiet zhihuishu-login-cleanup.timer
+systemctl is-active --quiet canvas-dashboard-account-cleanup.timer
 systemctl is-active --quiet canvas-dashboard-backup.timer
 if ! prune_old_releases; then
     echo "Warning: release activation succeeded, but old release cleanup failed" >&2

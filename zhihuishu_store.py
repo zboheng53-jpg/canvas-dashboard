@@ -91,3 +91,7 @@ def save_state(username: str, state: dict) -> dict:
 
 def update_state(username: str, action: str, item_id) -> dict:
     return _state_store.update(username, action, item_id)
+
+
+def update_override(username: str, item_id, patch=None, restore=False) -> dict:
+    return _state_store.update_override(username, item_id, patch, restore)

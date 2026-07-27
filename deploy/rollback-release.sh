@@ -23,6 +23,8 @@ for unit in \
     zhihuishu-worker.service \
     zhihuishu-login-cleanup.service \
     zhihuishu-login-cleanup.timer \
+    canvas-dashboard-account-cleanup.service \
+    canvas-dashboard-account-cleanup.timer \
     canvas-dashboard-backup.service \
     canvas-dashboard-backup.timer
 do
@@ -39,7 +41,7 @@ sudo install -m 0644 "$nginx_source" /etc/nginx/sites-enabled/canvas-dashboard
 sudo systemctl daemon-reload
 sudo nginx -t
 sudo systemctl restart canvas-dashboard.service zhihuishu-worker.service
-sudo systemctl try-restart zhihuishu-login-cleanup.timer canvas-dashboard-backup.timer
+sudo systemctl try-restart zhihuishu-login-cleanup.timer canvas-dashboard-account-cleanup.timer canvas-dashboard-backup.timer
 sudo systemctl reload nginx
 for attempt in $(seq 1 20); do
     if curl -fsS --max-time 5 http://127.0.0.1:5000/healthz >/dev/null 2>&1; then

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Canvas Dashboard blank account cleanup daily
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=30min
+Persistent=true
+Unit=canvas-dashboard-account-cleanup.service
+
+[Install]
+WantedBy=timers.target

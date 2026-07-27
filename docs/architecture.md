@@ -49,7 +49,9 @@ The Flask request path never launches a 智慧树 browser. Platform caches let t
 
 ## Accounts And Data Isolation
 
-Site accounts are separate from third-party platform accounts. `data/users.json` stores site password hashes. Each site account owns `data/users/<username>/`, including platform configuration, item state, caches, custom todos, Apple Calendar token hash, and its 智慧树 browser profile.
+Site accounts are separate from third-party platform accounts. `data/users.json` stores password hashes plus an immutable `account_id`, status, last-login timestamp, and session version. Usernames remain reusable, but sessions and deletion records bind to `account_id`; a new account with the same username never inherits old data. Each site account owns `data/users/<username>/`, including platform configuration, item state, caches, custom todos, Apple Calendar token hash, and its 智慧树 browser profile.
+
+The non-backup `.account_deletion_ledger.json` contains only deleted account IDs and minimal audit metadata. It is reapplied during restore to remove an old account instance while preserving a later same-name account with a different ID. A daily timer conservatively removes only accounts idle for 90 days whose user directory has no entries at all.
 
 The first registered account may claim eligible legacy top-level runtime files. Never create a throwaway first production account when legacy data may still exist.
 

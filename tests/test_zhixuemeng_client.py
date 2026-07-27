@@ -153,10 +153,34 @@ def test_fetch_assignments_uses_cache_for_same_jwt_user(tmp_path, monkeypatch):
             }
         ],
         "cached": True,
+        "sync_complete": True,
     }
 
 
-def test_logout_removes_token_selected_course_and_assignment_cache(tmp_path, monkeypatch):
+def test_incomplete_course_scan_keeps_previous_trusted_snapshot(tmp_path, monkeypatch):
+    user_dir = _user_dir(tmp_path)
+    token = fake_jwt("zxm_alice")
+    monkeypatch.setattr(zhixuemeng_client, "user_dir", user_dir)
+    monkeypatch.setattr(zhixuemeng_client, "_get_token", lambda username: token)
+    (user_dir("alice") / "zhixuemeng_cache.json").write_text(json.dumps({
+        "_ts": 1, "_user": "zxm_alice", "items": [{"id": "old", "url": "courseCode=A01"}],
+    }), encoding="utf-8")
+
+    class Response:
+        def json(self):
+            return {"success": True, "result": {"records": [{"courseCode": "A01"}, {"courseCode": "B02"}]}}
+    monkeypatch.setattr(zhixuemeng_client.requests, "get", lambda *args, **kwargs: Response())
+    monkeypatch.setattr(zhixuemeng_client, "_scan_course", lambda token, code: [] if code == "A01" else None)
+
+    result = zhixuemeng_client.fetch_assignments("alice", "A01")
+
+    assert result["ok"] is True
+    assert result["cached"] is True
+    assert result["sync_complete"] is False
+    assert result["items"][0]["id"] == "old"
+
+
+def test_logout_removes_credentials_but_preserves_last_assignment_snapshot(tmp_path, monkeypatch):
     user_dir = _user_dir(tmp_path)
     monkeypatch.setattr(zhixuemeng_client, "user_dir", user_dir)
     zhixuemeng_client._token_cache["alice"] = {
@@ -184,4 +208,19 @@ def test_logout_removes_token_selected_course_and_assignment_cache(tmp_path, mon
     assert "zhixuemeng_token_encrypted" not in config
     assert "zhixuemeng_selected_course" not in config
     assert config["calendar_feed_url"] == "keep-me"
-    assert not cache_file.exists()
+    assert cache_file.exists()
+
+
+def test_disconnected_account_serves_last_snapshot_without_token(tmp_path, monkeypatch):
+    user_dir = _user_dir(tmp_path)
+    monkeypatch.setattr(zhixuemeng_client, "user_dir", user_dir)
+    (user_dir("alice") / "zhixuemeng_cache.json").write_text(json.dumps({
+        "_user": "former-user", "items": [{"id": "old", "url": "courseCode=A01"}],
+    }), encoding="utf-8")
+    monkeypatch.setattr(zhixuemeng_client, "_get_token", lambda username: None)
+
+    result = zhixuemeng_client.fetch_assignments("alice")
+
+    assert result["ok"] is True
+    assert result["disconnected"] is True
+    assert result["items"][0]["id"] == "old"

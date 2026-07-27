@@ -470,7 +470,7 @@ def test_frontend_source_filters_and_focus_views(live_app, browser):
     page.fill("#new-todo-input", "Tag grouping task #automation")
     page.fill("#new-todo-due", "2026-07-16")
     page.click("#add-todo-form button")
-    expect(page.locator(".todo-group-heading").filter(has_text="本周安排")).to_be_visible()
+    expect(page.locator(".todo-group-heading").filter(has_text="之后")).to_be_visible()
     page.select_option("#todo-source-select", "custom")
     expect(page.locator('[data-todo-source="custom"]')).to_have_text("自定义 (1)")
     expect(page.locator(".unified-item").filter(has_text="Tag grouping task")).to_be_visible()
@@ -945,7 +945,7 @@ def test_frontend_mobile_todo_layout_is_compact_and_tappable(live_app, browser, 
     expect(mobile_actions).to_be_visible()
     for selector, handler_name in (
         (".btn-flag", "toggleHighlight"),
-        (".btn-dismiss", "toggleHide"),
+            (".btn-dismiss", "togglePlatformCompletion"),
         (".btn-delete", "toggleCanvasDelete"),
     ):
         button = mobile_actions.locator(selector)

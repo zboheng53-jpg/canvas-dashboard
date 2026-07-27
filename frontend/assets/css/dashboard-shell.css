@@ -965,6 +965,11 @@
   font-weight: 600;
 }
 
+.settings-danger-zone { border-color: rgba(171, 66, 48, .35); }
+.settings-danger-zone label { display: grid; gap: 6px; margin-top: 12px; color: var(--shell-muted); font-size: 12px; }
+.settings-danger-zone input { min-width: 0; padding: 9px 10px; border: 1px solid var(--shell-line); border-radius: 8px; background: var(--shell-paper); color: var(--shell-ink); font: inherit; }
+.settings-danger-button { margin-top: 14px; padding: 9px 12px; border: 1px solid #a33f30; border-radius: 8px; background: #fff7f5; color: #8b3023; cursor: pointer; font: inherit; font-weight: 650; }
+
 .manager-subnav {
   display: flex;
   flex-wrap: wrap;

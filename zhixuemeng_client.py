@@ -143,7 +143,6 @@ def has_token(username: str) -> bool:
 def logout(username: str):
     _token_cache.pop(username, None)
     config_file = user_dir(username) / "config.json"
-    cache_file = user_dir(username) / "zhixuemeng_cache.json"
     if config_file.exists():
         try:
             config = read_json_file(config_file, {})
@@ -152,10 +151,6 @@ def logout(username: str):
             write_json_file(config_file, config)
         except Exception:
             pass
-    try:
-        cache_file.unlink(missing_ok=True)
-    except Exception:
-        pass
 
 
 def _get_token(username: str) -> str | None:
@@ -280,7 +275,7 @@ def _parse_assignment(rec, course_code_used):
 
 
 def _scan_course(token, course_code):
-    """Fetch assignments for a single course. Returns list of assignment dicts."""
+    """Fetch one complete course result; ``None`` means it was not trustworthy."""
     try:
         r = requests.get(
             f"{BASE_URL}/edu/eduCourseWork/todoList",
@@ -293,7 +288,7 @@ def _scan_course(token, course_code):
             return [p for p in (_parse_assignment(rec, course_code) for rec in data["result"]["records"]) if p is not None]
     except Exception as e:
         logger.warning(f"Failed to scan course {course_code}: {e}")
-    return []
+    return None
 
 
 CACHE_TTL = settings.ZHIXUEMENG_CACHE_TTL_SECONDS  # 30 minutes
@@ -306,6 +301,11 @@ def fetch_assignments(username: str, course_code: str = None) -> dict:
     """
     token = _get_token(username)
     if not token:
+        cache_file = user_dir(username) / "zhixuemeng_cache.json"
+        cached = _fallback_assignments_cache(cache_file, None, course_code, allow_any_user=True)
+        if cached is not None:
+            cached.update(disconnected=True, need_setup=True, error="智学盟已断开，正在显示最后一次同步数据")
+            return cached
         return {"ok": False, "error": "未登录，请先登录智学盟", "items": [], "need_setup": True}
 
     # Check cache
@@ -355,25 +355,53 @@ def fetch_assignments(username: str, course_code: str = None) -> dict:
 
         # Concurrent scan
         items = []
+        complete = True
         with ThreadPoolExecutor(max_workers=10) as executor:
             futures = {executor.submit(_scan_course, token, cc): cc for cc in course_codes}
             for f in as_completed(futures):
-                course_items = f.result()
+                try:
+                    course_items = f.result()
+                except Exception:
+                    course_items = None
+                if course_items is None:
+                    complete = False
+                    continue
                 if course_items:
                     items.extend(course_items)
+
+        if not complete:
+            fallback = _fallback_assignments_cache(cache_file, zxm_username, course_code)
+            if fallback is not None:
+                return fallback
+            return {"ok": False, "error": "课程作业同步不完整，已保留上次可信数据", "items": [], "sync_complete": False}
 
         items.sort(key=lambda x: (0 if x["due_ts"] else 1, x["due_ts"] or ""))
         logger.info(f"Fetched {len(items)} assignments from {len(course_codes)} courses")
 
         # Save cache
-        cache_data = {"_ts": time_module.time(), "_user": zxm_username, "items": items}
+        cache_data = {"_ts": time_module.time(), "_user": zxm_username, "items": items, "sync_complete": True}
         write_json_file(cache_file, cache_data)
 
     # Filter by course_code if provided
     if course_code:
         items = [i for i in items if i.get("url", "").endswith(f"courseCode={course_code}")]
 
-    return {"ok": True, "items": items, "cached": cached is not None}
+    return {"ok": True, "items": items, "cached": cached is not None, "sync_complete": bool(cached.get("sync_complete", True)) if cached is not None else True}
+
+
+def _fallback_assignments_cache(cache_file, zxm_username, course_code, allow_any_user=False):
+    if not cache_file.exists():
+        return None
+    try:
+        cached = read_json_file(cache_file, {})
+        if not allow_any_user and cached.get("_user") != zxm_username:
+            return None
+        items = list(cached.get("items", []))
+        if course_code:
+            items = [item for item in items if item.get("url", "").endswith(f"courseCode={course_code}")]
+        return {"ok": True, "items": items, "cached": True, "stale": True, "sync_complete": False}
+    except Exception:
+        return None
 
 
 # ---- State management ----
@@ -389,3 +417,7 @@ def save_state(username: str, state: dict):
 def update_state(username: str, action: str, item_id) -> dict:
     """Apply hide/unhide/highlight/unhighlight."""
     return _state_store.update(username, action, item_id)
+
+
+def update_override(username: str, item_id, patch=None, restore=False) -> dict:
+    return _state_store.update_override(username, item_id, patch, restore)

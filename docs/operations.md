@@ -61,6 +61,7 @@ Normal deployments prune older immutable releases automatically. Do not manually
 | `zhihuishu-worker.service` | All-user 智慧树 supervisor |
 | `zhihuishu-login-cleanup.timer` | Removes expired login sessions and containers every five minutes |
 | `canvas-dashboard-backup.timer` | Creates a daily encrypted server-side data backup |
+| `canvas-dashboard-account-cleanup.timer` | Daily conservative cleanup of 90-day blank accounts |
 | `certbot.timer` | Renews the Let's Encrypt certificate |
 | `nginx.service` | TLS termination, redirects, proxying, and noVNC authorization |
 

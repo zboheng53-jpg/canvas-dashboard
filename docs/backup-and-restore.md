@@ -29,6 +29,11 @@ The backup contains durable runtime files, including:
 - other durable per-user JSON;
 - customized `term_config.json`.
 
+The durable account-deletion ledger (`.account_deletion_ledger.json`) is
+deliberately excluded. It contains only deleted immutable account IDs, deletion
+time, and reason—never user content—and must outlive an older backup so a
+restore cannot revive an account that was later deleted.
+
 Before encryption, every included JSON file must decode as UTF-8 JSON. Backup creation fails rather than archiving malformed JSON.
 
 The standard policy intentionally excludes rebuildable or volatile data:
@@ -90,7 +95,8 @@ Verify or restore a selected local archive manually:
 .\.venv\Scripts\python.exe scripts\backup_data.py restore `
   --input "$HOME\CanvasDashboardBackups\canvas-dashboard-data-....cdbak" `
   --private-key "$HOME\.canvas-dashboard-backup\private.pem" `
-  --output-dir "$env:TEMP\canvas-dashboard-restore-review"
+  --output-dir "$env:TEMP\canvas-dashboard-restore-review" `
+  --deletion-ledger ".\data\.account_deletion_ledger.json"
 ```
 
 The restore output contains a `data/` directory. Inspect it in isolation and delete the decrypted temporary copy securely after the exercise.
@@ -114,6 +120,10 @@ Do not decrypt a backup on the server by uploading the private key. Restore loca
 1. Restore the selected `.cdbak` locally into a new empty directory.
 2. Confirm the command reports `ok: true` and the expected file count.
 3. Upload the restored `data/` to `/home/ubuntu/canvas-dashboard/data.restore-stage`.
+   Before activation, copy the current live
+   `data/.account_deletion_ledger.json` into that stage. The normal restore
+   command above can also apply it while preparing the stage; this step keeps
+   the ledger durable across the directory swap.
 4. On the server, stop the application and worker, preserve the current directory, and activate the staged copy:
 
 ```bash
