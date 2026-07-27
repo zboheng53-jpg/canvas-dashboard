@@ -56,6 +56,16 @@ The app listens on `127.0.0.1:5000` by default. Override with `CANVAS_DASHBOARD_
 
 The script pins `.venv`, sets UTF-8 output, checks required Python packages, and then runs `pytest`.
 
+## Open Design UI Preview
+
+Open Design does not execute Flask or Jinja templates. To design the real dashboard without maintaining a copied template, export the dashboard to the generated static preview:
+
+```powershell
+.\.venv\Scripts\python.exe .\scripts\export_open_design_preview.py
+```
+
+Import the full `frontend/` directory into Open Design and open `open-design-preview/index.html`. The exported page expands Jinja templates, reuses the production CSS and JavaScript, and serves browser-only mock API data for dashboard, project, and schedule UI states. It never reads or changes real account data. Re-export after modifying template structure; make lasting visual changes in `frontend/templates/` or `frontend/assets/`, not in the generated preview. See `frontend/README.md` for the frontend workspace contract.
+
 ## Tongji Timetable
 
 Open **日程与课表** and click **统一身份认证登录**. A short-lived browser window opens directly; complete WeChat QR or SMS enhanced authentication there and wait for the personal timetable to appear. Return to the dashboard and click **我已完成认证，导入课表**.
