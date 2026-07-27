@@ -72,11 +72,13 @@ systemctl is-active \
   canvas-dashboard.service \
   zhihuishu-worker.service \
   zhihuishu-login-cleanup.timer \
+  canvas-dashboard-account-cleanup.timer \
   canvas-dashboard-backup.timer \
   certbot.timer \
   nginx
 systemctl list-timers \
   zhihuishu-login-cleanup.timer \
+  canvas-dashboard-account-cleanup.timer \
   canvas-dashboard-backup.timer \
   certbot.timer \
   --all --no-pager
@@ -107,6 +109,7 @@ An old `last_success_at` with no worker error means the process is reachable but
 journalctl -u canvas-dashboard.service -n 100 --no-pager
 journalctl -u zhihuishu-worker.service -n 100 --no-pager
 journalctl -u zhihuishu-login-cleanup.service -n 50 --no-pager
+journalctl -u canvas-dashboard-account-cleanup.service -n 50 --no-pager
 journalctl -u canvas-dashboard-backup.service -n 50 --no-pager
 sudo nginx -t
 sudo tail -n 100 /var/log/nginx/error.log
@@ -115,6 +118,19 @@ docker ps --filter "label=canvas-dashboard=zhihuishu-login"
 ```
 
 Do not print `config.json`, encryption keys, session keys, subscription URLs, platform tokens, cookies, or decrypted backup contents into shared logs.
+
+## Account Administration
+
+Run account administration only on the production host or a trusted maintenance workstation. Suspension and password reset invalidate existing sessions; a resumed account must sign in again.
+
+```bash
+cd /home/ubuntu/canvas-dashboard/current
+../.venv/bin/python scripts/account_admin.py suspend <username> --reason "<ticket or incident reason>"
+../.venv/bin/python scripts/account_admin.py resume <username> --reason "<ticket or incident reason>"
+../.venv/bin/python scripts/account_admin.py issue-reset <username>
+```
+
+`issue-reset` prints a one-time credential valid for 30 minutes. Deliver it through an approved private channel, do not copy it into shared logs, and direct the user to `/reset-password`. Permanent account deletion is user-initiated in **偏好设置**; it requires the current password and the exact confirmation text `永久删除`.
 
 ## HTTPS And Environment
 
@@ -148,4 +164,5 @@ sudo certbot renew --dry-run
 - Bad release: use `rollback-release.sh`; do not edit an immutable release in place.
 - 智慧树 login/worker or Tongji enhanced-auth window issue: follow `deploy/zhihuishu-login-tunnel.md`.
 - Data loss or key mismatch: stop the app and worker before any restore; follow the staged restore procedure in `docs/backup-and-restore.md`.
+- Accidental account restoration: preserve and apply the live `data/.account_deletion_ledger.json` during the staged restore; it prevents an older archive from reviving a deleted immutable account ID.
 - Certificate issue: keep port 80 ACME challenge handling intact, inspect `certbot.timer`, then validate nginx before reload.
