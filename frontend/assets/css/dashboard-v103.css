@@ -7158,3 +7158,23 @@ a:hover { color: var(--accent-hover); }
       font-size: 10.5px !important;
       letter-spacing: 0.01em !important;
     }
+
+    /* v0.1 conservative surface pass: keep typography and existing shadows intact. */
+    :root {
+      --bg-main: oklch(96.35% 0.0067 97.35);
+      --bg-gradient: var(--bg-main);
+      --bg: var(--bg-main);
+      --surface: oklch(100% 0 89.88);
+      --card-bg: var(--surface);
+      --glass-surface: var(--surface);
+      --glass-surface-hover: var(--surface);
+      --glass-sidebar: var(--surface);
+      --shell-surface: var(--surface);
+      --radius-card: 12px;
+      --shell-radius: 12px;
+    }
+
+    body {
+      background: var(--bg-main) !important;
+      background-attachment: initial !important;
+    }
