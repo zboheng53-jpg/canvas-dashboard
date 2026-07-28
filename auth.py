@@ -27,7 +27,7 @@ ADMIN_AUDIT_FILE = DATA_DIR / "account_admin_audit.json"
 
 CST = timezone(timedelta(hours=8))
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{3,20}$")
-SESSION_LIFETIME = timedelta(days=3650)
+SESSION_LIFETIME = timedelta(days=30)
 DELETE_CONFIRMATION = "永久删除"
 
 _account_locks_guard = threading.Lock()
@@ -197,6 +197,24 @@ def verify_login(username: str, password: str) -> bool:
         return users
     locked_json_update(USERS_FILE, {}, note_login)
     return True
+
+
+def revoke_other_sessions(username: str, password: str) -> tuple[bool, int | None]:
+    """Invalidate every old cookie while allowing the caller to retain its session."""
+    username = (username or "").strip()
+    changed = {"ok": False, "version": None}
+    with account_operation(username):
+        def revoke(users):
+            record = users.get(username)
+            if not isinstance(record, dict) or not check_password_hash(record.get("password_hash", ""), password):
+                return users
+            record, _ = _normalize_record(record)
+            record["session_version"] += 1
+            users[username] = record
+            changed.update(ok=True, version=record["session_version"])
+            return users
+        locked_json_update(USERS_FILE, {}, revoke)
+    return changed["ok"], changed["version"]
 
 
 def _ledger() -> dict:

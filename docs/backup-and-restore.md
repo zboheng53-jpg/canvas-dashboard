@@ -26,6 +26,7 @@ The backup contains durable runtime files, including:
 
 - `users.json`, `.encryption_key`, and `.flask_secret_key`;
 - per-user `config.json`, `custom_todos.json`, `apple_calendar.json`, `course_schedule.json`, `schedule_items.json`, `projects.json`, and platform state;
+- per-user `platform_sync_status.json` (non-secret connection, freshness, failure, and calendar-eligibility metadata);
 - other durable per-user JSON;
 - customized `term_config.json`.
 

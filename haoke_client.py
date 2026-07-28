@@ -20,6 +20,7 @@ from Crypto.Util.Padding import pad
 from cryptography.fernet import Fernet
 
 import settings
+import platform_sync
 from platform_state import PlatformStateStore
 from storage import load_or_create_bytes, read_json_file, write_json_file
 from user_paths import user_dir, DATA_DIR
@@ -503,7 +504,12 @@ def get_cached_todos(username: str, now: float | None = None) -> dict | None:
 
 def _run_background_refresh(username: str):
     try:
-        fetch_haoke_todos(username)
+        result = fetch_haoke_todos(username)
+        platform_sync.record_result(
+            username, "haoke", ok=bool(result.get("ok")) and not bool(result.get("cached")),
+            has_cache=_cache_file(username).exists(), cached=bool(result.get("cached")),
+            error_code=result.get("code"), error_message=result.get("error"),
+        )
     finally:
         with _refresh_lock:
             _refreshing_users.discard(username)

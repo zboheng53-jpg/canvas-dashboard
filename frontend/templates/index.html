@@ -87,7 +87,7 @@
                 <option value="custom">自定义</option>
               </select>
               <div class="header-info">
-                <span class="last-updated" id="list-updated"></span>
+                <button type="button" class="last-updated sync-status-button" id="list-updated" aria-label="查看平台同步状态"></button>
                 <button class="btn-refresh" id="btn-refresh" title="&#21047;&#26032;">&#x21bb;</button>
               </div>
             </div>
@@ -288,6 +288,31 @@
       closeMobileMenu();
       return loadPromise;
     }
+
+    async function revokeOtherSessions() {
+      const password = document.getElementById('revoke-sessions-password').value;
+      const status = document.getElementById('revoke-sessions-status');
+      if (!password) { status.textContent = '请输入当前网站密码。'; status.classList.add('is-error'); return; }
+      try {
+        const response = await fetch('/api/account/sessions/revoke-others', {
+          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({password}),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || '操作失败');
+        document.getElementById('revoke-sessions-password').value = '';
+        status.classList.remove('is-error'); status.textContent = data.message;
+      } catch (error) { status.textContent = error.message || '操作失败'; status.classList.add('is-error'); }
+    }
+
+    let lastSessionActivityRequestAt = 0;
+    function refreshSessionActivity() {
+      const now = Date.now();
+      if (now - lastSessionActivityRequestAt < 12 * 60 * 60 * 1000) return;
+      lastSessionActivityRequestAt = now;
+      fetch('/api/session/activity', {method: 'POST'}).catch(() => { lastSessionActivityRequestAt = 0; });
+    }
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshSessionActivity(); });
+    window.addEventListener('focus', refreshSessionActivity);
 
     function syncDeleteAccountForm() {
       const password = document.getElementById('account-delete-password');
@@ -1233,14 +1258,63 @@
       window.location.href = '/login';
     }
 
+    const platformSyncs = {};
+    const platformLabels = {canvas: 'Canvas', haoke: '好课', zhixuemeng: '智学盟', zhihuishu: '智慧树'};
+    function recordPlatformSync(platform, result) {
+      if (!result || !result.sync) return;
+      const sync = {...result.sync};
+      if (result.stale) sync.data_state = 'stale';
+      else if (result.cached && sync.data_state === 'fresh') sync.data_state = 'cached';
+      platformSyncs[platform] = sync;
+      renderDashboardSyncStatus();
+    }
+    function syncPriority(sync) {
+      if (sync.connection_state === 'needs_reauth') return 1;
+      if (sync.data_state === 'unavailable' && sync.error_code) return 2;
+      if ((sync.consecutive_failures || 0) >= 2) return 3;
+      if (sync.data_state === 'stale') return 4;
+      return 99;
+    }
+    function renderDashboardSyncStatus() {
+      const button = document.getElementById('list-updated');
+      if (!button) return;
+      const entries = Object.entries(platformSyncs);
+      const active = entries.filter(([, sync]) => sync.connection_state !== 'unconfigured');
+      const issues = active.filter(([, sync]) => syncPriority(sync) < 99).sort((a, b) => {
+        const priority = syncPriority(a[1]) - syncPriority(b[1]);
+        return priority || String(a[1].last_success_at || '').localeCompare(String(b[1].last_success_at || ''));
+      });
+      let text = '尚未连接平台';
+      if (issues.length === 1) {
+        const [platform, sync] = issues[0];
+        text = sync.connection_state === 'needs_reauth' ? `${platformLabels[platform]}需要重新连接`
+          : sync.data_state === 'unavailable' ? '更新失败' : `${platformLabels[platform]}数据未更新`;
+      } else if (issues.length > 1) text = `${issues.length} 个平台需要处理`;
+      else if (active.length && active.every(([, sync]) => sync.connection_state === 'disconnected')) text = '平台已断开';
+      else if (active.some(([, sync]) => sync.refreshing)) text = '正在更新';
+      else if (active.length) {
+        const latest = active.map(([, sync]) => sync.last_success_at).filter(Boolean).sort().pop();
+        text = latest ? `已更新 · ${new Date(latest).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}` : '已连接，等待首次成功同步';
+      }
+      button.textContent = text;
+      button.setAttribute('aria-label', `${text}；打开连接与同步`);
+      button.dataset.syncTarget = issues[0]?.[0] || active.find(([, sync]) => sync.connection_state === 'connected')?.[0] || '';
+    }
+    function openSyncStatus() {
+      const target = document.getElementById('list-updated').dataset.syncTarget;
+      switchDashboardView('connections');
+      if (target && typeof selectConnectionPlatform === 'function') selectConnectionPlatform(target);
+    }
+
     async function fetchCanvasTodos() {
       const updatedEl = document.getElementById('list-updated');
 
       try {
         const resp = await fetch('/api/canvas/todos');
         const result = await resp.json();
+        recordPlatformSync('canvas', result);
 
-        if (result.need_setup) {
+        if (result.need_setup && result.sync?.connection_state !== 'disconnected') {
           setCardStatus('canvas', '未关联', 'attention');
           updatedEl.textContent = '请先连接 Canvas';
           canvasItems = [];
@@ -1255,12 +1329,6 @@
         } else {
           setCardStatus('canvas', '已连接', 'connected');
         }
-
-        const now = new Date();
-        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-        updatedEl.textContent = result.cached
-          ? `\u7f13\u5b58\u6570\u636e \u00b7 ${timeStr}`
-          : `\u5df2\u66f4\u65b0 \u00b7 ${timeStr}`;
 
         canvasItems = result.data || [];
         hiddenIds = result.hidden || [];
@@ -1302,6 +1370,7 @@
       try {
         const resp = await fetch('/api/custom/todos');
         const result = await resp.json();
+        recordPlatformSync('haoke', result);
         customItems = result.data || [];
         customItems.forEach(todo => {
           if (todo.subtasks) {
@@ -1428,6 +1497,7 @@
           highlighted: isHighlighted,
           rawId: item.id,
           manualHighlighted: isHighlighted,
+          disconnected: platformSyncs.canvas?.connection_state === 'disconnected',
         });
       });
 
@@ -1449,6 +1519,7 @@
           highlighted: isHighlighted,
           rawId: item.id,
           manualHighlighted: isHighlighted,
+          disconnected: platformSyncs.haoke?.connection_state === 'disconnected',
         });
       });
 
@@ -1470,6 +1541,7 @@
           highlighted: isHighlighted,
           rawId: item.id,
           manualHighlighted: isHighlighted,
+          disconnected: platformSyncs.zhixuemeng?.connection_state === 'disconnected',
         });
       });
 
@@ -1491,6 +1563,7 @@
           highlighted: isHighlighted,
           rawId: item.id,
           manualHighlighted: isHighlighted,
+          disconnected: platformSyncs.zhihuishu?.connection_state === 'disconnected',
         });
       });
 
@@ -1665,7 +1738,7 @@
 
         const rowHtml = `
           <div class="todo-item unified-item ${urgencyClass} ${manualFlag ? 'manual-flagged' : ''} ${isDismissed ? 'dismissed' : ''} ${animAttr}">
-            <span class="item-source-badge src-${item.source}">${item.type}</span>
+            <span class="item-source-badge src-${item.source}" title="${item.disconnected ? '平台已断开；显示最后一次同步数据' : item.type}">${item.type}${item.disconnected ? ' · 已断开' : ''}</span>
             ${titleHtml}
             ${courseHtml}
             ${labelsHtml}
@@ -1801,8 +1874,9 @@
       try {
         const resp = await fetch('/api/haoke/todos');
         const result = await resp.json();
+        recordPlatformSync('zhixuemeng', result);
 
-        if (result.need_setup) {
+        if (result.need_setup && result.sync?.connection_state !== 'disconnected') {
           setCardStatus('haoke', '未关联', 'attention');
           haokeItems = [];
           haokeHiddenIds = [];
@@ -1864,8 +1938,9 @@
       try {
         const resp = await fetch('/api/zhixuemeng/todos');
         const result = await resp.json();
+        recordPlatformSync('zhihuishu', result);
 
-        if (result.need_setup) {
+        if (result.need_setup && result.sync?.connection_state !== 'disconnected') {
           setCardStatus('zhixuemeng', '未关联', 'attention');
           zhixuemengItems = [];
           zhixuemengHiddenIds = [];
@@ -1926,7 +2001,7 @@
         const resp = await fetch('/api/zhihuishu/todos');
         const result = await resp.json();
 
-        if (result.need_setup) {
+        if (result.need_setup && result.sync?.connection_state !== 'disconnected') {
           setCardStatus('zhihuishu', result.data && result.data.length ? '需要重新登录' : '未关联', 'attention');
         } else if (!result.ok) {
           setCardStatus('zhihuishu', result.error || '\u83b7\u53d6\u5931\u8d25', 'attention');
@@ -2717,10 +2792,49 @@
       await fetchZhihuishuTodos();
     }
 
+    let platformPendingClear = null;
+    const platformDisconnectEndpoints = {
+      canvas: ['/api/config', 'DELETE'], haoke: ['/api/haoke/config', 'DELETE'],
+      zhixuemeng: ['/api/zhixuemeng/logout', 'POST'], zhihuishu: ['/api/zhihuishu/config', 'DELETE'],
+    };
+    async function refreshOnePlatform(platform) {
+      const loaders = {canvas: fetchCanvasTodos, haoke: fetchHaokeTodos, zhixuemeng: fetchZhixuemengTodos, zhihuishu: fetchZhihuishuTodos};
+      if (loaders[platform]) await loaders[platform]();
+      if (typeof selectConnectionPlatform === 'function') selectConnectionPlatform(platform);
+    }
+    async function disconnectPlatform(platform) {
+      const [url, method] = platformDisconnectEndpoints[platform] || [];
+      if (!url) return;
+      try {
+        const response = await fetch(url, {method});
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || '断开失败');
+        await refreshOnePlatform(platform);
+      } catch (error) { document.getElementById('connections-manager-status').textContent = error.message || '断开失败'; }
+    }
+    function showClearPlatformData(platform) {
+      platformPendingClear = platform;
+      document.getElementById('platform-data-confirm-copy').textContent = `将删除${platformLabels[platform]}的连接凭据、缓存作业、完成/隐藏/标红/删除状态和本地标题或截止时间覆盖${platform === 'zhihuishu' ? '，以及浏览器登录资料' : ''}。此操作不可撤销；其他平台、自定义待办、项目、课表和账户不受影响。`;
+      document.getElementById('platform-data-confirm-modal').classList.remove('hidden');
+    }
+    function closePlatformDataConfirm() { platformPendingClear = null; document.getElementById('platform-data-confirm-modal').classList.add('hidden'); }
+    async function confirmClearPlatformData() {
+      const platform = platformPendingClear;
+      if (!platform) return;
+      try {
+        const response = await fetch(`/api/platform/${platform}/data`, {method: 'DELETE'});
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || '清除失败');
+        closePlatformDataConfirm();
+        await refreshOnePlatform(platform);
+      } catch (error) { document.getElementById('platform-data-confirm-copy').textContent = error.message || '清除失败，请稍后重试。'; }
+    }
+
 
     // ---- Init ----
     document.getElementById('add-todo-form').addEventListener('submit', addTodo);
     document.getElementById('btn-refresh').addEventListener('click', () => { fetchCanvasTodos(); fetchHaokeTodos(); fetchZhixuemengTodos(); fetchZhihuishuTodos(); fetchProjectTodos(); });
+    document.getElementById('list-updated').addEventListener('click', openSyncStatus);
 
     const canvasFormInline = document.getElementById('canvas-setup-form-inline');
     if (canvasFormInline) canvasFormInline.addEventListener('submit', saveCanvasFeedUrlInline);
@@ -2757,6 +2871,7 @@
       fetchHaokeTodos();
       fetchZhixuemengTodos();
       fetchZhihuishuTodos();
+      refreshSessionActivity();
     } else {
       window.customToday = '2026-07-25';
       const dueInput = document.getElementById('new-todo-due');

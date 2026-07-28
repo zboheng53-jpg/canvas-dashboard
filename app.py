@@ -5,6 +5,7 @@ import json
 import logging
 import re
 import secrets
+import shutil
 import time
 from datetime import datetime, timezone, timedelta, date
 from pathlib import Path
@@ -41,6 +42,7 @@ import schedule_store
 import tongji_login_sessions
 import tongji_timetable
 import project_store
+import platform_sync
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger("app")
 
@@ -58,6 +60,7 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=settings.COOKIE_SECURE,
+    SESSION_REFRESH_EACH_REQUEST=False,
 )
 
 DATA_DIR = Path(__file__).parent / "data"
@@ -78,6 +81,8 @@ _LOGIN_EXEMPT_ENDPOINTS = {
 _CSRF_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 _CSRF_HEADER = "X-CSRF-Token"
 _CSRF_SESSION_KEY = "_csrf_token"
+_SESSION_ACTIVITY_KEY = "last_active_at"
+SESSION_ACTIVITY_MIN_INTERVAL = timedelta(hours=12)
 
 LOGIN_RATE_LIMIT_ATTEMPTS = 8
 LOGIN_RATE_LIMIT_SECONDS = 5 * 60
@@ -181,6 +186,23 @@ def _csrf_failed_response():
     return jsonify({"ok": False, "error": "CSRF token missing or invalid"}), 403
 
 
+def _refresh_session_activity(*, force: bool = False) -> bool:
+    """Renew only explicit human activity, with a server-side throttle."""
+    now = datetime.now(CST)
+    raw = session.get(_SESSION_ACTIVITY_KEY)
+    try:
+        previous = datetime.fromisoformat(raw) if raw else None
+        if previous and previous.tzinfo is None:
+            previous = previous.replace(tzinfo=CST)
+    except (TypeError, ValueError):
+        previous = None
+    if not force and previous and now - previous < SESSION_ACTIVITY_MIN_INTERVAL:
+        return False
+    session[_SESSION_ACTIVITY_KEY] = now.isoformat()
+    session.permanent = True
+    return True
+
+
 def _request_ip():
     real_ip = request.headers.get("X-Real-IP", "").strip()
     if real_ip:
@@ -245,6 +267,31 @@ def _haoke_default_error_code(result):
     return "haoke_fetch_failed"
 
 
+def _platform_cache_path(username: str, platform: str) -> Path:
+    return user_dir(username) / {
+        "canvas": "canvas_cache.json",
+        "haoke": "haoke_cache.json",
+        "zhixuemeng": "zhixuemeng_cache.json",
+        "zhihuishu": "zhihuishu_cache.json",
+    }[platform]
+
+
+def _attach_sync(result: dict, platform: str, *, connection_state: str, refreshing: bool = False) -> dict:
+    result = dict(result)
+    result["sync"] = platform_sync.response_sync(
+        session["username"], platform, connection_state=connection_state,
+        has_cache=_platform_cache_path(session["username"], platform).exists(), refreshing=refreshing,
+    )
+    return result
+
+
+def _clear_json_file(path: Path) -> None:
+    """Delete only a known file and never silently erase malformed JSON."""
+    if path.exists():
+        read_json_file(path, {})
+        path.unlink()
+
+
 @app.before_request
 def _require_login():
     if request.endpoint in _LOGIN_EXEMPT_ENDPOINTS or request.endpoint is None:
@@ -254,10 +301,25 @@ def _require_login():
         if request.path.startswith("/api/"):
             return jsonify({"ok": False, "error": "unauthorized"}), 401
         return redirect("/login")
+    raw_active_at = session.get(_SESSION_ACTIVITY_KEY)
+    if raw_active_at:
+        try:
+            active_at = datetime.fromisoformat(raw_active_at)
+            if active_at.tzinfo is None:
+                active_at = active_at.replace(tzinfo=CST)
+            if datetime.now(CST) - active_at > auth.SESSION_LIFETIME:
+                session.clear()
+                if request.path.startswith("/api/"):
+                    return jsonify({"ok": False, "error": "unauthorized"}), 401
+                return redirect("/login")
+        except (TypeError, ValueError):
+            # A pre-upgrade cookie is initialized on the next explicit visit.
+            pass
     # New sessions bind to a non-reusable account identity and a session
     # version.  TESTING keeps legacy fixture sessions concise; production does
     # not accept username-only cookies.
-    if not app.testing and not auth.validate_session_identity(
+    has_identity_claims = "account_id" in session or "session_version" in session
+    if (not app.testing or has_identity_claims) and not auth.validate_session_identity(
         username, session.get("account_id"), session.get("session_version")
     ):
         session.clear()
@@ -413,7 +475,9 @@ def _calendar_items(username):
                 "course": todo.get("text"),
             })
 
-    def add_cached(source, cached_items, state):
+    def add_cached(source, platform, cached_items, state, legacy_connected):
+        if not platform_sync.is_calendar_eligible(username, platform, legacy_default=legacy_connected):
+            return
         hidden = set(state.get("hidden", []))
         deleted = set(state.get("deleted", []))
         completed = set(state.get("completed", []))
@@ -434,12 +498,12 @@ def _calendar_items(username):
                 "url": item.get("url"),
             })
 
-    add_cached("Canvas", read_json_file(user_dir(username) / "canvas_cache.json", []), load_state(username))
-    add_cached("Haoke", read_json_file(user_dir(username) / "haoke_cache.json", []), load_haoke_state(username))
+    add_cached("Canvas", "canvas", read_json_file(user_dir(username) / "canvas_cache.json", []), load_state(username), True)
+    add_cached("Haoke", "haoke", read_json_file(user_dir(username) / "haoke_cache.json", []), load_haoke_state(username), True)
     zxm_cache = read_json_file(user_dir(username) / "zhixuemeng_cache.json", {})
-    add_cached("Zhixuemeng", zxm_cache.get("items", []) if isinstance(zxm_cache, dict) else [], load_zxm_state(username))
+    add_cached("Zhixuemeng", "zhixuemeng", zxm_cache.get("items", []) if isinstance(zxm_cache, dict) else [], load_zxm_state(username), True)
     zhs_cache = zhihuishu_store.load_cache(username)
-    add_cached("Zhihuishu", zhs_cache["items"], zhihuishu_store.load_state(username))
+    add_cached("Zhihuishu", "zhihuishu", zhs_cache["items"], zhihuishu_store.load_state(username), True)
     for item in project_store.todo_items(username):
         items.append({
             "source": "Project",
@@ -473,6 +537,7 @@ def get_greeting_info(dt=None):
 
 @app.route("/")
 def index():
+    _refresh_session_activity()
     greeting_text, greeting_icon, is_night = get_greeting_info()
     return render_template(
         "index.html",
@@ -558,7 +623,7 @@ def api_auth_register():
     session.update(username=username, account_id=account_id, session_version=session_version)
     if csrf_token:
         session[_CSRF_SESSION_KEY] = csrf_token
-    session.permanent = True
+    _refresh_session_activity(force=True)
     return jsonify({"ok": True})
 
 
@@ -582,7 +647,7 @@ def api_auth_login():
     session.update(username=username, account_id=account_id, session_version=session_version)
     if csrf_token:
         session[_CSRF_SESSION_KEY] = csrf_token
-    session.permanent = True
+    _refresh_session_activity(force=True)
     return jsonify({"ok": True})
 
 
@@ -590,6 +655,11 @@ def api_auth_login():
 def api_auth_logout():
     session.clear()
     return jsonify({"ok": True})
+
+
+@app.route("/api/session/activity", methods=["POST"])
+def api_session_activity():
+    return jsonify({"ok": True, "refreshed": _refresh_session_activity()})
 
 
 @app.route("/reset-password")
@@ -636,6 +706,20 @@ def api_account():
         return jsonify({"ok": False, "error": error}), 400
     session.clear()
     return jsonify({"ok": True})
+
+
+@app.route("/api/account/sessions/revoke-others", methods=["POST"])
+def api_revoke_other_sessions():
+    data = read_json_request()
+    if data is None:
+        return invalid_request_response()
+    ok, session_version = auth.revoke_other_sessions(session["username"], data.get("password") or "")
+    if not ok:
+        return jsonify({"ok": False, "error": "当前网站密码错误"}), 401
+    # Keep this browser's identity aligned with the incremented account record.
+    # The current CSRF token deliberately remains unchanged.
+    session["session_version"] = session_version
+    return jsonify({"ok": True, "message": "其他设备的登录状态已失效"})
 
 
 @app.route("/api/clock")
@@ -685,6 +769,7 @@ def api_config():
     username = session["username"]
     if request.method == "DELETE":
         remove_feed_url(username)
+        platform_sync.mark_disconnected(username, "canvas", _platform_cache_path(username, "canvas").exists())
         return jsonify({"ok": True, "disconnected": True})
     if request.method == "POST":
         data = read_json_request()
@@ -696,6 +781,7 @@ def api_config():
         ok, error = save_feed_url(username, url)
         if not ok:
             return jsonify({"ok": False, "error": error}), 400
+        platform_sync.mark_connected(username, "canvas")
         return jsonify({"ok": True})
 
     return jsonify({"ok": True, "has_feed": has_feed_url(username)})
@@ -704,7 +790,19 @@ def api_config():
 @app.route("/api/canvas/todos")
 def api_canvas_todos():
     username = session["username"]
-    result = fetch_canvas_planner(username)
+    cache_path = _platform_cache_path(username, "canvas")
+    disconnected = platform_sync.get(username, "canvas")["connection_state"] == "disconnected"
+    if disconnected and not has_feed_url(username) and cache_path.exists():
+        result = {"ok": True, "data": read_json_file(cache_path, []), "cached": True, "disconnected": True, "need_setup": True}
+    else:
+        result = fetch_canvas_planner(username)
+    cache_exists = cache_path.exists()
+    if has_feed_url(username):
+        platform_sync.record_result(
+            username, "canvas", ok=bool(result.get("ok")) and not bool(result.get("cached")),
+            has_cache=cache_exists, cached=bool(result.get("cached")),
+            error_code=result.get("code"), error_message=result.get("error"),
+        )
     state = load_state(username)
     result = build_platform_todos_response(
         result,
@@ -712,7 +810,8 @@ def api_canvas_todos():
         save_state=lambda changed_state: save_state(username, changed_state),
         now=datetime.now(CST),
     )
-    return jsonify(result)
+    state_name = "connected" if has_feed_url(username) else platform_sync.get(username, "canvas")["connection_state"]
+    return jsonify(_attach_sync(result, "canvas", connection_state=state_name))
 
 
 @app.route("/api/canvas/state", methods=["GET", "POST"])
@@ -739,6 +838,7 @@ def api_haoke_config():
     username = session["username"]
     if request.method == "DELETE":
         clear_haoke_credentials(username)
+        platform_sync.mark_disconnected(username, "haoke", _platform_cache_path(username, "haoke").exists())
         return jsonify({"ok": True, "disconnected": True})
     if request.method == "POST":
         data = read_json_request()
@@ -749,6 +849,7 @@ def api_haoke_config():
         if not haoke_username or not password:
             return api_error("haoke_credentials_required", "username and password required")
         save_haoke_credentials(username, haoke_username, password)
+        platform_sync.mark_connected(username, "haoke")
         return jsonify({"ok": True})
 
     return jsonify({"ok": True, "has_credentials": has_haoke_credentials(username)})
@@ -758,7 +859,8 @@ def api_haoke_config():
 def api_haoke_todos():
     username = session["username"]
     result = None
-    if has_haoke_credentials(username):
+    has_credentials = has_haoke_credentials(username)
+    if has_credentials:
         result = get_haoke_cached_todos(username)
         if result is not None:
             result = dict(result)
@@ -767,7 +869,17 @@ def api_haoke_todos():
                 start_haoke_background_refresh(username)
             result["refreshing"] = is_stale
     if result is None:
-        result = fetch_haoke_todos(username)
+        if not has_credentials and _platform_cache_path(username, "haoke").exists():
+            result = get_haoke_cached_todos(username) or {"ok": True, "data": []}
+            result = dict(result)
+            result.update(disconnected=True, need_setup=True, refreshing=False)
+        else:
+            result = fetch_haoke_todos(username)
+            platform_sync.record_result(
+                username, "haoke", ok=bool(result.get("ok")) and not bool(result.get("cached")),
+                has_cache=_platform_cache_path(username, "haoke").exists(), cached=bool(result.get("cached")),
+                error_code=result.get("code"), error_message=result.get("error"),
+            )
         result = dict(result)
         result.setdefault("refreshing", False)
     result = _with_default_error_code(result, _haoke_default_error_code(result))
@@ -778,7 +890,8 @@ def api_haoke_todos():
         save_state=lambda changed_state: save_haoke_state(username, changed_state),
         now=datetime.now(CST),
     )
-    return jsonify(result)
+    connection_state = "connected" if has_credentials else platform_sync.get(username, "haoke")["connection_state"]
+    return jsonify(_attach_sync(result, "haoke", connection_state=connection_state, refreshing=result.get("refreshing", False)))
 
 
 @app.route("/api/haoke/state", methods=["GET", "POST"])
@@ -828,6 +941,8 @@ def api_zxm_login():
     if not phone or not captcha:
         return jsonify({"ok": False, "error": "phone and captcha required"}), 400
     result = phone_login(username, phone, captcha)
+    if result.get("ok"):
+        platform_sync.mark_connected(username, "zhixuemeng")
     return jsonify(result)
 
 
@@ -842,12 +957,16 @@ def api_zxm_login_password():
     if not zxm_username or not password:
         return jsonify({"ok": False, "error": "username and password required"}), 400
     result = password_login(username, zxm_username, password)
+    if result.get("ok"):
+        platform_sync.mark_connected(username, "zhixuemeng")
     return jsonify(result)
 
 
 @app.route("/api/zhixuemeng/logout", methods=["POST"])
 def api_zxm_logout():
-    zxm_logout(session["username"])
+    username = session["username"]
+    zxm_logout(username)
+    platform_sync.mark_disconnected(username, "zhixuemeng", _platform_cache_path(username, "zhixuemeng").exists())
     return jsonify({"ok": True})
 
 
@@ -879,7 +998,15 @@ def api_zxm_course():
 def api_zxm_todos():
     username = session["username"]
     course_code = request.args.get("course_code", "").strip() or get_selected_course(username)
+    had_token = has_zxm_token(username)
     result = fetch_zxm_assignments(username, course_code)
+    if had_token and not result.get("cached"):
+        platform_sync.record_result(
+            username, "zhixuemeng", ok=bool(result.get("ok")) and bool(result.get("sync_complete", True)),
+            has_cache=_platform_cache_path(username, "zhixuemeng").exists(), cached=False,
+            error_code="sync_incomplete" if result.get("sync_complete") is False else result.get("code"),
+            error_message=result.get("error"),
+        )
     state = load_zxm_state(username)
     result = build_platform_todos_response(
         result,
@@ -888,7 +1015,8 @@ def api_zxm_todos():
         save_state=lambda changed_state: save_zxm_state(username, changed_state),
         now=datetime.now(CST),
     )
-    return jsonify(result)
+    connection_state = "connected" if has_zxm_token(username) else platform_sync.get(username, "zhixuemeng")["connection_state"]
+    return jsonify(_attach_sync(result, "zhixuemeng", connection_state=connection_state))
 
 
 @app.route("/api/zhixuemeng/state", methods=["GET", "POST"])
@@ -919,6 +1047,7 @@ def api_zhihuishu_config():
         import shutil
         shutil.rmtree(profile, ignore_errors=True)
         status = zhihuishu_store.save_status(username, {"session": "disconnected", "last_error": "已断开智慧树连接"})
+        platform_sync.mark_disconnected(username, "zhihuishu", _platform_cache_path(username, "zhihuishu").exists())
         return jsonify({"ok": True, "disconnected": True, "status": status})
     status = zhihuishu_store.load_status(username)
     login_session = zhihuishu_login_sessions.load_session(username)
@@ -941,7 +1070,7 @@ def api_zhihuishu_todos():
     cache = zhihuishu_store.load_cache(username)
 
     if status.get("session") in ("not_logged_in", "need_relogin") and not cache["items"]:
-        return jsonify({
+        result = {
             "ok": False,
             "need_setup": True,
             "status": status,
@@ -949,7 +1078,9 @@ def api_zhihuishu_todos():
             "hidden": state["hidden"],
             "highlighted": state["highlighted"],
             "deleted": state["deleted"],
-        })
+        }
+        state_name = "needs_reauth" if status.get("session") == "need_relogin" else platform_sync.get(username, "zhihuishu")["connection_state"]
+        return jsonify(_attach_sync(result, "zhihuishu", connection_state=state_name))
 
     result = {
         "ok": True,
@@ -959,7 +1090,46 @@ def api_zhihuishu_todos():
         "fetched_at": cache["fetched_at"],
         "status": status,
     }
-    return jsonify(build_platform_todos_response(result, state, auto_delete_expired_hidden=False))
+    result = build_platform_todos_response(result, state, auto_delete_expired_hidden=False)
+    state_name = "connected" if status.get("session") == "active" else platform_sync.get(username, "zhihuishu")["connection_state"]
+    return jsonify(_attach_sync(result, "zhihuishu", connection_state=state_name))
+
+
+@app.route("/api/platform/<platform>/data", methods=["DELETE"])
+def api_clear_platform_data(platform):
+    """Irreversibly remove only one platform's credentials, cache and local state."""
+    if platform not in platform_sync.PLATFORMS:
+        abort(404)
+    username = session["username"]
+    directory = user_dir(username)
+    # Read first so a malformed JSON file remains protected by the normal
+    # fail-closed 503 path instead of being silently discarded.
+    if platform == "canvas":
+        remove_feed_url(username)
+        paths = (directory / "canvas_cache.json", directory / "canvas_state.json")
+    elif platform == "haoke":
+        if (directory / "config.json").exists():
+            read_json_file(directory / "config.json", {})
+        clear_haoke_credentials(username)
+        paths = (directory / "haoke_cache.json", directory / "haoke_state.json")
+    elif platform == "zhixuemeng":
+        if (directory / "config.json").exists():
+            read_json_file(directory / "config.json", {})
+        zxm_logout(username)
+        paths = (directory / "zhixuemeng_cache.json", directory / "zhixuemeng_state.json")
+    else:
+        zhihuishu_login_sessions.stop_session(username)
+        profile = directory / "zhihuishu_chromium_profile"
+        if profile.exists():
+            shutil.rmtree(profile)
+        paths = (
+            directory / "zhihuishu_cache.json", directory / "zhihuishu_state.json",
+            directory / "zhihuishu_status.json", directory / "zhihuishu_login_session.json",
+        )
+    for path in paths:
+        _clear_json_file(path)
+    platform_sync.mark_unconfigured(username, platform)
+    return jsonify({"ok": True, "cleared": platform})
 
 
 @app.route("/api/zhihuishu/state", methods=["GET", "POST"])

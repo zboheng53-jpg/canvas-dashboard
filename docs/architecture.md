@@ -57,7 +57,7 @@ The first registered account may claim eligible legacy top-level runtime files. 
 
 ### Account Lifecycle
 
-Production sessions bind the username to both `account_id` and `session_version`; username-only session cookies are rejected. Suspending an account, resetting its password, or permanently deleting it invalidates existing browser sessions. A reset credential is stored only as a hash, expires after 30 minutes, and is single-use. The local-only `scripts/account_admin.py` command issues that credential for out-of-band delivery, and can suspend or resume an account with an audit reason.
+Production sessions bind the username to both `account_id` and `session_version`; username-only session cookies are rejected. Permanent cookies use a 30-day sliding lifetime, but Flask does not refresh them on every request. Only login/register, a full homepage visit, and the CSRF-protected `/api/session/activity` endpoint can renew `last_active_at`; browser visibility/focus calls are throttled by both client and server to 12 hours. Suspending an account, resetting its password, permanently deleting it, or the password-confirmed “退出其他设备” operation invalidates old browser sessions through `session_version`; the revoking browser updates its own version and remains signed in.
 
 Permanent deletion is a self-service operation in **偏好设置**. It requires the current password plus the exact confirmation text `永久删除`, records the immutable ID in the deletion ledger, stops short-lived platform login sessions, removes the account record and `data/users/<username>/`, and clears the current browser session. The ledger deliberately stays outside routine backups so restoring an older archive cannot revive a later-deleted account.
 
@@ -90,6 +90,8 @@ These locks are process-local. A future multi-process application deployment mus
 - 智慧树 runs outside Flask. Every all-user round rediscovers account directories. Each user runs in a child process with a 180-second default timeout, so one stuck account does not block later users. Per-user `last_success_at` values are summarized by `/healthz`.
 
 ## Unified Todo Semantics
+
+`platform_sync_status.json` is a per-user, non-secret durable status record for Canvas, 好课, 智学盟, and 智慧树. It records connection/data state, timezone-aware attempts and successes, failures, a safe error summary, and `calendar_eligible`; it never contains credentials, URLs, cookies, or tokens. Existing accounts are inferred lazily and retain calendar export until an explicit disconnect. Disconnect deletes only the platform credential/login state and keeps its trusted cache plus local item state; it sets `calendar_eligible=false`. Reconnecting remains ineligible until a fresh successful sync. Clearing platform data deletes the named platform's credential, cache and state only, and still fails closed if any JSON targeted for removal is corrupt.
 
 Imported platform items retain their upstream fields in each platform cache. Per-user platform state is stored separately and survives a refresh: users may hide, highlight, delete, complete, or uncomplete an imported item without mutating upstream data. A completed imported item is returned as `done: true`; a later cache refresh does not clear that local completion state.
 

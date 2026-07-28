@@ -50,11 +50,21 @@ build_browser_login_image() {
     ) || return
 }
 
+correct_runtime_permissions() {
+    # The application and worker run as ubuntu.  Keep all durable user data
+    # private without restricting release/current, Docker, Chromium or logs.
+    sudo install -d -o ubuntu -g ubuntu -m 0700 "$root/data" || return
+    sudo chown -R ubuntu:ubuntu "$root/data" || return
+    sudo find "$root/data" -type d -exec chmod 0700 {} + || return
+    sudo find "$root/data" -type f -exec chmod 0600 {} + || return
+}
+
 activate_release() {
     local target=$1
     ln -sfn "$target" "$root/current.next" || return
     mv -Tf "$root/current.next" "$root/current" || return
     install_configs "$target" || return
+    correct_runtime_permissions || return
     sudo systemctl enable canvas-dashboard.service zhihuishu-worker.service || return
     sudo systemctl enable --now zhihuishu-login-cleanup.timer canvas-dashboard-account-cleanup.timer canvas-dashboard-backup.timer || return
     sudo systemctl restart canvas-dashboard.service zhihuishu-worker.service || return

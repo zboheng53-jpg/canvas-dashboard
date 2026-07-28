@@ -26,6 +26,21 @@ OpenSSH must be able to authenticate non-interactively through the configured ke
 
 Runtime `data/` is never included in a release archive.
 
+## Runtime File Permissions
+
+The application and 智慧树 worker use `UMask=0077`; runtime files are created private by default. Release activation corrects `/home/ubuntu/canvas-dashboard/data` to `ubuntu:ubuntu`, directories to `0700`, and files to `0600`. This includes credentials, session/key files, and user configuration. Verify after a release without printing any sensitive file contents:
+
+```bash
+stat -c '%a %U:%G %n' /home/ubuntu/canvas-dashboard/data \
+  /home/ubuntu/canvas-dashboard/data/.flask_secret_key \
+  /home/ubuntu/canvas-dashboard/data/.encryption_key
+find /home/ubuntu/canvas-dashboard/data/users -maxdepth 1 -type d -printf '%m %u:%g %p\n'
+systemd-analyze security canvas-dashboard.service
+systemd-analyze security zhihuishu-worker.service
+```
+
+The two services enable `PrivateTmp`, kernel/control-group protection, `NoNewPrivileges`, `RestrictSUIDSGID`, and `LockPersonality`. They intentionally retain normal network access, release/current access, Chromium, Docker-socket access, user data, logs, and the existing encrypted-backup flow; test login windows and a worker cycle after any future sandboxing change.
+
 ## Release Inspection And Rollback
 
 Inspect the active and previous releases:

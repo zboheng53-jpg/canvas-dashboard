@@ -79,6 +79,8 @@ canvas-dashboard/
   - 生产 Session 必须校验不可变 `account_id` 与 `session_version`；永久删除必须经 `auth.delete_account()`，并保留不参与常规备份的删除账本以防旧备份复活账户。
 - **统一待办状态**：
   - 平台缓存不得被本地完成、隐藏、标红、删除或标题/截止时间覆盖直接改写；统一通过各平台 `PlatformStateStore` 状态文件叠加，并允许恢复上游显示值。
+- **平台同步元数据**：
+  - `platform_sync_status.json` 只保存非敏感的连接、刷新、失败与日历资格状态；必须继续使用锁与原子写，并在损坏时 fail-closed。不得写入密码、Token、Cookie 或订阅地址。
 - **长期项目 (`project_store.py`)**：
   - 存储位于 `data/users/<username>/projects.json` (v2)，采用锁 + 原子写。
   - 唯一主项目与 Next Action 原子维护，支持活动/完成/归档状态与重新开启。

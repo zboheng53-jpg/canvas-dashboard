@@ -96,6 +96,8 @@ It runs the full test and compile gates, performs an encrypted off-server backup
 
 Every site account has an immutable internal ID. A username may be registered again after deletion, but the new account never receives the former account's session, platform connections, caches, todos, calendar subscription, or browser profile. In **偏好设置**, a user can permanently remove the current account only after entering its password and the exact confirmation text `永久删除`; this also signs out the browser and stops any short-lived platform login window.
 
+网页登录采用 30 天滑动有效期：成功登录、完整打开首页或在浏览器重新回到前台后，最多每 12 小时续期一次；后台请求、天气、时钟和 Apple Calendar 订阅不会续期。偏好设置可通过当前密码“退出其他设备”，当前设备保持登录。平台详情会说明凭据和缓存的保存方式；“断开连接”删除凭据但保留网页缓存，“清除平台数据”才会永久删除该平台的缓存和本地状态。断开的平台缓存不会继续导出到 Apple Calendar。
+
 Trusted operators can suspend or resume an account, or issue a short-lived password-reset credential, with `scripts/account_admin.py`. See `docs/operations.md`; do not paste a reset credential into a ticket, chat transcript, or shared terminal log.
 
 Must preserve:

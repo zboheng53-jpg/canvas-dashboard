@@ -10,6 +10,7 @@ from pathlib import Path
 import settings
 import auth
 import zhihuishu_store
+import platform_sync
 from storage import read_json_file
 
 KEEPALIVE_INTERVAL_SECONDS = settings.ZHIHUISHU_KEEPALIVE_INTERVAL_SECONDS
@@ -92,6 +93,11 @@ def run_scheduled_cycle(username: str, now: float | None = None, force_fetch: bo
             "worker": "running",
             "last_error": "智慧树登录态失效",
         })
+        platform_sync.record_result(
+            username, "zhihuishu", ok=False,
+            has_cache=bool(zhihuishu_store.load_cache(username)["items"]),
+            error_code="needs_reauth", error_message="智慧树登录态失效", needs_reauth=True,
+        )
         return False
 
     browser.keepalive(username)
@@ -111,6 +117,7 @@ def run_scheduled_cycle(username: str, now: float | None = None, force_fetch: bo
         zhihuishu_store.save_cache(username, items, fetched_at=now)
         updates["last_fetch_at"] = now
         updates["last_success_at"] = now
+        platform_sync.record_result(username, "zhihuishu", ok=True, has_cache=True)
 
     zhihuishu_store.save_status(username, updates)
     return True
@@ -152,6 +159,11 @@ def _run_user_subprocess(username: str, dry_run: bool = False) -> bool:
             "worker": "error",
             "last_error": message,
         })
+        platform_sync.record_result(
+            username, "zhihuishu", ok=False,
+            has_cache=bool(zhihuishu_store.load_cache(username)["items"]),
+            error_code="worker_timeout", error_message=message,
+        )
         logger.error("%s for %s", message, username)
         return False
     if result.returncode != 0:
@@ -175,6 +187,11 @@ def _run_all_users_round(failures: dict[str, int], dry_run: bool = False, runner
                 "worker": "error",
                 "last_error": str(exc),
             })
+            platform_sync.record_result(
+                username, "zhihuishu", ok=False,
+                has_cache=bool(zhihuishu_store.load_cache(username)["items"]),
+                error_code="worker_failed", error_message=str(exc),
+            )
             logger.exception("Worker cycle failed for %s", username)
     return {username: failures[username] for username in usernames if username in current}
 
@@ -213,6 +230,11 @@ def main(argv=None) -> int:
                 "worker": "error",
                 "last_error": str(exc),
             })
+            platform_sync.record_result(
+                args.username, "zhihuishu", ok=False,
+                has_cache=bool(zhihuishu_store.load_cache(args.username)["items"]),
+                error_code="worker_failed", error_message=str(exc),
+            )
             logger.exception("Worker child cycle failed for %s", args.username)
             return 1
 
