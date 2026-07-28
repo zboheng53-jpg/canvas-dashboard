@@ -359,7 +359,7 @@ def test_frontend_v2_narrow_desktop_stacks_right_rail_below_center(live_app, bro
     assert 20 <= vertical_gap <= 24
 
 
-def test_frontend_v2_sidebar_uses_light_reference_style(live_app, browser):
+def test_frontend_v2_sidebar_uses_solid_light_surface(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "lightsidebarv2")
 
@@ -376,7 +376,7 @@ def test_frontend_v2_sidebar_uses_light_reference_style(live_app, browser):
             };
         }"""
     )
-    assert styles["background"] == "rgba(255, 255, 255, 0.78)"
+    assert styles["background"] == "oklch(1 0 89.88)"
     assert styles["activeBackground"] != "rgba(0, 0, 0, 0)"
     assert styles["activeColor"] == "rgb(47, 111, 228)"
     assert styles["userBorder"] == "1px"
