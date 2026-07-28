@@ -1034,6 +1034,51 @@ def test_frontend_connections_workspace_uses_aligned_master_detail_layout(live_a
         expect(page.locator(selector)).to_have_css("color", "rgb(255, 255, 255)")
 
 
+def test_frontend_connection_actions_stay_with_the_selected_platform(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "connectionactions")
+    page.locator('[data-dashboard-view="connections"]').click()
+
+    for platform in ("canvas", "haoke", "zhixuemeng", "zhihuishu"):
+        page.locator(f'#login-cards [data-platform="{platform}"]').click()
+        selected_detail = page.locator(f"#detail-{platform}")
+        selected_actions = selected_detail.locator(
+            f'[data-platform-actions="{platform}"]'
+        )
+
+        expect(selected_detail).to_be_visible()
+        expect(selected_actions).to_have_count(1)
+        expect(selected_actions).to_be_visible()
+        expect(page.locator('.connection-data-actions:visible')).to_have_count(1)
+        assert page.evaluate(
+            "([detail, actions]) => detail.contains(actions)",
+            [selected_detail.element_handle(), selected_actions.element_handle()],
+        )
+        assert page.evaluate("document.documentElement.scrollWidth") <= 1440
+
+
+def test_frontend_connections_detail_scrolls_inside_fixed_workspace(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 720})
+    register_dashboard_user(page, live_app, "connectionscroll")
+    page.locator('[data-dashboard-view="connections"]').click()
+    page.locator('#login-cards [data-platform="zhihuishu"]').click()
+
+    sidebar = page.locator("#academic-sidebar")
+    manager = page.locator(".connections-manager-card")
+    detail_panel = page.locator(".connections-detail-panel")
+    expect(sidebar).to_be_visible()
+    expect(manager).to_be_visible()
+    expect(detail_panel).to_be_visible()
+
+    sidebar_box = sidebar.bounding_box()
+    manager_box = manager.bounding_box()
+    assert sidebar_box is not None and manager_box is not None
+    assert abs(manager_box["y"] - sidebar_box["y"]) < 1
+    assert abs(manager_box["height"] - sidebar_box["height"]) < 1
+    assert detail_panel.evaluate("element => getComputedStyle(element).overflowY") == "auto"
+    assert detail_panel.evaluate("element => element.scrollHeight > element.clientHeight")
+
+
 def test_frontend_connections_workspace_stacks_cleanly_on_narrow_desktop(live_app, browser):
     page = browser.new_page(viewport={"width": 920, "height": 1000})
     register_dashboard_user(page, live_app, "connectionsnarrow")

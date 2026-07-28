@@ -2139,7 +2139,18 @@
   }
 
   .workspace-main .dashboard-view[data-view-panel="connections"] .connections-manager-card {
+    display: flex;
     min-height: 0;
+    flex: 1;
+    flex-direction: column;
+    margin-bottom: 0 !important;
+    overflow: hidden;
+  }
+
+  .workspace-main .dashboard-view[data-view-panel="connections"] .connections-detail-panel {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }
 
