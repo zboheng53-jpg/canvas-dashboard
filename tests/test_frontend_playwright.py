@@ -435,9 +435,8 @@ def test_frontend_v2_sidebar_greeting_and_calendar_subscription_page(live_app, b
     expect(page.locator("#calendar-subscription-panel")).to_have_count(0)
     expect(page.locator("#calendar-subscription-title")).to_have_text("Apple Calendar 订阅")
     expect(page.locator("#calendar-subscription-open")).to_be_disabled()
-    assert page.locator("#calendar-subscription-create").evaluate(
-        "element => getComputedStyle(element).backgroundColor"
-    ) == "rgb(47, 111, 228)"
+    expect(page.locator("#calendar-subscription-create")).to_have_css("background-color", "rgb(255, 255, 255)")
+    expect(page.locator("#calendar-subscription-create")).to_have_css("color", "rgb(58, 89, 133)")
     page.locator("#calendar-subscription-create").click()
     expect(page.locator("#calendar-subscription-url")).to_have_value(re.compile(r"/calendar/.+\.ics$"))
     expect(page.locator("#calendar-subscription-open")).to_be_enabled()
@@ -578,8 +577,12 @@ def test_frontend_schedule_is_fixed_height_precise_and_editable(live_app, browse
     assert page.locator(".schedule-header-actions > button").evaluate_all(
         """buttons => {
           const boxes = buttons.map(button => button.getBoundingClientRect());
-          return Math.abs(boxes[0].width - boxes[1].width) < 0.5
-            && Math.abs(boxes[0].height - boxes[1].height) < 0.5;
+          return buttons[0].id === 'schedule-management-open'
+            && buttons[1].id === 'btn-add-schedule-item'
+            && Math.abs(boxes[0].height - 34) < 0.5
+            && Math.abs(boxes[1].height - 36) < 0.5
+            && getComputedStyle(buttons[1]).backgroundColor === 'rgb(255, 255, 255)'
+            && getComputedStyle(buttons[1]).color === 'rgb(58, 89, 133)';
         }"""
     )
     assert page.evaluate(
@@ -1030,8 +1033,8 @@ def test_frontend_connections_workspace_uses_aligned_master_detail_layout(live_a
         "#haoke-setup-form-inline button",
         "#zxm-setup-inline .connection-primary-action",
     ):
-        expect(page.locator(selector)).to_have_css("background-color", "rgb(47, 111, 228)")
-        expect(page.locator(selector)).to_have_css("color", "rgb(255, 255, 255)")
+        expect(page.locator(selector)).to_have_css("background-color", "rgb(255, 255, 255)")
+        expect(page.locator(selector)).to_have_css("color", "rgb(58, 89, 133)")
 
 
 def test_frontend_connection_actions_stay_with_the_selected_platform(live_app, browser):

@@ -1281,6 +1281,50 @@ a:hover { color: var(--accent-hover); }
   border-color: var(--accent-hover) !important;
 }
 
+/* Blue action buttons mirror the dashboard's existing “刷新状态” secondary control. */
+
+.btn-primary,
+.btn-accent,
+.btn-submit,
+.btn-auth-primary,
+.subtask-add-btn {
+  min-height: 36px;
+  padding: 0 12px !important;
+  border: 1px solid #cbdcf6 !important;
+  border-radius: 6px;
+  background: #fff !important;
+  color: #3a5985 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  flex: 0 0 auto;
+  box-shadow: none;
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+}
+
+.btn-primary:hover:not(:disabled),
+.btn-accent:hover:not(:disabled),
+.btn-submit:hover:not(:disabled),
+.btn-auth-primary:hover:not(:disabled),
+.subtask-add-btn:hover:not(:disabled),
+.btn-primary:focus-visible:not(:disabled),
+.btn-accent:focus-visible:not(:disabled),
+.btn-submit:focus-visible:not(:disabled),
+.btn-auth-primary:focus-visible:not(:disabled),
+.subtask-add-btn:focus-visible:not(:disabled) {
+  background: #edf4ff !important;
+  outline: none;
+}
+
+.btn-primary:disabled,
+.btn-accent:disabled,
+.btn-submit:disabled,
+.btn-auth-primary:disabled,
+.subtask-add-btn:disabled {
+  cursor: wait;
+  opacity: .55;
+}
+
 /* ---- SMS button disabled ---- */
 #zxm-send-sms-btn:disabled {
   opacity: 0.4;

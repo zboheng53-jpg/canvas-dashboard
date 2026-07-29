@@ -6876,6 +6876,99 @@ a:hover { color: var(--accent-hover); }
       width: 100% !important;
     }
 
+    /* Blue actions mirror the existing “刷新状态” secondary control. */
+
+    .btn-primary,
+    .btn-accent,
+    .btn-submit,
+    .btn-auth-primary,
+    .project-button-primary,
+    .project-next-action-btn-complete,
+    .btn-schedule-primary,
+    .calendar-panel-primary,
+    .connection-primary-action,
+    .subtask-add-btn,
+    .card.enter-main-card .add-todo-form button:not(.btn-wide):not(.btn-primary):not(.btn-secondary):not(.btn-accent):not(.btn-submit),
+    #btn-add-schedule-item,
+    #schedule-refresh-button,
+    #zhs-btn-open-login-inline,
+    #calendar-subscription-create,
+    #project-new-button {
+      height: auto !important;
+      min-height: 36px !important;
+      padding: 0 12px !important;
+      border: 1px solid #cbdcf6 !important;
+      border-radius: 6px !important;
+      background: #fff !important;
+      color: #3a5985 !important;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif !important;
+      font-size: 12px !important;
+      font-weight: 500 !important;
+      flex: 0 0 auto;
+      box-shadow: none !important;
+      transform: none !important;
+      transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease !important;
+    }
+
+    .btn-primary:hover:not(:disabled),
+    .btn-accent:hover:not(:disabled),
+    .btn-submit:hover:not(:disabled),
+    .btn-auth-primary:hover:not(:disabled),
+    .project-button-primary:hover:not(:disabled),
+    .project-next-action-btn-complete:hover:not(:disabled),
+    .btn-schedule-primary:hover:not(:disabled),
+    .calendar-panel-primary:hover:not(:disabled),
+    .connection-primary-action:hover:not(:disabled),
+    .subtask-add-btn:hover:not(:disabled),
+    .card.enter-main-card .add-todo-form button:not(.btn-wide):not(.btn-primary):not(.btn-secondary):not(.btn-accent):not(.btn-submit):hover:not(:disabled),
+    #btn-add-schedule-item:hover:not(:disabled),
+    #schedule-refresh-button:hover:not(:disabled),
+    #zhs-btn-open-login-inline:hover:not(:disabled),
+    #calendar-subscription-create:hover:not(:disabled),
+    #project-new-button:hover:not(:disabled),
+    .btn-primary:focus-visible:not(:disabled),
+    .btn-accent:focus-visible:not(:disabled),
+    .btn-submit:focus-visible:not(:disabled),
+    .btn-auth-primary:focus-visible:not(:disabled),
+    .project-button-primary:focus-visible:not(:disabled),
+    .project-next-action-btn-complete:focus-visible:not(:disabled),
+    .btn-schedule-primary:focus-visible:not(:disabled),
+    .calendar-panel-primary:focus-visible:not(:disabled),
+    .connection-primary-action:focus-visible:not(:disabled),
+    .subtask-add-btn:focus-visible:not(:disabled),
+    .card.enter-main-card .add-todo-form button:not(.btn-wide):not(.btn-primary):not(.btn-secondary):not(.btn-accent):not(.btn-submit):focus-visible:not(:disabled),
+    #btn-add-schedule-item:focus-visible:not(:disabled),
+    #schedule-refresh-button:focus-visible:not(:disabled),
+    #zhs-btn-open-login-inline:focus-visible:not(:disabled),
+    #calendar-subscription-create:focus-visible:not(:disabled),
+    #project-new-button:focus-visible:not(:disabled) {
+      background: #edf4ff !important;
+      outline: none !important;
+      box-shadow: none !important;
+      transform: none !important;
+    }
+
+    .btn-primary:disabled,
+    .btn-accent:disabled,
+    .btn-submit:disabled,
+    .btn-auth-primary:disabled,
+    .project-button-primary:disabled,
+    .project-next-action-btn-complete:disabled,
+    .btn-schedule-primary:disabled,
+    .calendar-panel-primary:disabled,
+    .connection-primary-action:disabled,
+    .subtask-add-btn:disabled,
+    .card.enter-main-card .add-todo-form button:not(.btn-wide):not(.btn-primary):not(.btn-secondary):not(.btn-accent):not(.btn-submit):disabled,
+    #btn-add-schedule-item:disabled,
+    #schedule-refresh-button:disabled,
+    #zhs-btn-open-login-inline:disabled,
+    #calendar-subscription-create:disabled,
+    #project-new-button:disabled {
+      cursor: wait !important;
+      opacity: .55 !important;
+      transform: none !important;
+    }
+
     /* v103 overview content and project task cards */
     .project-overview-main {
       gap: 9px !important;
@@ -7194,4 +7287,38 @@ a:hover { color: var(--accent-hover); }
     overflow-y: auto;
     overscroll-behavior: contain;
   }
+}
+
+/* Final project-page override: these rules must follow the project-specific theme layer. */
+#dashboard-view-projects .project-button-primary,
+#dashboard-view-projects .project-next-action-btn-complete,
+#dashboard-view-projects .project-group-add-task-btn {
+  min-height: 36px !important;
+  padding: 0 12px !important;
+  border: 1px solid #cbdcf6 !important;
+  border-radius: 6px !important;
+  background: #fff !important;
+  color: #3a5985 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease !important;
+}
+
+#dashboard-view-projects .project-button-primary:hover:not(:disabled),
+#dashboard-view-projects .project-next-action-btn-complete:hover:not(:disabled),
+#dashboard-view-projects .project-group-add-task-btn:hover:not(:disabled),
+#dashboard-view-projects .project-button-primary:focus-visible:not(:disabled),
+#dashboard-view-projects .project-next-action-btn-complete:focus-visible:not(:disabled),
+#dashboard-view-projects .project-group-add-task-btn:focus-visible:not(:disabled) {
+  background: #edf4ff !important;
+  outline: none !important;
+}
+
+#dashboard-view-projects .project-button-primary:disabled,
+#dashboard-view-projects .project-next-action-btn-complete:disabled,
+#dashboard-view-projects .project-group-add-task-btn:disabled {
+  cursor: wait !important;
+  opacity: .55 !important;
 }
