@@ -281,35 +281,35 @@
         <h1>连接与同步</h1>
         <p>统一管理学习平台账号，并查看当前连接状态与详细配置。</p>
       </div>
-      <button type="button" class="console-secondary-button" id="connections-refresh-button" onclick="refreshPlatformConnections()">刷新状态</button>
+      <button type="button" class="console-secondary-button action-button" id="connections-refresh-button" data-od-id="connections-refresh-all" aria-busy="false" onclick="refreshPlatformConnections()">刷新全部状态</button>
     </div>
-    <p class="console-manager-status connections-manager-status" id="connections-manager-status" role="status">平台状态会随待办同步自动更新。</p>
+    <p class="console-manager-status connections-manager-status" id="connections-manager-status" data-od-id="connections-status" role="status" aria-live="polite">平台状态会随待办同步自动更新。</p>
 
     <div class="connections-layout">
       <section class="connections-list-panel" aria-labelledby="connections-status-heading">
         <h2 class="connections-panel-title" id="connections-status-heading">登录状态</h2>
 
-        <div class="login-cards connection-platform-list" id="login-cards">
-          <a href="javascript:void(0)" class="login-card" data-platform="canvas" onclick="selectConnectionPlatform('canvas')">
+        <div class="login-cards connection-platform-list" id="login-cards" role="group" aria-label="选择学习平台">
+          <button type="button" class="login-card" data-od-id="connection-platform-canvas" data-platform="canvas" aria-pressed="true" aria-controls="detail-canvas" onclick="selectConnectionPlatform('canvas')">
             <span class="login-card-title">Canvas</span>
             <span class="login-card-status" id="card-status-canvas">检查中...</span>
-          </a>
-          <a href="javascript:void(0)" class="login-card" data-platform="haoke" onclick="selectConnectionPlatform('haoke')">
+          </button>
+          <button type="button" class="login-card" data-od-id="connection-platform-haoke" data-platform="haoke" aria-pressed="false" aria-controls="detail-haoke" onclick="selectConnectionPlatform('haoke')">
             <span class="login-card-title">好课</span>
             <span class="login-card-status" id="card-status-haoke">检查中...</span>
-          </a>
-          <a href="javascript:void(0)" class="login-card" data-platform="zhixuemeng" onclick="selectConnectionPlatform('zhixuemeng')">
+          </button>
+          <button type="button" class="login-card" data-od-id="connection-platform-zhixuemeng" data-platform="zhixuemeng" aria-pressed="false" aria-controls="detail-zhixuemeng" onclick="selectConnectionPlatform('zhixuemeng')">
             <span class="login-card-title">智学盟</span>
             <span class="login-card-status" id="card-status-zhixuemeng">检查中...</span>
-          </a>
-          <a href="javascript:void(0)" class="login-card" data-platform="zhihuishu" onclick="selectConnectionPlatform('zhihuishu')">
+          </button>
+          <button type="button" class="login-card" data-od-id="connection-platform-zhihuishu" data-platform="zhihuishu" aria-pressed="false" aria-controls="detail-zhihuishu" onclick="selectConnectionPlatform('zhihuishu')">
             <span class="login-card-title">智慧树</span>
             <span class="login-card-status" id="card-status-zhihuishu">检查中...</span>
-          </a>
+          </button>
         </div>
       </section>
 
-      <section class="connections-detail-panel" id="connections-detail-panel" aria-live="polite">
+      <section class="connections-detail-panel" id="connections-detail-panel" data-od-id="connection-detail" aria-live="polite" aria-busy="false">
       
       <!-- Canvas Details -->
       <div class="connection-detail-section" id="detail-canvas" style="display: none;">
@@ -328,8 +328,9 @@
         <div class="detail-section-title">连接配置</div>
         <div class="detail-content-box">
           <form class="connection-form connection-form-inline" id="canvas-setup-form-inline">
+            <label class="connection-field-label" for="feed-url-input-inline">Canvas 日历馈送 URL</label>
             <input type="url" id="feed-url-input-inline" placeholder="粘贴日历馈送 URL（.ics）..." autocomplete="off">
-            <button type="submit" class="connection-primary-action">保存配置</button>
+            <button type="submit" class="connection-primary-action action-button" data-od-id="canvas-save-config">保存配置</button>
           </form>
           <div class="error-banner connection-error hidden" id="canvas-error-inline"></div>
           <p class="setup-hint connection-setup-hint">
@@ -356,9 +357,11 @@
         <div class="detail-section-title">连接配置</div>
         <div class="detail-content-box">
           <form class="connection-form" id="haoke-setup-form-inline">
-            <input type="text" id="haoke-username-inline" placeholder="学号" autocomplete="off">
-            <input type="password" id="haoke-password-inline" placeholder="密码" autocomplete="off">
-            <button type="submit" class="connection-primary-action btn-wide">保存并登录</button>
+            <label class="connection-field-label" for="haoke-username-inline">好课学号</label>
+            <input type="text" id="haoke-username-inline" placeholder="学号" autocomplete="username">
+            <label class="connection-field-label" for="haoke-password-inline">好课密码</label>
+            <input type="password" id="haoke-password-inline" placeholder="密码" autocomplete="current-password">
+            <button type="submit" class="connection-primary-action btn-wide action-button" data-od-id="haoke-save-login">保存并登录</button>
           </form>
           <div class="error-banner connection-error hidden" id="haoke-error-inline"></div>
           <p class="setup-hint connection-setup-hint">
@@ -384,36 +387,40 @@
         <div class="detail-section-title">连接配置</div>
         <div class="detail-content-box">
           <!-- Logged in state -->
-          <div id="zxm-logged-in-inline" class="hidden" style="display: flex; flex-direction: column; gap: 12px;">
+          <div id="zxm-logged-in-inline" class="hidden connection-stack">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 14px; font-weight: 500; color: #10b981;">已登录</span>
-              <button type="button" onclick="logoutZhixuemengInline()" class="btn-sm btn-wide" style="width: auto; background: #fecaca; color: #b91c1c; border: 1px solid #fca5a5;">登出</button>
+              <span class="connection-state-connected">已登录</span>
+              <button type="button" onclick="logoutZhixuemengInline()" class="btn-sm btn-wide connection-danger-quiet action-button" data-od-id="zhixuemeng-logout">登出</button>
             </div>
             <div class="form-group">
-              <label for="zxm-course-select-inline" style="font-size: 12px; font-weight: 500; margin-bottom: 4px; display: block; color: var(--shell-muted);">选择课程</label>
-              <select id="zxm-course-select-inline" onchange="changeZhixuemengCourseInline()" class="logged-in-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--shell-border); background: #fff;"></select>
+              <label for="zxm-course-select-inline" class="connection-field-label">选择课程</label>
+              <select id="zxm-course-select-inline" onchange="changeZhixuemengCourseInline()" class="logged-in-select"></select>
             </div>
           </div>
 
           <!-- Setup state -->
-          <div id="zxm-setup-inline" class="hidden" style="display: flex; flex-direction: column; gap: 12px;">
+          <div id="zxm-setup-inline" class="hidden connection-stack">
             <p class="setup-hint connection-setup-hint">请输入智学盟平台的手机号和验证码登录：</p>
             <div class="connection-form connection-form-inline">
-              <input type="tel" id="zxm-phone-inline" placeholder="手机号" autocomplete="off">
-              <button type="button" id="zxm-send-sms-btn-inline" onclick="sendZhixuemengSmsInline()" class="btn-auth-secondary">发送验证码</button>
+              <label class="connection-field-label" for="zxm-phone-inline">智学盟手机号</label>
+              <input type="tel" id="zxm-phone-inline" placeholder="手机号" autocomplete="tel">
+              <button type="button" id="zxm-send-sms-btn-inline" data-od-id="zhixuemeng-send-code" onclick="sendZhixuemengSmsInline()" class="btn-auth-secondary action-button">发送验证码</button>
             </div>
             <div class="connection-form connection-form-inline">
-              <input type="text" id="zxm-captcha-inline" placeholder="验证码" autocomplete="off">
-              <button type="button" onclick="doZhixuemengLoginInline()" class="connection-primary-action">登录</button>
+              <label class="connection-field-label" for="zxm-captcha-inline">短信验证码</label>
+              <input type="text" id="zxm-captcha-inline" placeholder="验证码" autocomplete="one-time-code">
+              <button type="button" data-od-id="zhixuemeng-code-login" onclick="doZhixuemengLoginInline()" class="connection-primary-action action-button">登录</button>
             </div>
             <div class="form-note" style="text-align: right; margin-top: 4px;">
-              <a href="#" onclick="showZxmPasswordLoginInline();return false;" style="font-size: 12px; color: var(--sidebar-blue);">使用密码登录</a>
+              <button type="button" class="connection-text-button" data-od-id="zhixuemeng-password-toggle" onclick="showZxmPasswordLoginInline()">使用密码登录</button>
             </div>
             <div id="zxm-password-login-inline" class="hidden" style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px; border-top: 1px dashed var(--shell-border-soft); padding-top: 12px;">
               <form id="zxm-pwd-form-inline" style="display: flex; flex-direction: column; gap: 8px;">
-                <input type="text" id="zxm-username-inline" placeholder="用户名" autocomplete="off" style="width: 100%;">
-                <input type="password" id="zxm-password-inline" placeholder="密码" autocomplete="off" style="width: 100%;">
-                <button type="submit" class="btn-primary btn-wide" style="width: 100%;">登录</button>
+                <label class="connection-field-label" for="zxm-username-inline">智学盟用户名</label>
+                <input type="text" id="zxm-username-inline" placeholder="用户名" autocomplete="username" style="width: 100%;">
+                <label class="connection-field-label" for="zxm-password-inline">智学盟密码</label>
+                <input type="password" id="zxm-password-inline" placeholder="密码" autocomplete="current-password" style="width: 100%;">
+                <button type="submit" class="btn-primary btn-wide action-button" data-od-id="zhixuemeng-password-login" style="width: 100%;">登录</button>
               </form>
             </div>
           </div>
@@ -431,7 +438,7 @@
               <span class="status-badge" id="detail-status-badge-zhihuishu">检查中...</span>
             </div>
           </div>
-          <button class="btn-refresh" type="button" onclick="loadZhihuishuStatusInline()" title="刷新" style="padding: 6px 10px; border-radius: 6px; font-size: 14px;">&#x21bb;</button>
+          <button class="btn-refresh action-button" type="button" data-od-id="zhihuishu-refresh-status" onclick="loadZhihuishuStatusInline()" title="刷新智慧树连接状态" aria-label="刷新智慧树连接状态">&#x21bb;</button>
         </div>
 
         <div class="detail-section-title">数据说明</div>
@@ -451,9 +458,9 @@
         <div class="detail-section-title">操作</div>
         <div class="detail-content-box" style="margin-bottom: 0;">
           <div class="zhihuishu-login-actions" style="display: flex; flex-direction: column; gap: 10px;">
-            <button class="btn-primary btn-wide" type="button" id="zhs-btn-open-login-inline" onclick="openZhihuishuLoginSessionInline()" style="width: 100%;">打开智慧树登录窗口</button>
-            <button class="btn-secondary btn-wide" type="button" id="zhs-btn-complete-login-inline" onclick="completeZhihuishuLoginSessionInline()" style="width: 100%;" disabled>我已完成登录</button>
-            <button class="btn-secondary btn-wide" type="button" id="zhs-btn-cancel-login-inline" onclick="cancelZhihuishuLoginSessionInline()" style="width: 100%; color: var(--danger); background: #fff; border: 1px solid var(--shell-border);" disabled>取消当前登录会话</button>
+            <button class="btn-primary btn-wide action-button" type="button" id="zhs-btn-open-login-inline" data-od-id="zhihuishu-open-login" onclick="openZhihuishuLoginSessionInline()" style="width: 100%;">打开智慧树登录窗口</button>
+            <button class="btn-secondary btn-wide action-button" type="button" id="zhs-btn-complete-login-inline" data-od-id="zhihuishu-complete-login" onclick="completeZhihuishuLoginSessionInline()" style="width: 100%;" disabled>我已完成登录</button>
+            <button class="btn-secondary btn-wide connection-danger-quiet action-button" type="button" id="zhs-btn-cancel-login-inline" data-od-id="zhihuishu-cancel-login" onclick="cancelZhihuishuLoginSessionInline()" style="width: 100%;" disabled>取消当前登录会话</button>
           </div>
           <div class="login-session-message" id="zhs-login-session-message-inline" style="margin-top: 12px; font-size: 12px; line-height: 1.5;"></div>
         </div>
@@ -469,30 +476,52 @@
   <div class="card console-manager-card calendar-subscription-card" id="calendar-subscription-card">
     <div class="console-manager-heading">
       <div>
-        <span class="placeholder-kicker">CALENDAR SUBSCRIPTION</span>
-        <h1 id="calendar-subscription-title">Apple Calendar 订阅</h1>
-        <p>把未完成且带日期的任务和日程订阅到 Apple 日历。</p>
+        <span class="placeholder-kicker">日历订阅</span>
+        <h1 id="calendar-subscription-title">Apple Calendar</h1>
+        <p>将带日期的未完成任务和日程，以只读订阅方式同步到 Apple 日历。</p>
       </div>
       <span class="calendar-privacy-badge">私密链接</span>
     </div>
 
-    <section class="calendar-subscription-workspace" aria-labelledby="calendar-subscription-link-heading">
-      <div class="calendar-subscription-copy">
-        <span class="manager-section-index">SUBSCRIPTION URL</span>
-        <h2 id="calendar-subscription-link-heading">订阅地址</h2>
-        <p>链接等同于访问凭证，请勿转发。重新生成会立即使旧链接失效。</p>
-      </div>
-      <div class="calendar-subscription-url">
-        <input type="text" id="calendar-subscription-url" readonly aria-label="私有日历订阅地址" placeholder="生成后将在这里显示私密订阅链接">
-      </div>
-      <div class="calendar-subscription-actions">
-        <button type="button" class="calendar-panel-primary" id="calendar-subscription-create" onclick="createCalendarSubscription()">生成订阅链接</button>
-        <button type="button" id="calendar-subscription-open" onclick="openCalendarSubscription()" disabled>在日历中打开</button>
-        <button type="button" id="calendar-subscription-copy" onclick="copyCalendarSubscription()" disabled>复制链接</button>
-        <button type="button" class="calendar-panel-revoke" id="calendar-subscription-revoke" onclick="revokeCalendarSubscription()" disabled>撤销链接</button>
-      </div>
-      <p class="calendar-subscription-status" id="calendar-subscription-status" role="status">生成后可复制链接或直接在日历中打开。</p>
-    </section>
+    <div class="calendar-subscription-layout">
+      <section class="calendar-guide" aria-labelledby="calendar-guide-title">
+        <h2 id="calendar-guide-title">三步完成订阅</h2>
+        <p>订阅会持续更新，无需重复导入；撤销链接后，旧地址将立即失效。</p>
+        <ol class="calendar-step-list">
+          <li class="calendar-step">
+            <span class="calendar-step-index">1</span>
+            <div><strong>生成私密链接</strong><p>链接只属于当前账号，请勿公开分享。</p></div>
+          </li>
+          <li class="calendar-step">
+            <span class="calendar-step-index">2</span>
+            <div><strong>添加到 Apple 日历</strong><p>可直接打开，也可复制后手动订阅。</p></div>
+          </li>
+          <li class="calendar-step">
+            <span class="calendar-step-index">3</span>
+            <div><strong>按需撤销访问</strong><p>重新生成或撤销后，旧链接不再可用。</p></div>
+          </li>
+        </ol>
+      </section>
+
+      <section class="calendar-subscription-workspace" aria-labelledby="calendar-subscription-link-heading">
+        <div class="calendar-subscription-copy">
+          <span class="manager-section-index">订阅链接</span>
+          <h2 id="calendar-subscription-link-heading">当前私密地址</h2>
+          <p>该地址等同于访问凭证。重新生成会立即使旧链接失效。</p>
+        </div>
+        <div class="calendar-subscription-url">
+          <label class="settings-field-label" for="calendar-subscription-url">私密订阅地址</label>
+          <input type="text" id="calendar-subscription-url" readonly aria-describedby="calendar-subscription-status" placeholder="尚未生成订阅链接">
+        </div>
+        <div class="calendar-subscription-actions">
+          <button type="button" class="calendar-panel-primary console-stateful-button" id="calendar-subscription-create" aria-busy="false" onclick="createCalendarSubscription()">生成订阅链接</button>
+          <button type="button" id="calendar-subscription-open" onclick="openCalendarSubscription()" disabled>在日历中打开</button>
+          <button type="button" class="console-stateful-button" id="calendar-subscription-copy" aria-busy="false" onclick="copyCalendarSubscription()" disabled>复制链接</button>
+          <button type="button" class="calendar-panel-revoke console-stateful-button" id="calendar-subscription-revoke" aria-busy="false" onclick="revokeCalendarSubscription()" disabled>撤销链接</button>
+        </div>
+        <p class="calendar-subscription-status" id="calendar-subscription-status" role="status" aria-live="polite">生成链接后，可直接添加到 Apple 日历。</p>
+      </section>
+    </div>
   </div>
 </section>
 {% endif %}
@@ -501,64 +530,233 @@
   <div class="card console-manager-card settings-manager-card">
     <div class="console-manager-heading">
       <div>
-        <span class="placeholder-kicker">PREFERENCES</span>
+        <span class="placeholder-kicker">设置中心</span>
         <h1>偏好设置</h1>
-        <p>集中查看当前账号与控制台功能边界。</p>
+        <p>优先管理登录安全与账户生命周期；同步说明和数据边界作为参考信息列在后面。</p>
       </div>
     </div>
     <div class="settings-summary-grid">
-      <section class="settings-summary-card">
-        <span class="manager-section-index">ACCOUNT</span>
-        <h2>当前账号</h2>
-        <p class="settings-account-name">{{ username }}</p>
-        <p>平台连接按此站点账号隔离保存。</p>
-      </section>
-      <section class="settings-summary-card">
-        <span class="manager-section-index">ORGANIZATION</span>
-        <h2>功能入口</h2>
-        <p>学习平台统一在“连接与同步”管理；Apple Calendar 使用独立入口。</p>
-      </section>
-      <section class="settings-summary-card settings-data-security">
-        <span class="manager-section-index">DATA &amp; SECURITY</span>
-        <h2>数据与安全</h2>
-        <p>平台凭据会加密存储，仅用于同步学习信息。</p>
-        <p>由于网站由个人维护，网站运行者在服务器维护过程中，理论上具备接触账户数据、平台凭据和学习信息的技术权限。请仅在你信任网站运行者的情况下连接平台。</p>
-        <p>Apple Calendar 订阅链接等同于访问凭证，任何获得链接的人都可能读取其中导出的任务标题和截止时间。</p>
-      </section>
-      <section class="settings-summary-card settings-session-security">
-        <span class="manager-section-index">ACCOUNT SECURITY</span>
-        <h2>账户安全</h2>
-        <p>连续 30 天未访问网站后，登录状态会自动失效。</p>
-        <p>如果你曾在公共电脑或其他设备上登录，可以退出其他设备。</p>
-        <div class="session-revoke-row"><input id="revoke-sessions-password" type="password" autocomplete="current-password" placeholder="当前网站密码" aria-label="当前网站密码"><button type="button" class="btn-secondary" onclick="revokeOtherSessions()">退出其他设备</button></div>
-        <p id="revoke-sessions-status" class="calendar-subscription-status" role="status"></p>
-      </section>
-      <section class="settings-summary-card settings-danger-zone">
-        <span class="manager-section-index">DATA &amp; ACCOUNT</span>
-        <h2>永久删除账户</h2>
-        <p>将删除网站账号、平台连接、缓存、日历订阅、自定义待办、项目、课表与排程。历史加密备份中的副本会按备份轮换到期。</p>
-        <div class="account-delete-warning" role="note">
-          <span aria-hidden="true">!</span>
-          <p>此操作不可撤销。请先完成两步确认，避免误删当前账号。</p>
+      <section class="settings-summary-card settings-session-security" aria-labelledby="settings-security-title">
+        <div class="settings-section-heading">
+          <span class="manager-section-index">登录安全</span>
+          <h2 id="settings-security-title">账户安全</h2>
         </div>
-        <form class="account-delete-form" onsubmit="event.preventDefault(); deleteCurrentAccount();">
-          <label class="account-delete-field" for="account-delete-password">
-            <span><b>1</b> 当前网站密码</span>
-            <input id="account-delete-password" type="password" autocomplete="current-password" placeholder="输入当前密码" oninput="syncDeleteAccountForm()">
-          </label>
-          <label class="account-delete-field" for="account-delete-confirmation">
-            <span><b>2</b> 确认文字 <em>永久删除</em></span>
-            <input id="account-delete-confirmation" autocomplete="off" placeholder="永久删除" oninput="syncDeleteAccountForm()">
-          </label>
-          <div class="account-delete-action-row">
-            <p id="account-delete-status" class="calendar-subscription-status" role="status">完成两项确认后，才能永久删除账户。</p>
-            <button type="submit" class="settings-danger-button" disabled>永久删除账户</button>
+        <div class="settings-section-content">
+          <p>连续 30 天未访问网站后，登录状态会自动失效。</p>
+          <p id="revoke-sessions-help">如果你曾在公共电脑或其他设备上登录，可验证当前密码后退出其他设备。</p>
+          <label class="settings-field-label" for="revoke-sessions-password">当前网站密码</label>
+          <div class="session-revoke-row">
+            <input id="revoke-sessions-password" type="password" autocomplete="current-password" placeholder="输入当前网站密码" aria-describedby="revoke-sessions-help revoke-sessions-status">
+            <button type="button" class="btn-secondary console-stateful-button" id="revoke-sessions-button" aria-busy="false" onclick="revokeOtherSessions()">退出其他设备</button>
           </div>
-        </form>
+          <p id="revoke-sessions-status" class="calendar-subscription-status" role="status" aria-live="polite"></p>
+        </div>
+      </section>
+      <section class="settings-summary-card settings-danger-zone" aria-labelledby="settings-delete-title">
+        <div class="settings-section-heading">
+          <span class="manager-section-index">数据与账号</span>
+          <h2 id="settings-delete-title">永久删除账户</h2>
+        </div>
+        <div class="settings-section-content">
+          <p>将删除网站账号、平台连接、缓存、日历订阅、自定义待办、项目、课表与排程。历史加密备份中的副本会按备份轮换到期。</p>
+          <div class="account-delete-warning" role="note">
+            <span aria-hidden="true">!</span>
+            <p>此操作不可撤销。请先完成两步确认，避免误删当前账号。</p>
+          </div>
+          <form class="account-delete-form" onsubmit="event.preventDefault(); deleteCurrentAccount();">
+            <label class="account-delete-field" for="account-delete-password">
+              <span><b>1</b> 当前网站密码</span>
+              <input id="account-delete-password" type="password" autocomplete="current-password" placeholder="输入当前密码" aria-describedby="account-delete-status" oninput="syncDeleteAccountForm()">
+            </label>
+            <label class="account-delete-field" for="account-delete-confirmation">
+              <span><b>2</b> 确认文字 <em>永久删除</em></span>
+              <input id="account-delete-confirmation" autocomplete="off" placeholder="永久删除" aria-describedby="account-delete-status" oninput="syncDeleteAccountForm()">
+            </label>
+            <div class="account-delete-action-row">
+              <p id="account-delete-status" class="calendar-subscription-status" role="status" aria-live="polite">完成两项确认后，才能永久删除账户。</p>
+              <button type="submit" class="settings-danger-button console-stateful-button" aria-busy="false" disabled>永久删除账户</button>
+            </div>
+          </form>
+        </div>
+      </section>
+      <div class="settings-secondary-divider" role="presentation">其他信息</div>
+      <section class="settings-summary-card" aria-labelledby="settings-account-title">
+        <div class="settings-section-heading"><span class="manager-section-index">账号</span><h2 id="settings-account-title">当前账号</h2></div>
+        <div class="settings-section-content"><p class="settings-account-name">{{ username }}</p><p>平台连接、同步数据与日历订阅均按此站点账号隔离保存。</p></div>
+      </section>
+      <section class="settings-summary-card" aria-labelledby="settings-subscription-title">
+        <div class="settings-section-heading"><span class="manager-section-index">功能入口</span><h2 id="settings-subscription-title">同步与订阅</h2></div>
+        <div class="settings-section-content"><p>学习平台统一在侧栏“连接与同步”中管理；日历订阅使用独立的“Apple Calendar”入口。</p></div>
+      </section>
+      <section class="settings-summary-card settings-data-security" aria-labelledby="settings-data-title">
+        <div class="settings-section-heading"><span class="manager-section-index">数据边界</span><h2 id="settings-data-title">数据与安全</h2></div>
+        <div class="settings-section-content"><p>平台凭据会加密存储，仅用于同步学习信息。</p><p>由于网站由个人维护，网站运行者在服务器维护过程中，理论上具备接触账户数据、平台凭据和学习信息的技术权限。请仅在你信任网站运行者的情况下连接平台。</p><p>Apple Calendar 订阅链接等同于访问凭证，任何获得链接的人都可能读取其中导出的任务标题和截止时间。</p></div>
       </section>
     </div>
   </div>
 </section>
+
+<style>
+  #dashboard-view-connections .connections-manager-card,
+  #dashboard-view-calendar .calendar-subscription-card,
+  #dashboard-view-settings .settings-manager-card { background: var(--card-bg); border: 1px solid var(--shell-border); box-shadow: none; }
+  #dashboard-view-connections .console-manager-heading,
+  #dashboard-view-calendar .console-manager-heading,
+  #dashboard-view-settings .console-manager-heading { align-items: end; gap: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--shell-border-soft); }
+  #dashboard-view-connections h1, #dashboard-view-calendar h1, #dashboard-view-settings h1 { font-family: "Noto Serif SC", var(--font-display), serif; font-size: clamp(28px, 2.35vw, 32px); font-weight: 500; letter-spacing: -0.02em; }
+  #dashboard-view-connections .console-manager-heading p, #dashboard-view-calendar .console-manager-heading p, #dashboard-view-settings .console-manager-heading p, #dashboard-view-settings .settings-summary-card p { max-width: 68ch; }
+  #dashboard-view-connections .manager-section-index, #dashboard-view-calendar .manager-section-index, #dashboard-view-settings .manager-section-index, #dashboard-view-connections .placeholder-kicker, #dashboard-view-calendar .placeholder-kicker, #dashboard-view-settings .placeholder-kicker { letter-spacing: 0.09em; }
+  #dashboard-view-connections .action-button, #dashboard-view-calendar .action-button, #dashboard-view-settings .action-button { letter-spacing: 0.02em; transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease; }
+  #dashboard-view-connections .action-button:focus-visible, #dashboard-view-calendar .action-button:focus-visible, #dashboard-view-settings .action-button:focus-visible, #dashboard-view-connections input:focus-visible, #dashboard-view-connections select:focus-visible, #dashboard-view-calendar input:focus-visible, #dashboard-view-settings input:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 72%, transparent); outline-offset: 2px; }
+  #dashboard-view-connections .action-button:active:not(:disabled), #dashboard-view-calendar .action-button:active:not(:disabled), #dashboard-view-settings .action-button:active:not(:disabled) { transform: translateY(1px); }
+  #dashboard-view-connections .action-button:disabled, #dashboard-view-calendar .action-button:disabled, #dashboard-view-settings .action-button:disabled { cursor: not-allowed; opacity: 0.55; }
+  #dashboard-view-connections .action-button[aria-busy="true"], #dashboard-view-calendar .action-button[aria-busy="true"], #dashboard-view-settings .action-button[aria-busy="true"] { cursor: wait; }
+  #dashboard-view-connections .connections-layout { display: grid; grid-template-columns: minmax(250px, .72fr) minmax(0, 1.65fr); gap: 0; border: 1px solid var(--shell-border-soft); border-radius: calc(var(--shell-radius) - 2px); overflow: hidden; }
+  #dashboard-view-connections .connections-list-panel, #dashboard-view-connections .connections-detail-panel { min-width: 0; background: var(--card-bg); }
+  #dashboard-view-connections .connections-list-panel { padding: 22px; border-right: 1px solid var(--shell-border-soft); }
+  #dashboard-view-connections .connections-detail-panel { padding: 28px; }
+  #dashboard-view-connections .connection-platform-list { gap: 4px; }
+  #dashboard-view-connections .login-card { display: flex; width: 100%; min-height: 56px; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--shell-ink); cursor: pointer; font: inherit; text-align: left; transition: background-color 150ms ease, border-color 150ms ease; }
+  #dashboard-view-connections .login-card:hover { background: color-mix(in srgb, var(--accent-subtle) 56%, transparent); }
+  #dashboard-view-connections .login-card.is-selected, #dashboard-view-connections .login-card[aria-pressed="true"] { border-color: color-mix(in srgb, var(--accent) 28%, var(--shell-border)); background: var(--accent-subtle); }
+  #dashboard-view-connections .login-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #dashboard-view-connections .login-card-status, #dashboard-view-connections .status-badge { font-size: 12px; letter-spacing: .04em; }
+  #dashboard-view-connections .login-card-status.connected, #dashboard-view-connections .status-badge.connected, #dashboard-view-connections .connection-state-connected { color: color-mix(in srgb, var(--accent) 62%, var(--text)); }
+  #dashboard-view-connections .login-card-status.attention, #dashboard-view-connections .status-badge.attention { color: var(--warning); }
+  #dashboard-view-connections .connection-detail-section { max-width: 740px; }
+  #dashboard-view-connections .detail-section-title { margin-top: 28px; padding-bottom: 8px; border-bottom: 1px solid var(--shell-border-soft); letter-spacing: .08em; }
+  #dashboard-view-connections .detail-content-box { box-shadow: none; }
+  #dashboard-view-connections .connection-field-label, #dashboard-view-calendar .calendar-subscription-url label, #dashboard-view-settings .session-revoke-row label { display: block; margin-bottom: 7px; color: var(--shell-muted); font-size: 12px; font-weight: 600; letter-spacing: .04em; }
+  #dashboard-view-connections .connection-form input, #dashboard-view-connections .logged-in-select, #dashboard-view-calendar .calendar-subscription-url input, #dashboard-view-settings .session-revoke-row input { min-height: 44px; background: var(--card-bg); border-color: var(--shell-border); }
+  #dashboard-view-connections .connection-stack { display: flex; flex-direction: column; gap: 12px; }
+  #dashboard-view-connections .connection-state-connected { font-size: 14px; font-weight: 600; }
+  #dashboard-view-connections .connection-danger-quiet { border-color: color-mix(in srgb, var(--danger) 34%, var(--shell-border)) !important; background: color-mix(in srgb, var(--danger-bg) 68%, var(--card-bg)) !important; color: var(--danger) !important; }
+  #dashboard-view-connections .connection-text-button { min-height: 44px; border: 0; background: transparent; color: var(--accent); cursor: pointer; font: inherit; font-size: 12px; letter-spacing: .02em; }
+  #dashboard-view-connections .connection-text-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #dashboard-view-calendar .calendar-subscription-workspace { display: grid; grid-template-columns: minmax(260px, .9fr) minmax(360px, 1.1fr); gap: 0; margin-top: 28px; border: 1px solid var(--shell-border-soft); border-radius: calc(var(--shell-radius) - 2px); overflow: hidden; }
+  #dashboard-view-calendar .calendar-subscription-copy, #dashboard-view-calendar .calendar-subscription-credential { min-width: 0; padding: 28px; }
+  #dashboard-view-calendar .calendar-subscription-copy { background: color-mix(in srgb, var(--bg) 56%, var(--card-bg)); border-right: 1px solid var(--shell-border-soft); }
+  #dashboard-view-calendar .calendar-subscription-steps { display: grid; gap: 18px; padding: 0; margin: 24px 0; list-style: none; counter-reset: calendar-steps; }
+  #dashboard-view-calendar .calendar-subscription-steps li { display: grid; grid-template-columns: 28px 1fr; column-gap: 10px; }
+  #dashboard-view-calendar .calendar-subscription-steps li::before { content: counter(calendar-steps); counter-increment: calendar-steps; display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--shell-border); border-radius: 50%; color: var(--accent); font-size: 12px; }
+  #dashboard-view-calendar .calendar-subscription-steps strong, #dashboard-view-calendar .calendar-subscription-steps span { grid-column: 2; }
+  #dashboard-view-calendar .calendar-subscription-steps span, #dashboard-view-calendar .calendar-privacy-note, #dashboard-view-calendar .calendar-subscription-empty { color: var(--shell-muted); font-size: 13px; line-height: 1.6; }
+  #dashboard-view-calendar .calendar-subscription-url { margin-top: 22px; }
+  #dashboard-view-calendar .calendar-subscription-url input { width: 100%; color: var(--shell-ink); }
+  #dashboard-view-calendar .calendar-subscription-empty { margin: 12px 0 0; }
+  #dashboard-view-calendar .calendar-subscription-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 22px; }
+  #dashboard-view-calendar .calendar-subscription-actions button { width: 100%; }
+  #dashboard-view-calendar .calendar-subscription-status { min-height: 1.5em; margin: 14px 0 0; }
+  #dashboard-view-calendar .calendar-subscription-status.is-error, #dashboard-view-settings .calendar-subscription-status.is-error { color: var(--danger); }
+  #dashboard-view-settings .settings-summary-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; margin-top: 28px; }
+  #dashboard-view-settings .settings-summary-card { display: grid; grid-template-columns: minmax(170px, .38fr) minmax(0, 1fr); column-gap: 28px; align-items: start; padding: 28px 0; border-bottom: 1px solid var(--shell-border-soft); box-shadow: none; background: transparent; }
+  #dashboard-view-settings .settings-summary-card .manager-section-index { grid-column: 1; grid-row: 1; }
+  #dashboard-view-settings .settings-summary-card h2 { grid-column: 2; margin: 0; }
+  #dashboard-view-settings .settings-summary-card > p, #dashboard-view-settings .settings-summary-card > div, #dashboard-view-settings .settings-summary-card > form { grid-column: 2; }
+  #dashboard-view-settings .settings-summary-card > p { margin-top: 10px; }
+  #dashboard-view-settings .settings-reference-divider { display: flex; align-items: center; gap: 12px; padding: 28px 0 4px; color: var(--shell-muted); font-size: 12px; font-weight: 600; letter-spacing: .09em; }
+  #dashboard-view-settings .settings-reference-divider::after { content: ""; flex: 1; border-top: 1px solid var(--shell-border-soft); }
+  #dashboard-view-settings .session-revoke-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; margin-top: 18px; }
+  #dashboard-view-settings .settings-danger-zone { padding: 28px; margin: 0 -28px; background: color-mix(in srgb, var(--danger-bg) 56%, var(--card-bg)); border: 1px solid color-mix(in srgb, var(--danger) 18%, var(--shell-border)); border-radius: calc(var(--shell-radius) - 2px); }
+  #dashboard-view-settings .settings-danger-zone .account-delete-warning { background: color-mix(in srgb, var(--danger-bg) 78%, var(--card-bg)); border: 1px solid color-mix(in srgb, var(--danger) 18%, var(--shell-border)); box-shadow: none; }
+  #dashboard-view-settings .settings-danger-button { min-height: 44px; letter-spacing: .02em; }
+  @media (max-width: 1100px) { #dashboard-view-connections .connections-layout, #dashboard-view-calendar .calendar-subscription-workspace { grid-template-columns: 1fr; } #dashboard-view-connections .connections-list-panel, #dashboard-view-calendar .calendar-subscription-copy { border-right: 0; border-bottom: 1px solid var(--shell-border-soft); } }
+  @media (max-width: 768px) { #dashboard-view-connections .console-manager-heading, #dashboard-view-calendar .console-manager-heading, #dashboard-view-settings .console-manager-heading { align-items: stretch; } #dashboard-view-connections .connections-list-panel, #dashboard-view-connections .connections-detail-panel, #dashboard-view-calendar .calendar-subscription-copy, #dashboard-view-calendar .calendar-subscription-credential { padding: 20px; } #dashboard-view-calendar .calendar-subscription-actions, #dashboard-view-settings .session-revoke-row { grid-template-columns: 1fr; } #dashboard-view-settings .settings-summary-card { grid-template-columns: 1fr; row-gap: 8px; padding: 24px 0; } #dashboard-view-settings .settings-summary-card .manager-section-index, #dashboard-view-settings .settings-summary-card h2, #dashboard-view-settings .settings-summary-card > p, #dashboard-view-settings .settings-summary-card > div, #dashboard-view-settings .settings-summary-card > form { grid-column: 1; } #dashboard-view-settings .settings-danger-zone { padding: 20px; margin: 0 -20px; } }
+  @media (prefers-reduced-motion: reduce) { #dashboard-view-connections *, #dashboard-view-calendar *, #dashboard-view-settings * { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }
+
+  /* Apple Calendar and preferences layout from Canvas-Dashboard-v2.html. */
+  #dashboard-view-calendar .console-manager-card,
+  #dashboard-view-settings .console-manager-card { display: flex; min-height: calc(100vh - 64px); flex-direction: column; padding: 32px 36px !important; }
+  #dashboard-view-calendar .console-manager-heading,
+  #dashboard-view-settings .console-manager-heading { align-items: flex-end; padding-bottom: 22px; border-bottom: 1px solid var(--shell-border-soft); }
+  #dashboard-view-calendar .console-manager-heading h1,
+  #dashboard-view-settings .console-manager-heading h1 { margin-top: 6px; font-size: 32px; font-weight: 400; letter-spacing: -.02em; }
+  #dashboard-view-calendar .console-manager-heading p,
+  #dashboard-view-settings .console-manager-heading p { max-width: 64ch; margin-top: 8px; font-family: var(--font-sans); font-size: 13px; line-height: 1.65; }
+
+  #dashboard-view-connections .console-manager-card { display: flex; min-height: calc(100vh - 64px); flex-direction: column; padding: 32px 36px !important; }
+  #dashboard-view-connections .console-manager-heading { align-items: flex-end; padding-bottom: 22px; border-bottom: 1px solid var(--shell-border-soft); }
+  #dashboard-view-connections .console-manager-heading h1 { margin-top: 6px; font-size: 32px; font-weight: 400; letter-spacing: -.02em; }
+  #dashboard-view-connections .console-manager-heading p { max-width: 64ch; margin-top: 8px; font-family: var(--font-sans); font-size: 13px; line-height: 1.65; }
+  #dashboard-view-connections .connections-manager-status { margin: 14px 0 18px; color: var(--shell-muted); font-family: var(--font-sans); font-size: 11px; }
+  #dashboard-view-connections .connections-layout { min-height: 520px; grid-template-columns: 288px minmax(0, 1fr); margin-top: 0; border: 1px solid var(--shell-border); border-radius: 10px; }
+  #dashboard-view-connections .connections-list-panel,
+  #dashboard-view-connections .connections-detail-panel { border: 0; border-radius: 0; box-shadow: none; }
+  #dashboard-view-connections .connections-list-panel { padding: 18px; background: color-mix(in srgb, var(--shell-ink) 2.5%, var(--surface)); border-right: 1px solid var(--shell-border-soft); }
+  #dashboard-view-connections .connections-panel-title { margin: 0 0 12px; color: var(--shell-muted); font-family: var(--font-sans); font-size: 11px; font-weight: 650; letter-spacing: .06em; }
+  #dashboard-view-connections .connection-platform-list { gap: 6px; }
+  #dashboard-view-connections .connections-list-panel .login-card { min-height: 56px; padding: 10px 12px; background: transparent; border-color: transparent; border-radius: 7px; font: inherit; text-align: left; }
+  #dashboard-view-connections .connections-list-panel .login-card:hover { background: var(--surface); border-color: var(--shell-border); }
+  #dashboard-view-connections .connections-list-panel .login-card.is-selected { background: var(--surface); border-color: var(--shell-border); box-shadow: inset 3px 0 var(--shell-ink); }
+  #dashboard-view-connections .connections-list-panel .login-card-title { font-size: 14px; font-weight: 600; }
+  #dashboard-view-connections .connections-list-panel .login-card-status { min-width: 72px; font-size: 11px; }
+  #dashboard-view-connections .connections-detail-panel { padding: 26px 30px; background: var(--surface); }
+  #dashboard-view-connections .detail-platform-header { padding-bottom: 20px; }
+  #dashboard-view-connections .detail-platform-title { font-size: 24px; font-weight: 400; }
+  #dashboard-view-connections .detail-section-title { margin-top: 24px; color: var(--shell-muted); font-size: 10px; font-weight: 700; letter-spacing: .1em; }
+  #dashboard-view-connections .connection-data-note { max-width: 72ch; gap: 7px; font-size: 13px; }
+  #dashboard-view-connections .connection-form input,
+  #dashboard-view-connections .connection-form select,
+  #dashboard-view-settings .session-revoke-row input,
+  #dashboard-view-settings .account-delete-field input,
+  #dashboard-view-calendar .calendar-subscription-url input { min-height: 44px !important; background: var(--surface) !important; border-color: var(--shell-border) !important; box-shadow: none !important; }
+  #dashboard-view-connections .connection-form-inline button { height: 36px !important; min-height: 36px !important; }
+  #dashboard-view-connections .connection-form-inline .connection-field-label { grid-column: 1 / -1; }
+  #dashboard-view-connections .connection-data-actions { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--shell-border-soft); }
+
+  .calendar-subscription-layout { display: grid; grid-template-columns: minmax(220px, .72fr) minmax(440px, 1.28fr); gap: 28px; align-items: start; }
+  .calendar-guide { padding: 24px 4px 24px 0; }
+  .calendar-guide h2 { margin: 0; color: var(--shell-ink); font-family: var(--font-serif); font-size: 20px; font-weight: 400; }
+  .calendar-guide > p { margin: 8px 0 0; color: var(--shell-muted); font-size: 12px; line-height: 1.6; }
+  .calendar-step-list { display: grid; gap: 0; margin: 24px 0 0; padding: 0; list-style: none; }
+  .calendar-step { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; padding: 16px 0; border-top: 1px solid var(--shell-border-soft); }
+  .calendar-step-index { display: grid; width: 28px; height: 28px; place-items: center; color: var(--shell-muted); background: color-mix(in srgb, var(--shell-ink) 4%, var(--surface)); border: 1px solid var(--shell-border); border-radius: 50%; font-variant-numeric: tabular-nums; font-size: 11px; font-weight: 700; }
+  .calendar-step strong { display: block; color: var(--shell-ink); font-size: 13px; font-weight: 650; }
+  .calendar-step p { margin: 4px 0 0; color: var(--shell-muted); font-size: 11px; line-height: 1.55; }
+  #dashboard-view-calendar .calendar-privacy-badge { color: var(--shell-ink); background: color-mix(in srgb, var(--shell-ink) 4%, var(--surface)); border-color: var(--shell-border); border-radius: 4px; font-weight: 600; }
+  #dashboard-view-calendar .calendar-subscription-workspace { display: block; margin: 0; padding: 24px; background: var(--surface); border-color: var(--shell-border); border-radius: 10px; }
+  #dashboard-view-calendar .calendar-subscription-copy { padding: 0; background: transparent; border: 0; }
+  #dashboard-view-calendar .calendar-subscription-copy h2 { margin-top: 8px; font-family: var(--font-serif); font-size: 20px; font-weight: 400; }
+  #dashboard-view-calendar .calendar-subscription-url input { font-family: var(--font-number); font-size: 12px; }
+  #dashboard-view-calendar .calendar-subscription-actions { gap: 8px; }
+  #dashboard-view-calendar .calendar-subscription-actions button { letter-spacing: .02em; }
+  #dashboard-view-calendar .calendar-subscription-actions button:disabled { cursor: not-allowed; opacity: .48; }
+  #dashboard-view-calendar .calendar-subscription-status { padding-top: 12px; border-top: 1px solid var(--shell-border-soft); }
+
+  #dashboard-view-settings .settings-summary-grid { display: block; overflow: hidden; margin-top: 0; background: var(--surface); border: 1px solid var(--shell-border); border-radius: 10px; }
+  #dashboard-view-settings .settings-secondary-divider { padding: 11px 24px; color: var(--shell-muted); background: color-mix(in srgb, var(--shell-ink) 3%, var(--surface)); border-top: 1px solid var(--shell-border); border-bottom: 1px solid var(--shell-border-soft); font-size: 11px; font-weight: 650; letter-spacing: .06em; }
+  #dashboard-view-settings .settings-summary-card { display: grid; min-height: 0; grid-template-columns: 220px minmax(0, 1fr); gap: 28px; padding: 24px; background: transparent; border: 0; border-bottom: 1px solid var(--shell-border-soft); border-radius: 0; }
+  #dashboard-view-settings .settings-summary-card:last-child { border-bottom: 0; }
+  #dashboard-view-settings .settings-section-heading,
+  #dashboard-view-settings .settings-section-content { min-width: 0; }
+  #dashboard-view-settings .settings-section-heading h2 { margin: 8px 0 0; font-family: var(--font-sans); font-size: 14px; font-weight: 650; }
+  #dashboard-view-settings .settings-section-content > p:first-child { margin-top: 0; }
+  #dashboard-view-settings .settings-section-content p + p { margin-top: 10px; }
+  #dashboard-view-settings .settings-account-name { margin: 0 0 6px; font-family: var(--font-serif); font-size: 22px; font-weight: 400; }
+  #dashboard-view-settings .settings-danger-zone { margin: 0; background: color-mix(in srgb, var(--danger) 3%, var(--surface)); border-bottom-color: var(--danger-border); }
+  #dashboard-view-settings .account-delete-warning,
+  #dashboard-view-settings .account-delete-form { max-width: none; }
+  #dashboard-view-settings .settings-danger-button { min-height: 44px; letter-spacing: .02em; }
+  .settings-field-label { display: block; margin: 14px 0 7px; color: var(--shell-ink); font-size: 12px; font-weight: 650; letter-spacing: .01em; }
+  .console-stateful-button[aria-busy="true"] { cursor: wait; }
+  .console-stateful-button:disabled { transform: none !important; box-shadow: none !important; opacity: .62; }
+  .console-stateful-button[aria-busy="true"]::before { display: inline-block; width: 12px; height: 12px; margin-right: 7px; border: 1.5px solid color-mix(in srgb, currentColor 28%, transparent); border-top-color: currentColor; border-radius: 50%; content: ""; vertical-align: -2px; animation: console-control-spin .8s linear infinite; }
+  @keyframes console-control-spin { to { transform: rotate(360deg); } }
+  @media (max-width: 1100px) {
+    #dashboard-view-connections .connections-layout { grid-template-columns: minmax(0, 1fr); }
+    #dashboard-view-connections .connections-list-panel { border-right: 0; border-bottom: 1px solid var(--shell-border-soft); }
+    .calendar-subscription-layout { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 768px) {
+    #dashboard-view-calendar .console-manager-card,
+    #dashboard-view-settings .console-manager-card { padding: 22px 18px !important; }
+    #dashboard-view-calendar .console-manager-heading,
+    #dashboard-view-settings .console-manager-heading { align-items: flex-start; }
+    #dashboard-view-settings .settings-summary-card { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+    #dashboard-view-settings .account-delete-form { grid-template-columns: minmax(0, 1fr); }
+    #dashboard-view-settings .account-delete-action-row { grid-column: 1; align-items: stretch; flex-direction: column; }
+  }
+</style>
 
 <div class="project-modal-backdrop hidden" id="platform-data-confirm-modal">
   <div class="project-modal-card project-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="platform-data-confirm-title">

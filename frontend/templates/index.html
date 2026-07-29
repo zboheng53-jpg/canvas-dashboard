@@ -176,9 +176,14 @@
 
     function setCalendarSubscriptionStatus(message, isError = false) {
       const status = document.getElementById('calendar-subscription-status');
+      const error = document.getElementById('calendar-subscription-error');
       if (!status) return;
       status.textContent = message;
       status.classList.toggle('is-error', isError);
+      if (error) {
+        error.textContent = isError ? message : '';
+        error.classList.toggle('hidden', !isError);
+      }
     }
 
     async function createCalendarSubscription() {
@@ -189,7 +194,13 @@
       const revokeButton = document.getElementById('calendar-subscription-revoke');
       if (!createButton || !urlInput || !openButton || !copyButton || !revokeButton) return;
 
+      const originalLabel = createButton.textContent;
       createButton.disabled = true;
+      createButton.setAttribute('aria-busy', 'true');
+      createButton.textContent = '正在生成…';
+      openButton.disabled = true;
+      copyButton.disabled = true;
+      revokeButton.disabled = true;
       setCalendarSubscriptionStatus('正在生成私有订阅链接…');
       try {
         const response = await fetch('/api/apple-calendar/subscription', { method: 'POST' });
@@ -200,11 +211,14 @@
         copyButton.disabled = false;
         revokeButton.disabled = false;
         createButton.textContent = '重新生成链接';
+        document.getElementById('calendar-subscription-empty')?.classList.add('hidden');
         setCalendarSubscriptionStatus('链接已生成；重新生成会使旧链接失效。');
       } catch (error) {
         setCalendarSubscriptionStatus('暂时无法生成订阅链接，请稍后重试。', true);
       } finally {
         createButton.disabled = false;
+        createButton.setAttribute('aria-busy', 'false');
+        if (!urlInput.value) createButton.textContent = originalLabel;
       }
     }
 
@@ -217,13 +231,19 @@
     async function copyCalendarSubscription() {
       const urlInput = document.getElementById('calendar-subscription-url');
       if (!urlInput || !urlInput.value) return;
+      const copyButton = document.getElementById('calendar-subscription-copy');
+      if (copyButton) { copyButton.disabled = true; copyButton.setAttribute('aria-busy', 'true'); copyButton.textContent = '正在复制…'; }
       try {
         await navigator.clipboard.writeText(urlInput.value);
+        setCalendarSubscriptionStatus('订阅地址已复制。');
       } catch (error) {
         urlInput.select();
-        document.execCommand('copy');
+        const copied = document.execCommand('copy');
+        if (!copied) setCalendarSubscriptionStatus('无法自动复制，请手动选择并复制订阅地址。', true);
+        else setCalendarSubscriptionStatus('订阅地址已复制。');
+      } finally {
+        if (copyButton) { copyButton.disabled = false; copyButton.setAttribute('aria-busy', 'false'); copyButton.textContent = '复制链接'; }
       }
-      setCalendarSubscriptionStatus('订阅地址已复制。');
     }
 
     async function revokeCalendarSubscription() {
@@ -234,7 +254,13 @@
       const revokeButton = document.getElementById('calendar-subscription-revoke');
       if (!urlInput || !createButton || !openButton || !copyButton || !revokeButton) return;
 
+      const originalLabel = revokeButton.textContent;
       revokeButton.disabled = true;
+      revokeButton.setAttribute('aria-busy', 'true');
+      revokeButton.textContent = '正在撤销…';
+      createButton.disabled = true;
+      openButton.disabled = true;
+      copyButton.disabled = true;
       try {
         const response = await fetch('/api/apple-calendar/subscription', { method: 'DELETE' });
         const data = await response.json();
@@ -243,11 +269,15 @@
         openButton.disabled = true;
         copyButton.disabled = true;
         createButton.textContent = '生成订阅链接';
+        document.getElementById('calendar-subscription-empty')?.classList.remove('hidden');
         setCalendarSubscriptionStatus('日历订阅已撤销');
       } catch (error) {
         setCalendarSubscriptionStatus('撤销失败，请稍后重试。', true);
       } finally {
         revokeButton.disabled = !urlInput.value;
+        revokeButton.setAttribute('aria-busy', 'false');
+        revokeButton.textContent = originalLabel;
+        createButton.disabled = false;
       }
     }
 
@@ -290,18 +320,25 @@
     }
 
     async function revokeOtherSessions() {
-      const password = document.getElementById('revoke-sessions-password').value;
+      const input = document.getElementById('revoke-sessions-password');
+      const button = document.getElementById('revoke-sessions-button');
+      const password = input.value;
       const status = document.getElementById('revoke-sessions-status');
-      if (!password) { status.textContent = '请输入当前网站密码。'; status.classList.add('is-error'); return; }
+      if (!password) { status.textContent = '请输入当前网站密码。'; status.classList.add('is-error'); status.setAttribute('role', 'alert'); input.focus(); return; }
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      button.textContent = '正在验证…';
+      status.classList.remove('is-error'); status.setAttribute('role', 'status'); status.textContent = '正在验证当前网站密码…';
       try {
         const response = await fetch('/api/account/sessions/revoke-others', {
           method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({password}),
         });
         const data = await response.json();
         if (!response.ok || !data.ok) throw new Error(data.error || '操作失败');
-        document.getElementById('revoke-sessions-password').value = '';
+        input.value = '';
         status.classList.remove('is-error'); status.textContent = data.message;
-      } catch (error) { status.textContent = error.message || '操作失败'; status.classList.add('is-error'); }
+      } catch (error) { status.textContent = error.message || '操作失败'; status.classList.add('is-error'); status.setAttribute('role', 'alert');
+      } finally { button.disabled = false; button.setAttribute('aria-busy', 'false'); button.textContent = '退出其他设备'; }
     }
 
     let lastSessionActivityRequestAt = 0;
@@ -323,6 +360,7 @@
       const ready = Boolean(password.value) && confirmation.value === '永久删除';
       button.disabled = !ready;
       status.classList.remove('is-error');
+      status.setAttribute('role', 'status');
       status.textContent = ready
         ? '确认信息已完整。点击按钮后将再次请求最终确认。'
         : confirmation.value && confirmation.value !== '永久删除'
@@ -334,12 +372,17 @@
       const password = document.getElementById('account-delete-password').value;
       const confirmation = document.getElementById('account-delete-confirmation').value;
       const status = document.getElementById('account-delete-status');
+      const button = document.querySelector('.settings-danger-button');
       if (!password || confirmation !== '永久删除') {
         syncDeleteAccountForm();
         return;
       }
       if (!window.confirm('此操作不可撤销。确认永久删除当前账户及全部在线数据？')) return;
       status.textContent = '正在停止同步并删除在线数据…';
+      status.setAttribute('role', 'status');
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      button.textContent = '正在删除…';
       try {
         const response = await fetch('/api/account', {
           method: 'DELETE', headers: {'Content-Type': 'application/json'},
@@ -351,6 +394,10 @@
       } catch (error) {
         status.textContent = error.message || '删除失败，请检查当前密码与确认文字。';
         status.classList.add('is-error');
+        status.setAttribute('role', 'alert');
+        button.setAttribute('aria-busy', 'false');
+        button.textContent = '永久删除账户';
+        syncDeleteAccountForm();
       }
     }
 
@@ -1236,7 +1283,10 @@
     async function refreshPlatformConnections() {
       const button = document.getElementById('connections-refresh-button');
       const status = document.getElementById('connections-manager-status');
-      if (button) button.disabled = true;
+      const detail = document.getElementById('connections-detail-panel');
+      const originalLabel = button?.textContent || '刷新全部状态';
+      if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); button.textContent = '正在刷新…'; }
+      if (detail) detail.setAttribute('aria-busy', 'true');
       if (status) status.textContent = '正在刷新四个平台的连接状态…';
       try {
         await Promise.all([
@@ -1245,9 +1295,16 @@
           fetchZhixuemengTodos(),
           fetchZhihuishuTodos(),
         ]);
-        if (status) status.textContent = '连接状态已刷新；待办数据也已同步。';
+        const failures = [...document.querySelectorAll('#login-cards .login-card-status.attention')]
+          .filter((item) => /失败|错误|重新|不可用/.test(item.textContent)).length;
+        if (status) status.textContent = failures
+          ? `已完成刷新；${failures} 个平台需要处理。`
+          : '四个平台的连接状态已刷新；待办数据也已同步。';
+      } catch (error) {
+        if (status) status.textContent = '刷新未完成，请稍后重试。';
       } finally {
-        if (button) button.disabled = false;
+        if (button) { button.disabled = false; button.setAttribute('aria-busy', 'false'); button.textContent = originalLabel; }
+        if (detail) detail.setAttribute('aria-busy', 'false');
       }
     }
 
@@ -2419,7 +2476,9 @@
       
       // Update selected class in platform list
       document.querySelectorAll('#login-cards .login-card').forEach(card => {
-        card.classList.toggle('is-selected', card.dataset.platform === platform);
+        const selected = card.dataset.platform === platform;
+        card.classList.toggle('is-selected', selected);
+        card.setAttribute('aria-pressed', String(selected));
       });
 
       // Update right details panels visibility
