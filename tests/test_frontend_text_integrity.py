@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 import settings
 
@@ -46,6 +47,67 @@ def test_dashboard_template_never_treats_production_domain_as_demo():
     )
 
     assert "canvas-dashboard.xyz" not in index_text
+
+
+def test_todo_frontend_keeps_platform_sync_and_dynamic_content_boundaries():
+    templates = Path(__file__).parents[1] / "frontend" / "templates"
+    index_text = (templates / "index.html").read_text(encoding="utf-8")
+    login_text = (templates / "login_zhixuemeng.html").read_text(encoding="utf-8")
+
+    expected_syncs = {
+        "fetchCanvasTodos": "canvas",
+        "fetchHaokeTodos": "haoke",
+        "fetchZhixuemengTodos": "zhixuemeng",
+        "fetchZhihuishuTodos": "zhihuishu",
+    }
+    for function_name, platform in expected_syncs.items():
+        body = re.search(
+            rf"async function {function_name}\(\) \{{(.*?)(?=\n    (?:async )?function )",
+            index_text,
+            re.DOTALL,
+        )
+        assert body, f"missing {function_name}"
+        assert f"recordPlatformSync('{platform}', result);" in body.group(1)
+
+    custom_body = re.search(
+        r"async function fetchCustomTodos\(\) \{(.*?)(?=\n    (?:async )?function )",
+        index_text,
+        re.DOTALL,
+    )
+    assert custom_body
+    assert "recordPlatformSync(" not in custom_body.group(1)
+    assert index_text.count("saveInlineEdit(id, 'multi', { text: taskText, labels });") == 1
+    assert "function sanitizeExternalUrl(value)" in index_text
+    assert "['https:', 'http:'].includes(url.protocol)" in index_text
+    assert 'rel="noopener noreferrer"' in index_text
+
+    for text in (index_text, login_text):
+        assert "function populateZhixuemengCourseSelect" in text
+        assert "option.textContent" in text
+        assert 'select.innerHTML = \'<option value="">全部课程</option>\'' not in text
+
+
+def test_dashboard_p1_feature_modules_own_new_event_bindings_and_request_contract():
+    project_root = Path(__file__).parents[1]
+    assets = project_root / "frontend" / "assets" / "js"
+    index_text = (project_root / "frontend" / "templates" / "index.html").read_text(encoding="utf-8")
+    views_text = (project_root / "frontend" / "templates" / "dashboard" / "_placeholder_views.html").read_text(encoding="utf-8")
+
+    api_text = (assets / "api" / "client.js").read_text(encoding="utf-8")
+    assert "function requestJson" in api_text
+    assert "DashboardRequestError" in api_text
+    assert "global.dashboardApi" in api_text
+
+    for feature in ("todos", "connections", "schedule", "settings"):
+        module_text = (assets / "features" / f"{feature}.js").read_text(encoding="utf-8")
+        assert "addEventListener" in module_text
+        assert f"js/features/{feature}.js" in index_text
+
+    assert 'onchange="setTodoSourceFilter' not in index_text
+    assert "onsubmit=\"handleScheduleFormSubmit(event)\"" not in views_text
+    assert "onsubmit=\"event.preventDefault(); deleteCurrentAccount();\"" not in views_text
+    assert "dashboardApi.requestJson('/api/apple-calendar/subscription'" in index_text
+    assert "dashboardApi.requestJson('/api/account'" in index_text
 
 
 def test_schedule_login_and_connection_primary_actions_have_shared_contract():

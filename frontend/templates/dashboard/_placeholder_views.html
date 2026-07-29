@@ -169,7 +169,7 @@
       <h3 id="schedule-modal-title">添加排程事项</h3>
       <button type="button" class="schedule-modal-close" onclick="closeScheduleItemModal()" aria-label="关闭">×</button>
     </div>
-    <form class="schedule-modal-form" id="schedule-modal-form" onsubmit="handleScheduleFormSubmit(event)">
+    <form class="schedule-modal-form" id="schedule-modal-form">
       <input type="hidden" name="id" id="schedule-form-id">
       <div class="form-group">
         <label for="schedule-form-title">事项名称</label>
@@ -221,11 +221,11 @@
         <label>事项类型</label>
         <div class="schedule-kind-selector">
           <label class="kind-option">
-            <input type="radio" name="kind" value="one-off" checked onchange="toggleScheduleKindFields()">
+            <input type="radio" name="kind" value="one-off" checked>
             <span>单次事项</span>
           </label>
           <label class="kind-option">
-            <input type="radio" name="kind" value="recurring" onchange="toggleScheduleKindFields()">
+            <input type="radio" name="kind" value="recurring">
             <span>每周重复</span>
           </label>
         </div>
@@ -257,7 +257,7 @@
     <p class="schedule-management-summary" id="schedule-management-summary">尚未导入课程</p>
     <div class="schedule-management-actions">
       <button type="button" class="schedule-refresh-button" id="schedule-refresh-button" onclick="openTongjiLoginSession()">统一身份认证登录</button>
-      <input class="schedule-file-input" id="schedule-file-input" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="importCourseSchedule(this)">
+      <input class="schedule-file-input" id="schedule-file-input" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
       <button type="button" class="schedule-refresh-button schedule-import-button" id="schedule-import-button" onclick="document.getElementById('schedule-file-input').click()">从插件文件导入</button>
       <a class="schedule-refresh-button schedule-download-link" href="/static/downloads/tongji-timetable-exporter-v1.2.zip" download>下载课表插件 v1.2</a>
     </div>
@@ -563,14 +563,14 @@
             <span aria-hidden="true">!</span>
             <p>此操作不可撤销。请先完成两步确认，避免误删当前账号。</p>
           </div>
-          <form class="account-delete-form" onsubmit="event.preventDefault(); deleteCurrentAccount();">
+          <form class="account-delete-form" id="account-delete-form">
             <label class="account-delete-field" for="account-delete-password">
               <span><b>1</b> 当前网站密码</span>
-              <input id="account-delete-password" type="password" autocomplete="current-password" placeholder="输入当前密码" aria-describedby="account-delete-status" oninput="syncDeleteAccountForm()">
+              <input id="account-delete-password" type="password" autocomplete="current-password" placeholder="输入当前密码" aria-describedby="account-delete-status">
             </label>
             <label class="account-delete-field" for="account-delete-confirmation">
               <span><b>2</b> 确认文字 <em>永久删除</em></span>
-              <input id="account-delete-confirmation" autocomplete="off" placeholder="永久删除" aria-describedby="account-delete-status" oninput="syncDeleteAccountForm()">
+              <input id="account-delete-confirmation" autocomplete="off" placeholder="永久删除" aria-describedby="account-delete-status">
             </label>
             <div class="account-delete-action-row">
               <p id="account-delete-status" class="calendar-subscription-status" role="status" aria-live="polite">完成两项确认后，才能永久删除账户。</p>

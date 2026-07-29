@@ -13,6 +13,7 @@
   <script>window.CSRF_TOKEN = "{{ csrf_token() }}";</script>
   <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
   <script src="{{ url_for('static', filename='js/weather-icons.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/api/client.js') }}"></script>
 </head>
 <body>
   <div class="dashboard dashboard-shell" id="dashboard-shell">
@@ -77,7 +78,7 @@
           <div class="section-header">
             <div class="header-left-group"><h2>&#24453;&#21150;&#28165;&#21333;</h2></div>
             <div class="header-right">
-              <select id="todo-source-select" class="todo-source-select" onchange="setTodoSourceFilter(this.value)" aria-label="按来源筛选待办">
+              <select id="todo-source-select" class="todo-source-select" aria-label="按来源筛选待办">
                 <option value="all">全部</option>
                 <option value="canvas">Canvas</option>
                 <option value="haoke">好课</option>
@@ -109,13 +110,13 @@
         <div class="todo-header-divider"></div>
 
         <div class="todo-source-filters hidden" id="todo-source-filters" role="group" aria-label="按来源筛选待办">
-          <button type="button" class="todo-source-filter is-active" data-todo-source="all" aria-pressed="true" onclick="setTodoSourceFilter('all')">全部 (0)</button>
-          <button type="button" class="todo-source-filter" data-todo-source="canvas" aria-pressed="false" onclick="setTodoSourceFilter('canvas')">Canvas (0)</button>
-          <button type="button" class="todo-source-filter" data-todo-source="haoke" aria-pressed="false" onclick="setTodoSourceFilter('haoke')">好课 (0)</button>
-          <button type="button" class="todo-source-filter" data-todo-source="zhixuemeng" aria-pressed="false" onclick="setTodoSourceFilter('zhixuemeng')">智学盟 (0)</button>
-          <button type="button" class="todo-source-filter" data-todo-source="zhihuishu" aria-pressed="false" onclick="setTodoSourceFilter('zhihuishu')">智慧树 (0)</button>
-          <button type="button" class="todo-source-filter" data-todo-source="project" aria-pressed="false" onclick="setTodoSourceFilter('project')">项目 (0)</button>
-          <button type="button" class="todo-source-filter" data-todo-source="custom" aria-pressed="false" onclick="setTodoSourceFilter('custom')">自定义 (0)</button>
+          <button type="button" class="todo-source-filter is-active" data-todo-source="all" aria-pressed="true">全部 (0)</button>
+          <button type="button" class="todo-source-filter" data-todo-source="canvas" aria-pressed="false">Canvas (0)</button>
+          <button type="button" class="todo-source-filter" data-todo-source="haoke" aria-pressed="false">好课 (0)</button>
+          <button type="button" class="todo-source-filter" data-todo-source="zhixuemeng" aria-pressed="false">智学盟 (0)</button>
+          <button type="button" class="todo-source-filter" data-todo-source="zhihuishu" aria-pressed="false">智慧树 (0)</button>
+          <button type="button" class="todo-source-filter" data-todo-source="project" aria-pressed="false">项目 (0)</button>
+          <button type="button" class="todo-source-filter" data-todo-source="custom" aria-pressed="false">自定义 (0)</button>
         </div>
 
         <!-- Unified todo list -->
@@ -203,9 +204,8 @@
       revokeButton.disabled = true;
       setCalendarSubscriptionStatus('正在生成私有订阅链接…');
       try {
-        const response = await fetch('/api/apple-calendar/subscription', { method: 'POST' });
-        const data = await response.json();
-        if (!response.ok || !data.ok || !data.path) throw new Error('subscription unavailable');
+        const data = await dashboardApi.requestJson('/api/apple-calendar/subscription', { method: 'POST' });
+        if (!data.path) throw new Error('subscription unavailable');
         urlInput.value = new URL(data.path, window.location.origin).href;
         openButton.disabled = false;
         copyButton.disabled = false;
@@ -262,9 +262,7 @@
       openButton.disabled = true;
       copyButton.disabled = true;
       try {
-        const response = await fetch('/api/apple-calendar/subscription', { method: 'DELETE' });
-        const data = await response.json();
-        if (!response.ok || !data.ok) throw new Error('revoke failed');
+        await dashboardApi.requestJson('/api/apple-calendar/subscription', { method: 'DELETE' });
         urlInput.value = '';
         openButton.disabled = true;
         copyButton.disabled = true;
@@ -330,11 +328,9 @@
       button.textContent = '正在验证…';
       status.classList.remove('is-error'); status.setAttribute('role', 'status'); status.textContent = '正在验证当前网站密码…';
       try {
-        const response = await fetch('/api/account/sessions/revoke-others', {
+        const data = await dashboardApi.requestJson('/api/account/sessions/revoke-others', {
           method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({password}),
         });
-        const data = await response.json();
-        if (!response.ok || !data.ok) throw new Error(data.error || '操作失败');
         input.value = '';
         status.classList.remove('is-error'); status.textContent = data.message;
       } catch (error) { status.textContent = error.message || '操作失败'; status.classList.add('is-error'); status.setAttribute('role', 'alert');
@@ -384,12 +380,10 @@
       button.setAttribute('aria-busy', 'true');
       button.textContent = '正在删除…';
       try {
-        const response = await fetch('/api/account', {
+        await dashboardApi.requestJson('/api/account', {
           method: 'DELETE', headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({password, confirmation}),
         });
-        const data = await response.json();
-        if (!response.ok || !data.ok) throw new Error(data.error || '删除失败');
         window.location.href = '/login';
       } catch (error) {
         status.textContent = error.message || '删除失败，请检查当前密码与确认文字。';
@@ -1427,7 +1421,6 @@
       try {
         const resp = await fetch('/api/custom/todos');
         const result = await resp.json();
-        recordPlatformSync('haoke', result);
         customItems = result.data || [];
         customItems.forEach(todo => {
           if (todo.subtasks) {
@@ -1758,8 +1751,9 @@
           `;
         }
 
-        const titleHtml = item.url
-          ? `<a class="item-title" href="${item.url}" target="_blank" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</a>`
+        const safeUrl = sanitizeExternalUrl(item.url);
+        const titleHtml = safeUrl
+          ? `<a class="item-title" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</a>`
           : item.source === 'custom'
             ? `<span class="item-title item-title-plain editable-title" data-id="${item.rawId}" data-field="text">${escapeHtml(item.title)}</span>`
             : `<span class="item-title item-title-plain">${escapeHtml(item.title)}</span>`;
@@ -1931,7 +1925,7 @@
       try {
         const resp = await fetch('/api/haoke/todos');
         const result = await resp.json();
-        recordPlatformSync('zhixuemeng', result);
+        recordPlatformSync('haoke', result);
 
         if (result.need_setup && result.sync?.connection_state !== 'disconnected') {
           setCardStatus('haoke', '未关联', 'attention');
@@ -1995,7 +1989,7 @@
       try {
         const resp = await fetch('/api/zhixuemeng/todos');
         const result = await resp.json();
-        recordPlatformSync('zhihuishu', result);
+        recordPlatformSync('zhixuemeng', result);
 
         if (result.need_setup && result.sync?.connection_state !== 'disconnected') {
           setCardStatus('zhixuemeng', '未关联', 'attention');
@@ -2057,6 +2051,7 @@
       try {
         const resp = await fetch('/api/zhihuishu/todos');
         const result = await resp.json();
+        recordPlatformSync('zhihuishu', result);
 
         if (result.need_setup && result.sync?.connection_state !== 'disconnected') {
           setCardStatus('zhihuishu', result.data && result.data.length ? '需要重新登录' : '未关联', 'attention');
@@ -2435,7 +2430,7 @@
               labels = parts.slice(1).map(tag => tag.substring(1)).filter(tag => tag);
             }
             
-            // 鍚堝苟涓轰竴娆¤姹傦紝閬垮厤绔炴€佹潯浠?            saveInlineEdit(id, 'multi', { text: taskText, labels });
+            // 鍚堝苟涓轰竴娆¤姹傦紝閬垮厤绔炴€佹潯浠?
             saveInlineEdit(id, 'multi', { text: taskText, labels });
           } else {
             saveInlineEdit(id, field, newValue);
@@ -2466,6 +2461,27 @@
       const div = document.createElement('div');
       div.textContent = str;
       return div.innerHTML;
+    }
+
+    function sanitizeExternalUrl(value) {
+      if (typeof value !== 'string' || !value.trim()) return '';
+      try {
+        const url = new URL(value);
+        return ['https:', 'http:'].includes(url.protocol) ? url.href : '';
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function populateZhixuemengCourseSelect(select, courses, selectedCourse) {
+      select.replaceChildren(new Option('全部课程', ''));
+      (Array.isArray(courses) ? courses : []).forEach((course) => {
+        const option = document.createElement('option');
+        option.value = String(course.courseCode || '');
+        option.textContent = `${course.courseCode || ''} - ${course.courseName || ''}`;
+        select.append(option);
+      });
+      select.value = selectedCourse || '';
     }
 
     // ---- Connections Master-Detail Controllers ----
@@ -2609,10 +2625,7 @@
           loggedInDiv.classList.remove('hidden');
           if (result.courses) {
             const select = document.getElementById('zxm-course-select-inline');
-            select.innerHTML = '<option value="">全部课程</option>' + result.courses.map(c =>
-              `<option value="${c.courseCode}">${c.courseCode} - ${c.courseName}</option>`
-            ).join('');
-            select.value = result.selected_course || '';
+            populateZhixuemengCourseSelect(select, result.courses, result.selected_course);
           }
         } else {
           badge.textContent = '未登录';
@@ -2891,28 +2904,6 @@
 
 
     // ---- Init ----
-    document.getElementById('add-todo-form').addEventListener('submit', addTodo);
-    document.getElementById('btn-refresh').addEventListener('click', () => { fetchCanvasTodos(); fetchHaokeTodos(); fetchZhixuemengTodos(); fetchZhihuishuTodos(); fetchProjectTodos(); });
-    document.getElementById('list-updated').addEventListener('click', openSyncStatus);
-
-    const canvasFormInline = document.getElementById('canvas-setup-form-inline');
-    if (canvasFormInline) canvasFormInline.addEventListener('submit', saveCanvasFeedUrlInline);
-
-    const haokeFormInline = document.getElementById('haoke-setup-form-inline');
-    if (haokeFormInline) haokeFormInline.addEventListener('submit', saveHaokeCredentialsInline);
-
-    const zxmPwdFormInline = document.getElementById('zxm-pwd-form-inline');
-    if (zxmPwdFormInline) zxmPwdFormInline.addEventListener('submit', doZhixuemengPasswordLoginInline);
-
-    document.getElementById('todo-list').addEventListener('click', function(e) {
-      const projectDueEl = e.target.closest('.project-due-editable');
-      if (projectDueEl) { startProjectTodoDueEdit(projectDueEl); return; }
-      const titleEl = e.target.closest('.editable-title');
-      if (titleEl) { startInlineEdit(titleEl, 'text'); return; }
-      const dueEl = e.target.closest('.editable-due');
-      if (dueEl) { startInlineEdit(dueEl, 'due_date'); return; }
-    });
-
     // Demo mode: prevent fetches from clearing the static sample data
     const isDemoMode = !window.__OPEN_DESIGN_PREVIEW__ && (window.location.protocol === 'file:' || window.location.hostname === '');
 
@@ -2993,5 +2984,9 @@
     }
 </script>
   <script src="{{ url_for('static', filename='js/projects.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/features/todos.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/features/connections.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/features/schedule.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/features/settings.js') }}"></script>
 </body>
 </html>

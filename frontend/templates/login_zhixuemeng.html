@@ -56,6 +56,17 @@
   </div>
 
   <script>
+    function populateZhixuemengCourseSelect(select, courses, selectedCourse) {
+      select.replaceChildren(new Option('全部课程', ''));
+      (Array.isArray(courses) ? courses : []).forEach((course) => {
+        const option = document.createElement('option');
+        option.value = String(course.courseCode || '');
+        option.textContent = `${course.courseCode || ''} - ${course.courseName || ''}`;
+        select.append(option);
+      });
+      select.value = selectedCourse || '';
+    }
+
     async function checkZhixuemengConfig() {
       try {
         const resp = await fetch('/api/zhixuemeng/config');
@@ -66,10 +77,7 @@
           document.getElementById('zhixuemeng-logged-in').classList.remove('hidden');
           if (result.courses) {
             const select = document.getElementById('zxm-course-select');
-            select.innerHTML = '<option value="">全部课程</option>' + result.courses.map(c =>
-              `<option value="${c.courseCode}">${c.courseCode} - ${c.courseName}</option>`
-            ).join('');
-            select.value = result.selected_course || '';
+            populateZhixuemengCourseSelect(select, result.courses, result.selected_course);
           }
         } else {
           document.getElementById('status-line').textContent = '当前状态：未登录';
