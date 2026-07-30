@@ -60,6 +60,8 @@ canvas-dashboard/
   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1
   # 单独运行特定测试：
   .\.venv\Scripts\python.exe -m pytest tests\test_p0_safety.py -q
+  .\.venv\Scripts\python.exe -m pytest tests\test_design_system_lint.py -q
+  .\.venv\Scripts\python.exe -m pytest tests\test_visual_regression.py -q
   ```
 - **生产部署**：
   ```powershell
