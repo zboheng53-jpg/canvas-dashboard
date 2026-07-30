@@ -7,7 +7,7 @@ CSS_ROOT = PROJECT_ROOT / "frontend" / "assets" / "css"
 TEMPLATE_ROOT = PROJECT_ROOT / "frontend" / "templates"
 
 ENTRY_FILES = ("app.css", "dashboard.css", "component-lab.css")
-NEW_FOUNDATION_FILES = ("tokens.css", "foundation.css", *ENTRY_FILES)
+NEW_FOUNDATION_FILES = ("tokens.css", "foundation.css", "components.css", "patterns.css", *ENTRY_FILES)
 LEGACY_FILES = ("style.css", "dashboard-shell.css", "dashboard-v103.css")
 FORBIDDEN_FONT_NAMES = (
     "anthropicSerif",
@@ -72,6 +72,8 @@ def test_cascade_layers_isolate_legacy_and_fix_source_order():
     assert '@import url("./dashboard-v103.css") layer(legacy);' in dashboard_entry
     assert '@import url("./tokens.css") layer(tokens);' in dashboard_entry
     assert '@import url("./foundation.css") layer(foundation);' in dashboard_entry
+    assert '@import url("./components.css") layer(components);' in dashboard_entry
+    assert '@import url("./patterns.css") layer(patterns);' in dashboard_entry
 
 
 def test_global_tokens_have_one_source_and_no_duplicate_names():
@@ -112,7 +114,10 @@ def test_component_lab_records_confirmed_candidate_and_serif_titles():
     lab_css = _read(CSS_ROOT / "component-lab.css")
 
     assert 'data-candidate="action-a" data-selected="true"' in template
-    assert 'value="a" aria-label="候选 A：近白描边" checked' in template
+    assert 'value="a" aria-label="候选 A：静默描边" checked' in template
+    assert 'id="confirmed-controls" data-control-api="a"' in template
+    assert "ui-button ui-button--primary" in template
+    assert "ui-input-shell is-loading" in template
     assert ".lab-section-heading h2" in lab_css
     assert ".lab-specimen-heading h3" in lab_css
     assert "font-family: var(--lab-font-serif);" in lab_css

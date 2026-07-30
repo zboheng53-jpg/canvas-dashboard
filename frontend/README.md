@@ -37,8 +37,12 @@ Open Design 不会执行 Flask 或 Jinja，因此不要直接导入 `templates/i
 
 - `assets/css/tokens.css` 是全局设计变量的唯一来源。
 - `assets/css/foundation.css` 只包含文档级字体与基础行为，不定义按钮、表单或业务组件外观。
+- `assets/css/components.css` 是交互控件、字段文本、标签、状态、反馈、加载、空状态与禁用状态的唯一视觉来源。
+- `assets/css/patterns.css` 只处理这些控件进入待办、子任务、项目和连接表单后的宽度、flex 与对齐。
 - `assets/css/app.css` 是认证页和平台登录页的唯一入口。
 - `assets/css/dashboard.css` 是控制台的唯一入口。
 - `style.css`、`dashboard-shell.css`、`dashboard-v103.css` 作为 `legacy` layer 继续承载尚未迁移的旧组件与布局。
 
-Cascade Layer 的固定顺序为 `legacy → tokens → foundation → components → patterns → pages → utilities`。新样式不得直接增加到三份 legacy 文件；组件迁移完成后再从 legacy 中删除对应规则。
+Cascade Layer 的固定顺序为 `legacy → tokens → foundation → components → patterns → pages → utilities`。新样式不得直接增加到三份 legacy 文件；已迁移控件的视觉规则不得回到业务类或 `patterns.css`。
+
+可执行约束见 `DESIGN_SYSTEM.md`；现状审计与迁移映射分别见 `STATUS_COMPONENT_AUDIT.md`、`STATUS_COMPONENT_MIGRATION.md`。

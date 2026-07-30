@@ -23,6 +23,8 @@
 
 - `tokens.css`：唯一的全局自定义属性定义源。`Legacy compatibility aliases` 仅供旧代码迁移期间使用，新组件禁止引用。
 - `foundation.css`：文档级字体、标题、数字排版、基础焦点和选择文本；不得放置按钮、输入框、卡片或业务规则。
+- `components.css`：交互控件、Badge、Tag、Status、Feedback、Alert、Loading、Empty 与 Disabled State 的唯一视觉和状态来源。
+- `patterns.css`：已迁移控件进入业务上下文后的宽度、flex 与对齐桥接；禁止定义颜色、字体、边框、圆角、阴影和交互状态。
 - `app.css`：认证页与平台登录页入口。
 - `dashboard.css`：控制台入口。
 - `component-lab.css`：组件实验室页面层与候选方案。
@@ -37,6 +39,24 @@
 - 禁止新增 `!important`、ID 视觉选择器、模板内联视觉样式、未加载字体名，以及依靠入口加载先后覆盖同层规则的写法。
 - `focus-visible` 不得省略；焦点轮廓不能仅以颜色微调代替。
 
-## 暂缓项
+## 当前迁移状态
 
-按钮、输入框、卡片、导航项和业务组件仍由 legacy 层维持现状。它们会在组件实验室逐项确认后迁移，不在基础架构阶段批量改写。
+Button、Icon Button、Text/Password/Date Input、Select、Checkbox、Form Field、Label、Help Text 与 Error Text 已采用候选 A，并迁移到 `components.css`。业务页面只通过 `.ui-*` API获得这些视觉结果。
+
+Badge、Tag、Status Dot、Count Pill、Success、Warning、Danger、Info、Alert、Inline Error、Loading、Empty 与 Disabled State 已迁移到同一组件层：
+
+- `.ui-badge--source` 只表达平台来源，必须同时显示平台名称；来源色不得表达成功或失败。
+- `.ui-status` 以“语义色点 + 文字”表达结果；只有已有可访问名称的紧凑位置可以单独使用 `.ui-status-dot`。
+- `.ui-feedback` 用于页内短结果或进度；危险反馈增加克制的行内分隔，不扩展为大面积红底。
+- `.ui-alert` 用于需要说明原因或下一步操作的完整提示块；阻断性错误使用 `role="alert"`，普通结果使用 `role="status"`。
+- `.ui-empty` 提供默认与 `--compact` 两种密度；默认空状态允许一个不承载语义的几何装饰。
+- Loading 必须有可读文案，并同步维护 `role="status"` 或更新区域的 `aria-busy`。
+- 禁用状态优先使用原生 `disabled`；非原生元素必须同时提供 `aria-disabled="true"` 与 `.ui-disabled`。
+
+控制台业务卡片、导航项和完整业务行已开始退出 legacy 层；迁移不得改变页面信息架构。
+
+## 业务组合层
+
+待办、子任务、项目项、项目任务、日程项、课程项、平台连接项、设置项和日历订阅操作区通过 `business.css` 组合基础组件。新业务类只定义模块特有布局；Surface、Card、List Item、Nav Item、标题/辅助文字、交互控件和反馈状态的视觉均来自 `components.css`。
+
+完整映射、例外和数据回归边界见 `BUSINESS_COMPONENT_MIGRATION.md`。

@@ -16,6 +16,13 @@
   --font-number: "Geist", "Segoe UI", sans-serif;
   --font-kicker: "Geist", system-ui, sans-serif;
   --font-mono: "Geist", "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  --font-size-control: 13px;
+  --font-size-control-sm: 12px;
+  --font-size-label: 12px;
+  --font-size-help: 11px;
+  --font-size-title-sm: 15px;
+  --line-height-control: 1.4;
+  --line-height-help: 1.5;
 
   /* Confirmed semantic palette for new and migrated UI */
   --color-page: #f8fafc;
@@ -25,6 +32,7 @@
   --color-text-primary: #1e293b;
   --color-text-secondary: #475569;
   --color-text-muted: #64748b;
+  --color-on-strong: #ffffff;
   --color-border: #e2e8f0;
   --color-border-strong: #cbd5e1;
   --color-action: #2f6fe4;
@@ -35,14 +43,69 @@
   --color-action-border: #c9dbfa;
   --color-success: #2e7d5a;
   --color-success-soft: #edf8f2;
+  --color-success-border: #cce8d9;
   --color-warning: #a65f00;
   --color-warning-soft: #fff7e6;
+  --color-warning-border: #efd9ac;
   --color-danger: #c2413b;
   --color-danger-hover: #a93631;
   --color-danger-soft: #fff1f0;
+  --color-danger-border: #edc8c5;
   --color-info: #356c9c;
   --color-info-soft: #eef6fc;
+  --color-info-border: #cce1ef;
+  --color-neutral: #526071;
+  --color-neutral-soft: #f3f6f9;
+  --color-neutral-border: #dbe3eb;
   --color-focus-ring: rgba(47, 111, 228, 0.24);
+
+  /* Source identity. These colors identify origin, never result or severity. */
+  --color-source-canvas: #c45b55;
+  --color-source-haoke: #2f8a64;
+  --color-source-zhixuemeng: #4078c8;
+  --color-source-zhihuishu: #c48a2c;
+  --color-source-project: #8068c5;
+  --color-source-custom: #697586;
+
+  /* Schedule series identify content type, never result or severity. */
+  --color-series-course: #4078b5;
+  --color-series-course-soft: #edf4fb;
+  --color-series-course-border: #b9d0e8;
+  --color-series-recurring: #3f815f;
+  --color-series-recurring-soft: #edf7f1;
+  --color-series-recurring-border: #bdddc9;
+  --color-series-one-off: #986036;
+  --color-series-one-off-soft: #fcf3e9;
+  --color-series-one-off-border: #e8c8aa;
+
+  /* Confirmed control direction A: quiet outline */
+  --control-bg: #ffffff;
+  --control-bg-hover: #fbfdff;
+  --control-border: #cbd5e1;
+  --control-border-hover: #9fb0c3;
+  --control-text: var(--color-text-primary);
+  --control-placeholder: #94a3b8;
+  --control-disabled-bg: #f3f6f9;
+  --control-disabled-text: #94a3b8;
+  --control-error: var(--color-danger);
+  --control-focus-border: #6f9cde;
+  --control-focus-shadow: 0 0 0 3px rgba(47, 111, 228, 0.18);
+
+  --button-primary-bg: #fbfdff;
+  --button-primary-bg-hover: #eef5ff;
+  --button-primary-bg-active: #e2edff;
+  --button-primary-border: #c9dbfa;
+  --button-primary-border-hover: #a9c7f6;
+  --button-primary-text: #315e9a;
+  --button-secondary-bg: transparent;
+  --button-secondary-bg-hover: #f3f6f9;
+  --button-secondary-bg-active: #e9eef4;
+  --button-secondary-text: #526071;
+  --button-danger-bg: #fffafa;
+  --button-danger-bg-hover: #fff1f0;
+  --button-danger-border: #f0c7c4;
+  --button-danger-text: #b33c37;
+  --button-disabled-opacity: 0.46;
 
   /* Spacing */
   --space-1: 4px;
@@ -58,16 +121,24 @@
   /* Controls and geometry */
   --control-height-sm: 32px;
   --control-height-md: 36px;
-  --control-height-lg: 40px;
+  --control-height-lg: 44px;
+  --control-padding-inline: 10px;
+  --control-content-gap: 8px;
+  --checkbox-size: 16px;
   --radius-xs: 3px;
   --radius-control: 6px;
   --radius-surface: 8px;
   --radius-dialog: 8px;
+  --radius-pill: 999px;
   --border-width: 1px;
   --border-width-focus: 2px;
   --icon-size-sm: 14px;
   --icon-size-md: 16px;
   --icon-size-lg: 20px;
+  --status-dot-size: 6px;
+  --tag-height: 22px;
+  --tag-padding-inline: 8px;
+  --feedback-icon-size: 20px;
 
   /* Elevation and motion */
   --shadow-hover: 0 6px 16px rgba(15, 23, 42, 0.06);
@@ -115,27 +186,27 @@
   --accent-subtle: var(--color-primary-soft-hover);
   --accent-badge: #8c5b4c;
 
-  --danger: #dc2626;
-  --danger-hover: #b91c1c;
-  --danger-bg: rgba(220, 38, 38, 0.08);
-  --danger-border: rgba(220, 38, 38, 0.22);
-  --warning: #d97706;
-  --warning-bg: rgba(217, 119, 6, 0.09);
-  --warning-border: rgba(217, 119, 6, 0.22);
+  --danger: var(--color-danger);
+  --danger-hover: var(--color-danger-hover);
+  --danger-bg: var(--color-danger-soft);
+  --danger-border: var(--color-danger-border);
+  --warning: var(--color-warning);
+  --warning-bg: var(--color-warning-soft);
+  --warning-border: var(--color-warning-border);
 
-  --src-canvas: #8c5b4c;
-  --src-canvas-bg: rgba(140, 91, 76, 0.08);
-  --src-haoke: #4d6255;
-  --src-haoke-bg: rgba(77, 98, 85, 0.08);
-  --src-zhixuemeng: #5a646c;
-  --src-zhixuemeng-bg: rgba(90, 100, 108, 0.08);
-  --src-zhihuishu: #8c784c;
-  --src-zhihuishu-bg: rgba(140, 120, 76, 0.08);
-  --src-custom: #6e6e6e;
-  --src-custom-bg: rgba(110, 110, 110, 0.08);
+  --src-canvas: var(--color-source-canvas);
+  --src-canvas-bg: rgba(196, 91, 85, 0.08);
+  --src-haoke: var(--color-source-haoke);
+  --src-haoke-bg: rgba(47, 138, 100, 0.08);
+  --src-zhixuemeng: var(--color-source-zhixuemeng);
+  --src-zhixuemeng-bg: rgba(64, 120, 200, 0.08);
+  --src-zhihuishu: var(--color-source-zhihuishu);
+  --src-zhihuishu-bg: rgba(196, 138, 44, 0.08);
+  --src-custom: var(--color-source-custom);
+  --src-custom-bg: rgba(105, 117, 134, 0.08);
 
   --btn-primary-bg: var(--color-primary);
-  --btn-primary-text: #ffffff;
+  --btn-primary-text: var(--color-on-strong);
   --btn-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 3px 12px rgba(47, 111, 228, 0.2);
   --btn-glass-bg: rgba(245, 243, 238, 0.85);
   --btn-glass-border: rgba(226, 220, 210, 0.85);

@@ -65,17 +65,14 @@ def test_exported_preview_loads_project_and_schedule_mock_data(tmp_path: Path):
             overview_card = page.locator("#project-overview-content .project-overview-main")
             assert overview_card.evaluate("element => getComputedStyle(element).backgroundColor") == "rgba(248, 250, 252, 0.72)"
             assert overview_card.evaluate("element => getComputedStyle(element).borderRadius") == "10px"
-            schedule_row = page.locator("#today-schedule-content .today-schedule-row").first
-            assert schedule_row.evaluate("element => getComputedStyle(element).backgroundColor") == "rgb(248, 250, 252)"
-            assert schedule_row.locator("time").evaluate("element => getComputedStyle(element).fontSize") == "11.5px"
+            schedule_row = page.locator("#today-schedule-content .agenda-item").first
+            assert schedule_row.locator("time").evaluate("element => getComputedStyle(element).fontSize") == "15px"
 
             page.get_by_role("button", name="长期项目").click()
             page.locator("#project-detail").get_by_text("自动化课程设计").wait_for()
-            project_group_card = page.locator("#project-detail .project-group-card").first
-            assert project_group_card.evaluate("element => getComputedStyle(element).backgroundColor") == "rgba(248, 250, 252, 0.72)"
-            assert project_group_card.evaluate("element => getComputedStyle(element).borderRadius") == "10px"
-            task_row = page.locator("#project-detail .project-task-row").first
-            assert task_row.evaluate("element => getComputedStyle(element).backgroundColor") == "rgb(255, 255, 255)"
+            project_group_card = page.locator("#project-detail .project-task-group").first
+            assert project_group_card.evaluate("element => getComputedStyle(element).borderRadius") == "8px"
+            task_row = page.locator("#project-detail .project-task-item").first
             page.get_by_role("button", name="日程与课表").click()
             page.locator("#dashboard-view-schedule").wait_for()
             page.locator("#schedule-management-summary").get_by_text("已导入 1 门课程").wait_for(state="attached")

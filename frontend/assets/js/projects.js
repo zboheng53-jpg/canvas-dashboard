@@ -22,7 +22,14 @@ function setProjectStatus(message, error = false) {
   const status = document.getElementById("project-manager-status");
   if (!status) return;
   status.textContent = message;
-  status.classList.toggle("is-error", error);
+  const semantic = error
+    ? "danger"
+    : !message
+      ? "neutral"
+      : message.startsWith("正在")
+        ? "info"
+        : "success";
+  applyFeedbackSemantic(status, semantic);
 }
 
 async function projectRequest(url, options = {}) {
@@ -177,7 +184,7 @@ function openProjectChoiceModal(projectId) {
           <small>${pEscape(taskMeta(project, task) || "未设置分组和日期")}</small>
         </button>
       `).join("")
-    : `<div class="project-detail-empty"><strong>暂无可选择的任务</strong><p>请先添加一条任务。</p></div>`;
+    : `<div class="ui-empty project-detail-empty"><span class="ui-empty__art" aria-hidden="true"></span><strong>暂无可选择的任务</strong><p>请先添加一条任务。</p></div>`;
   openTrackedModal("project-choice-modal", ".project-choice-row, .project-modal-close");
 }
 
@@ -232,7 +239,7 @@ async function loadProjects(preferredId = null) {
     setProjectStatus(error.message || "项目加载失败，请稍后重试", true);
     const detail = document.getElementById("project-detail");
     if (detail) {
-      detail.innerHTML = `<div class="project-detail-empty is-error"><strong>项目加载失败</strong><p>请稍后重试。</p></div>`;
+      detail.innerHTML = `<div class="ui-empty ui-empty--danger project-detail-empty is-error"><span class="ui-empty__art" aria-hidden="true"></span><strong>项目加载失败</strong><p>请稍后重试。</p></div>`;
     }
     return false;
   } finally {
@@ -282,7 +289,7 @@ function renderProjectList(containerId, values, history) {
   const container = document.getElementById(containerId);
   if (!container) return;
   if (!values.length) {
-    container.innerHTML = `<p class="project-list-empty">${history ? "暂无记录" : "还没有进行中的项目"}</p>`;
+    container.innerHTML = `<div class="ui-empty ui-empty--compact project-list-empty"><strong>${history ? "暂无记录" : "还没有进行中的项目"}</strong></div>`;
     return;
   }
   container.innerHTML = values.map((project) => {
@@ -300,14 +307,14 @@ function renderProjectList(containerId, values, history) {
 
     return `
       <button type="button"
-        class="project-list-item${project.id === selectedProjectId ? " is-selected" : ""}"
+        class="ui-nav-item project-browser-item${project.id === selectedProjectId ? " is-selected" : ""}"
         data-project-id="${project.id}"
         draggable="${!history && !isMain}"
         onclick="selectProject(${project.id})"
         ondragstart="startProjectDrag(event, ${project.id})"
         ondragover="allowProjectDrop(event)"
         ondrop="dropProjectBefore(event, ${project.id})">
-        <span class="project-list-name">${pEscape(project.name)}${isMain ? '<em>主项目</em>' : ""}</span>
+        <span class="project-list-name">${pEscape(project.name)}${isMain ? '<em class="ui-tag">主项目</em>' : ""}</span>
         <small class="project-list-next-task">${pEscape(nextTaskText)}</small>
         <div class="project-list-progress-wrapper">
           <div class="project-list-progress-bar" style="width: ${progressPercent}%"></div>
@@ -352,10 +359,11 @@ function renderProjectDetail() {
   if (!detail) return;
   if (!project) {
     detail.innerHTML = `
-      <div class="project-detail-empty">
+      <div class="ui-empty project-detail-empty">
+        <span class="ui-empty__art" aria-hidden="true"></span>
         <strong>${projectRecords.some((item) => item.status === "active") ? "选择一个项目查看详情" : "暂无长期项目"}</strong>
         <p>${projectRecords.length ? "从左侧项目列表中选择。" : "新建一个项目，开始组织长期目标。"}</p>
-        ${projectRecords.length ? "" : '<button type="button" class="project-button-primary" onclick="openProjectModal()">新建项目</button>'}
+        ${projectRecords.length ? "" : '<button type="button" class="ui-button ui-button--primary project-button-primary" onclick="openProjectModal()">新建项目</button>'}
       </div>`;
     return;
   }
@@ -376,7 +384,7 @@ function renderProjectDetail() {
           <span class="project-next-action-label">下一步行动</span>
           <span class="project-next-action-text">${pEscape(nextActionTask.name)}</span>
         </div>
-        <button type="button" class="project-next-action-btn-complete" onclick="toggleProjectTask(${project.id}, ${nextActionTask.id}, true)">标记完成</button>
+        <button type="button" class="ui-button ui-button--primary project-next-action-btn-complete" onclick="toggleProjectTask(${project.id}, ${nextActionTask.id}, true)">标记完成</button>
       </div>
     `;
   } else if (active && activeTasks.length > 0) {
@@ -386,7 +394,7 @@ function renderProjectDetail() {
           <span class="project-next-action-label">下一步行动</span>
           <span class="project-next-action-text text-muted">暂无下一步行动，可从下方选择任务设为下一步</span>
         </div>
-        <button type="button" class="project-next-action-btn-choose" onclick="openProjectChoiceModal(${project.id})">选择任务</button>
+        <button type="button" class="ui-button ui-button--secondary project-next-action-btn-choose" onclick="openProjectChoiceModal(${project.id})">选择任务</button>
       </div>
     `;
   }
@@ -401,37 +409,41 @@ function renderProjectDetail() {
           </div>
           <p class="project-objective">${pEscape(project.objective || "尚未填写一句话目标")}</p>
           <div class="project-tags-row">
-            <span class="project-tag-pill status-tag">${project.status === "active" ? "进行中" : project.status === "completed" ? "已完成" : "已归档"}</span>
-            ${project.due_date ? `<span class="project-tag-pill due-tag">截止 ${project.due_date}</span>` : ""}
-            <span class="project-tag-pill progress-tag">${project.completed_count} / ${project.completed_count + project.pending_count} 项完成</span>
-            ${project.id === mainProjectId ? '<span class="project-tag-pill main-project-tag">主项目</span>' : ""}
+            <span class="ui-status ui-status--${project.status === "active" ? "success" : project.status === "completed" ? "info" : "neutral"} project-tag-pill status-tag">${project.status === "active" ? "进行中" : project.status === "completed" ? "已完成" : "已归档"}</span>
+            ${project.due_date ? `<span class="ui-tag project-tag-pill due-tag">截止 ${project.due_date}</span>` : ""}
+            <span class="ui-count-pill project-tag-pill progress-tag"><b>${project.completed_count}</b> / ${project.completed_count + project.pending_count} 项完成</span>
+            ${project.id === mainProjectId ? '<span class="ui-tag is-selected project-tag-pill main-project-tag">主项目</span>' : ""}
           </div>
         </div>
         <div class="project-detail-actions">
-          ${active && project.id !== mainProjectId ? `<button type="button" class="project-button-secondary" onclick="setMainProject(${project.id})">设为主项目</button>` : ""}
-          ${active ? `<button type="button" class="project-button-primary" onclick="confirmCompleteProject(${project.id})">完成项目</button>` : `<button type="button" class="project-button-primary" onclick="reopenProject(${project.id})">重新开启</button>`}
+          ${active && project.id !== mainProjectId ? `<button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="setMainProject(${project.id})">设为主项目</button>` : ""}
+          ${active ? `<button type="button" class="ui-button ui-button--primary project-button-primary" onclick="confirmCompleteProject(${project.id})">完成项目</button>` : `<button type="button" class="ui-button ui-button--primary project-button-primary" onclick="reopenProject(${project.id})">重新开启</button>`}
           <details class="project-more-menu">
             <summary aria-label="更多项目操作">•••</summary>
             <div>
-              <button type="button" onclick="openProjectModal(${project.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="project-menu-icon"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> 编辑项目信息</button>
-              ${active ? `<button type="button" class="is-danger" onclick="confirmArchiveProject(${project.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="project-menu-icon"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg> 归档项目</button>` : ""}
+              <button type="button" onclick="openProjectModal(${project.id})" class="ui-button ui-button--secondary"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="project-menu-icon"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> 编辑项目信息</button>
+              ${active ? `<button type="button" class="ui-button ui-button--danger is-danger" onclick="confirmArchiveProject(${project.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="project-menu-icon"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg> 归档项目</button>` : ""}
             </div>
           </details>
         </div>
       </div>
     </header>
     ${newlyCreatedProjectId === project.id ? `
-      <div class="project-created-notice">
+      <div class="ui-feedback ui-feedback--success project-created-notice" role="status">
         <span>项目已创建。是否设为当前主项目？</span>
-        <button type="button" onclick="setMainProject(${project.id})">设为主项目</button>
-        <button type="button" onclick="dismissCreatedProjectNotice()">暂不设置</button>
+        <button type="button" onclick="setMainProject(${project.id})" class="ui-button ui-button--secondary">设为主项目</button>
+        <button type="button" onclick="dismissCreatedProjectNotice()" class="ui-button ui-button--secondary">暂不设置</button>
       </div>` : ""}
     ${allDone && active ? `
-      <div class="project-all-done">
-        <strong>所有任务已完成</strong>
-        <span>项目不会自动完成；你可以继续添加任务或手动完成项目。</span>
-        <button type="button" onclick="openProjectTaskModal(${project.id})">添加新任务</button>
-        <button type="button" onclick="confirmCompleteProject(${project.id})">完成项目</button>
+      <div class="ui-alert ui-alert--success project-all-done" role="status">
+        <div>
+          <strong>所有任务已完成</strong>
+          <p>项目不会自动完成；你可以继续添加任务或手动完成项目。</p>
+          <div class="project-all-done-actions">
+            <button type="button" onclick="openProjectTaskModal(${project.id})" class="ui-button ui-button--secondary">添加新任务</button>
+            <button type="button" onclick="confirmCompleteProject(${project.id})" class="ui-button ui-button--secondary">完成项目</button>
+          </div>
+        </div>
       </div>` : ""}
 
     ${nextActionHtml}
@@ -442,8 +454,8 @@ function renderProjectDetail() {
       <div><h3>项目任务</h3><p>拖拽可调整分组和任务顺序；移动端可通过任务菜单修改分组。</p></div>
       ${active ? `
         <div>
-          <button type="button" class="project-button-secondary" onclick="openProjectGroupModal(${project.id})">＋ 新建分组</button>
-          <button type="button" class="project-button-primary" onclick="openProjectTaskModal(${project.id})">＋ 添加任务</button>
+          <button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="openProjectGroupModal(${project.id})">＋ 新建分组</button>
+          <button type="button" class="ui-button ui-button--primary project-button-primary" onclick="openProjectTaskModal(${project.id})">＋ 添加任务</button>
         </div>` : ""}
     </div>
     <div class="project-groups" id="project-groups">
@@ -456,7 +468,10 @@ function renderProjectGroups(project) {
   const groups = [...project.groups].sort((a, b) => a.sort_order - b.sort_order);
   const sections = groups.map((group) => renderProjectGroup(project, group));
   sections.push(renderProjectGroup(project, null));
-  return sections.join("");
+  return sections.join("").replaceAll(
+    'class="project-group-card"',
+    'class="ui-card ui-card--subtle project-task-group"',
+  );
 }
 
 function renderProjectGroup(project, group) {
@@ -477,10 +492,10 @@ function renderProjectGroup(project, group) {
       ondrop="dropProjectTaskAtEnd(event, ${groupId === null ? "null" : groupId})">
       <header class="project-group-heading">
         <h4>${pEscape(group?.name || "未分组")}</h4>
-        ${active ? `<button type="button" class="project-group-add-task-btn" onclick="openProjectTaskModal(${project.id}, null, ${groupId === null ? "null" : groupId})">＋ 添加任务</button>` : ""}
+        ${active ? `<button type="button" class="ui-button ui-button--primary project-group-add-task-btn" onclick="openProjectTaskModal(${project.id}, null, ${groupId === null ? "null" : groupId})">＋ 添加任务</button>` : ""}
       </header>
       <div class="project-task-list">
-        ${pending.length ? pending.map((task) => renderProjectTask(project, task, active)).join("") : '<p class="project-task-empty">暂无未完成任务</p>'}
+        ${pending.length ? pending.map((task) => renderProjectTask(project, task, active)).join("") : '<div class="ui-empty ui-empty--compact project-task-empty"><strong>暂无未完成任务</strong></div>'}
       </div>
       ${completed.length ? `
         <details class="project-completed-tasks">
@@ -495,7 +510,7 @@ function renderProjectTask(project, task, active) {
   const groupArg = task.group_id === null ? "null" : task.group_id;
   const dateText = task.due_date ? task.due_date.slice(5) : ""; // MM-DD
   return `
-    <article class="project-task-row${task.done ? " is-done" : ""}${task.is_next_action ? " is-next" : ""}"
+    <article class="ui-list-item ui-list-item--interactive ui-list-item--contained project-task-item${task.done ? " ui-list-item--muted is-done" : ""}${task.is_next_action ? " is-next" : ""}"
       data-task-id="${task.id}"
       draggable="${active}"
       ondragstart="startProjectTaskDrag(event, ${task.id})"
@@ -503,21 +518,21 @@ function renderProjectTask(project, task, active) {
       ondrop="dropProjectTaskBefore(event, ${task.id}, ${groupArg})">
       <input type="checkbox" ${task.done ? "checked" : ""} ${active ? "" : "disabled"}
         aria-label="${task.done ? "取消完成" : "完成"}${pEscape(task.name)}"
-        onchange="toggleProjectTask(${project.id}, ${task.id}, this.checked)">
-      <button type="button" class="project-task-name-btn" onclick="openProjectTaskModal(${project.id}, ${task.id})">
-        <span>${pEscape(task.name)}</span>
+        onchange="toggleProjectTask(${project.id}, ${task.id}, this.checked)" class="ui-checkbox">
+      <button type="button" class="ui-button ui-button--text ui-button--start project-task-name-btn" onclick="openProjectTaskModal(${project.id}, ${task.id})">
+        <span class="ui-list-item__title">${pEscape(task.name)}</span>
       </button>
-      ${dateText ? `<span class="project-task-date">${pEscape(dateText)}</span>` : ""}
+      ${dateText ? `<span class="ui-list-item__meta project-task-date">${pEscape(dateText)}</span>` : ""}
       <div class="project-task-actions">
         ${active ? `
-          <button type="button" class="project-task-action-btn" title="编辑" onclick="openProjectTaskModal(${project.id}, ${task.id})">
+          <button type="button" class="ui-icon-button project-task-action-btn" title="编辑" onclick="openProjectTaskModal(${project.id}, ${task.id})">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
           </button>` : ""}
         ${active && !task.done ? `
-          <button type="button" class="project-task-action-btn${task.is_next_action ? " is-active-next" : ""}" title="设为下一步" onclick="chooseProjectNextTask(${project.id}, ${task.id})">
+          <button type="button" class="ui-icon-button project-task-action-btn${task.is_next_action ? " is-active-next" : ""}" title="设为下一步" aria-pressed="${task.is_next_action ? "true" : "false"}" onclick="chooseProjectNextTask(${project.id}, ${task.id})">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
           </button>` : ""}
-        <button type="button" class="project-task-action-btn is-danger" title="删除任务" onclick="confirmDeleteProjectTask(${project.id}, ${task.id})">
+        <button type="button" class="ui-icon-button ui-icon-button--danger project-task-action-btn is-danger" title="删除任务" onclick="confirmDeleteProjectTask(${project.id}, ${task.id})">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
         </button>
       </div>
@@ -879,17 +894,18 @@ function renderProjectOverviewState(title, copy, actionLabel = "", action = "") 
   const container = document.getElementById("project-overview-content");
   if (!container) return;
   container.innerHTML = `
-    <div class="rail-empty-state">
+    <div class="ui-empty rail-empty-state">
+      <span class="ui-empty__art" aria-hidden="true"></span>
       <div><strong>${pEscape(title)}</strong><p>${pEscape(copy)}</p></div>
-      ${actionLabel ? `<button type="button" class="project-empty-create" onclick="${action}">${pEscape(actionLabel)}</button>` : ""}
+      ${actionLabel ? `<button type="button" class="ui-button ui-button--primary project-empty-create" onclick="${action}">${pEscape(actionLabel)}</button>` : ""}
     </div>`;
 }
 
 function overviewTaskRow(project, task, checkbox = false) {
   return `
-    <div class="project-overview-task${task.is_next_action ? " is-next" : ""}">
-      ${checkbox ? `<input type="checkbox" aria-label="完成${pEscape(task.name)}" onchange="completeOverviewTask(${project.id}, ${task.id}, this)">` : '<span class="project-overview-task-mark" aria-hidden="true">·</span>'}
-      <button type="button" onclick="openProjectsView(${project.id})">
+    <div class="ui-list-item project-overview-task${task.is_next_action ? " is-next" : ""}">
+      ${checkbox ? `<input type="checkbox" aria-label="完成${pEscape(task.name)}" onchange="completeOverviewTask(${project.id}, ${task.id}, this)" class="ui-checkbox">` : '<span class="project-overview-task-mark" aria-hidden="true">·</span>'}
+      <button type="button" onclick="openProjectsView(${project.id})" class="ui-button ui-button--secondary">
         <strong>${pEscape(task.name)}</strong>
         ${task.group_name || task.due_date ? `<small>${pEscape([task.group_name, task.due_date].filter(Boolean).join(" · "))}</small>` : ""}
       </button>
@@ -912,18 +928,18 @@ function renderProjectOverview(data) {
   container.innerHTML = `
     <div class="project-overview-main">
       <div class="project-overview-title">
-        <button type="button" onclick="openProjectsView(${project.id})">${pEscape(project.name)}</button>
-        <span>主项目</span>
+        <button type="button" onclick="openProjectsView(${project.id})" class="ui-button ui-button--text ui-button--heading ui-button--start">${pEscape(project.name)}</button>
+        <span class="ui-tag is-selected">主项目</span>
       </div>
       ${project.objective ? `<p class="project-overview-objective">${pEscape(project.objective)}</p>` : ""}
       <p class="project-overview-stats">已完成 ${project.completed_count} 项 · 待完成 ${project.pending_count} 项</p>
       ${project.due_date ? `<p class="project-overview-due${project.due_state === "overdue" ? " is-overdue" : ""}">${pEscape(projectDueText(project))}</p>` : ""}
       <section class="project-overview-section">
-        <div class="project-overview-section-heading"><span>下一步行动</span><button type="button" onclick="openProjectChoiceModal(${project.id})">${project.next_action ? "更换下一步" : "选择下一步"}</button></div>
+        <div class="project-overview-section-heading"><span>下一步行动</span><button type="button" onclick="openProjectChoiceModal(${project.id})" class="ui-button ui-button--secondary">${project.next_action ? "更换下一步" : "选择下一步"}</button></div>
         ${project.next_action
           ? overviewTaskRow(project, project.next_action, true)
-          : '<p class="project-overview-empty-line">暂无下一步行动</p>'}
-        <button type="button" class="project-overview-add" onclick="openProjectTaskModal(${project.id}, null, null, true)">＋ 添加下一步行动</button>
+          : '<div class="ui-empty ui-empty--compact project-overview-empty-line"><strong>暂无下一步行动</strong></div>'}
+        <button type="button" class="ui-button ui-button--secondary project-overview-add" onclick="openProjectTaskModal(${project.id}, null, null, true)">＋ 添加下一步行动</button>
       </section>
       ${project.upcoming_tasks.length ? `
         <section class="project-overview-section project-overview-recent">
@@ -931,8 +947,8 @@ function renderProjectOverview(data) {
           ${project.upcoming_tasks.map((task) => overviewTaskRow(project, task)).join("")}
         </section>` : ""}
       <div class="project-overview-links">
-        ${project.hidden_task_count ? `<button type="button" onclick="openProjectsView(${project.id})">还有 ${project.hidden_task_count} 项 →</button>` : ""}
-        ${otherCount ? `<button type="button" onclick="openProjectsView()">另外 ${otherCount} 个项目进行中 →</button>` : ""}
+        ${project.hidden_task_count ? `<button type="button" onclick="openProjectsView(${project.id})" class="ui-button ui-button--text">还有 ${project.hidden_task_count} 项 →</button>` : ""}
+        ${otherCount ? `<button type="button" onclick="openProjectsView()" class="ui-button ui-button--text">另外 ${otherCount} 个项目进行中 →</button>` : ""}
       </div>
     </div>`;
 }

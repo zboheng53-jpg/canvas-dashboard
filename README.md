@@ -107,6 +107,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1
 | 线上部署、回滚、日志与健康检查 | [生产运维](docs/operations.md) |
 | 加密备份、恢复演练与 JSON 损坏处理 | [备份与恢复](docs/backup-and-restore.md) |
 | 智慧树与同济浏览器登录窗口 | [登录隧道运维说明](deploy/zhihuishu-login-tunnel.md) |
+| 界面风格、Figma token 与组件约束 | [UI 设计规范](design.md) |
 | 文档的当前版本与历史记录 | [文档索引](docs/README.md) |
 | 代码修改约定 | [AGENTS.md](AGENTS.md) |
 

@@ -15,7 +15,7 @@
     <div class="card">
       <div class="section-header">
         <h2>智慧树</h2>
-        <button class="btn-refresh" type="button" onclick="loadStatus()" title="刷新">&#x21bb;</button>
+        <button class="ui-icon-button btn-refresh" type="button" onclick="loadStatus()" title="刷新" aria-label="刷新状态">&#x21bb;</button>
       </div>
 
       <dl class="status-grid">
@@ -28,12 +28,12 @@
       </dl>
 
       <div class="zhihuishu-login-actions">
-        <button class="btn-primary" type="button" id="btn-open-login" onclick="openLoginSession()">打开智慧树登录窗口</button>
-        <button class="btn-secondary" type="button" id="btn-complete-login" onclick="completeLoginSession()" disabled>我已完成登录</button>
-        <button class="btn-secondary" type="button" id="btn-cancel-login" onclick="cancelLoginSession()" disabled>取消当前登录会话</button>
+        <button class="ui-button ui-button--primary btn-primary" type="button" id="btn-open-login" onclick="openLoginSession()">打开智慧树登录窗口</button>
+        <button class="ui-button ui-button--secondary btn-secondary" type="button" id="btn-complete-login" onclick="completeLoginSession()" disabled>我已完成登录</button>
+        <button class="ui-button ui-button--secondary btn-secondary" type="button" id="btn-cancel-login" onclick="cancelLoginSession()" disabled>取消当前登录会话</button>
       </div>
 
-      <div class="login-session-message" id="login-session-message"></div>
+      <div class="ui-feedback ui-feedback--info login-session-message" id="login-session-message" role="status" aria-live="polite"></div>
     </div>
   </div>
 
@@ -51,8 +51,19 @@
     function setMessage(text, cls) {
       const el = document.getElementById('login-session-message');
       el.textContent = text || '';
-      el.classList.remove('attention', 'connected');
-      if (cls) el.classList.add(cls);
+      el.classList.remove(
+        'attention',
+        'connected',
+        'ui-feedback--neutral',
+        'ui-feedback--info',
+        'ui-feedback--success',
+        'ui-feedback--warning',
+        'ui-feedback--danger'
+      );
+      const semantic = cls === 'connected' ? 'success' : cls === 'attention' ? 'warning' : cls || 'info';
+      el.classList.add(`ui-feedback--${semantic}`);
+      if (cls === 'connected' || cls === 'attention') el.classList.add(cls);
+      el.setAttribute('role', semantic === 'danger' ? 'alert' : 'status');
     }
 
     function setSessionButtons(active) {
@@ -90,7 +101,7 @@
         setSessionButtons(true);
         setMessage('登录窗口已打开。完成智慧树登录后回到这里确认。', 'connected');
       } catch (e) {
-        setMessage(e.message || '登录窗口启动失败', 'attention');
+        setMessage(e.message || '登录窗口启动失败', 'danger');
       }
     }
 
@@ -107,7 +118,7 @@
         setMessage('登录成功，智慧树待办将在后台同步。', 'connected');
         await loadStatus();
       } catch (e) {
-        setMessage(e.message || '登录检查失败', 'attention');
+        setMessage(e.message || '登录检查失败', 'danger');
       }
     }
 

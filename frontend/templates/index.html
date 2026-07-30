@@ -16,7 +16,7 @@
     <header class="mobile-shell-bar">
       <button
         type="button"
-        class="mobile-menu-toggle"
+        class="ui-icon-button mobile-menu-toggle"
         id="mobile-menu-toggle"
         aria-label="打开菜单"
         aria-controls="academic-sidebar"
@@ -74,7 +74,7 @@
           <div class="section-header">
             <div class="header-left-group"><h2>&#24453;&#21150;&#28165;&#21333;</h2></div>
             <div class="header-right">
-              <select id="todo-source-select" class="todo-source-select" aria-label="按来源筛选待办">
+              <select id="todo-source-select" class="ui-control todo-source-select" aria-label="按来源筛选待办">
                 <option value="all">全部</option>
                 <option value="canvas">Canvas</option>
                 <option value="haoke">好课</option>
@@ -84,40 +84,40 @@
                 <option value="custom">自定义</option>
               </select>
               <div class="header-info">
-                <button type="button" class="last-updated sync-status-button" id="list-updated" aria-label="查看平台同步状态"></button>
-                <button class="btn-refresh" id="btn-refresh" title="&#21047;&#26032;">&#x21bb;</button>
+                <button type="button" class="ui-button ui-button--text last-updated sync-status-button" id="list-updated" aria-label="查看平台同步状态"></button>
+                <button class="ui-icon-button btn-refresh" id="btn-refresh" title="&#21047;&#26032;" aria-label="刷新待办">&#x21bb;</button>
               </div>
             </div>
           </div>
 
         <!-- Add custom todo -->
         <form class="add-todo-form" id="add-todo-form">
-          <input type="text" id="new-todo-input" placeholder="&#28155;&#21152;&#26032;&#24453;&#21150;..." autocomplete="off">
-          <input type="date" id="new-todo-due" class="date-input" aria-label="截止日期" title="截止日期">
-          <button type="submit">+</button>
+          <input type="text" id="new-todo-input" placeholder="&#28155;&#21152;&#26032;&#24453;&#21150;..." autocomplete="off" class="ui-control todo-title-input">
+          <input type="date" id="new-todo-due" class="ui-control date-input" aria-label="截止日期" title="截止日期">
+          <button type="submit" class="ui-button ui-button--primary">+</button>
         </form>
 
         <!-- Stats Bar -->
         <div class="stats-bar-under-add" id="stats-bar">
-          <span class="stat-pill">&#24453;&#23436;&#25104; <b class="stat-count" id="stat-total">0</b> &#39033;</span>
-          <span class="stat-pill urgent">&#21363;&#23558;&#21040;&#26399; <b class="stat-count urgent" id="stat-urgent">0</b> &#39033;</span>
+          <span class="ui-count-pill stat-pill">&#24453;&#23436;&#25104; <b class="stat-count" id="stat-total">0</b> &#39033;</span>
+          <span class="ui-count-pill ui-count-pill--danger stat-pill urgent">&#21363;&#23558;&#21040;&#26399; <b class="stat-count urgent" id="stat-urgent">0</b> &#39033;</span>
         </div>
 
         <div class="todo-header-divider"></div>
 
         <div class="todo-source-filters hidden" id="todo-source-filters" role="group" aria-label="按来源筛选待办">
-          <button type="button" class="todo-source-filter is-active" data-todo-source="all" aria-pressed="true">全部 (0)</button>
-          <button type="button" class="todo-source-filter" data-todo-source="canvas" aria-pressed="false">Canvas (0)</button>
-          <button type="button" class="todo-source-filter" data-todo-source="haoke" aria-pressed="false">好课 (0)</button>
-          <button type="button" class="todo-source-filter" data-todo-source="zhixuemeng" aria-pressed="false">智学盟 (0)</button>
-          <button type="button" class="todo-source-filter" data-todo-source="zhihuishu" aria-pressed="false">智慧树 (0)</button>
-          <button type="button" class="todo-source-filter" data-todo-source="project" aria-pressed="false">项目 (0)</button>
-          <button type="button" class="todo-source-filter" data-todo-source="custom" aria-pressed="false">自定义 (0)</button>
+          <button type="button" class="ui-button ui-button--choice todo-source-filter is-active" data-todo-source="all" aria-pressed="true">全部 (0)</button>
+          <button type="button" class="ui-button ui-button--choice todo-source-filter" data-todo-source="canvas" aria-pressed="false">Canvas (0)</button>
+          <button type="button" class="ui-button ui-button--choice todo-source-filter" data-todo-source="haoke" aria-pressed="false">好课 (0)</button>
+          <button type="button" class="ui-button ui-button--choice todo-source-filter" data-todo-source="zhixuemeng" aria-pressed="false">智学盟 (0)</button>
+          <button type="button" class="ui-button ui-button--choice todo-source-filter" data-todo-source="zhihuishu" aria-pressed="false">智慧树 (0)</button>
+          <button type="button" class="ui-button ui-button--choice todo-source-filter" data-todo-source="project" aria-pressed="false">项目 (0)</button>
+          <button type="button" class="ui-button ui-button--choice todo-source-filter" data-todo-source="custom" aria-pressed="false">自定义 (0)</button>
         </div>
 
         <!-- Unified todo list -->
         <div class="todo-list" id="todo-list" data-layout-mode="hybrid">
-          <div class="empty-state">&#21152;&#36733;&#20013;...</div>
+          <div class="ui-loading ui-loading--block empty-state" role="status">&#21152;&#36733;&#20013;...</div>
         </div>
         </div><!-- /.card -->
 
@@ -171,15 +171,45 @@
       syncSidebarState();
     }
 
-    function setCalendarSubscriptionStatus(message, isError = false) {
+    const feedbackSemanticClasses = [
+      'ui-feedback--neutral',
+      'ui-feedback--info',
+      'ui-feedback--success',
+      'ui-feedback--warning',
+      'ui-feedback--danger',
+    ];
+    const statusSemanticClasses = [
+      'ui-status--neutral',
+      'ui-status--info',
+      'ui-status--success',
+      'ui-status--warning',
+      'ui-status--danger',
+    ];
+
+    function applyFeedbackSemantic(element, semantic = 'neutral') {
+      if (!element) return;
+      element.classList.remove(...feedbackSemanticClasses, 'is-error');
+      element.classList.add(`ui-feedback--${semantic}`);
+      element.setAttribute('role', semantic === 'danger' ? 'alert' : 'status');
+    }
+
+    function applyStatusSemantic(element, semantic = 'neutral') {
+      if (!element) return;
+      element.classList.remove(...statusSemanticClasses, 'connected', 'attention');
+      element.classList.add(`ui-status--${semantic}`);
+      if (semantic === 'success') element.classList.add('connected');
+      if (semantic === 'warning' || semantic === 'danger') element.classList.add('attention');
+    }
+
+    function setCalendarSubscriptionStatus(message, semantic = 'info') {
       const status = document.getElementById('calendar-subscription-status');
       const error = document.getElementById('calendar-subscription-error');
       if (!status) return;
       status.textContent = message;
-      status.classList.toggle('is-error', isError);
+      applyFeedbackSemantic(status, semantic);
       if (error) {
-        error.textContent = isError ? message : '';
-        error.classList.toggle('hidden', !isError);
+        error.textContent = semantic === 'danger' ? message : '';
+        error.classList.toggle('hidden', semantic !== 'danger');
       }
     }
 
@@ -208,9 +238,9 @@
         revokeButton.disabled = false;
         createButton.textContent = '重新生成链接';
         document.getElementById('calendar-subscription-empty')?.classList.add('hidden');
-        setCalendarSubscriptionStatus('链接已生成；重新生成会使旧链接失效。');
+        setCalendarSubscriptionStatus('链接已生成；重新生成会使旧链接失效。', 'success');
       } catch (error) {
-        setCalendarSubscriptionStatus('暂时无法生成订阅链接，请稍后重试。', true);
+        setCalendarSubscriptionStatus('暂时无法生成订阅链接，请稍后重试。', 'danger');
       } finally {
         createButton.disabled = false;
         createButton.setAttribute('aria-busy', 'false');
@@ -231,12 +261,12 @@
       if (copyButton) { copyButton.disabled = true; copyButton.setAttribute('aria-busy', 'true'); copyButton.textContent = '正在复制…'; }
       try {
         await navigator.clipboard.writeText(urlInput.value);
-        setCalendarSubscriptionStatus('订阅地址已复制。');
+        setCalendarSubscriptionStatus('订阅地址已复制。', 'success');
       } catch (error) {
         urlInput.select();
         const copied = document.execCommand('copy');
-        if (!copied) setCalendarSubscriptionStatus('无法自动复制，请手动选择并复制订阅地址。', true);
-        else setCalendarSubscriptionStatus('订阅地址已复制。');
+        if (!copied) setCalendarSubscriptionStatus('无法自动复制，请手动选择并复制订阅地址。', 'danger');
+        else setCalendarSubscriptionStatus('订阅地址已复制。', 'success');
       } finally {
         if (copyButton) { copyButton.disabled = false; copyButton.setAttribute('aria-busy', 'false'); copyButton.textContent = '复制链接'; }
       }
@@ -264,9 +294,9 @@
         copyButton.disabled = true;
         createButton.textContent = '生成订阅链接';
         document.getElementById('calendar-subscription-empty')?.classList.remove('hidden');
-        setCalendarSubscriptionStatus('日历订阅已撤销');
+        setCalendarSubscriptionStatus('日历订阅已撤销', 'success');
       } catch (error) {
-        setCalendarSubscriptionStatus('撤销失败，请稍后重试。', true);
+        setCalendarSubscriptionStatus('撤销失败，请稍后重试。', 'danger');
       } finally {
         revokeButton.disabled = !urlInput.value;
         revokeButton.setAttribute('aria-busy', 'false');
@@ -318,18 +348,18 @@
       const button = document.getElementById('revoke-sessions-button');
       const password = input.value;
       const status = document.getElementById('revoke-sessions-status');
-      if (!password) { status.textContent = '请输入当前网站密码。'; status.classList.add('is-error'); status.setAttribute('role', 'alert'); input.focus(); return; }
+      if (!password) { status.textContent = '请输入当前网站密码。'; applyFeedbackSemantic(status, 'danger'); input.focus(); return; }
       button.disabled = true;
       button.setAttribute('aria-busy', 'true');
       button.textContent = '正在验证…';
-      status.classList.remove('is-error'); status.setAttribute('role', 'status'); status.textContent = '正在验证当前网站密码…';
+      status.textContent = '正在验证当前网站密码…'; applyFeedbackSemantic(status, 'info');
       try {
         const data = await dashboardApi.requestJson('/api/account/sessions/revoke-others', {
           method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({password}),
         });
         input.value = '';
-        status.classList.remove('is-error'); status.textContent = data.message;
-      } catch (error) { status.textContent = error.message || '操作失败'; status.classList.add('is-error'); status.setAttribute('role', 'alert');
+        status.textContent = data.message; applyFeedbackSemantic(status, 'success');
+      } catch (error) { status.textContent = error.message || '操作失败'; applyFeedbackSemantic(status, 'danger');
       } finally { button.disabled = false; button.setAttribute('aria-busy', 'false'); button.textContent = '退出其他设备'; }
     }
 
@@ -351,13 +381,12 @@
       if (!password || !confirmation || !button || !status) return;
       const ready = Boolean(password.value) && confirmation.value === '永久删除';
       button.disabled = !ready;
-      status.classList.remove('is-error');
-      status.setAttribute('role', 'status');
       status.textContent = ready
         ? '确认信息已完整。点击按钮后将再次请求最终确认。'
         : confirmation.value && confirmation.value !== '永久删除'
           ? '确认文字需准确输入“永久删除”。'
           : '完成两项确认后，才能永久删除账户。';
+      applyFeedbackSemantic(status, ready ? 'warning' : 'neutral');
     }
 
     async function deleteCurrentAccount() {
@@ -371,7 +400,7 @@
       }
       if (!window.confirm('此操作不可撤销。确认永久删除当前账户及全部在线数据？')) return;
       status.textContent = '正在停止同步并删除在线数据…';
-      status.setAttribute('role', 'status');
+      applyFeedbackSemantic(status, 'info');
       button.disabled = true;
       button.setAttribute('aria-busy', 'true');
       button.textContent = '正在删除…';
@@ -383,8 +412,7 @@
         window.location.href = '/login';
       } catch (error) {
         status.textContent = error.message || '删除失败，请检查当前密码与确认文字。';
-        status.classList.add('is-error');
-        status.setAttribute('role', 'alert');
+        applyFeedbackSemantic(status, 'danger');
         button.setAttribute('aria-busy', 'false');
         button.textContent = '永久删除账户';
         syncDeleteAccountForm();
@@ -415,7 +443,16 @@
       const status = document.getElementById('schedule-manager-status');
       if (!status) return;
       status.textContent = message;
-      status.classList.toggle('is-error', isError);
+      const semantic = isError
+        ? 'danger'
+        : !message
+          ? 'neutral'
+          : message.startsWith('正在') || message.startsWith('请在')
+            ? 'info'
+            : message.includes('重叠')
+              ? 'warning'
+              : 'success';
+      applyFeedbackSemantic(status, semantic);
     }
 
     function scheduleElement(tag, className, text) {
@@ -711,7 +748,15 @@
         const events = collectScheduleEvents(data, courses, dateObj, dayIdx, semesterStart);
         scheduleEventGroups(events).forEach((group) => {
           const visibleEvents = group.events.slice(0, 2);
-          visibleEvents.forEach((event, lane) => dayColumn.append(buildScheduleCard(event, dateISO, lane, visibleEvents.length)));
+          visibleEvents.forEach((event, lane) => {
+            const block = buildScheduleCard(event, dateISO, lane, visibleEvents.length);
+            block.classList.add('schedule-block', `schedule-block-${event.kind}`);
+            block.classList.remove('schedule-card', `schedule-card-${event.kind}`);
+            block.querySelector('.schedule-card-title')?.classList.add('ui-list-item__title');
+            block.querySelectorAll('.schedule-card-time, .schedule-card-loc, .schedule-card-summary')
+              .forEach((element) => element.classList.add('ui-list-item__meta'));
+            dayColumn.append(block);
+          });
           if (group.events.length > 2) {
             const more = scheduleElement('button', 'schedule-overlap-more', `+${group.events.length - 2} 项`);
             more.type = 'button';
@@ -1036,13 +1081,15 @@
       container.setAttribute('aria-busy', 'false');
       container.replaceChildren();
       if (!data.timed.length && !data.deadlines.length) {
-        const empty = scheduleElement('div', 'rail-empty-state');
-        empty.append(scheduleElement('strong', '', '今天没有日程'), scheduleElement('p', '', '课程、固定事项和一次性事项会显示在这里'));
+        const empty = scheduleElement('div', 'ui-empty rail-empty-state');
+        const art = scheduleElement('span', 'ui-empty__art');
+        art.setAttribute('aria-hidden', 'true');
+        empty.append(art, scheduleElement('strong', '', '今天没有日程'), scheduleElement('p', '', '课程、固定事项和一次性事项会显示在这里'));
         container.append(empty); return;
       }
       const list = scheduleElement('div', 'today-schedule-list');
       data.timed.forEach((item) => {
-        const row = scheduleElement('div', `today-schedule-row today-${item.kind}`);
+        const row = scheduleElement('div', `ui-list-item agenda-item agenda-${item.kind}`);
         row.append(scheduleElement('time', '', item.start_time === item.end_time ? item.start_time : `${item.start_time}–${item.end_time}`));
         const copy = scheduleElement('div', '');
         const displayTitle = formatScheduleTitle(item.title);
@@ -1052,6 +1099,8 @@
         const metaText = item.location || item.course;
         if (metaText) copy.append(scheduleElement('small', '', metaText));
         row.append(copy);
+        row.querySelector('strong')?.classList.add('ui-list-item__title');
+        row.querySelector('small')?.classList.add('ui-list-item__meta');
         list.append(row);
       });
       if (data.deadlines.length) {
@@ -1076,8 +1125,10 @@
     function renderTodayScheduleState(title, detail, isError = false) {
       const container = document.getElementById('today-schedule-content');
       if (!container) return;
-      const state = scheduleElement('div', `rail-empty-state${isError ? ' is-error' : ''}`);
-      state.append(scheduleElement('strong', '', title), scheduleElement('p', '', detail));
+      const state = scheduleElement('div', `ui-empty rail-empty-state${isError ? ' ui-empty--danger is-error' : ''}`);
+      const art = scheduleElement('span', 'ui-empty__art');
+      art.setAttribute('aria-hidden', 'true');
+      state.append(art, scheduleElement('strong', '', title), scheduleElement('p', '', detail));
       container.replaceChildren(state);
     }
 
@@ -1254,15 +1305,21 @@
     // ---- Platform connection card status ----
     function setCardStatus(platform, text, cls) {
       const el = document.getElementById(`card-status-${platform}`);
+      const semantic = cls === 'connected'
+        ? 'success'
+        : cls === 'attention' && /失败|错误|不可用/.test(text)
+          ? 'danger'
+          : cls === 'attention'
+            ? 'warning'
+            : 'info';
       if (el) {
         el.textContent = text;
-        el.classList.remove('connected', 'attention');
-        if (cls) el.classList.add(cls);
+        applyStatusSemantic(el, semantic);
       }
       const detailBadge = document.getElementById(`detail-status-badge-${platform}`);
       if (detailBadge) {
         detailBadge.textContent = text;
-        detailBadge.className = 'status-badge ' + (cls || '');
+        applyStatusSemantic(detailBadge, semantic);
       }
       const attentionDot = document.getElementById('connections-attention');
       if (attentionDot) {
@@ -1277,7 +1334,10 @@
       const originalLabel = button?.textContent || '刷新全部状态';
       if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); button.textContent = '正在刷新…'; }
       if (detail) detail.setAttribute('aria-busy', 'true');
-      if (status) status.textContent = '正在刷新四个平台的连接状态…';
+      if (status) {
+        status.textContent = '正在刷新四个平台的连接状态…';
+        applyFeedbackSemantic(status, 'info');
+      }
       try {
         await Promise.all([
           fetchCanvasTodos(),
@@ -1287,11 +1347,17 @@
         ]);
         const failures = [...document.querySelectorAll('#login-cards .login-card-status.attention')]
           .filter((item) => /失败|错误|重新|不可用/.test(item.textContent)).length;
-        if (status) status.textContent = failures
-          ? `已完成刷新；${failures} 个平台需要处理。`
-          : '四个平台的连接状态已刷新；待办数据也已同步。';
+        if (status) {
+          status.textContent = failures
+            ? `已完成刷新；${failures} 个平台需要处理。`
+            : '四个平台的连接状态已刷新；待办数据也已同步。';
+          applyFeedbackSemantic(status, failures ? 'warning' : 'success');
+        }
       } catch (error) {
-        if (status) status.textContent = '刷新未完成，请稍后重试。';
+        if (status) {
+          status.textContent = '刷新未完成，请稍后重试。';
+          applyFeedbackSemantic(status, 'danger');
+        }
       } finally {
         if (button) { button.disabled = false; button.setAttribute('aria-busy', 'false'); button.textContent = originalLabel; }
         if (detail) detail.setAttribute('aria-busy', 'false');
@@ -1669,7 +1735,12 @@
         : unified.filter((item) => item.source === todoSourceFilter);
 
       if (filteredItems.length === 0) {
-        container.innerHTML = `<div class="empty-state">${unified.length ? '该来源暂无待办事项' : '没有待办事项'}</div>`;
+        container.innerHTML = `
+          <div class="ui-empty empty-state">
+            <span class="ui-empty__art" aria-hidden="true"></span>
+            <strong>${unified.length ? '该来源暂无待办事项' : '没有待办事项'}</strong>
+            <p>${unified.length ? '切换来源或清除筛选后可查看其他待办。' : '新的课程任务同步后会显示在这里。'}</p>
+          </div>`;
         return;
       }
 
@@ -1708,67 +1779,73 @@
         const flagTitle = manualFlag ? '\u53d6\u6d88\u6807\u7ea2' : '\u6807\u7ea2';
         const flagClass = manualFlag ? 'btn-flag active' : 'btn-flag';
         const dismissTitle = isDismissed ? '\u53d6\u6d88\u5b8c\u6210' : '\u5b8c\u6210';
+        const uiListStateClass = urgencyClass.includes('urgent')
+          ? ' ui-list-item--danger'
+          : urgencyClass.includes('approaching')
+            ? ' ui-list-item--warning'
+            : '';
+        const uiListMutedClass = isDismissed ? ' ui-list-item--muted' : '';
 
         let actionsHtml = '';
         if (item.source === 'canvas') {
           actionsHtml = `
-            <button class="${flagClass}" onclick="toggleHighlight('${item.id}', ${manualFlag})" title="${flagTitle}">${flagIcon}</button>
+            <button class="todo-action-button ${flagClass}" onclick="toggleHighlight('${item.id}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
             <button class="btn-dismiss" onclick="togglePlatformCompletion('canvas', ${item.rawId}, ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="btn-delete" onclick="toggleCanvasDelete(${item.rawId})" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'haoke') {
           actionsHtml = `
-            <button class="${flagClass}" onclick="toggleHaokeHighlight('${item.id}', ${manualFlag})" title="${flagTitle}">${flagIcon}</button>
+            <button class="todo-action-button ${flagClass}" onclick="toggleHaokeHighlight('${item.id}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
             <button class="btn-dismiss" onclick="togglePlatformCompletion('haoke', ${item.rawId}, ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="btn-delete" onclick="toggleHaokeDelete(${item.rawId})" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'custom') {
           actionsHtml = `
-            <button class="${flagClass}" onclick="toggleCustomHighlight(${item.rawId}, ${manualFlag})" title="${flagTitle}">${flagIcon}</button>
+            <button class="todo-action-button ${flagClass}" onclick="toggleCustomHighlight(${item.rawId}, ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
             <button class="btn-dismiss" onclick="toggleTodoCheck(${item.rawId}, ${item.done})" title="${dismissTitle}">&times;</button>
             <button class="btn-delete" onclick="toggleCustomDelete(${item.rawId})" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'zhixuemeng') {
           actionsHtml = `
-            <button class="${flagClass}" onclick="toggleZhixuemengHighlight('${item.id.substring(1)}', ${manualFlag})" title="${flagTitle}">${flagIcon}</button>
+            <button class="todo-action-button ${flagClass}" onclick="toggleZhixuemengHighlight('${item.id.substring(1)}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
             <button class="btn-dismiss" onclick="togglePlatformCompletion('zhixuemeng', '${item.id.substring(1)}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="btn-delete" onclick="toggleZhixuemengDelete('${item.id.substring(1)}')" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'zhihuishu') {
           actionsHtml = `
-            <button class="${flagClass}" onclick="toggleZhihuishuHighlight('${item.rawId}', ${manualFlag})" title="${flagTitle}">${flagIcon}</button>
+            <button class="todo-action-button ${flagClass}" onclick="toggleZhihuishuHighlight('${item.rawId}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
             <button class="btn-dismiss" onclick="togglePlatformCompletion('zhihuishu', '${item.rawId}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="btn-delete" onclick="toggleZhihuishuDelete('${item.rawId}')" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'project') {
           actionsHtml = `
-            <button class="${flagClass}" onclick="toggleProjectTodoFlag(${item.projectId}, ${item.taskId === null ? 'null' : item.taskId}, '${item.projectKind}', ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}">${flagIcon}</button>
+            <button class="todo-action-button ${flagClass}" onclick="toggleProjectTodoFlag(${item.projectId}, ${item.taskId === null ? 'null' : item.taskId}, '${item.projectKind}', ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
             <button class="btn-dismiss" onclick="completeProjectTodo(${item.projectId}, ${item.taskId === null ? 'null' : item.taskId}, '${item.projectKind}')" title="完成" aria-label="完成">✓</button>
           `;
         }
 
         const safeUrl = sanitizeExternalUrl(item.url);
         const titleHtml = safeUrl
-          ? `<a class="item-title" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</a>`
+          ? `<a class="ui-list-item__title item-title" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</a>`
           : item.source === 'custom'
-            ? `<span class="item-title item-title-plain editable-title" data-id="${item.rawId}" data-field="text">${escapeHtml(item.title)}</span>`
-            : `<span class="item-title item-title-plain">${escapeHtml(item.title)}</span>`;
+            ? `<span class="ui-list-item__title item-title item-title-plain editable-title" data-id="${item.rawId}" data-field="text">${escapeHtml(item.title)}</span>`
+            : `<span class="ui-list-item__title item-title item-title-plain">${escapeHtml(item.title)}</span>`;
 
         const dueHtml = item.source === 'custom'
-          ? `<span class="item-due editable-due" data-id="${item.rawId}" data-field="due_date">${item.due_str}</span>`
+          ? `<span class="ui-list-item__meta item-due editable-due" data-id="${item.rawId}" data-field="due_date">${item.due_str}</span>`
           : item.source === 'project'
-            ? `<button class="item-due project-due-editable" onclick="startProjectTodoDueEdit(this)" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" aria-label="修改截止日期">${item.due_str}</button>`
-          : `<span class="item-due">${item.due_str}</span>`;
+            ? `<button class="ui-button ui-button--text ui-list-item__meta item-due project-due-editable" onclick="startProjectTodoDueEdit(this)" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" aria-label="修改截止日期">${item.due_str}</button>`
+          : `<span class="ui-list-item__meta item-due">${item.due_str}</span>`;
 
         let courseHtml = '';
         if (item.source === 'project') {
-          courseHtml = `<button class="item-course project-todo-link" onclick="openProjectsView(${item.projectId})">${escapeHtml(item.course)} ↗</button>`;
+          courseHtml = `<button class="ui-button ui-button--text ui-list-item__meta item-course project-todo-link" onclick="openProjectsView(${item.projectId})">${escapeHtml(item.course)} ↗</button>`;
         } else if (item.course) {
-          courseHtml = `<span class="item-course">${escapeHtml(item.course)}</span>`;
+          courseHtml = `<span class="ui-list-item__meta item-course">${escapeHtml(item.course)}</span>`;
         } else if (item.labels && item.labels.length > 0) {
-          courseHtml = `<span class="item-course label-badge">${escapeHtml(item.labels[0])}</span>`;
+          courseHtml = `<span class="ui-tag item-course label-badge">${escapeHtml(item.labels[0])}</span>`;
         } else {
-          courseHtml = `<span class="item-course item-course-empty">—</span>`;
+          courseHtml = `<span class="ui-list-item__meta item-course item-course-empty">—</span>`;
         }
         const labelsHtml = '';
 
@@ -1784,15 +1861,18 @@
         const animAttr = doAnimate ? `enter-item" style="animation-delay:${0.34 + idx * 0.04}s` : '';
 
         const rowHtml = `
-          <div class="todo-item unified-item ${urgencyClass} ${manualFlag ? 'manual-flagged' : ''} ${isDismissed ? 'dismissed' : ''} ${animAttr}">
-            <span class="item-source-badge src-${item.source}" title="${item.disconnected ? '平台已断开；显示最后一次同步数据' : item.type}">${item.type}${item.disconnected ? ' · 已断开' : ''}</span>
+          <div class="ui-list-item ui-list-item--interactive todo-row${uiListStateClass}${uiListMutedClass} ${urgencyClass} ${manualFlag ? 'manual-flagged' : ''} ${isDismissed ? 'dismissed' : ''} ${animAttr}">
+            <span class="item-source-badge" title="${item.disconnected ? '平台已断开；显示最后一次同步数据' : item.type}">
+              <span class="ui-badge ui-badge--source ui-source--${item.source} src-${item.source}">${item.type}</span>
+              ${item.disconnected ? '<span class="ui-status ui-status--warning">已断开</span>' : ''}
+            </span>
             ${titleHtml}
             ${courseHtml}
             ${labelsHtml}
             ${dueHtml}
             <span class="item-subtask-slot">${subtaskToggleHtml}</span>
             <span class="item-desktop-actions">${actionsHtml}</span>
-            <button class="mobile-action-trigger" onclick="toggleMobileActions('${item.id}')" aria-label="更多操作" aria-expanded="${mobileActionsOpen}">•••</button>
+            <button class="ui-icon-button mobile-action-trigger" onclick="toggleMobileActions('${item.id}')" aria-label="更多操作" aria-expanded="${mobileActionsOpen}">•••</button>
             <span class="item-mobile-actions ${mobileActionsOpen ? 'open' : ''}">${actionsHtml}</span>
           </div>
         `;
@@ -1804,7 +1884,7 @@
         const panelHtml = isSubtaskExpanded ? renderSubtaskPanel(item.rawId, subtasks) : '';
         const previewHtml = '';
         return `
-          <div class="unified-item-wrap">
+          <div class="todo-row-wrap">
             ${rowHtml}
             ${previewHtml}
             ${panelHtml}
@@ -1815,8 +1895,8 @@
       container.innerHTML = buildTodoGroups(filteredItems).map((group) => `
         <section class="todo-group">
           <div class="todo-group-heading">
-            <h3>${escapeHtml(group.title)}</h3>
-            <span>(${group.items.length})</span>
+            <h3 class="ui-card__title">${escapeHtml(group.title)}</h3>
+            <span class="ui-count-pill">(${group.items.length})</span>
           </div>
           <div class="todo-group-items">${group.items.map(renderTodoItem).join('')}</div>
         </section>
@@ -1863,22 +1943,22 @@
         const sid = subtask.id != null ? subtask.id : idx;
         const dueDateVal = subtask.due_date || todayStr;
         return `
-        <div class="subtask-row">
-          <input type="checkbox" ${subtask.done ? 'checked' : ''} onchange="toggleSubtaskDone(${todoId}, ${sid})">
-          <span class="subtask-text ${subtask.done ? 'done' : ''}" title="${escapeHtml(subtask.text)}" onclick="startSubtaskEdit(${todoId}, ${sid}, this)">${escapeHtml(subtask.text)}</span>
-          <input type="date" class="subtask-due-input" value="${dueDateVal}" onchange="handleSubtaskDueChange(${todoId}, ${sid}, this.value)" title="截止日期">
-          <button class="subtask-delete" onclick="deleteSubtask(${todoId}, ${sid})" title="delete subtask">x</button>
+        <div class="ui-list-item todo-subtask-row">
+          <input type="checkbox" ${subtask.done ? 'checked' : ''} onchange="toggleSubtaskDone(${todoId}, ${sid})" class="ui-checkbox">
+          <span class="ui-list-item__title subtask-text ${subtask.done ? 'done' : ''}" title="${escapeHtml(subtask.text)}" onclick="startSubtaskEdit(${todoId}, ${sid}, this)">${escapeHtml(subtask.text)}</span>
+          <input type="date" class="ui-control subtask-due-input" value="${dueDateVal}" onchange="handleSubtaskDueChange(${todoId}, ${sid}, this.value)" title="截止日期">
+          <button class="ui-icon-button ui-icon-button--danger subtask-delete" onclick="deleteSubtask(${todoId}, ${sid})" title="delete subtask">x</button>
         </div>
       `;
       }).join('');
 
       return `
-        <div class="subtask-panel">
-          ${rowsHtml || '<div class="subtask-empty">还没有子任务</div>'}
+        <div class="ui-card ui-card--subtle todo-subtask-panel">
+          ${rowsHtml || '<div class="ui-empty ui-empty--compact subtask-empty"><strong>还没有子任务</strong></div>'}
           <div class="subtask-add-row">
-            <input class="subtask-add-input" id="subtask-add-text-${todoId}" placeholder="添加子任务..." onkeydown="handleSubtaskAddKey(event, ${todoId})">
-            <input type="date" class="subtask-add-due-input" id="subtask-add-due-${todoId}" value="${todayStr}" onkeydown="handleSubtaskAddKey(event, ${todoId})" title="截止日期">
-            <button type="button" class="subtask-add-btn" onclick="submitSubtaskAdd(${todoId})" title="添加子任务">添加</button>
+            <input class="ui-control subtask-add-input" id="subtask-add-text-${todoId}" placeholder="添加子任务..." onkeydown="handleSubtaskAddKey(event, ${todoId})">
+            <input type="date" class="ui-control subtask-add-due-input" id="subtask-add-due-${todoId}" value="${todayStr}" onkeydown="handleSubtaskAddKey(event, ${todoId})" title="截止日期">
+            <button type="button" class="ui-button ui-button--primary subtask-add-btn" onclick="submitSubtaskAdd(${todoId})" title="添加子任务">添加</button>
           </div>
         </div>
       `;
@@ -2240,7 +2320,7 @@
       const originalText = subtask.text;
       const input = document.createElement('input');
       input.type = 'text';
-      input.className = 'subtask-edit-input';
+      input.className = 'ui-control subtask-edit-input';
       input.value = originalText;
       spanEl.replaceWith(input);
       input.focus();
@@ -2487,7 +2567,7 @@
       activeConnectionPlatform = platform;
       
       // Update selected class in platform list
-      document.querySelectorAll('#login-cards .login-card').forEach(card => {
+      document.querySelectorAll('#login-cards .connection-platform-item').forEach(card => {
         const selected = card.dataset.platform === platform;
         card.classList.toggle('is-selected', selected);
         card.setAttribute('aria-pressed', String(selected));
@@ -2495,7 +2575,7 @@
 
       // Update right details panels visibility
       document.querySelectorAll('.connection-detail-section').forEach(section => {
-        section.style.display = section.id === `detail-${platform}` ? 'block' : 'none';
+        section.classList.toggle('hidden', section.id !== `detail-${platform}`);
       });
 
       // Load status/data for this platform
@@ -2512,10 +2592,10 @@
         const resp = await fetch('/api/config');
         const result = await resp.json();
         badge.textContent = result.has_feed ? '已连接' : '未配置';
-        badge.className = 'status-badge ' + (result.has_feed ? 'connected' : 'attention');
+        applyStatusSemantic(badge, result.has_feed ? 'success' : 'warning');
       } catch (e) {
         badge.textContent = '状态获取失败';
-        badge.className = 'status-badge attention';
+        applyStatusSemantic(badge, 'danger');
       }
     }
 
@@ -2562,10 +2642,10 @@
         const resp = await fetch('/api/haoke/config');
         const result = await resp.json();
         badge.textContent = result.has_credentials ? '已连接' : '未配置';
-        badge.className = 'status-badge ' + (result.has_credentials ? 'connected' : 'attention');
+        applyStatusSemantic(badge, result.has_credentials ? 'success' : 'warning');
       } catch (e) {
         badge.textContent = '状态获取失败';
-        badge.className = 'status-badge attention';
+        applyStatusSemantic(badge, 'danger');
       }
     }
 
@@ -2616,7 +2696,7 @@
         const result = await resp.json();
         if (result.ok && result.has_token) {
           badge.textContent = '已登录';
-          badge.className = 'status-badge connected';
+          applyStatusSemantic(badge, 'success');
           setupDiv.classList.add('hidden');
           loggedInDiv.classList.remove('hidden');
           if (result.courses) {
@@ -2625,13 +2705,13 @@
           }
         } else {
           badge.textContent = '未登录';
-          badge.className = 'status-badge attention';
+          applyStatusSemantic(badge, 'warning');
           setupDiv.classList.remove('hidden');
           loggedInDiv.classList.add('hidden');
         }
       } catch (e) {
         badge.textContent = '状态获取失败';
-        badge.className = 'status-badge attention';
+        applyStatusSemantic(badge, 'danger');
         setupDiv.classList.remove('hidden');
         loggedInDiv.classList.add('hidden');
       }
@@ -2772,8 +2852,10 @@
     function setZhsMessageInline(text, cls) {
       const el = document.getElementById('zhs-login-session-message-inline');
       el.textContent = text || '';
+      const semantic = cls === 'connected' ? 'success' : cls === 'attention' ? 'warning' : cls || 'info';
+      applyFeedbackSemantic(el, semantic);
       el.classList.remove('attention', 'connected');
-      if (cls) el.classList.add(cls);
+      if (cls === 'connected' || cls === 'attention') el.classList.add(cls);
     }
 
     function setZhsSessionButtonsInline(active) {
@@ -2793,7 +2875,7 @@
 
         // Update status badge
         badge.textContent = status.session || '--';
-        badge.className = 'status-badge ' + (status.session === 'active' ? 'connected' : 'attention');
+        applyStatusSemantic(badge, status.session === 'active' ? 'success' : 'warning');
 
         document.getElementById('zhs-session-inline').textContent = status.session || '--';
         document.getElementById('zhs-worker-inline').textContent = status.worker || '--';
@@ -2808,7 +2890,7 @@
         }
       } catch (e) {
         badge.textContent = '获取失败';
-        badge.className = 'status-badge attention';
+        applyStatusSemantic(badge, 'danger');
       }
     }
 
@@ -2823,7 +2905,7 @@
         setZhsSessionButtonsInline(true);
         setZhsMessageInline('登录窗口已打开。完成智慧树登录后回到这里确认。', 'connected');
       } catch (e) {
-        setZhsMessageInline(e.message || '登录窗口启动失败', 'attention');
+        setZhsMessageInline(e.message || '登录窗口启动失败', 'danger');
       }
     }
 
@@ -2841,7 +2923,7 @@
         await loadZhihuishuStatusInline();
         await fetchZhihuishuTodos();
       } catch (e) {
-        setZhsMessageInline(e.message || '登录检查失败', 'attention');
+        setZhsMessageInline(e.message || '登录检查失败', 'danger');
       }
     }
 

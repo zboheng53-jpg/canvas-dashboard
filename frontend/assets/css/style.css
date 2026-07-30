@@ -205,82 +205,38 @@ a:hover { color: var(--accent-hover); }
   color: var(--accent);
 }
 
-.last-updated {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
 .btn-refresh {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
-  font-size: 15px;
+
+
+
   width: 30px;
-  height: 30px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
+
+
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
 }
 
 .auth-inline-group button,
 .auth-inline-group .btn-auth-inline {
-  flex: 0 0 128px !important;
-  width: 128px !important;
-  min-width: 128px !important;
-  max-width: 128px !important;
-  height: 42px !important;
-  padding: 0 8px !important;
-  font-size: 13px !important;
-  font-weight: 500 !important;
-  font-family: var(--font-sans) !important;
-  border-radius: var(--radius-sm) !important;
-  white-space: nowrap !important;
-  cursor: pointer !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  box-sizing: border-box !important;
-  box-shadow: none !important;
-  outline: none !important;
-  appearance: none !important;
-  -webkit-appearance: none !important;
-  transition: all 0.2s ease !important;
-}
+  flex: 0 0 128px;
+  width: 128px;
+  min-width: 128px;
+  max-width: 128px;
 
-/* Secondary Action Button (e.g. Send SMS Code) */
-.auth-inline-group button.btn-secondary,
-.auth-inline-group .btn-auth-secondary,
-#zxm-send-sms-btn {
-  background: #eef1f7 !important;
-  border: 1px solid #cbd5e1 !important;
-  color: #2d4475 !important;
-}
 
-.auth-inline-group button.btn-secondary:hover,
-.auth-inline-group .btn-auth-secondary:hover,
-#zxm-send-sms-btn:hover {
-  background: #e2e8f0 !important;
-  border-color: #94a3b8 !important;
-  color: #1e293b !important;
-}
 
-.auth-inline-group button.btn-secondary:disabled,
-.auth-inline-group .btn-auth-secondary:disabled,
-#zxm-send-sms-btn:disabled {
-  background: #f1f5f9 !important;
-  border-color: #e2e8f0 !important;
-  color: #64748b !important;
-  opacity: 1 !important;
-  cursor: not-allowed !important;
-}
 
-.btn-refresh:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-subtle);
+
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+
+
+
+
 }
 
 /* ---- Stats Bar ---- */
@@ -298,38 +254,23 @@ a:hover { color: var(--accent-hover); }
   gap: 6px;
 }
 
-.stats-bar .stat-count {
-  font-family: var(--font-number);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
-}
-
-.stats-bar .stat-count.urgent {
-  color: var(--danger);
-}
-
 /* ---- Error Banner ---- */
 .error-banner {
-  background: var(--danger-bg);
-  color: var(--danger);
-  padding: 10px 14px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
+
+
+
+
   margin-bottom: 16px;
-  border: 1px solid var(--danger-border);
 }
 
 /* ---- Setup Hint ---- */
 .setup-hint {
-  font-family: var(--font-serif);
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.6;
+
+
+
   margin-bottom: 8px;
 }
 
-.setup-hint small { color: var(--text-muted); font-size: 12px; }
 
 /* ---- Forms ---- */
 .add-todo-form {
@@ -340,61 +281,39 @@ a:hover { color: var(--accent-hover); }
 
 .add-todo-form input {
   flex: 1;
-  padding: 10px 14px;
-  height: 40px;
-  border-radius: var(--radius-sm);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-size: 14px;
-  font-family: var(--font-sans);
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
 
-.add-todo-form input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(59,89,152,0.08);
-}
 
-.add-todo-form input::placeholder { color: var(--text-muted); }
+
+
+
+
+
+
+
+}
 
 .add-todo-form .date-input {
   width: 146px;
   flex: none;
-  font-family: var(--font-number);
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
-}
 
-.add-todo-form .date-input::-webkit-calendar-picker-indicator {
-  opacity: 0.5;
-  cursor: pointer;
+
 }
 
 .add-todo-form button:not(.btn-wide):not(.btn-primary):not(.btn-secondary):not(.btn-accent):not(.btn-submit):not(.btn-auth-inline):not(.btn-auth-primary):not(.btn-auth-secondary) {
   width: 40px;
-  height: 40px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
-  font-size: 20px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-weight: 300;
+
+
+
+
+
+
+
+
   flex-shrink: 0;
-  font-family: var(--font-sans);
-  line-height: 1;
+
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.add-todo-form button:not(.btn-wide):not(.btn-primary):not(.btn-secondary):not(.btn-accent):not(.btn-submit):not(.btn-auth-inline):not(.btn-auth-primary):not(.btn-auth-secondary):hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-subtle);
 }
 
 .add-todo-form .btn-wide,
@@ -407,19 +326,11 @@ a:hover { color: var(--accent-hover); }
 .add-todo-form .btn-auth-secondary {
   width: auto;
   min-width: max-content;
-  height: auto;
-  padding: 9px 18px;
-  font-size: 13px;
-  font-weight: 500;
+
+
+
   white-space: nowrap;
   flex-shrink: 0;
-  border-radius: var(--radius-sm);
-}
-
-.add-todo-form .btn-wide:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-subtle);
 }
 
 /* ---- Todo List ---- */
@@ -443,23 +354,15 @@ a:hover { color: var(--accent-hover); }
 
 .todo-source-filter {
   flex: 0 0 auto;
-  min-height: 38px;
-  padding: 0 14px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text-secondary);
-  background: #f5f3ef;
-  font-family: var(--font-sans);
-  font-size: 13px;
-  cursor: pointer;
-  transition: border-color .18s ease, color .18s ease, background .18s ease;
-}
 
-.todo-source-filter:hover,
-.todo-source-filter.is-active {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: #f7f9fd;
+
+
+
+
+
+
+
+
 }
 
 .todo-group { margin-top: 20px; }
@@ -500,13 +403,6 @@ a:hover { color: var(--accent-hover); }
 .todo-group-items > .unified-item-wrap:first-child,
 .todo-group-items > .unified-item:first-child { border-top: 0; }
 
-.empty-state {
-  text-align: center;
-  color: var(--text-muted);
-  padding: 48px 0;
-  font-size: 14px;
-}
-
 /* ---- Unified Todo Item ---- */
 .unified-item {
   display: flex;
@@ -542,7 +438,7 @@ a:hover { color: var(--accent-hover); }
   padding-right: 20px;
 }
 
-.unified-item.urgent:hover { background: #fef0f0; }
+.unified-item.urgent:hover { background: color-mix(in srgb, var(--color-danger-soft) 84%, var(--color-surface)); }
 
 .unified-item.urgent .item-due {
   color: var(--danger);
@@ -559,17 +455,11 @@ a:hover { color: var(--accent-hover); }
   padding-right: 20px;
 }
 
-.unified-item.approaching:hover { background: #fef7ee; }
+.unified-item.approaching:hover { background: color-mix(in srgb, var(--color-warning-soft) 84%, var(--color-surface)); }
 
 /* Remote: no deadline 鈥?gray, subtle */
 .unified-item.remote {
   border-left-color: #c8c4bc;
-}
-
-/* Manual flag 鈥?active flag icon styling */
-.unified-item.manual-flagged .btn-flag {
-  color: var(--danger);
-  font-weight: 700;
 }
 
 .unified-item.manual-flagged .item-title {
@@ -580,71 +470,11 @@ a:hover { color: var(--accent-hover); }
 .unified-item.dismissed { opacity: 0.35; }
 .unified-item.dismissed .item-title { text-decoration: line-through; }
 .unified-item.dismissed:hover { opacity: 0.48; }
-.unified-item.dismissed .btn-flag { color: var(--text-muted); font-weight: 400; }
-
-/* Source badge */
 .item-source-badge {
-  font-size: 11px;
-  font-weight: 500;
-  padding: 3px 9px;
-  border-radius: 3px;
-  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   flex-shrink: 0;
-  letter-spacing: 0.02em;
-}
-
-/* Source badge colors */
-.item-source-badge.src-canvas {
-  color: var(--src-canvas);
-  background: var(--src-canvas-bg);
-  border: 1px solid #f1cccc;
-}
-.item-source-badge.src-haoke {
-  color: var(--src-haoke);
-  background: var(--src-haoke-bg);
-  border: 1px solid #c8e6d2;
-}
-.item-source-badge.src-zhixuemeng {
-  color: var(--src-zhixuemeng);
-  background: var(--src-zhixuemeng-bg);
-  border: 1px solid #c8d9ed;
-}
-.item-source-badge.src-zhihuishu {
-  color: var(--src-zhihuishu);
-  background: var(--src-zhihuishu-bg);
-  border: 1px solid #ead9b8;
-}
-.item-source-badge.src-custom {
-  color: var(--src-custom);
-  background: var(--src-custom-bg);
-  border: 1px solid #ddd;
-}
-
-.item-source-badge.src-project {
-  color: #4f6b59;
-  background: #edf4ef;
-  border-color: #d9e7dc;
-}
-
-.project-todo-link {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--text-muted);
-  font: inherit;
-  cursor: pointer;
-  text-align: left;
-}
-
-.project-todo-link:hover { color: var(--accent); }
-
-.project-due-editable {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
 }
 
 /* Title */
@@ -683,14 +513,6 @@ a:hover { color: var(--accent-hover); }
 }
 
 .label-badge {
-  font-size: 11px;
-  font-weight: 500;
-  padding: 3px 8px;
-  border-radius: 10px;
-  white-space: nowrap;
-  background: var(--surface);
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -732,16 +554,16 @@ a:hover { color: var(--accent-hover); }
 .btn-flag,
 .btn-dismiss,
 .btn-delete {
+  padding: 5px 7px;
+  color: var(--text-muted);
   background: none;
   border: none;
-  color: var(--text-muted);
-  font-size: 17px;
-  cursor: pointer;
-  padding: 5px 7px;
   border-radius: 3px;
-  transition: all 0.15s;
-  line-height: 1;
   font-family: inherit;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s;
 }
 
 .btn-flag { color: var(--text-muted); }
@@ -811,16 +633,24 @@ a:hover { color: var(--accent-hover); }
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  padding: 5px 7px;
+  color: var(--text-muted);
   background: transparent;
   border: none;
-  color: var(--text-muted);
-  font-size: 17px;
   font-family: var(--font-sans);
-  padding: 5px 7px;
-  border-radius: 3px;
-  cursor: pointer;
+  font-size: 17px;
   line-height: 1;
+  cursor: pointer;
   transition: all 0.15s;
+
+
+
+
+
+
+
+
+
 }
 
 .subtask-toggle:hover {
@@ -850,26 +680,15 @@ a:hover { color: var(--accent-hover); }
 .subtask-due-input {
   width: 120px;
   flex-shrink: 0;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-size: 12px;
-  font-family: var(--font-number);
-  padding: 2px 4px;
-  border-radius: 3px;
-  outline: none;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
-}
 
-.subtask-due-input:focus {
-  border-color: var(--accent);
-}
 
-.subtask-due-input::-webkit-calendar-picker-indicator {
-  opacity: 0.4;
-  cursor: pointer;
-  font-size: 11px;
+
+
+
+
+
+
+
 }
 
 .subtask-row {
@@ -911,25 +730,13 @@ a:hover { color: var(--accent-hover); }
 
 .subtask-delete {
   flex-shrink: 0;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 16px;
-  line-height: 1;
-  padding: 2px 6px;
-  border-radius: 3px;
-  cursor: pointer;
-}
 
-.subtask-delete:hover {
-  color: var(--danger-hover);
-  background: var(--danger-bg);
-}
 
-.subtask-empty {
-  padding: 4px 0 8px;
-  color: var(--text-muted);
-  font-size: 13px;
+
+
+
+
+
 }
 
 .subtask-add-row {
@@ -944,63 +751,29 @@ a:hover { color: var(--accent-hover); }
   min-width: 0;
 }
 
-.subtask-add-input,
-.subtask-edit-input {
-  box-sizing: border-box;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-size: 13px;
-  font-family: var(--font-sans);
-  padding: 5px 8px;
-  border-radius: 3px;
-  outline: none;
-}
-
-.subtask-add-input:focus,
-.subtask-edit-input:focus {
-  border-color: var(--accent);
-}
-
 .subtask-add-due-input {
   width: 120px;
   flex-shrink: 0;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-size: 12px;
-  font-family: var(--font-number);
-  padding: 4px 4px;
-  border-radius: 3px;
-  outline: none;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
-}
 
-.subtask-add-due-input:focus {
-  border-color: var(--accent);
-}
 
-.subtask-add-due-input::-webkit-calendar-picker-indicator {
-  opacity: 0.4;
-  cursor: pointer;
-  font-size: 11px;
+
+
+
+
+
+
+
 }
 
 .subtask-add-btn {
   flex-shrink: 0;
-  background: var(--accent);
-  color: white;
-  border: none;
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: 3px;
-  cursor: pointer;
-  line-height: 1.5;
-}
 
-.subtask-add-btn:hover {
-  opacity: 0.9;
+
+
+
+
+
+
 }
 
 /* ---- Login Trigger ---- */
@@ -1073,14 +846,8 @@ a:hover { color: var(--accent-hover); }
 }
 
 .login-card-status {
-  display: block;
   margin-top: 4px;
-  font-size: 12px;
-  color: var(--text-muted);
 }
-
-.login-card-status.connected { color: var(--src-haoke); }
-.login-card-status.attention { color: var(--danger); }
 
 @media (max-width: 768px) {
   .login-cards { grid-template-columns: repeat(2, 1fr); }
@@ -1118,10 +885,9 @@ a:hover { color: var(--accent-hover); }
 
 .setup-hint pre {
   margin: 8px 0 12px;
-  padding: 10px 12px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+
+
+
   overflow-x: auto;
 }
 
@@ -1132,55 +898,9 @@ a:hover { color: var(--accent-hover); }
   margin-top: 18px;
 }
 
-.btn-primary,
-.btn-secondary {
-  min-height: 38px;
-  padding: 8px 14px;
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-primary {
-  color: #fff;
-  background: var(--accent);
-  border: 1px solid var(--accent);
-}
-
-.btn-primary:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
-}
-
-.btn-secondary {
-  color: var(--text-secondary);
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-}
-
-.btn-secondary:hover {
-  color: var(--accent);
-  background: var(--accent-subtle);
-  border-color: var(--accent);
-}
-
-.btn-primary:disabled,
-.btn-secondary:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
 .login-session-message {
-  min-height: 22px;
   margin-top: 12px;
-  font-size: 13px;
-  color: var(--text-muted);
 }
-
-.login-session-message.connected { color: var(--src-haoke); }
-.login-session-message.attention { color: var(--danger); }
 
 /* ---- Logged-in status row ---- */
 .logged-in-row {
@@ -1198,19 +918,16 @@ a:hover { color: var(--accent-hover); }
 }
 
 .logged-in-select {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-family: inherit;
-  outline: none;
+
+
+
+
+
+
+
   flex: 1;
   max-width: 280px;
 }
-
-.logged-in-select:focus { border-color: var(--accent); }
 
 .logged-in-link {
   font-size: 12px;
@@ -1218,26 +935,13 @@ a:hover { color: var(--accent-hover); }
 }
 
 .form-note {
-  font-size: 12px;
-  color: var(--text-muted);
+
   margin-top: 8px;
-  text-align: right;
 }
 
-.form-note a { font-size: 12px; color: var(--text-muted); }
 
 .mt-s { margin-top: 8px; }
 .mb-s { margin-bottom: 8px; }
-
-.btn-accent {
-  background: var(--accent) !important;
-  border-color: var(--accent) !important;
-  color: #fff !important;
-}
-.btn-accent:hover {
-  background: var(--accent-hover) !important;
-  border-color: var(--accent-hover) !important;
-}
 
 /* Blue action buttons mirror the dashboard's existing “刷新状态” secondary control. */
 
@@ -1246,47 +950,16 @@ a:hover { color: var(--accent-hover); }
 .btn-submit,
 .btn-auth-primary,
 .subtask-add-btn {
-  min-height: 36px;
-  padding: 0 12px !important;
-  border: 1px solid #cbdcf6 !important;
-  border-radius: 6px;
-  background: #fff !important;
-  color: #3a5985 !important;
-  font-family: var(--font-body);
-  font-size: 12px;
-  font-weight: 500;
+
+
+
+
+
+
+
+
   flex: 0 0 auto;
-  box-shadow: none;
-  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
-}
 
-.btn-primary:hover:not(:disabled),
-.btn-accent:hover:not(:disabled),
-.btn-submit:hover:not(:disabled),
-.btn-auth-primary:hover:not(:disabled),
-.subtask-add-btn:hover:not(:disabled),
-.btn-primary:focus-visible:not(:disabled),
-.btn-accent:focus-visible:not(:disabled),
-.btn-submit:focus-visible:not(:disabled),
-.btn-auth-primary:focus-visible:not(:disabled),
-.subtask-add-btn:focus-visible:not(:disabled) {
-  background: #edf4ff !important;
-  outline: none;
-}
-
-.btn-primary:disabled,
-.btn-accent:disabled,
-.btn-submit:disabled,
-.btn-auth-primary:disabled,
-.subtask-add-btn:disabled {
-  cursor: wait;
-  opacity: .55;
-}
-
-/* ---- SMS button disabled ---- */
-#zxm-send-sms-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 /* ---- Scrollbar ---- */
@@ -1352,12 +1025,10 @@ a:hover { color: var(--accent-hover); }
     flex: 0 0 44px;
     width: 44px;
     min-width: 44px;
-    padding: 0;
-    color: transparent;
-    font-size: 0;
-    cursor: pointer;
+
+
+
   }
-  .add-todo-form .date-input::-webkit-datetime-edit { color: transparent; }
   .add-todo-form button:not(.btn-wide):not(.btn-primary):not(.btn-secondary):not(.btn-accent):not(.btn-submit):not(.btn-auth-inline):not(.btn-auth-primary):not(.btn-auth-secondary) { width: 44px; }
   .add-todo-form .btn-wide,
   .add-todo-form .btn-primary,
@@ -1399,20 +1070,17 @@ a:hover { color: var(--accent-hover); }
     grid-area: more;
     display: inline-flex;
     width: 36px;
-    height: 36px;
     align-items: center;
     justify-content: center;
-    padding: 0;
-    border: none;
-    border-radius: 3px;
-    background: none;
-    color: var(--text-muted);
-    font-family: inherit;
-    font-size: 16px;
-    line-height: 1;
-    cursor: pointer;
+
+
+
+
+
+
+
+
   }
-  .mobile-action-trigger:hover { color: var(--accent); background: var(--accent-subtle); }
   .item-mobile-actions {
     grid-area: mobile-actions;
     align-items: center;

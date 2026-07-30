@@ -21,7 +21,7 @@
   .manager-section-heading p { max-width: none; text-align: left; }
   .schedule-item-form { grid-template-columns: 1fr 1fr; }
   .schedule-item-form input[name="title"] { grid-column: 1 / -1; }
-  .schedule-item-form button { grid-column: 1 / -1; height: 34px; }
+  .schedule-item-form button { grid-column: 1 / -1; }
   .schedule-course-row, .schedule-item-row { align-items: flex-start; flex-direction: column; }
   .schedule-item-actions { justify-content: flex-start; }
   .project-manager-heading { align-items: stretch; flex-direction: column; }
@@ -43,11 +43,6 @@
   .calendar-subscription-workspace { padding: 18px; }
   .calendar-subscription-actions { display: grid; grid-template-columns: 1fr; }
   .calendar-subscription-actions button { width: 100%; }
-}
-
-.status-badge.connected {
-  background: #eaf2ff;
-  color: #2f6fe4;
 }
 
 @media (min-width: 961px) {
@@ -79,9 +74,7 @@
     }
 
     /* Confirmed direction: headings and content titles use the shared editorial serif. */
-    h1, h4, h5, h6,
-    .project-overview-title button,
-    .project-detail-empty strong {
+    h1, h4, h5, h6 {
       font-family: var(--font-title) !important;
       font-weight: 500 !important;
       letter-spacing: -0.01em !important;
@@ -233,26 +226,16 @@
 
     /* 现代克制的折叠按钮 */
     .sidebar-collapse-toggle {
-      width: 28px !important;
-      height: 28px !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      border-radius: 6px !important;
-      border: 1px solid rgba(226, 220, 210, 0.4) !important;
-      background: rgba(255, 255, 255, 0.5) !important;
-      color: var(--text-secondary) !important;
-      cursor: pointer !important;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-      flex-shrink: 0 !important;
-      padding: 0 !important;
-    }
+      width: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
 
-    .sidebar-collapse-toggle:hover {
-      background: #FFFFFF !important;
-      border-color: rgba(47, 111, 228, 0.25) !important;
-      color: var(--color-primary) !important;
-      box-shadow: 0 2px 6px rgba(47, 111, 228, 0.08) !important;
+
+
+
+
+      flex-shrink: 0;
     }
 
     .sidebar-collapse-svg {
@@ -281,8 +264,8 @@
     }
 
     .sidebar-collapsed .sidebar-collapse-toggle {
-      margin: 0 auto !important;
-      transform: rotate(180deg) !important;
+      margin: 0 auto;
+      transform: rotate(180deg);
     }
 
     /* 3. 莫兰迪半透明晶莹分割线 (1px 白高光 + 柔暖灰 Hairline) */
@@ -347,7 +330,10 @@
     }
 
     /* Accessibility Baseline: Focus-Visible & Motion Safety */
-    button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+    button:not(.ui-button):not(.ui-icon-button):focus-visible,
+    a:focus-visible,
+    input:not(.ui-control):focus-visible,
+    select:not(.ui-control):focus-visible {
       outline: 2px solid var(--accent-primary) !important;
       outline-offset: 2px !important;
     }
@@ -362,42 +348,18 @@
     }
 
     /* Button Micro-Interactions & Active States */
-    button, .btn, .sidebar-nav-item, .item-desktop-actions button {
+    button:not(.ui-button):not(.ui-icon-button), .btn, .sidebar-nav-item {
       transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1) !important;
     }
 
-    button:active, .btn:active, .sidebar-nav-item:active {
+    button:not(.ui-button):not(.ui-icon-button):active, .btn:active, .sidebar-nav-item:active {
       transform: scale(0.98) !important;
     }
 
     /* Typography Polish: All-Caps & Numeric Formatting */
-    .kicker, .eyebrow, .label-badge, .stat-pill {
+    .kicker, .eyebrow {
       letter-spacing: 0.06em !important;
       font-variant-numeric: tabular-nums !important;
-    }
-
-    /* 5. 色盘主次配比：主蓝 (#2F6FE4) 主导 + 危险红/暖褐仅作警示/Tag */
-    .badge, .tag, .status-pill, .pill, [class*="status-"], [class*="tag-"] {
-      border-radius: 6px !important;
-      font-weight: 500 !important;
-    }
-
-    .status-complete, .status-active, .badge-success, .is-active-tag, [data-status="active"] {
-      background: var(--color-primary-soft) !important;
-      color: var(--color-primary) !important;
-      border: 1px solid var(--color-primary-border) !important;
-    }
-
-    .status-pending, .status-urgent, .badge-danger, .badge-warning, [data-status="urgent"] {
-      background: rgba(140, 91, 76, 0.08) !important;
-      color: #8C5B4C !important;
-      border: 1px solid rgba(140, 91, 76, 0.22) !important;
-    }
-
-    .status-info, .badge-info, .tag-blue, [data-status="info"] {
-      background: rgba(91, 110, 122, 0.08) !important;
-      color: #5B6E7A !important;
-      border: 1px solid rgba(91, 110, 122, 0.2) !important;
     }
 
     /* 6. 待办/优先事项 List-Row System (静音化列表，彻底消除粗重粉绿背景卡片) */
@@ -460,77 +422,56 @@
 
     /* 7. 待办截止状态辨识度增强 (Deadline State Distinction) */
     .unified-item .item-due, .todo-item .item-due {
-      display: inline-flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      font-family: var(--font-number) !important;
-      font-size: 12px !important;
-      line-height: 1.2 !important;
-      padding: 2px 7px !important;
-      border-radius: 5px !important;
-      transition: all 0.15s ease !important;
-      white-space: nowrap !important;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-number);
+      font-size: 12px;
+      line-height: 1.2;
+      padding: 2px 7px;
+      border-radius: 5px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
     }
 
     /* 已逾期 (Overdue): 柔和危险红 badge */
     .unified-item.is-overdue .item-due,
     .unified-item.urgent.is-overdue .item-due,
     .todo-item.urgent.is-overdue .item-due {
-      color: #DC2626 !important;
-      background: rgba(220, 38, 38, 0.07) !important;
-      border: 1px solid rgba(220, 38, 38, 0.18) !important;
-      font-weight: 500 !important;
+      color: var(--color-danger);
+      background: var(--color-danger-soft);
+      border: 1px solid var(--color-danger-border);
+      font-weight: 500;
     }
 
     /* 今日到期 (Due Today): 暖琥珀 warning badge */
     .unified-item.is-today .item-due,
     .unified-item.urgent.is-today .item-due,
     .todo-item.urgent.is-today .item-due {
-      color: #B45309 !important;
-      background: rgba(217, 119, 6, 0.08) !important;
-      border: 1px solid rgba(217, 119, 6, 0.2) !important;
-      font-weight: 500 !important;
+      color: var(--color-warning);
+      background: var(--color-warning-soft);
+      border: 1px solid var(--color-warning-border);
+      font-weight: 500;
     }
 
     /* 近期/3天内到期 (Approaching): 暖秋叶金黄色 warning badge */
     .unified-item.approaching .item-due,
     .unified-item.is-approaching .item-due,
     .todo-item.approaching .item-due {
-      color: #854D0E !important;
-      background: rgba(234, 179, 8, 0.06) !important;
-      border: 1px solid rgba(234, 179, 8, 0.22) !important;
-      font-weight: 500 !important;
+      color: var(--color-warning);
+      background: var(--color-warning-soft);
+      border: 1px solid var(--color-warning-border);
+      font-weight: 500;
     }
 
     /* 普通远期到期 (Normal / Remote): 静音中性灰 */
     .unified-item.remote .item-due,
     .unified-item.is-normal .item-due,
     .todo-item.remote .item-due {
-      color: #94A3B8 !important;
-      background: transparent !important;
-      border: 1px solid transparent !important;
-      font-weight: 400 !important;
-    }
-
-    /* 来源与类型 Label 统一收敛为低调灰色系小标签 */
-    .unified-item .item-source-badge,
-    .todo-item .item-source-badge,
-    .unified-item .item-badge,
-    .todo-item .item-badge {
-      background: rgba(241, 245, 249, 0.5) !important;
-      color: #94A3B8 !important;
-      border: none !important;
-      font-weight: 400 !important;
-      font-size: 11px !important;
-      padding: 2px 6px !important;
-      border-radius: 4px !important;
-      margin-right: 0 !important;
-      white-space: nowrap !important;
-      display: inline-flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      height: 20px !important;
-      line-height: 1 !important;
+      color: #94A3B8;
+      background: transparent;
+      border: 1px solid transparent;
+      font-weight: 400;
     }
 
     /* 待办分组标题去厚重化与留白 */
@@ -582,22 +523,20 @@
     }
 
     /* 课程与项目 (收敛为普通中性灰文本，杜绝亮蓝醒目胶囊包围) */
-    .unified-item .item-course, .todo-item .item-course,
-    button.item-course.project-todo-link,
-    .label-badge {
-      color: #94A3B8 !important;
-      background: transparent !important;
-      border: none !important;
-      font-size: 12.5px !important;
-      font-weight: 400 !important;
-      padding: 0 !important;
-      border-radius: 0 !important;
-      margin-left: auto !important;
-      margin-right: 8px !important;
-      white-space: nowrap !important;
-      height: auto !important;
-      line-height: 1.4 !important;
-      max-width: 140px !important;
+    .unified-item .item-course:not(button), .todo-item .item-course:not(button) {
+      color: #94A3B8;
+      background: transparent;
+      border: none;
+      font-size: 12.5px;
+      font-weight: 400;
+      padding: 0;
+      border-radius: 0;
+      margin-left: auto;
+      margin-right: 8px;
+      white-space: nowrap;
+      height: auto;
+      line-height: 1.4;
+      max-width: 140px;
     }
 
     /* 操作按钮组：常驻 100% 不透明，清晰无透光 */
@@ -607,45 +546,6 @@
 
     .unified-item:hover .item-desktop-actions, .todo-item:hover .item-desktop-actions {
       opacity: 1 !important;
-    }
-
-    .unified-item .item-desktop-actions button, .todo-item .item-desktop-actions button {
-      color: #475569 !important;
-      background: transparent !important;
-      border: none !important;
-      padding: 2px 4px !important;
-      cursor: pointer !important;
-      transition: color 0.15s ease !important;
-      font-size: 13px !important;
-      opacity: 1 !important;
-    }
-
-    .unified-item .item-desktop-actions button:hover, .todo-item .item-desktop-actions button:hover {
-      color: #0F172A !important;
-    }
-
-    .unified-item .item-desktop-actions button.btn-delete:hover {
-      color: #8C5B4C !important;
-    }
-
-    .unified-item .btn-flag.active, .todo-item .btn-flag.active, .btn-flag.active {
-      color: #EF4444 !important;
-    }
-
-    /* 输入框与表单控件适应 Scheme 1 亚光纯白实色 + 暖灰细边框 (Pure White & Hairline) */
-    input[type="text"], input[type="search"], select, textarea, .search-bar input {
-      background: #FFFFFF !important;
-      border: 1px solid rgba(215, 208, 195, 0.85) !important;
-      color: #1E293B !important;
-      border-radius: 10px !important;
-      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03) !important;
-    }
-
-    input[type="text"]:focus, select:focus, textarea:focus {
-      background: #FFFFFF !important;
-      border-color: var(--color-primary) !important;
-      box-shadow: 0 0 0 3px rgba(47, 111, 228, 0.15) !important;
-      outline: none !important;
     }
 
     /* Desktop Layout Phase 1 Styles */
@@ -942,35 +842,26 @@
         gap: 4px !important;
       }
 
-      .item-course, .label-badge, button.item-course.project-todo-link {
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: flex-start !important;
-        font-size: 12px !important;
-        font-weight: 500 !important;
-        padding: 2px 8px !important;
-        border-radius: 6px !important;
-        background: #F1F5F9 !important;
-        color: #475569 !important;
-        border: none !important;
-        max-width: 110px !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-        white-space: nowrap !important;
-        box-sizing: border-box !important;
-        text-decoration: none !important;
-        height: 22px !important;
-        line-height: 18px !important;
+      .item-course:not(button) {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-start;
+        font-size: 12px;
+        font-weight: 500;
+        padding: 2px 8px;
+        border-radius: 6px;
+        background: #F1F5F9;
+        color: #475569;
+        border: none;
+        max-width: 110px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        box-sizing: border-box;
+        text-decoration: none;
+        height: 22px;
+        line-height: 18px;
         cursor: default;
-      }
-
-      button.item-course.project-todo-link {
-        cursor: pointer !important;
-      }
-
-      button.item-course.project-todo-link:hover {
-        color: #1E293B !important;
-        text-decoration: underline !important;
       }
 
       .item-course-empty {
@@ -1019,25 +910,6 @@
         font-weight: 400 !important;
       }
 
-      .card.enter-main-card .stats-bar-under-add .stat-pill {
-        display: inline-flex !important;
-        align-items: center !important;
-        gap: 6px !important;
-        color: var(--text-secondary) !important;
-        font-weight: 400 !important;
-      }
-
-      .card.enter-main-card .stats-bar-under-add .stat-pill .stat-count {
-        font-weight: 500 !important;
-        color: var(--text-primary) !important;
-        font-family: var(--font-number) !important;
-        font-size: 14.5px !important;
-      }
-
-      .card.enter-main-card .stats-bar-under-add .stat-pill.urgent .stat-count {
-        color: #DC2626 !important; /* Crimson Red matching the reference image.png */
-      }
-
       .card.enter-main-card .todo-header-divider {
         height: 1px !important;
         background-color: rgba(44, 50, 55, 0.2) !important;
@@ -1062,59 +934,25 @@
         margin: 0 !important;
       }
 
-      /* 4. 下拉菜单与输入框与刷新按钮 Scheme 1 (亚光纯白实色 + 暖灰细边框 Pure White & Hairline) */
-      .card.enter-main-card .todo-source-select {
-        height: 34px !important;
-        padding: 0 12px !important;
-        font-size: 12.5px !important;
-        font-weight: 500 !important;
-        color: #1E293B !important;
-        background-color: #FFFFFF !important;
-        border: 1px solid rgba(215, 208, 195, 0.85) !important;
-        border-radius: var(--radius-btn) !important;
-        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03) !important;
-        outline: none !important;
-        cursor: pointer !important;
-        transition: all 0.15s ease !important;
-      }
-
-      .card.enter-main-card .todo-source-select:hover {
-        border-color: var(--color-primary-border) !important;
-        background-color: #FFFFFF !important;
-      }
-
-      .card.enter-main-card .todo-source-select:focus {
-        border-color: var(--color-primary) !important;
-        box-shadow: 0 0 0 3px rgba(47, 111, 228, 0.15) !important;
-      }
-
       .card.enter-main-card .last-updated {
-        font-size: 12px !important;
-        color: #64748B !important;
-        white-space: nowrap !important;
+
+        white-space: nowrap;
       }
 
       .card.enter-main-card .btn-refresh {
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        width: 32px !important;
-        height: 32px !important;
-        padding: 0 !important;
-        border-radius: var(--radius-btn) !important;
-        background: #FFFFFF !important;
-        border: 1px solid rgba(215, 208, 195, 0.85) !important;
-        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03) !important;
-        color: #475569 !important;
-        font-size: 13px !important;
-        cursor: pointer !important;
-        transition: all 0.2s ease !important;
-      }
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
 
-      .card.enter-main-card .btn-refresh:hover {
-        background: var(--color-primary-soft-hover) !important;
-        color: var(--color-primary) !important;
-        border-color: var(--color-primary-border) !important;
+
+
+
+
+
+
+
+
       }
 
       /* Row 2: Add Todo Form */
@@ -1130,76 +968,43 @@
       }
 
       .card.enter-main-card .add-todo-form input[type="text"] {
-        flex: 1 !important;
-        height: 38px !important;
-        padding: 0 14px !important;
-        font-size: 13px !important;
-        border: 1px solid rgba(215, 208, 195, 0.85) !important;
-        border-radius: var(--radius-btn) !important;
-        background: #FFFFFF !important;
-        color: #1E293B !important;
-        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03) !important;
-        transition: all 0.15s ease !important;
-      }
+        flex: 1;
 
-      .card.enter-main-card .add-todo-form input[type="text"]::placeholder {
-        color: #94A3B8 !important;
-      }
 
-      .card.enter-main-card .add-todo-form input[type="text"]:hover {
-        border-color: var(--color-primary-border) !important;
-      }
 
-      .card.enter-main-card .add-todo-form input[type="text"]:focus {
-        border-color: var(--color-primary) !important;
-        box-shadow: 0 0 0 3px rgba(47, 111, 228, 0.15) !important;
-        background: #FFFFFF !important;
+
+
+
+
+
       }
 
       .card.enter-main-card .add-todo-form input[type="date"] {
-        width: 135px !important;
-        height: 38px !important;
-        padding: 0 8px !important;
-        font-size: 12px !important;
-        font-family: var(--font-number) !important;
-        border: 1px solid rgba(215, 208, 195, 0.85) !important;
-        border-radius: var(--radius-btn) !important;
-        background: #FFFFFF !important;
-        color: #1E293B !important;
-        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03) !important;
-        transition: all 0.15s ease !important;
-      }
+        width: 135px;
 
-      .card.enter-main-card .add-todo-form input[type="date"]:hover {
-        border-color: var(--color-primary-border) !important;
-      }
 
-      .card.enter-main-card .add-todo-form input[type="date"]:focus {
-        border-color: var(--color-primary) !important;
-        box-shadow: 0 0 0 3px rgba(47, 111, 228, 0.15) !important;
-        background: #FFFFFF !important;
+
+
+
+
+
+
+
       }
 
       /* 保持按钮位置不变，修改颜色为经典蓝 */
       .card.enter-main-card .add-todo-form button:not(.btn-wide):not(.btn-primary):not(.btn-secondary):not(.btn-accent):not(.btn-submit) {
-        width: 38px !important;
-        height: 38px !important;
-        font-size: 18px !important;
-        line-height: 36px !important;
-        background: var(--color-primary) !important;
-        color: #FFFFFF !important;
-        border: 1px solid var(--color-primary) !important;
-        border-radius: var(--radius-btn) !important;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 6px rgba(47, 111, 228, 0.2) !important;
-        cursor: pointer !important;
-        padding: 0 !important;
-        transition: all 0.2s ease !important;
-      }
+        width: 38px;
 
-      .card.enter-main-card .add-todo-form button:hover {
-        background: var(--color-primary-hover) !important;
-        transform: translateY(-1px) !important;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 12px rgba(47, 111, 228, 0.25) !important;
+
+
+
+
+
+
+
+
+
       }
 
       .card.enter-main-card .section-divider {
@@ -1243,22 +1048,6 @@
         letter-spacing: -0.015em !important;
       }
 
-      .project-overview-all {
-        font-family: var(--font-sans) !important;
-        font-size: 12px !important;
-        font-weight: 500 !important;
-        color: #1E293B !important;
-        padding: 3px 10px !important;
-        background: rgba(30, 41, 59, 0.06) !important;
-        border-radius: 12px !important;
-        transition: all 0.15s ease !important;
-      }
-
-      .project-overview-all:hover {
-        background: rgba(30, 41, 59, 0.12) !important;
-        color: #0F172A !important;
-      }
-
       .rail-card-index {
         font-family: var(--font-number) !important;
         font-size: 12px !important;
@@ -1278,29 +1067,6 @@
       .project-overview-main {
         gap: 5px !important;
         padding-bottom: 8px !important;
-      }
-
-      .project-overview-title button {
-        font-family: var(--font-title) !important;
-        font-size: 15px !important;
-        font-weight: 600 !important;
-        color: #0F172A !important;
-      }
-
-      .project-overview-title span, .project-next-badge {
-        font-family: var(--font-number) !important;
-        font-size: 10.5px !important;
-        font-weight: 500 !important;
-        padding: 2px 7px !important;
-        border-radius: 4px !important;
-        background: rgba(30, 41, 59, 0.06) !important;
-        color: #1E293B !important;
-        border: none !important;
-      }
-
-      .project-next-badge {
-        background: rgba(220, 38, 38, 0.06) !important;
-        color: #DC2626 !important;
       }
 
       .project-overview-objective {
@@ -1348,12 +1114,6 @@
         font-size: 11px !important;
         color: #64748B !important;
         font-variant-numeric: tabular-nums !important;
-      }
-
-      .project-overview-links button {
-        font-size: 11.5px !important;
-        font-weight: 500 !important;
-        color: #1E293B !important;
       }
 
       /* Today's Schedule Card Items */
@@ -1515,29 +1275,6 @@
         margin: 4px 0 0 0 !important;
       }
 
-      #project-new-button {
-        height: 36px !important;
-        padding: 0 18px !important;
-        background: var(--color-primary) !important;
-        color: #FFFFFF !important;
-        border: 1px solid var(--color-primary) !important;
-        border-radius: var(--radius-btn) !important;
-        font-size: 13px !important;
-        font-weight: 600 !important;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 6px rgba(47, 111, 228, 0.2) !important;
-        cursor: pointer !important;
-        transition: all 0.2s ease !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        gap: 4px !important;
-      }
-
-      #project-new-button:hover {
-        background: var(--color-primary-hover) !important;
-        transform: translateY(-1px) !important;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 12px rgba(47, 111, 228, 0.25) !important;
-      }
-
       #dashboard-view-projects .project-manager-layout {
         display: grid !important;
         grid-template-columns: 320px minmax(0, 1fr) !important;
@@ -1582,48 +1319,6 @@
         cursor: pointer !important;
       }
 
-      #dashboard-view-projects .project-detail-empty {
-        padding: 60px 20px !important;
-        text-align: center !important;
-        background: transparent !important;
-        border: none !important;
-        border-radius: 0 !important;
-      }
-
-      #dashboard-view-projects .project-detail-empty strong {
-        font-family: var(--font-body) !important;
-        font-size: 17px !important;
-        color: #1E293B !important;
-        display: block !important;
-        margin-bottom: 6px !important;
-      }
-
-      #dashboard-view-projects .project-detail-empty p {
-        font-size: 13px !important;
-        color: #475569 !important;
-        margin-bottom: 16px !important;
-      }
-
-      #dashboard-view-projects .project-button-primary {
-        height: 36px !important;
-        padding: 0 18px !important;
-        background: var(--color-primary) !important;
-        color: #FFFFFF !important;
-        border: 1px solid var(--color-primary) !important;
-        border-radius: var(--radius-btn) !important;
-        font-size: 13px !important;
-        font-weight: 600 !important;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 6px rgba(47, 111, 228, 0.2) !important;
-        cursor: pointer !important;
-        transition: all 0.2s ease !important;
-      }
-
-      #dashboard-view-projects .project-button-primary:hover {
-        background: var(--color-primary-hover) !important;
-        transform: translateY(-1px) !important;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 12px rgba(47, 111, 228, 0.25) !important;
-      }
-
       /* 待办事项列表稳定表格化对齐 (Stable Table Grid Layout for Todo Rows) */
       .unified-item, .todo-item {
         display: grid !important;
@@ -1652,23 +1347,23 @@
       }
 
       .unified-item .item-course, .todo-item .item-course {
-        grid-column: 3 !important;
-        justify-self: start !important;
-        margin: 0 !important;
-        max-width: 100% !important;
-        text-align: left !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
+        grid-column: 3;
+        justify-self: start;
+        margin: 0;
+        max-width: 100%;
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .unified-item .item-due, .todo-item .item-due {
-        grid-column: 4 !important;
-        justify-self: start !important;
-        margin: 0 !important;
-        text-align: left !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
+        grid-column: 4;
+        justify-self: start;
+        margin: 0;
+        text-align: left;
+        width: 100%;
+        box-sizing: border-box;
       }
 
       .unified-item .item-subtask-slot, .todo-item .item-subtask-slot {
@@ -1691,7 +1386,7 @@
 
     .unified-item .mobile-action-trigger, .todo-item .mobile-action-trigger,
     .unified-item .item-mobile-actions, .todo-item .item-mobile-actions {
-      display: none !important;
+      display: none;
     }
 
     /* Keep the subtask toggle and its three item actions on one even rhythm. */
@@ -1718,12 +1413,11 @@
     .unified-item .item-desktop-actions button,
     .todo-item .item-subtask-slot .subtask-toggle,
     .todo-item .item-desktop-actions button {
-      width: 24px !important;
-      height: 24px !important;
-      padding: 0 !important;
-      display: inline-flex !important;
-      align-items: center !important;
-      justify-content: center !important;
+      width: 24px;
+
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
   }
 
@@ -1741,34 +1435,19 @@
       border: 1px solid rgba(47, 111, 228, 0.08) !important;
     }
     .project-tab-btn {
-      flex: 1 !important;
-      border: none !important;
-      background: transparent !important;
-      padding: 8px 6px !important;
-      font-size: 12px !important;
-      font-weight: 500 !important;
-      color: var(--text-secondary) !important;
-      cursor: pointer !important;
-      border-radius: 6px !important;
-      transition: all 0.15s ease !important;
-      display: inline-flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      gap: 4px !important;
-    }
-    .project-tab-btn span {
-      font-size: 10px !important;
-      opacity: 0.7 !important;
-    }
-    .project-tab-btn.active {
-      background: #FFFFFF !important;
-      color: var(--color-primary) !important;
-      box-shadow: 0 1px 3px rgba(47, 111, 228, 0.12) !important;
-      border: 1px solid rgba(47, 111, 228, 0.15) !important;
-    }
-    .project-tab-btn:hover:not(.active) {
-      background: rgba(47, 111, 228, 0.08) !important;
-      color: var(--color-primary) !important;
+      flex: 1;
+
+
+
+
+
+
+
+
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
     }
 
     /* List Card Styles */
@@ -1826,26 +1505,6 @@
       margin-top: 10px !important;
       margin-bottom: 12px !important;
     }
-    .project-tag-pill {
-      display: inline-flex !important;
-      align-items: center !important;
-      padding: 3px 8px !important;
-      border: 1px solid rgba(0, 0, 0, 0.06) !important;
-      background: rgba(0, 0, 0, 0.02) !important;
-      color: var(--text-secondary) !important;
-      font-size: 11px !important;
-      font-weight: 500 !important;
-      border-radius: 99px !important;
-      font-family: var(--font-sans) !important;
-      height: 20px !important;
-      line-height: 1 !important;
-    }
-    .project-tag-pill.main-project-tag {
-      background: rgba(16, 185, 129, 0.06) !important;
-      border-color: rgba(16, 185, 129, 0.2) !important;
-      color: #059669 !important;
-    }
-
     /* 3. Highlighted Next Action Box */
     .project-next-action-card {
       display: flex !important;
@@ -1891,22 +1550,16 @@
     }
     .project-next-action-btn-complete,
     .project-next-action-btn-choose {
-      border: 1px solid rgba(0, 0, 0, 0.08) !important;
-      background: #FFFFFF !important;
-      color: var(--text-primary) !important;
-      padding: 6px 12px !important;
-      font-size: 12px !important;
-      font-weight: 500 !important;
-      border-radius: 6px !important;
-      cursor: pointer !important;
-      transition: all 0.15s ease !important;
-      flex-shrink: 0 !important;
-      margin-left: 16px !important;
-    }
-    .project-next-action-btn-complete:hover,
-    .project-next-action-btn-choose:hover {
-      background: rgba(0, 0, 0, 0.02) !important;
-      border-color: rgba(0, 0, 0, 0.15) !important;
+
+
+
+
+
+
+
+
+      flex-shrink: 0;
+      margin-left: 16px;
     }
     .project-detail-divider {
       border: none !important;
@@ -1940,15 +1593,6 @@
       color: var(--text-primary) !important;
       margin: 0 !important;
     }
-    .project-group-add-task-btn {
-      background: transparent !important;
-      border: none !important;
-      color: var(--color-primary) !important;
-      font-size: 11px !important;
-      font-weight: 500 !important;
-      cursor: pointer !important;
-      padding: 0 !important;
-    }
     .project-task-row {
       display: flex !important;
       align-items: center !important;
@@ -1963,18 +1607,17 @@
       background: rgba(0, 0, 0, 0.02) !important;
     }
     .project-task-name-btn {
-      flex: 1 !important;
-      border: none !important;
-      background: transparent !important;
-      text-align: left !important;
-      padding: 0 !important;
-      cursor: pointer !important;
-      font-size: 12px !important;
-      font-weight: 500 !important;
-      color: var(--text-primary) !important;
-      overflow: hidden !important;
-      text-overflow: ellipsis !important;
-      white-space: nowrap !important;
+      flex: 1;
+
+
+
+
+
+
+
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .project-task-date {
       font-size: 10px !important;
@@ -1993,55 +1636,16 @@
       opacity: 1 !important;
     }
     .project-task-action-btn {
-      display: inline-flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      width: 20px !important;
-      height: 20px !important;
-      padding: 0 !important;
-      border: none !important;
-      border-radius: 4px !important;
-      background: transparent !important;
-      color: var(--text-muted) !important;
-      cursor: pointer !important;
-    }
-    .project-task-action-btn:hover {
-      background: rgba(0, 0, 0, 0.05) !important;
-      color: var(--text-primary) !important;
-    }
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
 
-    /* 5. Connections View Status Pills & Layout */
-    .login-card-status, .status-badge {
-      padding: 2px 8px !important;
-      background: rgba(0, 0, 0, 0.02) !important;
-      border: 1px solid rgba(0, 0, 0, 0.06) !important;
-      border-radius: 99px !important;
-      font-size: 11px !important;
-      color: var(--text-secondary) !important;
-      display: inline-flex !important;
-      align-items: center !important;
-      gap: 6px !important;
-      font-weight: 500 !important;
-      height: 20px !important;
-      line-height: 1 !important;
-    }
-    .login-card-status::before, .status-badge::before {
-      content: "" !important;
-      display: inline-block !important;
-      width: 6px !important;
-      height: 6px !important;
-      border-radius: 50% !important;
-      margin: 0 !important;
-      flex-shrink: 0 !important;
-    }
-    .login-card-status.connected::before, .status-badge.connected::before {
-      background: #10B981 !important;
-    }
-    .login-card-status.attention::before, .status-badge.attention::before {
-      background: #F59E0B !important;
-    }
-    .login-card-status.unlinked::before, .status-badge.unlinked::before {
-      background: #EF4444 !important;
+
+
+
+
+
     }
 
     /* Login Cards on Left */
@@ -2110,22 +1714,16 @@
       margin: 0 !important;
     }
     .detail-platform-header .btn-refresh {
-      width: 36px !important;
-      height: 36px !important;
-      padding: 0 !important;
-      display: inline-flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      border: 1px solid rgba(226, 232, 240, 1) !important;
-      background: #fff !important;
-      border-radius: 8px !important;
-      font-size: 16px !important;
-      color: #475569 !important;
-      cursor: pointer !important;
-    }
-    .detail-platform-header .btn-refresh:hover {
-      background: #f8fafc !important;
-      border-color: #cbd5e1 !important;
+      width: 36px;
+
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+
+
+
+
+
     }
 
     /* Grid Divider Style */
@@ -2154,18 +1752,17 @@
 
     /* Side-by-side action buttons */
     .zhihuishu-login-actions {
-      display: flex !important;
-      flex-direction: row !important;
-      flex-wrap: wrap !important;
-      gap: 8px !important;
-      margin-top: 16px !important;
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
     }
     .zhihuishu-login-actions button {
-      width: auto !important;
-      padding: 8px 16px !important;
-      font-size: 12px !important;
-      font-weight: 500 !important;
-      border-radius: 6px !important;
+      width: auto;
+
+
+
     }
 
     /* ==========================================================================
@@ -2179,40 +1776,22 @@
     .connection-primary-action,
     #btn-add-schedule-item,
     #zhs-btn-open-login-inline,
-    #calendar-subscription-create,
-    #project-new-button {
-      height: 34px !important;
-      min-height: 34px !important;
-      padding: 0 16px !important;
-      border: 1px solid var(--color-primary-border) !important;
-      border-radius: var(--radius-btn) !important;
-      background: var(--color-primary) !important;
-      color: #FFFFFF !important;
-      font-family: var(--font-sans) !important;
-      font-size: 13px !important;
-      font-weight: 500 !important;
-      cursor: pointer !important;
-      box-shadow: 0 1px 2px rgba(47, 111, 228, 0.05), 0 2px 4px rgba(47, 111, 228, 0.1) !important;
-      display: inline-flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      gap: 6px !important;
-      transition: all 0.15s ease !important;
-    }
+    #calendar-subscription-create{
 
-    .btn-primary:hover,
-    .project-button-primary:hover,
-    .btn-schedule-primary:hover,
-    .calendar-panel-primary:hover,
-    .connection-primary-action:hover,
-    #btn-add-schedule-item:hover,
-    #zhs-btn-open-login-inline:hover,
-    #calendar-subscription-create:hover,
-    #project-new-button:hover {
-      background: var(--color-primary-hover) !important;
-      border-color: var(--color-primary-hover) !important;
-      transform: translateY(-1px) !important;
-      box-shadow: 0 2px 4px rgba(47, 111, 228, 0.08), 0 4px 8px rgba(47, 111, 228, 0.15) !important;
+
+
+
+
+
+
+
+
+
+
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
     }
 
     /* 2. 次要/描边按钮 (Secondary / Outline Buttons) */
@@ -2227,39 +1806,21 @@
     #schedule-management-open,
     #zhs-btn-complete-login-inline,
     #zxm-send-sms-btn-inline {
-      height: 34px !important;
-      min-height: 34px !important;
-      padding: 0 16px !important;
-      border: 1px solid rgba(215, 208, 195, 0.85) !important;
-      border-radius: var(--radius-btn) !important;
-      background: #FFFFFF !important;
-      color: var(--text-primary) !important;
-      font-family: var(--font-sans) !important;
-      font-size: 13px !important;
-      font-weight: 500 !important;
-      cursor: pointer !important;
-      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03) !important;
-      display: inline-flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      gap: 6px !important;
-      transition: all 0.15s ease !important;
-    }
 
-    .btn-secondary:hover,
-    .project-button-secondary:hover,
-    .btn-schedule-secondary:hover,
-    .btn-refresh:hover,
-    #calendar-subscription-open:hover,
-    #calendar-subscription-copy:hover,
-    .btn-auth-secondary:hover,
-    #schedule-management-open:hover,
-    #zhs-btn-complete-login-inline:hover,
-    #zxm-send-sms-btn-inline:hover {
-      background: var(--color-primary-soft-hover) !important;
-      border-color: var(--color-primary-border) !important;
-      color: var(--color-primary) !important;
-      transform: translateY(-1px) !important;
+
+
+
+
+
+
+
+
+
+
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
     }
 
     /* 3. 危险与警示操作按钮 (Danger / Destructive Action Buttons) */
@@ -2269,51 +1830,26 @@
     .btn-logout-action,
     #calendar-subscription-revoke,
     #zhs-btn-cancel-login-inline {
-      height: 34px !important;
-      min-height: 34px !important;
-      padding: 0 16px !important;
-      border: 1px solid var(--danger-border) !important;
-      border-radius: var(--radius-btn) !important;
-      background: var(--danger-bg) !important;
-      color: var(--danger) !important;
-      font-family: var(--font-sans) !important;
-      font-size: 13px !important;
-      font-weight: 500 !important;
-      cursor: pointer !important;
-      box-shadow: 0 1px 3px rgba(220, 38, 38, 0.03) !important;
-      display: inline-flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      gap: 6px !important;
-      transition: all 0.15s ease !important;
-    }
 
-    .btn-danger:hover,
-    .project-button-danger:hover,
-    .calendar-panel-revoke:hover,
-    #calendar-subscription-revoke:hover,
-    #zhs-btn-cancel-login-inline:hover {
-      background: rgba(220, 38, 38, 0.12) !important;
-      border-color: #fca5a5 !important;
-      transform: translateY(-1px) !important;
-      color: var(--danger) !important;
-    }
 
-    /* 4. 禁用状态 (Disabled States) */
-    .btn-primary:disabled, .project-button-primary:disabled, .calendar-panel-primary:disabled,
-    .btn-secondary:disabled, .project-button-secondary:disabled, .btn-schedule-secondary:disabled,
-    .btn-danger:disabled, .project-button-danger:disabled,
-    #zhs-btn-complete-login-inline:disabled, #zhs-btn-cancel-login-inline:disabled,
-    #calendar-subscription-open:disabled, #calendar-subscription-copy:disabled, #calendar-subscription-revoke:disabled {
-      cursor: not-allowed !important;
-      opacity: 0.55 !important;
-      transform: none !important;
-      box-shadow: none !important;
+
+
+
+
+
+
+
+
+
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
     }
 
     /* 5. 宽度适应类 (Width Modifiers) */
     .btn-wide {
-      width: 100% !important;
+      width: 100%;
     }
 
     /* Blue actions mirror the existing “刷新状态” secondary control. */
@@ -2332,81 +1868,17 @@
     #btn-add-schedule-item,
     #schedule-refresh-button,
     #zhs-btn-open-login-inline,
-    #calendar-subscription-create,
-    #project-new-button {
-      height: auto !important;
-      min-height: 36px !important;
-      padding: 0 12px !important;
-      border: 1px solid #cbdcf6 !important;
-      border-radius: 6px !important;
-      background: #fff !important;
-      color: #3a5985 !important;
-      font-family: var(--font-body) !important;
-      font-size: 12px !important;
-      font-weight: 500 !important;
+    #calendar-subscription-create{
+
+
+
+
+
+
+
+
+
       flex: 0 0 auto;
-      box-shadow: none !important;
-      transform: none !important;
-      transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease !important;
-    }
-
-    .btn-primary:hover:not(:disabled),
-    .btn-accent:hover:not(:disabled),
-    .btn-submit:hover:not(:disabled),
-    .btn-auth-primary:hover:not(:disabled),
-    .project-button-primary:hover:not(:disabled),
-    .project-next-action-btn-complete:hover:not(:disabled),
-    .btn-schedule-primary:hover:not(:disabled),
-    .calendar-panel-primary:hover:not(:disabled),
-    .connection-primary-action:hover:not(:disabled),
-    .subtask-add-btn:hover:not(:disabled),
-    .card.enter-main-card .add-todo-form button:not(.btn-wide):not(.btn-primary):not(.btn-secondary):not(.btn-accent):not(.btn-submit):hover:not(:disabled),
-    #btn-add-schedule-item:hover:not(:disabled),
-    #schedule-refresh-button:hover:not(:disabled),
-    #zhs-btn-open-login-inline:hover:not(:disabled),
-    #calendar-subscription-create:hover:not(:disabled),
-    #project-new-button:hover:not(:disabled),
-    .btn-primary:focus-visible:not(:disabled),
-    .btn-accent:focus-visible:not(:disabled),
-    .btn-submit:focus-visible:not(:disabled),
-    .btn-auth-primary:focus-visible:not(:disabled),
-    .project-button-primary:focus-visible:not(:disabled),
-    .project-next-action-btn-complete:focus-visible:not(:disabled),
-    .btn-schedule-primary:focus-visible:not(:disabled),
-    .calendar-panel-primary:focus-visible:not(:disabled),
-    .connection-primary-action:focus-visible:not(:disabled),
-    .subtask-add-btn:focus-visible:not(:disabled),
-    .card.enter-main-card .add-todo-form button:not(.btn-wide):not(.btn-primary):not(.btn-secondary):not(.btn-accent):not(.btn-submit):focus-visible:not(:disabled),
-    #btn-add-schedule-item:focus-visible:not(:disabled),
-    #schedule-refresh-button:focus-visible:not(:disabled),
-    #zhs-btn-open-login-inline:focus-visible:not(:disabled),
-    #calendar-subscription-create:focus-visible:not(:disabled),
-    #project-new-button:focus-visible:not(:disabled) {
-      background: #edf4ff !important;
-      outline: none !important;
-      box-shadow: none !important;
-      transform: none !important;
-    }
-
-    .btn-primary:disabled,
-    .btn-accent:disabled,
-    .btn-submit:disabled,
-    .btn-auth-primary:disabled,
-    .project-button-primary:disabled,
-    .project-next-action-btn-complete:disabled,
-    .btn-schedule-primary:disabled,
-    .calendar-panel-primary:disabled,
-    .connection-primary-action:disabled,
-    .subtask-add-btn:disabled,
-    .card.enter-main-card .add-todo-form button:not(.btn-wide):not(.btn-primary):not(.btn-secondary):not(.btn-accent):not(.btn-submit):disabled,
-    #btn-add-schedule-item:disabled,
-    #schedule-refresh-button:disabled,
-    #zhs-btn-open-login-inline:disabled,
-    #calendar-subscription-create:disabled,
-    #project-new-button:disabled {
-      cursor: wait !important;
-      opacity: .55 !important;
-      transform: none !important;
     }
 
     /* v103 overview content and project task cards */
@@ -2431,15 +1903,6 @@
       align-items: center !important;
       justify-content: space-between !important;
       gap: 10px !important;
-    }
-
-    .project-overview-title button {
-      font-family: var(--font-body) !important;
-      font-size: 15px !important;
-      font-weight: 600 !important;
-      line-height: 1.35 !important;
-      letter-spacing: -0.012em !important;
-      color: #0F172A !important;
     }
 
     .project-overview-title span {
@@ -2483,16 +1946,6 @@
       font-size: 10px !important;
       font-weight: 500 !important;
       letter-spacing: 0.05em !important;
-    }
-
-    .project-overview-section-heading button,
-    .project-overview-add,
-    .project-overview-links button {
-      color: #2F6FE4 !important;
-      font-family: var(--font-sans) !important;
-      font-size: 11px !important;
-      font-weight: 500 !important;
-      letter-spacing: 0 !important;
     }
 
     .project-overview-task {
@@ -2640,18 +2093,6 @@
       letter-spacing: -0.005em !important;
     }
 
-    .project-group-add-task-btn {
-      padding: 3px 7px !important;
-      border: 1px solid rgba(47, 111, 228, 0.16) !important;
-      border-radius: 5px !important;
-      background: rgba(47, 111, 228, 0.055) !important;
-      color: #2F6FE4 !important;
-      font-family: var(--font-sans) !important;
-      font-size: 10.5px !important;
-      font-weight: 500 !important;
-      letter-spacing: 0 !important;
-    }
-
     .project-task-list {
       gap: 6px !important;
       margin-top: 0 !important;
@@ -2674,15 +2115,6 @@
       background: #FFFFFF !important;
       border-color: #CBD5E1 !important;
       box-shadow: 0 3px 8px rgba(15, 23, 42, 0.045) !important;
-    }
-
-    .project-task-name-btn {
-      color: #1E293B !important;
-      font-family: var(--font-body) !important;
-      font-size: 12px !important;
-      font-weight: 500 !important;
-      letter-spacing: 0.005em !important;
-      line-height: 1.45 !important;
     }
 
     .project-task-date {
@@ -2712,38 +2144,4 @@
     overflow-y: auto;
     overscroll-behavior: contain;
   }
-}
-
-/* Final project-page override: these rules must follow the project-specific theme layer. */
-#dashboard-view-projects .project-button-primary,
-#dashboard-view-projects .project-next-action-btn-complete,
-#dashboard-view-projects .project-group-add-task-btn {
-  min-height: 36px !important;
-  padding: 0 12px !important;
-  border: 1px solid #cbdcf6 !important;
-  border-radius: 6px !important;
-  background: #fff !important;
-  color: #3a5985 !important;
-  font-family: var(--font-body) !important;
-  font-size: 12px !important;
-  font-weight: 500 !important;
-  box-shadow: none !important;
-  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease !important;
-}
-
-#dashboard-view-projects .project-button-primary:hover:not(:disabled),
-#dashboard-view-projects .project-next-action-btn-complete:hover:not(:disabled),
-#dashboard-view-projects .project-group-add-task-btn:hover:not(:disabled),
-#dashboard-view-projects .project-button-primary:focus-visible:not(:disabled),
-#dashboard-view-projects .project-next-action-btn-complete:focus-visible:not(:disabled),
-#dashboard-view-projects .project-group-add-task-btn:focus-visible:not(:disabled) {
-  background: #edf4ff !important;
-  outline: none !important;
-}
-
-#dashboard-view-projects .project-button-primary:disabled,
-#dashboard-view-projects .project-next-action-btn-complete:disabled,
-#dashboard-view-projects .project-group-add-task-btn:disabled {
-  cursor: wait !important;
-  opacity: .55 !important;
 }

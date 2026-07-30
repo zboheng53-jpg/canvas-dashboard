@@ -32,6 +32,7 @@ def test_component_lab_renders_required_component_families():
     required_labels = [
         "字体层级",
         "颜色与表面",
+        "已确认的生产控件",
         "按钮",
         "图标按钮",
         "输入与表单",
@@ -45,7 +46,26 @@ def test_component_lab_renders_required_component_families():
         assert label in html
     assert 'href="/static/css/component-lab.css"' in html
     assert 'src="/static/js/component-lab.js"' in html
-    assert html.count('data-candidate="action-') == 3
+    assert "已确认的信息表达组件" in html
+    assert 'class="ui-badge ui-badge--source ui-source--canvas"' in html
+    assert 'class="ui-tag is-selected"' in html
+    assert 'class="ui-status ui-status--success"' in html
+    assert 'class="ui-alert ui-alert--danger"' in html
+    assert 'class="ui-loading"' in html
+    assert 'class="ui-empty"' in html
+    assert "Canvas 访问令牌无效" in html
+    assert "今天的待办已经完成" in html
+    candidate_html = html[
+        html.index('id="candidates"') : html.index('id="confirmed-controls"')
+    ]
+    assert candidate_html.count('data-candidate="action-') == 3
+    assert candidate_html.count('value="完成状态空间模型"') == 3
+    assert candidate_html.count("同步到 Apple Calendar") == 3
+    confirmed_html = html[html.index('id="confirmed-controls"') : html.index('id="buttons"')]
+    assert 'class="ui-button ui-button--primary"' in confirmed_html
+    assert 'class="ui-control"' in confirmed_html
+    assert 'class="ui-checkbox"' in confirmed_html
+    assert 'class="ui-error"' in confirmed_html
     assert html.index('id="forms"') < html.index("日期、下拉与复选框状态矩阵") < html.index('id="status"')
 
 
@@ -81,8 +101,11 @@ def test_component_lab_modal_and_candidate_selection_work_in_static_preview(tmp_
         page.on("pageerror", lambda error: browser_errors.append(str(error)))
         try:
             page.goto(output.as_uri())
-            assert page.get_by_label("候选 A：近白描边").is_checked()
+            assert page.get_by_label("候选 A：静默描边").is_checked()
             assert page.locator('[data-candidate="action-a"]').get_attribute("data-selected") == "true"
+            assert page.locator('[data-candidate="action-a"] .candidate-control').count() == 4
+            assert page.locator('[data-candidate="action-b"] .candidate-control').count() == 4
+            assert page.locator('[data-candidate="action-c"] .candidate-control').count() == 4
             assert "Noto Serif SC" in page.locator(".lab-section-heading h2").first.evaluate(
                 "element => getComputedStyle(element).fontFamily"
             )
@@ -97,7 +120,7 @@ def test_component_lab_modal_and_candidate_selection_work_in_static_preview(tmp_
             page.keyboard.press("Escape")
             assert dialog.is_hidden()
 
-            page.get_by_label("候选 B：浅蓝弱背景").check()
+            page.get_by_label("候选 B：低饱和实体").check()
             assert page.locator('[data-candidate="action-b"]').get_attribute("data-selected") == "true"
             assert not browser_errors
         finally:

@@ -17,32 +17,34 @@
         <h2>好课</h2>
       </div>
 
-      <p class="setup-hint" id="status-line">检查中...</p>
+      <p class="ui-feedback ui-feedback--info setup-hint" id="status-line" role="status" aria-live="polite">检查中...</p>
 
       <div class="login-body" id="form-body">
         <form class="add-todo-form" id="haoke-setup-form">
-          <input type="text" id="haoke-username" placeholder="学号" autocomplete="off">
-          <input type="password" id="haoke-password" placeholder="密码" autocomplete="off">
-          <button type="submit" class="btn-wide">保存并登录</button>
+          <input type="text" id="haoke-username" placeholder="学号" autocomplete="off" class="ui-control">
+          <input type="password" id="haoke-password" placeholder="密码" autocomplete="off" class="ui-control">
+          <button type="submit" class="ui-button ui-button--primary ui-button--block btn-wide">保存并登录</button>
         </form>
-        <p class="setup-hint">
+        <p class="ui-help setup-hint">
           使用同济大学统一身份认证的学号和密码登录（智图 AI 好课平台）
         </p>
 
-        <div class="error-banner hidden" id="haoke-error"></div>
+        <div class="ui-alert ui-alert--danger ui-alert--compact error-banner hidden" id="haoke-error" role="alert"></div>
       </div>
     </div>
   </div>
 
   <script>
     async function loadStatus() {
+      const statusLine = document.getElementById('status-line');
       try {
         const resp = await fetch('/api/haoke/config');
         const result = await resp.json();
-        document.getElementById('status-line').textContent =
-          result.has_credentials ? '当前状态：已连接' : '当前状态：未配置';
+        statusLine.textContent = result.has_credentials ? '当前状态：已连接' : '当前状态：未配置';
+        statusLine.className = `ui-feedback ${result.has_credentials ? 'ui-feedback--success' : 'ui-feedback--neutral'} setup-hint`;
       } catch (e) {
-        document.getElementById('status-line').textContent = '状态获取失败';
+        statusLine.textContent = '状态获取失败';
+        statusLine.className = 'ui-feedback ui-feedback--danger setup-hint';
       }
     }
 

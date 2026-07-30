@@ -7,27 +7,28 @@
         <p>在左侧快速切换项目，在右侧持续推进下一步行动。</p>
       </div>
       <div class="project-header-actions">
-        <button type="button" class="project-button-secondary" id="project-new-group-header-btn" onclick="if (selectedProjectId) openProjectGroupModal(selectedProjectId)">新建分组</button>
-        <button type="button" class="project-button-primary" id="project-new-header-btn" onclick="openProjectModal()">＋ 新建项目</button>
+        <button type="button" class="ui-button ui-button--secondary project-button-secondary" id="project-new-group-header-btn" onclick="if (selectedProjectId) openProjectGroupModal(selectedProjectId)">新建分组</button>
+        <button type="button" class="ui-button ui-button--primary project-button-primary" id="project-new-header-btn" onclick="openProjectModal()">＋ 新建项目</button>
       </div>
     </div>
-    <p id="project-manager-status" class="project-manager-status" role="status"></p>
+    <p id="project-manager-status" class="ui-feedback ui-feedback--neutral project-manager-status" role="status" aria-live="polite"></p>
     <div class="project-manager-layout">
       <aside class="project-browser" aria-label="项目列表">
         <div class="project-tabs" role="tablist">
-          <button type="button" class="project-tab-btn active" data-tab="active" onclick="switchProjectTab('active')">进行中 <span id="active-project-count">0</span></button>
-          <button type="button" class="project-tab-btn" data-tab="completed" onclick="switchProjectTab('completed')">已完成 <span id="completed-project-count">0</span></button>
-          <button type="button" class="project-tab-btn" data-tab="archived" onclick="switchProjectTab('archived')">已归档 <span id="archived-project-count">0</span></button>
+          <button type="button" class="ui-button ui-button--choice project-tab-btn active" data-tab="active" onclick="switchProjectTab('active')">进行中 <span id="active-project-count">0</span></button>
+          <button type="button" class="ui-button ui-button--choice project-tab-btn" data-tab="completed" onclick="switchProjectTab('completed')">已完成 <span id="completed-project-count">0</span></button>
+          <button type="button" class="ui-button ui-button--choice project-tab-btn" data-tab="archived" onclick="switchProjectTab('archived')">已归档 <span id="archived-project-count">0</span></button>
         </div>
         <div id="project-manager-list" class="project-manager-list" aria-live="polite" aria-busy="false">
-          <p class="project-list-empty">还没有进行中的项目</p>
+          <div class="ui-empty ui-empty--compact project-list-empty"><strong>还没有进行中的项目</strong></div>
         </div>
       </aside>
       <section id="project-detail" class="project-detail" aria-live="polite">
-        <div class="project-detail-empty">
+        <div class="ui-empty project-detail-empty">
+          <span class="ui-empty__art" aria-hidden="true"></span>
           <strong>暂无长期项目</strong>
           <p>新建一个项目，开始组织长期目标。</p>
-          <button type="button" class="project-button-primary" onclick="openProjectModal()">新建项目</button>
+          <button type="button" class="ui-button ui-button--primary project-button-primary" onclick="openProjectModal()">新建项目</button>
         </div>
       </section>
     </div>
@@ -38,17 +39,17 @@
   <div class="project-modal-card" role="dialog" aria-modal="true" aria-labelledby="project-editor-title">
     <div class="project-modal-header">
       <div><span class="placeholder-kicker">PROJECT</span><h2 id="project-editor-title">新建项目</h2></div>
-      <button type="button" class="project-modal-close" onclick="closeProjectModal()" aria-label="关闭">×</button>
+      <button type="button" class="ui-icon-button project-modal-close" onclick="closeProjectModal()" aria-label="关闭">×</button>
     </div>
     <form id="project-editor-form" class="project-modal-form">
       <input type="hidden" name="project_id">
-      <label>项目名称<input name="name" required maxlength="100" autocomplete="off"></label>
-      <label>一句话目标<textarea name="objective" maxlength="240" rows="3" placeholder="这个项目最终希望达成什么？"></textarea></label>
-      <label>项目截止日期（可选）<input name="due_date" type="date"></label>
-      <p class="project-modal-error" id="project-editor-error" role="alert"></p>
+      <label class="ui-field ui-label">项目名称<input name="name" required maxlength="100" autocomplete="off" class="ui-control"></label>
+      <label class="ui-field ui-label">一句话目标<textarea name="objective" maxlength="240" rows="3" placeholder="这个项目最终希望达成什么？" class="ui-control"></textarea></label>
+      <label class="ui-field ui-label">项目截止日期（可选）<input name="due_date" type="date" class="ui-control"></label>
+      <p class="ui-error project-modal-error" id="project-editor-error" role="alert"></p>
       <div class="project-modal-actions">
-        <button type="button" class="project-button-secondary" onclick="closeProjectModal()">取消</button>
-        <button type="submit" class="project-button-primary">保存项目</button>
+        <button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="closeProjectModal()">取消</button>
+        <button type="submit" class="ui-button ui-button--primary project-button-primary">保存项目</button>
       </div>
     </form>
   </div>
@@ -58,19 +59,19 @@
   <div class="project-modal-card" role="dialog" aria-modal="true" aria-labelledby="project-task-title">
     <div class="project-modal-header">
       <div><span class="placeholder-kicker">TASK</span><h2 id="project-task-title">添加任务</h2></div>
-      <button type="button" class="project-modal-close" onclick="closeProjectTaskModal()" aria-label="关闭">×</button>
+      <button type="button" class="ui-icon-button project-modal-close" onclick="closeProjectTaskModal()" aria-label="关闭">×</button>
     </div>
     <form id="project-task-form" class="project-modal-form">
       <input type="hidden" name="project_id">
       <input type="hidden" name="task_id">
-      <label>任务名称<input name="name" required maxlength="160" autocomplete="off"></label>
-      <label>所属分组<select name="group_id"></select></label>
-      <label>最晚截止日期（可选）<input name="due_date" type="date"></label>
-      <label class="project-check-option"><input name="is_next_action" type="checkbox"> 设为下一步行动</label>
-      <p class="project-modal-error" id="project-task-error" role="alert"></p>
+      <label class="ui-field ui-label">任务名称<input name="name" required maxlength="160" autocomplete="off" class="ui-control"></label>
+      <label class="ui-field ui-label">所属分组<select name="group_id" class="ui-control"></select></label>
+      <label class="ui-field ui-label">最晚截止日期（可选）<input name="due_date" type="date" class="ui-control"></label>
+      <label class="ui-checkbox-label project-check-option"><input name="is_next_action" type="checkbox" class="ui-checkbox"> 设为下一步行动</label>
+      <p class="ui-error project-modal-error" id="project-task-error" role="alert"></p>
       <div class="project-modal-actions">
-        <button type="button" class="project-button-secondary" onclick="closeProjectTaskModal()">取消</button>
-        <button type="submit" class="project-button-primary">保存任务</button>
+        <button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="closeProjectTaskModal()">取消</button>
+        <button type="submit" class="ui-button ui-button--primary project-button-primary">保存任务</button>
       </div>
     </form>
   </div>
@@ -80,16 +81,16 @@
   <div class="project-modal-card project-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="project-group-title">
     <div class="project-modal-header">
       <div><span class="placeholder-kicker">GROUP</span><h2 id="project-group-title">新建分组</h2></div>
-      <button type="button" class="project-modal-close" onclick="closeProjectGroupModal()" aria-label="关闭">×</button>
+      <button type="button" class="ui-icon-button project-modal-close" onclick="closeProjectGroupModal()" aria-label="关闭">×</button>
     </div>
     <form id="project-group-form" class="project-modal-form">
       <input type="hidden" name="project_id">
       <input type="hidden" name="group_id">
-      <label>分组名称<input name="name" required maxlength="80" autocomplete="off"></label>
-      <p class="project-modal-error" id="project-group-error" role="alert"></p>
+      <label class="ui-field ui-label">分组名称<input name="name" required maxlength="80" autocomplete="off" class="ui-control"></label>
+      <p class="ui-error project-modal-error" id="project-group-error" role="alert"></p>
       <div class="project-modal-actions">
-        <button type="button" class="project-button-secondary" onclick="closeProjectGroupModal()">取消</button>
-        <button type="submit" class="project-button-primary">保存分组</button>
+        <button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="closeProjectGroupModal()">取消</button>
+        <button type="submit" class="ui-button ui-button--primary project-button-primary">保存分组</button>
       </div>
     </form>
   </div>
@@ -99,7 +100,7 @@
   <div class="project-modal-card project-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="project-choice-title">
     <div class="project-modal-header">
       <div><span class="placeholder-kicker">NEXT ACTION</span><h2 id="project-choice-title">选择下一步</h2></div>
-      <button type="button" class="project-modal-close" onclick="closeProjectChoiceModal()" aria-label="关闭">×</button>
+      <button type="button" class="ui-icon-button project-modal-close" onclick="closeProjectChoiceModal()" aria-label="关闭">×</button>
     </div>
     <div class="project-choice-list" id="project-choice-list"></div>
   </div>
@@ -109,12 +110,12 @@
   <div class="project-modal-card project-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="project-confirm-title">
     <div class="project-modal-header">
       <div><span class="placeholder-kicker">CONFIRM</span><h2 id="project-confirm-title">确认操作</h2></div>
-      <button type="button" class="project-modal-close" onclick="closeProjectConfirmModal(false)" aria-label="关闭">×</button>
+      <button type="button" class="ui-icon-button project-modal-close" onclick="closeProjectConfirmModal(false)" aria-label="关闭">×</button>
     </div>
     <p class="project-confirm-copy" id="project-confirm-copy"></p>
     <div class="project-modal-actions">
-      <button type="button" class="project-button-secondary" onclick="closeProjectConfirmModal(false)">取消</button>
-      <button type="button" class="project-button-danger" id="project-confirm-submit">确认</button>
+      <button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="closeProjectConfirmModal(false)">取消</button>
+      <button type="button" class="ui-button ui-button--danger project-button-danger" id="project-confirm-submit">确认</button>
     </div>
   </div>
 </div>
@@ -130,17 +131,17 @@
         </div>
       </div>
       <div class="schedule-header-actions">
-        <button type="button" class="btn-schedule-action btn-schedule-secondary" id="schedule-management-open" onclick="openScheduleManagementModal()">课表管理</button>
-        <button type="button" class="btn-schedule-action btn-schedule-primary" id="btn-add-schedule-item" onclick="openScheduleItemModal('one-off')">＋ 添加事项</button>
+        <button type="button" class="ui-button ui-button--secondary btn-schedule-action btn-schedule-secondary" id="schedule-management-open" onclick="openScheduleManagementModal()">课表管理</button>
+        <button type="button" class="ui-button ui-button--primary btn-schedule-action btn-schedule-primary" id="btn-add-schedule-item" onclick="openScheduleItemModal('one-off')">＋ 添加事项</button>
       </div>
     </div>
-    <p class="schedule-manager-status" id="schedule-manager-status" role="status"></p>
+    <p class="ui-feedback ui-feedback--neutral schedule-manager-status" id="schedule-manager-status" role="status" aria-live="polite"></p>
 
     <div class="schedule-toolbar">
       <div class="schedule-week-nav">
-        <button type="button" class="schedule-nav-btn" onclick="navigateScheduleWeek(-1)" title="上一周">‹ 上一周</button>
-        <button type="button" class="schedule-nav-btn is-current" onclick="navigateScheduleWeek(0)" title="回到本周">本周</button>
-        <button type="button" class="schedule-nav-btn" onclick="navigateScheduleWeek(1)" title="下一周">下一周 ›</button>
+        <button type="button" class="ui-button ui-button--secondary schedule-nav-btn" onclick="navigateScheduleWeek(-1)" title="上一周">‹ 上一周</button>
+        <button type="button" class="ui-button ui-button--choice schedule-nav-btn is-current" onclick="navigateScheduleWeek(0)" title="回到本周">本周</button>
+        <button type="button" class="ui-button ui-button--secondary schedule-nav-btn" onclick="navigateScheduleWeek(1)" title="下一周">下一周 ›</button>
         <span class="schedule-week-label" id="schedule-week-label"></span>
       </div>
       <div class="schedule-legend">
@@ -156,7 +157,7 @@
         <div class="schedule-grid schedule-grid-body" id="schedule-timetable-grid">
           <!-- Rendered dynamically by JS -->
         </div>
-        <button type="button" class="schedule-return-default hidden" id="schedule-return-default" onclick="scrollScheduleToDefault()">返回 08:00—17:00</button>
+        <button type="button" class="ui-button ui-button--secondary schedule-return-default hidden" id="schedule-return-default" onclick="scrollScheduleToDefault()">返回 08:00—17:00</button>
       </div>
     </div>
   </div>
@@ -167,18 +168,18 @@
   <div class="schedule-modal-card" role="dialog" aria-modal="true" aria-labelledby="schedule-modal-title">
     <div class="schedule-modal-header">
       <h3 id="schedule-modal-title">添加排程事项</h3>
-      <button type="button" class="schedule-modal-close" onclick="closeScheduleItemModal()" aria-label="关闭">×</button>
+      <button type="button" class="ui-icon-button schedule-modal-close" onclick="closeScheduleItemModal()" aria-label="关闭">×</button>
     </div>
     <form class="schedule-modal-form" id="schedule-modal-form">
       <input type="hidden" name="id" id="schedule-form-id">
       <div class="form-group">
-        <label for="schedule-form-title">事项名称</label>
-        <input name="title" id="schedule-form-title" required maxlength="80" placeholder="例如：蓝桥杯讨论">
+        <label for="schedule-form-title" class="ui-label">事项名称</label>
+        <input name="title" id="schedule-form-title" required maxlength="80" placeholder="例如：蓝桥杯讨论" class="ui-control">
       </div>
       <div class="form-row" id="field-recurring-weekday">
         <div class="form-group flex-1">
-          <label for="schedule-form-weekday">重复星期</label>
-          <select name="weekday" id="schedule-form-weekday">
+          <label for="schedule-form-weekday" class="ui-label">重复星期</label>
+          <select name="weekday" id="schedule-form-weekday" class="ui-control">
             <option value="0">周一</option>
             <option value="1">周二</option>
             <option value="2">周三</option>
@@ -189,33 +190,33 @@
           </select>
         </div>
         <div class="form-group flex-1">
-          <label for="schedule-form-repeat-start">开始日期</label>
-          <input name="start_date" type="date" id="schedule-form-repeat-start">
+          <label for="schedule-form-repeat-start" class="ui-label">开始日期</label>
+          <input name="start_date" type="date" id="schedule-form-repeat-start" class="ui-control">
         </div>
         <div class="form-group flex-1">
-          <label for="schedule-form-repeat-end">结束日期（可选）</label>
-          <input name="end_date" type="date" id="schedule-form-repeat-end">
+          <label for="schedule-form-repeat-end" class="ui-label">结束日期（可选）</label>
+          <input name="end_date" type="date" id="schedule-form-repeat-end" class="ui-control">
         </div>
       </div>
       <div class="form-row hidden" id="field-one-off-date">
         <div class="form-group flex-1">
-          <label for="schedule-form-date">日期</label>
-          <input name="date" type="date" id="schedule-form-date">
+          <label for="schedule-form-date" class="ui-label">日期</label>
+          <input name="date" type="date" id="schedule-form-date" class="ui-control">
         </div>
       </div>
       <div class="form-row">
         <div class="form-group flex-1">
-          <label for="schedule-form-start">开始时间</label>
-          <input name="start_time" type="time" id="schedule-form-start" required value="09:00">
+          <label for="schedule-form-start" class="ui-label">开始时间</label>
+          <input name="start_time" type="time" id="schedule-form-start" required value="09:00" class="ui-control">
         </div>
         <div class="form-group flex-1">
-          <label for="schedule-form-end">结束时间</label>
-          <input name="end_time" type="time" id="schedule-form-end" required value="10:00">
+          <label for="schedule-form-end" class="ui-label">结束时间</label>
+          <input name="end_time" type="time" id="schedule-form-end" required value="10:00" class="ui-control">
         </div>
       </div>
       <div class="form-group">
-        <label for="schedule-form-location">地点（可选）</label>
-        <input name="location" id="schedule-form-location" maxlength="120" placeholder="例如：四平路校区 · 北229">
+        <label for="schedule-form-location" class="ui-label">地点（可选）</label>
+        <input name="location" id="schedule-form-location" maxlength="120" placeholder="例如：四平路校区 · 北229" class="ui-control">
       </div>
       <div class="form-group">
         <label>事项类型</label>
@@ -236,10 +237,10 @@
         <label><input type="radio" name="scope" value="series"> 整个重复事项</label>
       </fieldset>
       <div class="schedule-modal-actions">
-        <button type="button" class="btn-delete hidden" id="schedule-item-delete" onclick="deleteScheduleItemFromModal()">删除事项</button>
+        <button type="button" class="ui-button ui-button--danger btn-delete hidden" id="schedule-item-delete" onclick="deleteScheduleItemFromModal()">删除事项</button>
         <span class="schedule-modal-action-spacer"></span>
-        <button type="button" class="btn-cancel" onclick="closeScheduleItemModal()">取消</button>
-        <button type="submit" class="btn-submit">保存事项</button>
+        <button type="button" class="ui-button ui-button--secondary btn-cancel" onclick="closeScheduleItemModal()">取消</button>
+        <button type="submit" class="ui-button ui-button--primary btn-submit">保存事项</button>
       </div>
     </form>
   </div>
@@ -252,59 +253,59 @@
         <span class="placeholder-kicker">TIMETABLE SETTINGS</span>
         <h3 id="schedule-management-title">课表管理</h3>
       </div>
-      <button type="button" class="schedule-modal-close" onclick="closeScheduleManagementModal()" aria-label="关闭">×</button>
+      <button type="button" class="ui-icon-button schedule-modal-close" onclick="closeScheduleManagementModal()" aria-label="关闭">×</button>
     </div>
     <p class="schedule-management-summary" id="schedule-management-summary">尚未导入课程</p>
     <div class="schedule-management-actions">
-      <button type="button" class="schedule-refresh-button" id="schedule-refresh-button" onclick="openTongjiLoginSession()">统一身份认证登录</button>
+      <button type="button" class="ui-button ui-button--secondary schedule-refresh-button" id="schedule-refresh-button" onclick="openTongjiLoginSession()">统一身份认证登录</button>
       <input class="schedule-file-input" id="schedule-file-input" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-      <button type="button" class="schedule-refresh-button schedule-import-button" id="schedule-import-button" onclick="document.getElementById('schedule-file-input').click()">从插件文件导入</button>
+      <button type="button" class="ui-button ui-button--secondary schedule-refresh-button schedule-import-button" id="schedule-import-button" onclick="document.getElementById('schedule-file-input').click()">从插件文件导入</button>
       <a class="schedule-refresh-button schedule-download-link" href="/static/downloads/tongji-timetable-exporter-v1.2.zip" download>下载课表插件 v1.2</a>
     </div>
-    <p class="schedule-login-note">数据说明：登录会在临时浏览器窗口中完成，网站不会保存你的同济统一身份认证密码。认证结束或过期后，临时登录环境会被删除，只保留导入后的课表数据。</p>
+    <p class="ui-help schedule-login-note">数据说明：登录会在临时浏览器窗口中完成，网站不会保存你的同济统一身份认证密码。认证结束或过期后，临时登录环境会被删除，只保留导入后的课表数据。</p>
   </div>
 </div>
 
 <div class="schedule-overlap-popover hidden" id="schedule-overlap-popover" role="dialog" aria-label="重叠事项">
   <div class="schedule-overlap-heading">
     <strong>同一时段的事项</strong>
-    <button type="button" onclick="closeScheduleOverlapPopover()" aria-label="关闭">×</button>
+    <button type="button" onclick="closeScheduleOverlapPopover()" aria-label="关闭" class="ui-icon-button">×</button>
   </div>
   <div id="schedule-overlap-list"></div>
 </div>
 
 <section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-connections" data-view-panel="connections">
-  <div class="card console-manager-card connections-manager-card">
-    <div class="console-manager-heading connections-manager-heading">
+  <div class="card console-manager-card business-manager-card connections-manager-card">
+    <div class="console-manager-heading business-manager-heading connections-manager-heading">
       <div>
         <span class="placeholder-kicker">CONNECTIONS</span>
         <h1>连接与同步</h1>
         <p>统一管理学习平台账号，并查看当前连接状态与详细配置。</p>
       </div>
-      <button type="button" class="console-secondary-button action-button" id="connections-refresh-button" data-od-id="connections-refresh-all" aria-busy="false" onclick="refreshPlatformConnections()">刷新全部状态</button>
+      <button type="button" class="ui-button ui-button--secondary console-secondary-button action-button" id="connections-refresh-button" data-od-id="connections-refresh-all" aria-busy="false" onclick="refreshPlatformConnections()">刷新全部状态</button>
     </div>
-    <p class="console-manager-status connections-manager-status" id="connections-manager-status" data-od-id="connections-status" role="status" aria-live="polite">平台状态会随待办同步自动更新。</p>
+    <p class="ui-feedback ui-feedback--neutral console-manager-status connections-manager-status" id="connections-manager-status" data-od-id="connections-status" role="status" aria-live="polite">平台状态会随待办同步自动更新。</p>
 
-    <div class="connections-layout">
-      <section class="connections-list-panel" aria-labelledby="connections-status-heading">
-        <h2 class="connections-panel-title" id="connections-status-heading">登录状态</h2>
+    <div class="ui-surface connections-layout">
+      <section class="ui-surface--subtle connections-list-panel" aria-labelledby="connections-status-heading">
+        <h2 class="ui-section-label connections-panel-title" id="connections-status-heading">登录状态</h2>
 
         <div class="login-cards connection-platform-list" id="login-cards" role="group" aria-label="选择学习平台">
-          <button type="button" class="login-card" data-od-id="connection-platform-canvas" data-platform="canvas" aria-pressed="true" aria-controls="detail-canvas" onclick="selectConnectionPlatform('canvas')">
-            <span class="login-card-title">Canvas</span>
-            <span class="login-card-status" id="card-status-canvas">检查中...</span>
+          <button type="button" class="ui-nav-item ui-nav-item--source ui-source--canvas connection-platform-item" data-od-id="connection-platform-canvas" data-platform="canvas" aria-pressed="true" aria-controls="detail-canvas" onclick="selectConnectionPlatform('canvas')">
+            <span class="connection-platform-title">Canvas</span>
+            <span class="ui-status ui-status--info connection-platform-status" id="card-status-canvas">检查中...</span>
           </button>
-          <button type="button" class="login-card" data-od-id="connection-platform-haoke" data-platform="haoke" aria-pressed="false" aria-controls="detail-haoke" onclick="selectConnectionPlatform('haoke')">
-            <span class="login-card-title">好课</span>
-            <span class="login-card-status" id="card-status-haoke">检查中...</span>
+          <button type="button" class="ui-nav-item ui-nav-item--source ui-source--haoke connection-platform-item" data-od-id="connection-platform-haoke" data-platform="haoke" aria-pressed="false" aria-controls="detail-haoke" onclick="selectConnectionPlatform('haoke')">
+            <span class="connection-platform-title">好课</span>
+            <span class="ui-status ui-status--info connection-platform-status" id="card-status-haoke">检查中...</span>
           </button>
-          <button type="button" class="login-card" data-od-id="connection-platform-zhixuemeng" data-platform="zhixuemeng" aria-pressed="false" aria-controls="detail-zhixuemeng" onclick="selectConnectionPlatform('zhixuemeng')">
-            <span class="login-card-title">智学盟</span>
-            <span class="login-card-status" id="card-status-zhixuemeng">检查中...</span>
+          <button type="button" class="ui-nav-item ui-nav-item--source ui-source--zhixuemeng connection-platform-item" data-od-id="connection-platform-zhixuemeng" data-platform="zhixuemeng" aria-pressed="false" aria-controls="detail-zhixuemeng" onclick="selectConnectionPlatform('zhixuemeng')">
+            <span class="connection-platform-title">智学盟</span>
+            <span class="ui-status ui-status--info connection-platform-status" id="card-status-zhixuemeng">检查中...</span>
           </button>
-          <button type="button" class="login-card" data-od-id="connection-platform-zhihuishu" data-platform="zhihuishu" aria-pressed="false" aria-controls="detail-zhihuishu" onclick="selectConnectionPlatform('zhihuishu')">
-            <span class="login-card-title">智慧树</span>
-            <span class="login-card-status" id="card-status-zhihuishu">检查中...</span>
+          <button type="button" class="ui-nav-item ui-nav-item--source ui-source--zhihuishu connection-platform-item" data-od-id="connection-platform-zhihuishu" data-platform="zhihuishu" aria-pressed="false" aria-controls="detail-zhihuishu" onclick="selectConnectionPlatform('zhihuishu')">
+            <span class="connection-platform-title">智慧树</span>
+            <span class="ui-status ui-status--info connection-platform-status" id="card-status-zhihuishu">检查中...</span>
           </button>
         </div>
       </section>
@@ -312,139 +313,139 @@
       <section class="connections-detail-panel" id="connections-detail-panel" data-od-id="connection-detail" aria-live="polite" aria-busy="false">
       
       <!-- Canvas Details -->
-      <div class="connection-detail-section" id="detail-canvas" style="display: none;">
+      <div class="connection-detail-section hidden" id="detail-canvas">
         <div class="detail-platform-header">
           <div class="detail-platform-title-wrap">
             <div class="detail-platform-icon-circle">C</div>
             <div>
               <h2 class="detail-platform-title">Canvas</h2>
-              <span class="status-badge" id="detail-status-badge-canvas">检查中...</span>
+              <span class="ui-status ui-status--info status-badge" id="detail-status-badge-canvas">检查中...</span>
             </div>
           </div>
         </div>
 
-        <div class="detail-section-title">数据说明</div>
-        <div class="detail-content-box connection-data-note"><strong>网站只保存你的 Canvas 日历订阅地址，用于读取课程作业，</strong><span>不会保存 Canvas 密码。你可以随时断开连接。</span></div>
-        <div class="detail-section-title">连接配置</div>
-        <div class="detail-content-box">
+        <div class="ui-section-label detail-section-title">数据说明</div>
+        <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note"><strong>网站只保存你的 Canvas 日历订阅地址，用于读取课程作业，</strong><span>不会保存 Canvas 密码。你可以随时断开连接。</span></div>
+        <div class="ui-section-label detail-section-title">连接配置</div>
+        <div class="ui-card detail-content-box">
           <form class="connection-form connection-form-inline" id="canvas-setup-form-inline">
-            <label class="connection-field-label" for="feed-url-input-inline">Canvas 日历馈送 URL</label>
-            <input type="url" id="feed-url-input-inline" placeholder="粘贴日历馈送 URL（.ics）..." autocomplete="off">
-            <button type="submit" class="connection-primary-action action-button" data-od-id="canvas-save-config">保存配置</button>
+            <label class="ui-label connection-field-label" for="feed-url-input-inline">Canvas 日历馈送 URL</label>
+            <input type="url" id="feed-url-input-inline" placeholder="粘贴日历馈送 URL（.ics）..." autocomplete="off" class="ui-control">
+            <button type="submit" class="ui-button ui-button--primary connection-primary-action action-button" data-od-id="canvas-save-config">保存配置</button>
           </form>
-          <div class="error-banner connection-error hidden" id="canvas-error-inline"></div>
-          <p class="setup-hint connection-setup-hint">
+          <div class="ui-alert ui-alert--danger ui-alert--compact error-banner connection-error hidden" id="canvas-error-inline" role="alert"></div>
+          <p class="ui-help setup-hint connection-setup-hint">
             请从 Canvas 获取日历馈送源 URL：<br>
             <small>Canvas → 日历 → 日历馈送 → 复制链接</small>
           </p>
         </div>
-        <div class="connection-data-actions" data-platform-actions="canvas"><button type="button" class="btn-secondary" onclick="disconnectPlatform('canvas')">断开连接</button><button type="button" class="btn-secondary connection-clear-button" onclick="showClearPlatformData('canvas')">清除平台数据</button></div>
+        <div class="connection-data-actions" data-platform-actions="canvas"><button type="button" class="ui-button ui-button--secondary btn-secondary" onclick="disconnectPlatform('canvas')">断开连接</button><button type="button" class="ui-button ui-button--danger btn-secondary connection-clear-button" onclick="showClearPlatformData('canvas')">清除平台数据</button></div>
       </div>
       <!-- 好课 Details -->
-      <div class="connection-detail-section" id="detail-haoke" style="display: none;">
+      <div class="connection-detail-section hidden" id="detail-haoke">
         <div class="detail-platform-header">
           <div class="detail-platform-title-wrap">
             <div class="detail-platform-icon-circle">H</div>
             <div>
               <h2 class="detail-platform-title">好课</h2>
-              <span class="status-badge" id="detail-status-badge-haoke">检查中...</span>
+              <span class="ui-status ui-status--info status-badge" id="detail-status-badge-haoke">检查中...</span>
             </div>
           </div>
         </div>
 
-        <div class="detail-section-title">数据说明</div>
-        <div class="detail-content-box connection-data-note"><strong>为了自动同步作业，网站会保存你的好课账号和加密后的密码。</strong><span>密码只用于登录好课，不会在页面中再次显示。断开连接后会删除保存的账号和密码，但会保留最后一次同步的作业。</span></div>
-        <div class="detail-section-title">连接配置</div>
-        <div class="detail-content-box">
+        <div class="ui-section-label detail-section-title">数据说明</div>
+        <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note"><strong>为了自动同步作业，网站会保存你的好课账号和加密后的密码。</strong><span>密码只用于登录好课，不会在页面中再次显示。断开连接后会删除保存的账号和密码，但会保留最后一次同步的作业。</span></div>
+        <div class="ui-section-label detail-section-title">连接配置</div>
+        <div class="ui-card detail-content-box">
           <form class="connection-form" id="haoke-setup-form-inline">
-            <label class="connection-field-label" for="haoke-username-inline">好课学号</label>
-            <input type="text" id="haoke-username-inline" placeholder="学号" autocomplete="username">
-            <label class="connection-field-label" for="haoke-password-inline">好课密码</label>
-            <input type="password" id="haoke-password-inline" placeholder="密码" autocomplete="current-password">
-            <button type="submit" class="connection-primary-action btn-wide action-button" data-od-id="haoke-save-login">保存并登录</button>
+            <label class="ui-label connection-field-label" for="haoke-username-inline">好课学号</label>
+            <input type="text" id="haoke-username-inline" placeholder="学号" autocomplete="username" class="ui-control">
+            <label class="ui-label connection-field-label" for="haoke-password-inline">好课密码</label>
+            <input type="password" id="haoke-password-inline" placeholder="密码" autocomplete="current-password" class="ui-control">
+            <button type="submit" class="ui-button ui-button--primary ui-button--block connection-primary-action btn-wide action-button" data-od-id="haoke-save-login">保存并登录</button>
           </form>
-          <div class="error-banner connection-error hidden" id="haoke-error-inline"></div>
-          <p class="setup-hint connection-setup-hint">
+          <div class="ui-alert ui-alert--danger ui-alert--compact error-banner connection-error hidden" id="haoke-error-inline" role="alert"></div>
+          <p class="ui-help setup-hint connection-setup-hint">
             使用同济大学统一身份认证的学号和密码登录（智图 AI 好课平台）
           </p>
         </div>
-        <div class="connection-data-actions" data-platform-actions="haoke"><button type="button" class="btn-secondary" onclick="disconnectPlatform('haoke')">断开连接</button><button type="button" class="btn-secondary connection-clear-button" onclick="showClearPlatformData('haoke')">清除平台数据</button></div>
+        <div class="connection-data-actions" data-platform-actions="haoke"><button type="button" class="ui-button ui-button--secondary btn-secondary" onclick="disconnectPlatform('haoke')">断开连接</button><button type="button" class="ui-button ui-button--danger btn-secondary connection-clear-button" onclick="showClearPlatformData('haoke')">清除平台数据</button></div>
       </div>
       <!-- 智学盟 Details -->
-      <div class="connection-detail-section" id="detail-zhixuemeng" style="display: none;">
+      <div class="connection-detail-section hidden" id="detail-zhixuemeng">
         <div class="detail-platform-header">
           <div class="detail-platform-title-wrap">
             <div class="detail-platform-icon-circle">Z</div>
             <div>
               <h2 class="detail-platform-title">智学盟</h2>
-              <span class="status-badge" id="detail-status-badge-zhixuemeng">检查中...</span>
+              <span class="ui-status ui-status--info status-badge" id="detail-status-badge-zhixuemeng">检查中...</span>
             </div>
           </div>
         </div>
 
-        <div class="detail-section-title">数据说明</div>
-        <div class="detail-content-box connection-data-note"><strong>输入的短信验证码或密码仅用于完成本次登录，不会保存。</strong><span>登录成功后，网站会加密保存智学盟提供的登录凭证，用于后续同步作业。断开连接后会删除保存的登录凭证。</span></div>
-        <div class="detail-section-title">连接配置</div>
-        <div class="detail-content-box">
+        <div class="ui-section-label detail-section-title">数据说明</div>
+        <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note"><strong>输入的短信验证码或密码仅用于完成本次登录，不会保存。</strong><span>登录成功后，网站会加密保存智学盟提供的登录凭证，用于后续同步作业。断开连接后会删除保存的登录凭证。</span></div>
+        <div class="ui-section-label detail-section-title">连接配置</div>
+        <div class="ui-card detail-content-box">
           <!-- Logged in state -->
           <div id="zxm-logged-in-inline" class="hidden connection-stack">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span class="connection-state-connected">已登录</span>
-              <button type="button" onclick="logoutZhixuemengInline()" class="btn-sm btn-wide connection-danger-quiet action-button" data-od-id="zhixuemeng-logout">登出</button>
+            <div class="connection-session-row">
+              <span class="ui-status ui-status--success connection-state-connected">已登录</span>
+              <button type="button" onclick="logoutZhixuemengInline()" class="ui-button ui-button--danger ui-button--block ui-button--sm btn-sm btn-wide connection-danger-quiet action-button" data-od-id="zhixuemeng-logout">登出</button>
             </div>
             <div class="form-group">
-              <label for="zxm-course-select-inline" class="connection-field-label">选择课程</label>
-              <select id="zxm-course-select-inline" onchange="changeZhixuemengCourseInline()" class="logged-in-select"></select>
+              <label for="zxm-course-select-inline" class="ui-label connection-field-label">选择课程</label>
+              <select id="zxm-course-select-inline" onchange="changeZhixuemengCourseInline()" class="ui-control logged-in-select"></select>
             </div>
           </div>
 
           <!-- Setup state -->
           <div id="zxm-setup-inline" class="hidden connection-stack">
-            <p class="setup-hint connection-setup-hint">请输入智学盟平台的手机号和验证码登录：</p>
+            <p class="ui-help setup-hint connection-setup-hint">请输入智学盟平台的手机号和验证码登录：</p>
             <div class="connection-form connection-form-inline">
-              <label class="connection-field-label" for="zxm-phone-inline">智学盟手机号</label>
-              <input type="tel" id="zxm-phone-inline" placeholder="手机号" autocomplete="tel">
-              <button type="button" id="zxm-send-sms-btn-inline" data-od-id="zhixuemeng-send-code" onclick="sendZhixuemengSmsInline()" class="btn-auth-secondary action-button">发送验证码</button>
+              <label class="ui-label connection-field-label" for="zxm-phone-inline">智学盟手机号</label>
+              <input type="tel" id="zxm-phone-inline" placeholder="手机号" autocomplete="tel" class="ui-control">
+              <button type="button" id="zxm-send-sms-btn-inline" data-od-id="zhixuemeng-send-code" onclick="sendZhixuemengSmsInline()" class="ui-button ui-button--secondary btn-auth-secondary action-button">发送验证码</button>
             </div>
             <div class="connection-form connection-form-inline">
-              <label class="connection-field-label" for="zxm-captcha-inline">短信验证码</label>
-              <input type="text" id="zxm-captcha-inline" placeholder="验证码" autocomplete="one-time-code">
-              <button type="button" data-od-id="zhixuemeng-code-login" onclick="doZhixuemengLoginInline()" class="connection-primary-action action-button">登录</button>
+              <label class="ui-label connection-field-label" for="zxm-captcha-inline">短信验证码</label>
+              <input type="text" id="zxm-captcha-inline" placeholder="验证码" autocomplete="one-time-code" class="ui-control">
+              <button type="button" data-od-id="zhixuemeng-code-login" onclick="doZhixuemengLoginInline()" class="ui-button ui-button--primary connection-primary-action action-button">登录</button>
             </div>
-            <div class="form-note" style="text-align: right; margin-top: 4px;">
-              <button type="button" class="connection-text-button" data-od-id="zhixuemeng-password-toggle" onclick="showZxmPasswordLoginInline()">使用密码登录</button>
+            <div class="ui-help form-note connection-form-note">
+              <button type="button" class="ui-button ui-button--text connection-text-button" data-od-id="zhixuemeng-password-toggle" onclick="showZxmPasswordLoginInline()">使用密码登录</button>
             </div>
-            <div id="zxm-password-login-inline" class="hidden" style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px; border-top: 1px dashed var(--shell-border-soft); padding-top: 12px;">
-              <form id="zxm-pwd-form-inline" style="display: flex; flex-direction: column; gap: 8px;">
-                <label class="connection-field-label" for="zxm-username-inline">智学盟用户名</label>
-                <input type="text" id="zxm-username-inline" placeholder="用户名" autocomplete="username" style="width: 100%;">
-                <label class="connection-field-label" for="zxm-password-inline">智学盟密码</label>
-                <input type="password" id="zxm-password-inline" placeholder="密码" autocomplete="current-password" style="width: 100%;">
-                <button type="submit" class="btn-primary btn-wide action-button" data-od-id="zhixuemeng-password-login" style="width: 100%;">登录</button>
+            <div id="zxm-password-login-inline" class="hidden connection-password-panel">
+              <form id="zxm-pwd-form-inline" class="connection-form">
+                <label class="ui-label connection-field-label" for="zxm-username-inline">智学盟用户名</label>
+                <input type="text" id="zxm-username-inline" placeholder="用户名" autocomplete="username" class="ui-control">
+                <label class="ui-label connection-field-label" for="zxm-password-inline">智学盟密码</label>
+                <input type="password" id="zxm-password-inline" placeholder="密码" autocomplete="current-password" class="ui-control">
+                <button type="submit" class="ui-button ui-button--primary ui-button--block btn-primary btn-wide action-button" data-od-id="zhixuemeng-password-login">登录</button>
               </form>
             </div>
           </div>
-          <div class="error-banner connection-error hidden" id="zhixuemeng-error-inline"></div>
+          <div class="ui-alert ui-alert--danger ui-alert--compact error-banner connection-error hidden" id="zhixuemeng-error-inline" role="alert"></div>
         </div>
-        <div class="connection-data-actions" data-platform-actions="zhixuemeng"><button type="button" class="btn-secondary" onclick="disconnectPlatform('zhixuemeng')">断开连接</button><button type="button" class="btn-secondary connection-clear-button" onclick="showClearPlatformData('zhixuemeng')">清除平台数据</button></div>
+        <div class="connection-data-actions" data-platform-actions="zhixuemeng"><button type="button" class="ui-button ui-button--secondary btn-secondary" onclick="disconnectPlatform('zhixuemeng')">断开连接</button><button type="button" class="ui-button ui-button--danger btn-secondary connection-clear-button" onclick="showClearPlatformData('zhixuemeng')">清除平台数据</button></div>
       </div>
       <!-- 智慧树 Details -->
-      <div class="connection-detail-section" id="detail-zhihuishu" style="display: none;">
+      <div class="connection-detail-section hidden" id="detail-zhihuishu">
         <div class="detail-platform-header">
           <div class="detail-platform-title-wrap">
             <div class="detail-platform-icon-circle">树</div>
             <div>
               <h2 class="detail-platform-title">智慧树</h2>
-              <span class="status-badge" id="detail-status-badge-zhihuishu">检查中...</span>
+              <span class="ui-status ui-status--info status-badge" id="detail-status-badge-zhihuishu">检查中...</span>
             </div>
           </div>
-          <button class="btn-refresh action-button" type="button" data-od-id="zhihuishu-refresh-status" onclick="loadZhihuishuStatusInline()" title="刷新智慧树连接状态" aria-label="刷新智慧树连接状态">&#x21bb;</button>
+          <button class="ui-icon-button btn-refresh action-button" type="button" data-od-id="zhihuishu-refresh-status" onclick="loadZhihuishuStatusInline()" title="刷新智慧树连接状态" aria-label="刷新智慧树连接状态">&#x21bb;</button>
         </div>
 
-        <div class="detail-section-title">数据说明</div>
-        <div class="detail-content-box connection-data-note"><strong>智慧树需要在独立的浏览器窗口中完成登录。</strong><span>网站会保存该浏览器的登录状态，用于后台同步作业，不会要求你在本站输入智慧树密码。断开连接后会删除浏览器登录状态，但保留最后一次同步的作业。</span></div>
-        <div class="detail-section-title">连接状态</div>
-        <div class="detail-content-box">
+        <div class="ui-section-label detail-section-title">数据说明</div>
+        <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note"><strong>智慧树需要在独立的浏览器窗口中完成登录。</strong><span>网站会保存该浏览器的登录状态，用于后台同步作业，不会要求你在本站输入智慧树密码。断开连接后会删除浏览器登录状态，但保留最后一次同步的作业。</span></div>
+        <div class="ui-section-label detail-section-title">连接状态</div>
+        <div class="ui-card detail-content-box">
           <dl class="status-grid">
             <dt>登录状态</dt><dd id="zhs-session-inline">--</dd>
             <dt>Worker</dt><dd id="zhs-worker-inline">--</dd>
@@ -455,16 +456,16 @@
           </dl>
         </div>
 
-        <div class="detail-section-title">操作</div>
-        <div class="detail-content-box" style="margin-bottom: 0;">
-          <div class="zhihuishu-login-actions" style="display: flex; flex-direction: column; gap: 10px;">
-            <button class="btn-primary btn-wide action-button" type="button" id="zhs-btn-open-login-inline" data-od-id="zhihuishu-open-login" onclick="openZhihuishuLoginSessionInline()" style="width: 100%;">打开智慧树登录窗口</button>
-            <button class="btn-secondary btn-wide action-button" type="button" id="zhs-btn-complete-login-inline" data-od-id="zhihuishu-complete-login" onclick="completeZhihuishuLoginSessionInline()" style="width: 100%;" disabled>我已完成登录</button>
-            <button class="btn-secondary btn-wide connection-danger-quiet action-button" type="button" id="zhs-btn-cancel-login-inline" data-od-id="zhihuishu-cancel-login" onclick="cancelZhihuishuLoginSessionInline()" style="width: 100%;" disabled>取消当前登录会话</button>
+        <div class="ui-section-label detail-section-title">操作</div>
+        <div class="ui-card detail-content-box">
+          <div class="zhihuishu-login-actions">
+            <button class="ui-button ui-button--primary ui-button--block btn-primary btn-wide action-button" type="button" id="zhs-btn-open-login-inline" data-od-id="zhihuishu-open-login" onclick="openZhihuishuLoginSessionInline()">打开智慧树登录窗口</button>
+            <button class="ui-button ui-button--secondary ui-button--block btn-secondary btn-wide action-button" type="button" id="zhs-btn-complete-login-inline" data-od-id="zhihuishu-complete-login" onclick="completeZhihuishuLoginSessionInline()" disabled>我已完成登录</button>
+            <button class="ui-button ui-button--danger ui-button--block btn-secondary btn-wide connection-danger-quiet action-button" type="button" id="zhs-btn-cancel-login-inline" data-od-id="zhihuishu-cancel-login" onclick="cancelZhihuishuLoginSessionInline()" disabled>取消当前登录会话</button>
           </div>
-          <div class="login-session-message" id="zhs-login-session-message-inline" style="margin-top: 12px; font-size: 12px; line-height: 1.5;"></div>
+          <div class="ui-feedback ui-feedback--info login-session-message" id="zhs-login-session-message-inline" role="status" aria-live="polite"></div>
         </div>
-        <div class="connection-data-actions" data-platform-actions="zhihuishu"><button type="button" class="btn-secondary" onclick="disconnectPlatform('zhihuishu')">断开连接</button><button type="button" class="btn-secondary connection-clear-button" onclick="showClearPlatformData('zhihuishu')">清除平台数据</button></div>
+        <div class="connection-data-actions" data-platform-actions="zhihuishu"><button type="button" class="ui-button ui-button--secondary btn-secondary" onclick="disconnectPlatform('zhihuishu')">断开连接</button><button type="button" class="ui-button ui-button--danger btn-secondary connection-clear-button" onclick="showClearPlatformData('zhihuishu')">清除平台数据</button></div>
       </div>
     </div>
   </div>
@@ -473,53 +474,53 @@
 
 {% if apple_calendar_enabled %}
 <section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-calendar" data-view-panel="calendar">
-  <div class="card console-manager-card calendar-subscription-card" id="calendar-subscription-card">
-    <div class="console-manager-heading">
+  <div class="card console-manager-card business-manager-card calendar-subscription-card" id="calendar-subscription-card">
+    <div class="console-manager-heading business-manager-heading">
       <div>
         <span class="placeholder-kicker">日历订阅</span>
         <h1 id="calendar-subscription-title">Apple Calendar</h1>
         <p>将带日期的未完成任务和日程，以只读订阅方式同步到 Apple 日历。</p>
       </div>
-      <span class="calendar-privacy-badge">私密链接</span>
+      <span class="ui-tag calendar-privacy-badge">私密链接</span>
     </div>
 
     <div class="calendar-subscription-layout">
       <section class="calendar-guide" aria-labelledby="calendar-guide-title">
-        <h2 id="calendar-guide-title">三步完成订阅</h2>
-        <p>订阅会持续更新，无需重复导入；撤销链接后，旧地址将立即失效。</p>
+        <h2 class="ui-card__title" id="calendar-guide-title">三步完成订阅</h2>
+        <p class="ui-card__copy">订阅会持续更新，无需重复导入；撤销链接后，旧地址将立即失效。</p>
         <ol class="calendar-step-list">
-          <li class="calendar-step">
-            <span class="calendar-step-index">1</span>
+          <li class="ui-list-item calendar-step">
+            <span class="ui-count-pill calendar-step-index">1</span>
             <div><strong>生成私密链接</strong><p>链接只属于当前账号，请勿公开分享。</p></div>
           </li>
-          <li class="calendar-step">
-            <span class="calendar-step-index">2</span>
+          <li class="ui-list-item calendar-step">
+            <span class="ui-count-pill calendar-step-index">2</span>
             <div><strong>添加到 Apple 日历</strong><p>可直接打开，也可复制后手动订阅。</p></div>
           </li>
-          <li class="calendar-step">
-            <span class="calendar-step-index">3</span>
+          <li class="ui-list-item calendar-step">
+            <span class="ui-count-pill calendar-step-index">3</span>
             <div><strong>按需撤销访问</strong><p>重新生成或撤销后，旧链接不再可用。</p></div>
           </li>
         </ol>
       </section>
 
-      <section class="calendar-subscription-workspace" aria-labelledby="calendar-subscription-link-heading">
+      <section class="ui-card calendar-subscription-workspace" aria-labelledby="calendar-subscription-link-heading">
         <div class="calendar-subscription-copy">
-          <span class="manager-section-index">订阅链接</span>
-          <h2 id="calendar-subscription-link-heading">当前私密地址</h2>
-          <p>该地址等同于访问凭证。重新生成会立即使旧链接失效。</p>
+          <span class="ui-section-label manager-section-index">订阅链接</span>
+          <h2 class="ui-card__title" id="calendar-subscription-link-heading">当前私密地址</h2>
+          <p class="ui-card__copy">该地址等同于访问凭证。重新生成会立即使旧链接失效。</p>
         </div>
         <div class="calendar-subscription-url">
-          <label class="settings-field-label" for="calendar-subscription-url">私密订阅地址</label>
-          <input type="text" id="calendar-subscription-url" readonly aria-describedby="calendar-subscription-status" placeholder="尚未生成订阅链接">
+          <label class="ui-label settings-field-label" for="calendar-subscription-url">私密订阅地址</label>
+          <input type="text" id="calendar-subscription-url" readonly aria-describedby="calendar-subscription-status" placeholder="尚未生成订阅链接" class="ui-control">
         </div>
         <div class="calendar-subscription-actions">
-          <button type="button" class="calendar-panel-primary console-stateful-button" id="calendar-subscription-create" aria-busy="false" onclick="createCalendarSubscription()">生成订阅链接</button>
-          <button type="button" id="calendar-subscription-open" onclick="openCalendarSubscription()" disabled>在日历中打开</button>
-          <button type="button" class="console-stateful-button" id="calendar-subscription-copy" aria-busy="false" onclick="copyCalendarSubscription()" disabled>复制链接</button>
-          <button type="button" class="calendar-panel-revoke console-stateful-button" id="calendar-subscription-revoke" aria-busy="false" onclick="revokeCalendarSubscription()" disabled>撤销链接</button>
+          <button type="button" class="ui-button ui-button--primary calendar-panel-primary console-stateful-button" id="calendar-subscription-create" aria-busy="false" onclick="createCalendarSubscription()">生成订阅链接</button>
+          <button type="button" id="calendar-subscription-open" onclick="openCalendarSubscription()" disabled class="ui-button ui-button--secondary">在日历中打开</button>
+          <button type="button" class="ui-button ui-button--secondary console-stateful-button" id="calendar-subscription-copy" aria-busy="false" onclick="copyCalendarSubscription()" disabled>复制链接</button>
+          <button type="button" class="ui-button ui-button--danger calendar-panel-revoke console-stateful-button" id="calendar-subscription-revoke" aria-busy="false" onclick="revokeCalendarSubscription()" disabled>撤销链接</button>
         </div>
-        <p class="calendar-subscription-status" id="calendar-subscription-status" role="status" aria-live="polite">生成链接后，可直接添加到 Apple 日历。</p>
+        <p class="ui-feedback ui-feedback--info calendar-subscription-status" id="calendar-subscription-status" role="status" aria-live="polite">生成链接后，可直接添加到 Apple 日历。</p>
       </section>
     </div>
   </div>
@@ -527,243 +528,78 @@
 {% endif %}
 
 <section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-settings" data-view-panel="settings">
-  <div class="card console-manager-card settings-manager-card">
-    <div class="console-manager-heading">
+  <div class="card console-manager-card business-manager-card settings-manager-card">
+    <div class="console-manager-heading business-manager-heading">
       <div>
         <span class="placeholder-kicker">设置中心</span>
         <h1>偏好设置</h1>
         <p>优先管理登录安全与账户生命周期；同步说明和数据边界作为参考信息列在后面。</p>
       </div>
     </div>
-    <div class="settings-summary-grid">
-      <section class="settings-summary-card settings-session-security" aria-labelledby="settings-security-title">
+    <div class="ui-card settings-summary-grid">
+      <section class="ui-card-section settings-item settings-session-security" aria-labelledby="settings-security-title">
         <div class="settings-section-heading">
-          <span class="manager-section-index">登录安全</span>
-          <h2 id="settings-security-title">账户安全</h2>
+          <span class="ui-section-label manager-section-index">登录安全</span>
+          <h2 class="ui-card__title" id="settings-security-title">账户安全</h2>
         </div>
         <div class="settings-section-content">
           <p>连续 30 天未访问网站后，登录状态会自动失效。</p>
           <p id="revoke-sessions-help">如果你曾在公共电脑或其他设备上登录，可验证当前密码后退出其他设备。</p>
-          <label class="settings-field-label" for="revoke-sessions-password">当前网站密码</label>
+          <label class="ui-label settings-field-label" for="revoke-sessions-password">当前网站密码</label>
           <div class="session-revoke-row">
-            <input id="revoke-sessions-password" type="password" autocomplete="current-password" placeholder="输入当前网站密码" aria-describedby="revoke-sessions-help revoke-sessions-status">
-            <button type="button" class="btn-secondary console-stateful-button" id="revoke-sessions-button" aria-busy="false" onclick="revokeOtherSessions()">退出其他设备</button>
+            <input id="revoke-sessions-password" type="password" autocomplete="current-password" placeholder="输入当前网站密码" aria-describedby="revoke-sessions-help revoke-sessions-status" class="ui-control">
+            <button type="button" class="ui-button ui-button--secondary btn-secondary console-stateful-button" id="revoke-sessions-button" aria-busy="false" onclick="revokeOtherSessions()">退出其他设备</button>
           </div>
-          <p id="revoke-sessions-status" class="calendar-subscription-status" role="status" aria-live="polite"></p>
+          <p id="revoke-sessions-status" class="ui-feedback ui-feedback--neutral calendar-subscription-status" role="status" aria-live="polite"></p>
         </div>
       </section>
-      <section class="settings-summary-card settings-danger-zone" aria-labelledby="settings-delete-title">
+      <section class="ui-card-section ui-surface--danger settings-item settings-danger-zone" aria-labelledby="settings-delete-title">
         <div class="settings-section-heading">
-          <span class="manager-section-index">数据与账号</span>
-          <h2 id="settings-delete-title">永久删除账户</h2>
+          <span class="ui-section-label manager-section-index">数据与账号</span>
+          <h2 class="ui-card__title" id="settings-delete-title">永久删除账户</h2>
         </div>
         <div class="settings-section-content">
           <p>将删除网站账号、平台连接、缓存、日历订阅、自定义待办、项目、课表与排程。历史加密备份中的副本会按备份轮换到期。</p>
-          <div class="account-delete-warning" role="note">
-            <span aria-hidden="true">!</span>
-            <p>此操作不可撤销。请先完成两步确认，避免误删当前账号。</p>
+          <div class="ui-alert ui-alert--danger account-delete-warning" role="note">
+            <div><strong>此操作不可撤销</strong><p>请先完成两步确认，避免误删当前账号。</p></div>
           </div>
           <form class="account-delete-form" id="account-delete-form">
-            <label class="account-delete-field" for="account-delete-password">
+            <label class="ui-field ui-label account-delete-field" for="account-delete-password">
               <span><b>1</b> 当前网站密码</span>
-              <input id="account-delete-password" type="password" autocomplete="current-password" placeholder="输入当前密码" aria-describedby="account-delete-status">
+              <input id="account-delete-password" type="password" autocomplete="current-password" placeholder="输入当前密码" aria-describedby="account-delete-status" class="ui-control">
             </label>
-            <label class="account-delete-field" for="account-delete-confirmation">
+            <label class="ui-field ui-label account-delete-field" for="account-delete-confirmation">
               <span><b>2</b> 确认文字 <em>永久删除</em></span>
-              <input id="account-delete-confirmation" autocomplete="off" placeholder="永久删除" aria-describedby="account-delete-status">
+              <input id="account-delete-confirmation" autocomplete="off" placeholder="永久删除" aria-describedby="account-delete-status" class="ui-control">
             </label>
             <div class="account-delete-action-row">
-              <p id="account-delete-status" class="calendar-subscription-status" role="status" aria-live="polite">完成两项确认后，才能永久删除账户。</p>
-              <button type="submit" class="settings-danger-button console-stateful-button" aria-busy="false" disabled>永久删除账户</button>
+              <p id="account-delete-status" class="ui-feedback ui-feedback--neutral calendar-subscription-status" role="status" aria-live="polite">完成两项确认后，才能永久删除账户。</p>
+              <button type="submit" class="ui-button ui-button--danger settings-danger-button console-stateful-button" aria-busy="false" disabled>永久删除账户</button>
             </div>
           </form>
         </div>
       </section>
       <div class="settings-secondary-divider" role="presentation">其他信息</div>
-      <section class="settings-summary-card" aria-labelledby="settings-account-title">
-        <div class="settings-section-heading"><span class="manager-section-index">账号</span><h2 id="settings-account-title">当前账号</h2></div>
+      <section class="ui-card-section settings-item" aria-labelledby="settings-account-title">
+        <div class="settings-section-heading"><span class="ui-section-label manager-section-index">账号</span><h2 class="ui-card__title" id="settings-account-title">当前账号</h2></div>
         <div class="settings-section-content"><p class="settings-account-name">{{ username }}</p><p>平台连接、同步数据与日历订阅均按此站点账号隔离保存。</p></div>
       </section>
-      <section class="settings-summary-card" aria-labelledby="settings-subscription-title">
-        <div class="settings-section-heading"><span class="manager-section-index">功能入口</span><h2 id="settings-subscription-title">同步与订阅</h2></div>
+      <section class="ui-card-section settings-item" aria-labelledby="settings-subscription-title">
+        <div class="settings-section-heading"><span class="ui-section-label manager-section-index">功能入口</span><h2 class="ui-card__title" id="settings-subscription-title">同步与订阅</h2></div>
         <div class="settings-section-content"><p>学习平台统一在侧栏“连接与同步”中管理；日历订阅使用独立的“Apple Calendar”入口。</p></div>
       </section>
-      <section class="settings-summary-card settings-data-security" aria-labelledby="settings-data-title">
-        <div class="settings-section-heading"><span class="manager-section-index">数据边界</span><h2 id="settings-data-title">数据与安全</h2></div>
+      <section class="ui-card-section settings-item settings-data-security" aria-labelledby="settings-data-title">
+        <div class="settings-section-heading"><span class="ui-section-label manager-section-index">数据边界</span><h2 class="ui-card__title" id="settings-data-title">数据与安全</h2></div>
         <div class="settings-section-content"><p>平台凭据会加密存储，仅用于同步学习信息。</p><p>由于网站由个人维护，网站运行者在服务器维护过程中，理论上具备接触账户数据、平台凭据和学习信息的技术权限。请仅在你信任网站运行者的情况下连接平台。</p><p>Apple Calendar 订阅链接等同于访问凭证，任何获得链接的人都可能读取其中导出的任务标题和截止时间。</p></div>
       </section>
     </div>
   </div>
 </section>
 
-<style>
-@layer legacy {
-  #dashboard-view-connections .connections-manager-card,
-  #dashboard-view-calendar .calendar-subscription-card,
-  #dashboard-view-settings .settings-manager-card { background: var(--card-bg); border: 1px solid var(--shell-border); box-shadow: none; }
-  #dashboard-view-connections .console-manager-heading,
-  #dashboard-view-calendar .console-manager-heading,
-  #dashboard-view-settings .console-manager-heading { align-items: end; gap: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--shell-border-soft); }
-  #dashboard-view-connections h1, #dashboard-view-calendar h1, #dashboard-view-settings h1 { font-family: var(--font-title); font-size: clamp(28px, 2.35vw, 32px); font-weight: 500; letter-spacing: -0.02em; }
-  #dashboard-view-connections .console-manager-heading p, #dashboard-view-calendar .console-manager-heading p, #dashboard-view-settings .console-manager-heading p, #dashboard-view-settings .settings-summary-card p { max-width: 68ch; }
-  #dashboard-view-connections .manager-section-index, #dashboard-view-calendar .manager-section-index, #dashboard-view-settings .manager-section-index, #dashboard-view-connections .placeholder-kicker, #dashboard-view-calendar .placeholder-kicker, #dashboard-view-settings .placeholder-kicker { letter-spacing: 0.09em; }
-  #dashboard-view-connections .action-button, #dashboard-view-calendar .action-button, #dashboard-view-settings .action-button { letter-spacing: 0.02em; transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease; }
-  #dashboard-view-connections .action-button:focus-visible, #dashboard-view-calendar .action-button:focus-visible, #dashboard-view-settings .action-button:focus-visible, #dashboard-view-connections input:focus-visible, #dashboard-view-connections select:focus-visible, #dashboard-view-calendar input:focus-visible, #dashboard-view-settings input:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 72%, transparent); outline-offset: 2px; }
-  #dashboard-view-connections .action-button:active:not(:disabled), #dashboard-view-calendar .action-button:active:not(:disabled), #dashboard-view-settings .action-button:active:not(:disabled) { transform: translateY(1px); }
-  #dashboard-view-connections .action-button:disabled, #dashboard-view-calendar .action-button:disabled, #dashboard-view-settings .action-button:disabled { cursor: not-allowed; opacity: 0.55; }
-  #dashboard-view-connections .action-button[aria-busy="true"], #dashboard-view-calendar .action-button[aria-busy="true"], #dashboard-view-settings .action-button[aria-busy="true"] { cursor: wait; }
-  #dashboard-view-connections .connections-layout { display: grid; grid-template-columns: minmax(250px, .72fr) minmax(0, 1.65fr); gap: 0; border: 1px solid var(--shell-border-soft); border-radius: calc(var(--shell-radius) - 2px); overflow: hidden; }
-  #dashboard-view-connections .connections-list-panel, #dashboard-view-connections .connections-detail-panel { min-width: 0; background: var(--card-bg); }
-  #dashboard-view-connections .connections-list-panel { padding: 22px; border-right: 1px solid var(--shell-border-soft); }
-  #dashboard-view-connections .connections-detail-panel { padding: 28px; }
-  #dashboard-view-connections .connection-platform-list { gap: 4px; }
-  #dashboard-view-connections .login-card { display: flex; width: 100%; min-height: 56px; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--shell-ink); cursor: pointer; font: inherit; text-align: left; transition: background-color 150ms ease, border-color 150ms ease; }
-  #dashboard-view-connections .login-card:hover { background: color-mix(in srgb, var(--accent-subtle) 56%, transparent); }
-  #dashboard-view-connections .login-card.is-selected, #dashboard-view-connections .login-card[aria-pressed="true"] { border-color: color-mix(in srgb, var(--accent) 28%, var(--shell-border)); background: var(--accent-subtle); }
-  #dashboard-view-connections .login-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  #dashboard-view-connections .login-card-status, #dashboard-view-connections .status-badge { font-size: 12px; letter-spacing: .04em; }
-  #dashboard-view-connections .login-card-status.connected, #dashboard-view-connections .status-badge.connected, #dashboard-view-connections .connection-state-connected { color: color-mix(in srgb, var(--accent) 62%, var(--text)); }
-  #dashboard-view-connections .login-card-status.attention, #dashboard-view-connections .status-badge.attention { color: var(--warning); }
-  #dashboard-view-connections .connection-detail-section { max-width: 740px; }
-  #dashboard-view-connections .detail-section-title { margin-top: 28px; padding-bottom: 8px; border-bottom: 1px solid var(--shell-border-soft); letter-spacing: .08em; }
-  #dashboard-view-connections .detail-content-box { box-shadow: none; }
-  #dashboard-view-connections .connection-field-label, #dashboard-view-calendar .calendar-subscription-url label, #dashboard-view-settings .session-revoke-row label { display: block; margin-bottom: 7px; color: var(--shell-muted); font-size: 12px; font-weight: 600; letter-spacing: .04em; }
-  #dashboard-view-connections .connection-form input, #dashboard-view-connections .logged-in-select, #dashboard-view-calendar .calendar-subscription-url input, #dashboard-view-settings .session-revoke-row input { min-height: 44px; background: var(--card-bg); border-color: var(--shell-border); }
-  #dashboard-view-connections .connection-stack { display: flex; flex-direction: column; gap: 12px; }
-  #dashboard-view-connections .connection-state-connected { font-size: 14px; font-weight: 600; }
-  #dashboard-view-connections .connection-danger-quiet { border-color: color-mix(in srgb, var(--danger) 34%, var(--shell-border)) !important; background: color-mix(in srgb, var(--danger-bg) 68%, var(--card-bg)) !important; color: var(--danger) !important; }
-  #dashboard-view-connections .connection-text-button { min-height: 44px; border: 0; background: transparent; color: var(--accent); cursor: pointer; font: inherit; font-size: 12px; letter-spacing: .02em; }
-  #dashboard-view-connections .connection-text-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  #dashboard-view-calendar .calendar-subscription-workspace { display: grid; grid-template-columns: minmax(260px, .9fr) minmax(360px, 1.1fr); gap: 0; margin-top: 28px; border: 1px solid var(--shell-border-soft); border-radius: calc(var(--shell-radius) - 2px); overflow: hidden; }
-  #dashboard-view-calendar .calendar-subscription-copy, #dashboard-view-calendar .calendar-subscription-credential { min-width: 0; padding: 28px; }
-  #dashboard-view-calendar .calendar-subscription-copy { background: color-mix(in srgb, var(--bg) 56%, var(--card-bg)); border-right: 1px solid var(--shell-border-soft); }
-  #dashboard-view-calendar .calendar-subscription-steps { display: grid; gap: 18px; padding: 0; margin: 24px 0; list-style: none; counter-reset: calendar-steps; }
-  #dashboard-view-calendar .calendar-subscription-steps li { display: grid; grid-template-columns: 28px 1fr; column-gap: 10px; }
-  #dashboard-view-calendar .calendar-subscription-steps li::before { content: counter(calendar-steps); counter-increment: calendar-steps; display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--shell-border); border-radius: 50%; color: var(--accent); font-size: 12px; }
-  #dashboard-view-calendar .calendar-subscription-steps strong, #dashboard-view-calendar .calendar-subscription-steps span { grid-column: 2; }
-  #dashboard-view-calendar .calendar-subscription-steps span, #dashboard-view-calendar .calendar-privacy-note, #dashboard-view-calendar .calendar-subscription-empty { color: var(--shell-muted); font-size: 13px; line-height: 1.6; }
-  #dashboard-view-calendar .calendar-subscription-url { margin-top: 22px; }
-  #dashboard-view-calendar .calendar-subscription-url input { width: 100%; color: var(--shell-ink); }
-  #dashboard-view-calendar .calendar-subscription-empty { margin: 12px 0 0; }
-  #dashboard-view-calendar .calendar-subscription-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 22px; }
-  #dashboard-view-calendar .calendar-subscription-actions button { width: 100%; }
-  #dashboard-view-calendar .calendar-subscription-status { min-height: 1.5em; margin: 14px 0 0; }
-  #dashboard-view-calendar .calendar-subscription-status.is-error, #dashboard-view-settings .calendar-subscription-status.is-error { color: var(--danger); }
-  #dashboard-view-settings .settings-summary-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; margin-top: 28px; }
-  #dashboard-view-settings .settings-summary-card { display: grid; grid-template-columns: minmax(170px, .38fr) minmax(0, 1fr); column-gap: 28px; align-items: start; padding: 28px 0; border-bottom: 1px solid var(--shell-border-soft); box-shadow: none; background: transparent; }
-  #dashboard-view-settings .settings-summary-card .manager-section-index { grid-column: 1; grid-row: 1; }
-  #dashboard-view-settings .settings-summary-card h2 { grid-column: 2; margin: 0; }
-  #dashboard-view-settings .settings-summary-card > p, #dashboard-view-settings .settings-summary-card > div, #dashboard-view-settings .settings-summary-card > form { grid-column: 2; }
-  #dashboard-view-settings .settings-summary-card > p { margin-top: 10px; }
-  #dashboard-view-settings .settings-reference-divider { display: flex; align-items: center; gap: 12px; padding: 28px 0 4px; color: var(--shell-muted); font-size: 12px; font-weight: 600; letter-spacing: .09em; }
-  #dashboard-view-settings .settings-reference-divider::after { content: ""; flex: 1; border-top: 1px solid var(--shell-border-soft); }
-  #dashboard-view-settings .session-revoke-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; margin-top: 18px; }
-  #dashboard-view-settings .settings-danger-zone { padding: 28px; margin: 0 -28px; background: color-mix(in srgb, var(--danger-bg) 56%, var(--card-bg)); border: 1px solid color-mix(in srgb, var(--danger) 18%, var(--shell-border)); border-radius: calc(var(--shell-radius) - 2px); }
-  #dashboard-view-settings .settings-danger-zone .account-delete-warning { background: color-mix(in srgb, var(--danger-bg) 78%, var(--card-bg)); border: 1px solid color-mix(in srgb, var(--danger) 18%, var(--shell-border)); box-shadow: none; }
-  #dashboard-view-settings .settings-danger-button { min-height: 44px; letter-spacing: .02em; }
-  @media (max-width: 1100px) { #dashboard-view-connections .connections-layout, #dashboard-view-calendar .calendar-subscription-workspace { grid-template-columns: 1fr; } #dashboard-view-connections .connections-list-panel, #dashboard-view-calendar .calendar-subscription-copy { border-right: 0; border-bottom: 1px solid var(--shell-border-soft); } }
-  @media (max-width: 768px) { #dashboard-view-connections .console-manager-heading, #dashboard-view-calendar .console-manager-heading, #dashboard-view-settings .console-manager-heading { align-items: stretch; } #dashboard-view-connections .connections-list-panel, #dashboard-view-connections .connections-detail-panel, #dashboard-view-calendar .calendar-subscription-copy, #dashboard-view-calendar .calendar-subscription-credential { padding: 20px; } #dashboard-view-calendar .calendar-subscription-actions, #dashboard-view-settings .session-revoke-row { grid-template-columns: 1fr; } #dashboard-view-settings .settings-summary-card { grid-template-columns: 1fr; row-gap: 8px; padding: 24px 0; } #dashboard-view-settings .settings-summary-card .manager-section-index, #dashboard-view-settings .settings-summary-card h2, #dashboard-view-settings .settings-summary-card > p, #dashboard-view-settings .settings-summary-card > div, #dashboard-view-settings .settings-summary-card > form { grid-column: 1; } #dashboard-view-settings .settings-danger-zone { padding: 20px; margin: 0 -20px; } }
-  @media (prefers-reduced-motion: reduce) { #dashboard-view-connections *, #dashboard-view-calendar *, #dashboard-view-settings * { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }
-
-  /* Apple Calendar and preferences layout from Canvas-Dashboard-v2.html. */
-  #dashboard-view-calendar .console-manager-card,
-  #dashboard-view-settings .console-manager-card { display: flex; min-height: calc(100vh - 64px); flex-direction: column; padding: 32px 36px !important; }
-  #dashboard-view-calendar .console-manager-heading,
-  #dashboard-view-settings .console-manager-heading { align-items: flex-end; padding-bottom: 22px; border-bottom: 1px solid var(--shell-border-soft); }
-  #dashboard-view-calendar .console-manager-heading h1,
-  #dashboard-view-settings .console-manager-heading h1 { margin-top: 6px; font-size: 32px; font-weight: 400; letter-spacing: -.02em; }
-  #dashboard-view-calendar .console-manager-heading p,
-  #dashboard-view-settings .console-manager-heading p { max-width: 64ch; margin-top: 8px; font-family: var(--font-sans); font-size: 13px; line-height: 1.65; }
-
-  #dashboard-view-connections .console-manager-card { display: flex; min-height: calc(100vh - 64px); flex-direction: column; padding: 32px 36px !important; }
-  #dashboard-view-connections .console-manager-heading { align-items: flex-end; padding-bottom: 22px; border-bottom: 1px solid var(--shell-border-soft); }
-  #dashboard-view-connections .console-manager-heading h1 { margin-top: 6px; font-size: 32px; font-weight: 400; letter-spacing: -.02em; }
-  #dashboard-view-connections .console-manager-heading p { max-width: 64ch; margin-top: 8px; font-family: var(--font-sans); font-size: 13px; line-height: 1.65; }
-  #dashboard-view-connections .connections-manager-status { margin: 14px 0 18px; color: var(--shell-muted); font-family: var(--font-sans); font-size: 11px; }
-  #dashboard-view-connections .connections-layout { min-height: 520px; grid-template-columns: 288px minmax(0, 1fr); margin-top: 0; border: 1px solid var(--shell-border); border-radius: 10px; }
-  #dashboard-view-connections .connections-list-panel,
-  #dashboard-view-connections .connections-detail-panel { border: 0; border-radius: 0; box-shadow: none; }
-  #dashboard-view-connections .connections-list-panel { padding: 18px; background: color-mix(in srgb, var(--shell-ink) 2.5%, var(--surface)); border-right: 1px solid var(--shell-border-soft); }
-  #dashboard-view-connections .connections-panel-title { margin: 0 0 12px; color: var(--shell-muted); font-family: var(--font-sans); font-size: 11px; font-weight: 650; letter-spacing: .06em; }
-  #dashboard-view-connections .connection-platform-list { gap: 6px; }
-  #dashboard-view-connections .connections-list-panel .login-card { min-height: 56px; padding: 10px 12px; background: transparent; border-color: transparent; border-radius: 7px; font: inherit; text-align: left; }
-  #dashboard-view-connections .connections-list-panel .login-card:hover { background: var(--surface); border-color: var(--shell-border); }
-  #dashboard-view-connections .connections-list-panel .login-card.is-selected { background: var(--surface); border-color: var(--shell-border); box-shadow: inset 3px 0 var(--shell-ink); }
-  #dashboard-view-connections .connections-list-panel .login-card-title { font-size: 14px; font-weight: 600; }
-  #dashboard-view-connections .connections-list-panel .login-card-status { min-width: 72px; font-size: 11px; }
-  #dashboard-view-connections .connections-detail-panel { padding: 26px 30px; background: var(--surface); }
-  #dashboard-view-connections .detail-platform-header { padding-bottom: 20px; }
-  #dashboard-view-connections .detail-platform-title { font-size: 24px; font-weight: 400; }
-  #dashboard-view-connections .detail-section-title { margin-top: 24px; color: var(--shell-muted); font-size: 10px; font-weight: 700; letter-spacing: .1em; }
-  #dashboard-view-connections .connection-data-note { max-width: 72ch; gap: 7px; font-size: 13px; }
-  #dashboard-view-connections .connection-form input,
-  #dashboard-view-connections .connection-form select,
-  #dashboard-view-settings .session-revoke-row input,
-  #dashboard-view-settings .account-delete-field input,
-  #dashboard-view-calendar .calendar-subscription-url input { min-height: 44px !important; background: var(--surface) !important; border-color: var(--shell-border) !important; box-shadow: none !important; }
-  #dashboard-view-connections .connection-form-inline button { height: 36px !important; min-height: 36px !important; }
-  #dashboard-view-connections .connection-form-inline .connection-field-label { grid-column: 1 / -1; }
-  #dashboard-view-connections .connection-data-actions { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--shell-border-soft); }
-
-  .calendar-subscription-layout { display: grid; grid-template-columns: minmax(220px, .72fr) minmax(440px, 1.28fr); gap: 28px; align-items: start; }
-  .calendar-guide { padding: 24px 4px 24px 0; }
-  .calendar-guide h2 { margin: 0; color: var(--shell-ink); font-family: var(--font-serif); font-size: 20px; font-weight: 400; }
-  .calendar-guide > p { margin: 8px 0 0; color: var(--shell-muted); font-size: 12px; line-height: 1.6; }
-  .calendar-step-list { display: grid; gap: 0; margin: 24px 0 0; padding: 0; list-style: none; }
-  .calendar-step { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; padding: 16px 0; border-top: 1px solid var(--shell-border-soft); }
-  .calendar-step-index { display: grid; width: 28px; height: 28px; place-items: center; color: var(--shell-muted); background: color-mix(in srgb, var(--shell-ink) 4%, var(--surface)); border: 1px solid var(--shell-border); border-radius: 50%; font-variant-numeric: tabular-nums; font-size: 11px; font-weight: 700; }
-  .calendar-step strong { display: block; color: var(--shell-ink); font-size: 13px; font-weight: 650; }
-  .calendar-step p { margin: 4px 0 0; color: var(--shell-muted); font-size: 11px; line-height: 1.55; }
-  #dashboard-view-calendar .calendar-privacy-badge { color: var(--shell-ink); background: color-mix(in srgb, var(--shell-ink) 4%, var(--surface)); border-color: var(--shell-border); border-radius: 4px; font-weight: 600; }
-  #dashboard-view-calendar .calendar-subscription-workspace { display: block; margin: 0; padding: 24px; background: var(--surface); border-color: var(--shell-border); border-radius: 10px; }
-  #dashboard-view-calendar .calendar-subscription-copy { padding: 0; background: transparent; border: 0; }
-  #dashboard-view-calendar .calendar-subscription-copy h2 { margin-top: 8px; font-family: var(--font-serif); font-size: 20px; font-weight: 400; }
-  #dashboard-view-calendar .calendar-subscription-url input { font-family: var(--font-number); font-size: 12px; }
-  #dashboard-view-calendar .calendar-subscription-actions { gap: 8px; }
-  #dashboard-view-calendar .calendar-subscription-actions button { letter-spacing: .02em; }
-  #dashboard-view-calendar .calendar-subscription-actions button:disabled { cursor: not-allowed; opacity: .48; }
-  #dashboard-view-calendar .calendar-subscription-status { padding-top: 12px; border-top: 1px solid var(--shell-border-soft); }
-
-  #dashboard-view-settings .settings-summary-grid { display: block; overflow: hidden; margin-top: 0; background: var(--surface); border: 1px solid var(--shell-border); border-radius: 10px; }
-  #dashboard-view-settings .settings-secondary-divider { padding: 11px 24px; color: var(--shell-muted); background: color-mix(in srgb, var(--shell-ink) 3%, var(--surface)); border-top: 1px solid var(--shell-border); border-bottom: 1px solid var(--shell-border-soft); font-size: 11px; font-weight: 650; letter-spacing: .06em; }
-  #dashboard-view-settings .settings-summary-card { display: grid; min-height: 0; grid-template-columns: 220px minmax(0, 1fr); gap: 28px; padding: 24px; background: transparent; border: 0; border-bottom: 1px solid var(--shell-border-soft); border-radius: 0; }
-  #dashboard-view-settings .settings-summary-card:last-child { border-bottom: 0; }
-  #dashboard-view-settings .settings-section-heading,
-  #dashboard-view-settings .settings-section-content { min-width: 0; }
-  #dashboard-view-settings .settings-section-heading h2 { margin: 8px 0 0; font-family: var(--font-sans); font-size: 14px; font-weight: 650; }
-  #dashboard-view-settings .settings-section-content > p:first-child { margin-top: 0; }
-  #dashboard-view-settings .settings-section-content p + p { margin-top: 10px; }
-  #dashboard-view-settings .settings-account-name { margin: 0 0 6px; font-family: var(--font-serif); font-size: 22px; font-weight: 400; }
-  #dashboard-view-settings .settings-danger-zone { margin: 0; background: color-mix(in srgb, var(--danger) 3%, var(--surface)); border-bottom-color: var(--danger-border); }
-  #dashboard-view-settings .account-delete-warning,
-  #dashboard-view-settings .account-delete-form { max-width: none; }
-  #dashboard-view-settings .settings-danger-button { min-height: 44px; letter-spacing: .02em; }
-  .settings-field-label { display: block; margin: 14px 0 7px; color: var(--shell-ink); font-size: 12px; font-weight: 650; letter-spacing: .01em; }
-  .console-stateful-button[aria-busy="true"] { cursor: wait; }
-  .console-stateful-button:disabled { transform: none !important; box-shadow: none !important; opacity: .62; }
-  .console-stateful-button[aria-busy="true"]::before { display: inline-block; width: 12px; height: 12px; margin-right: 7px; border: 1.5px solid color-mix(in srgb, currentColor 28%, transparent); border-top-color: currentColor; border-radius: 50%; content: ""; vertical-align: -2px; animation: console-control-spin .8s linear infinite; }
-  @keyframes console-control-spin { to { transform: rotate(360deg); } }
-  @media (max-width: 1100px) {
-    #dashboard-view-connections .connections-layout { grid-template-columns: minmax(0, 1fr); }
-    #dashboard-view-connections .connections-list-panel { border-right: 0; border-bottom: 1px solid var(--shell-border-soft); }
-    .calendar-subscription-layout { grid-template-columns: minmax(0, 1fr); }
-  }
-  @media (max-width: 768px) {
-    #dashboard-view-calendar .console-manager-card,
-    #dashboard-view-settings .console-manager-card { padding: 22px 18px !important; }
-    #dashboard-view-calendar .console-manager-heading,
-    #dashboard-view-settings .console-manager-heading { align-items: flex-start; }
-    #dashboard-view-settings .settings-summary-card { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-    #dashboard-view-settings .account-delete-form { grid-template-columns: minmax(0, 1fr); }
-    #dashboard-view-settings .account-delete-action-row { grid-column: 1; align-items: stretch; flex-direction: column; }
-  }
-}
-</style>
-
 <div class="project-modal-backdrop hidden" id="platform-data-confirm-modal">
   <div class="project-modal-card project-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="platform-data-confirm-title">
-    <div class="project-modal-header"><div><span class="placeholder-kicker">PLATFORM DATA</span><h2 id="platform-data-confirm-title">清除平台数据</h2></div><button type="button" class="project-modal-close" onclick="closePlatformDataConfirm()" aria-label="关闭">×</button></div>
+    <div class="project-modal-header"><div><span class="placeholder-kicker">PLATFORM DATA</span><h2 id="platform-data-confirm-title">清除平台数据</h2></div><button type="button" class="ui-icon-button project-modal-close" onclick="closePlatformDataConfirm()" aria-label="关闭">×</button></div>
     <p class="project-confirm-copy" id="platform-data-confirm-copy"></p>
-    <div class="project-modal-actions"><button type="button" class="project-button-secondary" onclick="closePlatformDataConfirm()">取消</button><button type="button" class="project-button-danger" onclick="confirmClearPlatformData()">确认清除</button></div>
+    <div class="project-modal-actions"><button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="closePlatformDataConfirm()">取消</button><button type="button" class="ui-button ui-button--danger project-button-danger" onclick="confirmClearPlatformData()">确认清除</button></div>
   </div>
 </div>

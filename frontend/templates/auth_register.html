@@ -17,14 +17,14 @@
       </div>
 
       <form class="add-todo-form auth-form mb-s" id="register-form">
-        <input type="text" id="register-username" placeholder="用户名（3-20位字母/数字/下划线）" autocomplete="username">
-        <input type="password" id="register-password" placeholder="密码（至少6位）" autocomplete="new-password">
-        <button type="submit" class="btn-wide btn-accent">注册</button>
+        <input type="text" id="register-username" placeholder="用户名（3-20位字母/数字/下划线）" autocomplete="username" class="ui-control">
+        <input type="password" id="register-password" placeholder="密码（至少6位）" autocomplete="new-password" class="ui-control">
+        <button type="submit" class="ui-button ui-button--primary ui-button--block btn-wide btn-accent">注册</button>
       </form>
 
-      <p class="setup-hint">已有账号？<a href="/login">直接登录</a></p>
+      <p class="ui-help setup-hint">已有账号？<a href="/login">直接登录</a></p>
 
-      <div class="error-banner hidden" id="register-error"></div>
+      <div class="ui-alert ui-alert--danger ui-alert--compact error-banner hidden" id="register-error" role="alert"></div>
     </div>
     {% if icp_number %}
     <footer class="site-footer">

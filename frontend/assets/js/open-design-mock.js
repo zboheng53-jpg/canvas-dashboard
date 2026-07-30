@@ -28,6 +28,27 @@
     "/api/custom/todos": { ok: true, today, data: [
       { id: 2001, text: "实验室周报提交", due_date: today, labels: ["实验室"], highlighted: false, done: false, subtasks: [] },
       { id: 2002, text: "整理自动化专业笔记归档", due_date: null, labels: ["学习笔记"], highlighted: false, done: false, subtasks: [] },
+      {
+        id: 2003,
+        text: "整理自动控制原理课程设计中的系统辨识、控制器参数整定与实验数据分析，并补充最终报告中的误差讨论",
+        due_date: today,
+        labels: ["课程设计长标签验证"],
+        highlighted: true,
+        done: false,
+        subtasks: [
+          { id: 1, text: "核对一段足够长的子任务文字在窄屏下是否自然换行且不会挤压日期和删除操作", due_date: today, done: false },
+          { id: 2, text: "已完成的子任务", due_date: today, done: true },
+        ],
+      },
+      ...Array.from({ length: 12 }, (_, index) => ({
+        id: 2100 + index,
+        text: `批量数据回归事项 ${String(index + 1).padStart(2, "0")}`,
+        due_date: index % 3 === 0 ? today : null,
+        labels: index % 2 === 0 ? ["批量验证"] : [],
+        highlighted: false,
+        done: false,
+        subtasks: [],
+      })),
     ] },
     "/api/projects": { ok: true, projects: [project], main_project_id: 1, last_viewed_project_id: 1 },
     "/api/projects/overview": { ok: true, active_project_count: 1, main_project: { ...project, upcoming_tasks: [project.tasks[1]], hidden_task_count: 0 } },

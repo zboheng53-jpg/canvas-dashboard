@@ -5,3 +5,6 @@
 @import url("./dashboard-v103.css") layer(legacy);
 @import url("./tokens.css") layer(tokens);
 @import url("./foundation.css") layer(foundation);
+@import url("./components.css") layer(components);
+@import url("./patterns.css") layer(patterns);
+@import url("./business.css") layer(pages);

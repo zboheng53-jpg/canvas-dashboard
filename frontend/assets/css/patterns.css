@@ -1,0 +1,94 @@
+/*
+ * Cross-component layout patterns.
+ *
+ * These rules may size or place shared controls in a business context. Color,
+ * typography, borders, radius, shadows, and interaction states stay in
+ * components.css.
+ */
+
+.add-todo-form .todo-title-input {
+  width: auto;
+  flex: 1 1 auto;
+}
+
+.add-todo-form .date-input {
+  width: 135px;
+  flex: 0 0 135px;
+}
+
+.add-todo-form > .ui-button {
+  flex: 0 0 auto;
+}
+
+.todo-source-select {
+  width: auto;
+}
+
+.subtask-add-input {
+  width: auto;
+  flex: 1 1 auto;
+}
+
+.subtask-due-input,
+.subtask-add-due-input {
+  width: 120px;
+  flex: 0 0 120px;
+}
+
+.connection-form-inline .ui-control {
+  width: auto;
+}
+
+.project-task-name-btn,
+.project-overview-title .ui-button--heading {
+  width: 100%;
+  min-width: 0;
+}
+
+.project-todo-link {
+  max-width: 140px;
+  overflow: hidden;
+  margin-left: auto;
+  margin-right: var(--space-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mobile-action-trigger {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .add-todo-form .date-input {
+    width: var(--control-height-lg);
+    flex-basis: var(--control-height-lg);
+  }
+
+  .subtask-due-input,
+  .subtask-add-due-input {
+    width: 100px;
+    flex-basis: 100px;
+  }
+
+  .connection-form-inline .ui-control {
+    width: 100%;
+  }
+
+  .project-todo-link {
+    max-width: 110px;
+  }
+
+  .mobile-action-trigger {
+    display: inline-flex;
+  }
+
+  .todo-row:has(.item-mobile-actions.open) {
+    flex-wrap: wrap;
+  }
+
+  .item-mobile-actions.open {
+    display: flex;
+    flex: 0 0 100%;
+    justify-content: flex-end;
+  }
+}
