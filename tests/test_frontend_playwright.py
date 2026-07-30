@@ -219,8 +219,8 @@ def test_frontend_titles_follow_v103_type_hierarchy(live_app, browser):
 
     for selector, expected_font, expected_weight in (
         (".section-header h2", "Noto Serif SC", "400"),
-        ("#long-term-projects-title", "MiSans", "500"),
-        ("#today-schedule-title", "MiSans", "500"),
+        ("#long-term-projects-title", "Noto Serif SC", "500"),
+        ("#today-schedule-title", "Noto Serif SC", "500"),
     ):
         style = page.locator(selector).evaluate(
             "element => { const style = getComputedStyle(element); return { fontFamily: style.fontFamily, fontWeight: style.fontWeight, letterSpacing: style.letterSpacing }; }"

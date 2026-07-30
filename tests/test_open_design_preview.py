@@ -13,7 +13,7 @@ def test_export_open_design_preview_renders_jinja_and_uses_relative_assets(tmp_p
     assert "{% include" not in html
     assert "{{ username }}" not in html
     assert "预览同学" in html
-    assert 'href="../assets/css/style.css"' in html
+    assert 'href="../assets/css/dashboard.css"' in html
     assert 'src="../assets/js/projects.js"' in html
     assert "window.__OPEN_DESIGN_PREVIEW__ = true" in html
     assert 'src="../assets/js/open-design-mock.js"' in html
@@ -46,6 +46,22 @@ def test_exported_preview_loads_project_and_schedule_mock_data(tmp_path: Path):
                 raise AssertionError(f"Project fixture did not render: {browser_errors}") from error
             page.locator("#today-schedule-content strong").filter(has_text="自动控制原理").first.wait_for()
 
+            dashboard_grid = page.locator(".dashboard-grid")
+            assert dashboard_grid.evaluate(
+                "element => getComputedStyle(element).gridTemplateColumns"
+            ) == "240px 1152px"
+            assert dashboard_grid.evaluate("element => getComputedStyle(element).gap") == "24px"
+            workspace_stack = page.locator(".workspace-stack")
+            assert workspace_stack.evaluate(
+                "element => getComputedStyle(element).gridTemplateColumns"
+            ) == "790px 340px"
+            assert workspace_stack.evaluate("element => getComputedStyle(element).gap") == "22px"
+            assert page.evaluate("document.documentElement.scrollWidth") == 1440
+
+            dashboard_title = page.locator(".card.enter-main-card .header-left-group h2")
+            assert "Noto Serif SC" in dashboard_title.evaluate(
+                "element => getComputedStyle(element).fontFamily"
+            )
             overview_card = page.locator("#project-overview-content .project-overview-main")
             assert overview_card.evaluate("element => getComputedStyle(element).backgroundColor") == "rgba(248, 250, 252, 0.72)"
             assert overview_card.evaluate("element => getComputedStyle(element).borderRadius") == "10px"

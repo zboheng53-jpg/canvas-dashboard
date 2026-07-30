@@ -1,18 +1,6 @@
 /* Dashboard V2 shell. Keep central todo styles in style.css. */
 
 #dashboard-shell {
-  --shell-surface: rgba(255,255,255,0.94);
-  --shell-border: #e2ded6;
-  --shell-border-soft: #eeeae3;
-  --shell-ink: #20242b;
-  --shell-muted: #77736d;
-  --shell-radius: 10px;
-  --shell-shadow: 0 2px 10px rgba(29, 35, 43, 0.035);
-  --sidebar-blue: #2f6bd6;
-  --sidebar-blue-soft: #edf4ff;
-  --sidebar-coral: #ef6b5f;
-  --sidebar-text: #515964;
-  --sidebar-muted: #9299a2;
   width: 100%;
   max-width: 1460px;
   padding: 32px 12px 96px;
@@ -516,7 +504,7 @@
 }
 
 .rail-card-heading h2 {
-  font-family: "Noto Serif SC", "Source Han Serif SC", serif;
+  font-family: var(--font-serif);
   color: var(--shell-ink);
   font-size: 20px;
   font-weight: 500;

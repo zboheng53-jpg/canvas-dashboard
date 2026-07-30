@@ -26,10 +26,15 @@ _CSRF_SCRIPT = re.compile(r'<script>window\.CSRF_TOKEN = ".*?";</script>')
 
 def export_preview(output: Path = DEFAULT_OUTPUT, username: str = "设计预览") -> Path:
     """Render the dashboard with a disposable demo session and write static HTML."""
-    with app.test_client() as client:
-        with client.session_transaction() as session:
-            session["username"] = username
-        response = client.get("/")
+    previous_testing = app.config["TESTING"]
+    app.config.update(TESTING=True)
+    try:
+        with app.test_client() as client:
+            with client.session_transaction() as session:
+                session["username"] = username
+            response = client.get("/")
+    finally:
+        app.config.update(TESTING=previous_testing)
 
     if response.status_code != 200:
         raise RuntimeError(f"Dashboard render failed with HTTP {response.status_code}.")

@@ -597,13 +597,14 @@
 </section>
 
 <style>
+@layer legacy {
   #dashboard-view-connections .connections-manager-card,
   #dashboard-view-calendar .calendar-subscription-card,
   #dashboard-view-settings .settings-manager-card { background: var(--card-bg); border: 1px solid var(--shell-border); box-shadow: none; }
   #dashboard-view-connections .console-manager-heading,
   #dashboard-view-calendar .console-manager-heading,
   #dashboard-view-settings .console-manager-heading { align-items: end; gap: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--shell-border-soft); }
-  #dashboard-view-connections h1, #dashboard-view-calendar h1, #dashboard-view-settings h1 { font-family: "Noto Serif SC", var(--font-display), serif; font-size: clamp(28px, 2.35vw, 32px); font-weight: 500; letter-spacing: -0.02em; }
+  #dashboard-view-connections h1, #dashboard-view-calendar h1, #dashboard-view-settings h1 { font-family: var(--font-title); font-size: clamp(28px, 2.35vw, 32px); font-weight: 500; letter-spacing: -0.02em; }
   #dashboard-view-connections .console-manager-heading p, #dashboard-view-calendar .console-manager-heading p, #dashboard-view-settings .console-manager-heading p, #dashboard-view-settings .settings-summary-card p { max-width: 68ch; }
   #dashboard-view-connections .manager-section-index, #dashboard-view-calendar .manager-section-index, #dashboard-view-settings .manager-section-index, #dashboard-view-connections .placeholder-kicker, #dashboard-view-calendar .placeholder-kicker, #dashboard-view-settings .placeholder-kicker { letter-spacing: 0.09em; }
   #dashboard-view-connections .action-button, #dashboard-view-calendar .action-button, #dashboard-view-settings .action-button { letter-spacing: 0.02em; transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease; }
@@ -756,6 +757,7 @@
     #dashboard-view-settings .account-delete-form { grid-template-columns: minmax(0, 1fr); }
     #dashboard-view-settings .account-delete-action-row { grid-column: 1; align-items: stretch; flex-direction: column; }
   }
+}
 </style>
 
 <div class="project-modal-backdrop hidden" id="platform-data-confirm-modal">

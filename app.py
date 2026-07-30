@@ -550,6 +550,12 @@ def index():
     )
 
 
+@app.route("/component-lab")
+def component_lab():
+    """Render the isolated visual component laboratory for authenticated users."""
+    return render_template("component_lab.html")
+
+
 @app.route("/login/<platform>")
 def login_page(platform):
     if platform not in ("canvas", "haoke", "zhixuemeng", "zhihuishu"):

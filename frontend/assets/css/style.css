@@ -23,48 +23,6 @@
   animation: fadeInUp 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
-/* ---- Variables ---- */
-:root {
-  /* Typography tokens */
-  --font-serif: "Tiempos Text", "Source Han Serif SC", "Noto Serif SC", "Songti SC", "SimSun", serif;
-  --font-kicker: "Styrene B", "Geist", system-ui, -apple-system, sans-serif;
-  --font-sans: "MiSans", -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
-  --font-number: "Geist", "MiSans", system-ui, -apple-system, sans-serif;
-
-  --bg: #faf9f7;
-  --surface: #f4f2ed;
-  --card-bg: #ffffff;
-  --text: #1a1a1a;
-  --text-secondary: #555555;
-  --text-muted: #767676;
-  --border: #e0dcd5;
-  --border-light: #edebe5;
-
-  --accent: #3b5998;
-  --accent-hover: #2d4475;
-  --accent-subtle: #eef1f7;
-  --danger: #c44242;
-  --danger-hover: #a53535;
-  --danger-bg: #fef5f5;
-  --danger-border: #f5d5d5;
-  --warning: #d67e2a;
-  --warning-bg: #fefaf5;
-
-  --src-canvas: #c44242;
-  --src-canvas-bg: #fef5f5;
-  --src-haoke: #3d8b5e;
-  --src-haoke-bg: #f2faf5;
-  --src-zhixuemeng: #3d6fa3;
-  --src-zhixuemeng-bg: #f2f7fc;
-  --src-zhihuishu: #8a6a2f;
-  --src-zhihuishu-bg: #fbf7ed;
-  --src-custom: #6e6e6e;
-  --src-custom-bg: #f5f5f5;
-
-  --radius: 8px;
-  --radius-sm: 5px;
-}
-
 /* ---- Reset ---- */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -210,7 +168,7 @@ a:hover { color: var(--accent-hover); }
 }
 
 .section-header h2 {
-  font-family: "Noto Serif SC", "Source Han Serif SC", serif;
+  font-family: var(--font-serif);
   font-size: 28px;
   font-weight: 500;
   color: var(--text);
@@ -1294,7 +1252,7 @@ a:hover { color: var(--accent-hover); }
   border-radius: 6px;
   background: #fff !important;
   color: #3a5985 !important;
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: var(--font-body);
   font-size: 12px;
   font-weight: 500;
   flex: 0 0 auto;

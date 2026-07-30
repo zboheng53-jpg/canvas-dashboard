@@ -1,0 +1,7 @@
+@layer legacy, tokens, foundation, components, patterns, pages, utilities;
+
+@import url("./style.css") layer(legacy);
+@import url("./dashboard-shell.css") layer(legacy);
+@import url("./dashboard-v103.css") layer(legacy);
+@import url("./tokens.css") layer(tokens);
+@import url("./foundation.css") layer(foundation);
