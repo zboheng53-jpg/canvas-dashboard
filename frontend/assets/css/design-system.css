@@ -235,3 +235,87 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   .biz-todo { flex-wrap: wrap; }
   .biz-todo__right { width: 100%; justify-content: flex-start; }
 }
+
+/* ---------- KPI 概览卡片 (Redesign KPI Cards) ---------- */
+.dashboard-kpis, .kpis {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 12px !important;
+  margin-bottom: 18px !important;
+}
+@media (max-width: 768px) {
+  .dashboard-kpis, .kpis {
+    grid-template-columns: 1fr !important;
+  }
+}
+.kpi {
+  background: var(--ds-surface, #ffffff) !important;
+  border: 1px solid var(--ds-line, #e6e8ec) !important;
+  border-radius: var(--ds-radius, 10px) !important;
+  padding: 14px 16px !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02) !important;
+}
+.kpi .k-label { font-size: 12px !important; color: var(--ds-ink-3, #7d8694) !important; }
+.kpi .k-value { font-size: 26px !important; font-weight: 650 !important; letter-spacing: -0.02em !important; margin-top: 2px !important; font-variant-numeric: tabular-nums !important; }
+.kpi .k-hint { font-size: 11.5px !important; color: var(--ds-ink-3, #7d8694) !important; margin-top: 2px !important; }
+.kpi .k-hint.warn { color: var(--ds-amber, #b07208) !important; }
+.kpi .k-hint.bad { color: var(--ds-danger, #d64545) !important; }
+
+/* ---------- 来源筛选 Chips (Redesign Source Filter Chips) ---------- */
+.dashboard-shell, body {
+  --src-canvas: #c4564f;
+  --src-haoke: #2f8a64;
+  --src-zxm: #4078c8;
+  --src-zhs: #c48a2c;
+  --src-project: #8068c5;
+  --src-custom: #8a94a3;
+  --ds-surface: #ffffff;
+  --ds-line: #e6e8ec;
+  --ds-line-soft: #eef0f3;
+  --ds-radius: 10px;
+  --ds-radius-sm: 7px;
+  --ds-radius-card: 14px;
+  --ds-ink: #1c2330;
+  --ds-ink-2: #5b6472;
+  --ds-ink-3: #7d8694;
+  --ds-accent: #2563eb;
+  --ds-accent-soft: #eff4fe;
+  --ds-accent-ink: #1d4fd7;
+  --ds-danger: #d64545;
+  --ds-danger-soft: #fdf0f0;
+  --ds-amber: #b07208;
+  --ds-amber-soft: #fdf6e7;
+}
+
+.src-filters {
+  display: flex !important;
+  gap: 6px !important;
+  padding: 10px 18px !important;
+  border-bottom: 1px solid var(--ds-line-soft, #eef0f3) !important;
+  flex-wrap: wrap !important;
+}
+.f-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  height: 26px !important;
+  min-height: 0 !important;
+  padding: 0 10px !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--ds-line, #e6e8ec) !important;
+  color: var(--ds-ink-2, #5b6472) !important;
+  font-size: 12px !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+}
+.f-chip:hover { background: #f6f8fa !important; }
+.f-chip.is-on, .f-chip.is-active {
+  border-color: #c3d5f8 !important;
+  background: var(--ds-accent-soft, #eff4fe) !important;
+  color: var(--ds-accent-ink, #1d4fd7) !important;
+  font-weight: 500 !important;
+}
+.f-chip .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.f-chip .n { color: var(--ds-ink-3, #7d8694); font-variant-numeric: tabular-nums; }
+.f-chip.is-on .n, .f-chip.is-active .n { color: var(--ds-accent-ink, #1d4fd7); }
