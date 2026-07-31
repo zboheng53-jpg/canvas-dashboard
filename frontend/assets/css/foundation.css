@@ -1,0 +1,51 @@
+/*
+ * Shared document foundation.
+ *
+ * Component visuals do not belong here. Buttons, fields, cards, navigation,
+ * and business patterns stay in their component or legacy layer.
+ */
+
+html {
+  font-family: var(--font-body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+:where(h1, h2, h3, .page-title, .section-title) {
+  font-family: var(--font-title);
+}
+
+:where(time, data, .numeric, [data-numeric]) {
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums;
+}
+
+:where(:focus-visible) {
+  outline-color: var(--color-action);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--color-action-soft);
+  color: var(--color-text-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

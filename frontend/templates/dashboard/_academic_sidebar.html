@@ -1,0 +1,101 @@
+<aside class="side academic-sidebar" id="academic-sidebar" aria-label="主导航" aria-hidden="false">
+  <div class="user-profile">
+    <div class="up-avatar-wrapper">
+      <div class="up-avatar sidebar-avatar-circle">{{ username[:1] | upper }}</div>
+      <div class="up-badge" id="sidebar-greeting-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>
+      </div>
+    </div>
+    <div class="up-info">
+      <span id="sidebar-greeting-title" class="up-greeting">{{ greeting_text or "早上好" }}，</span>
+      <strong id="sidebar-greeting" class="up-name" data-username="{{ username }}">{{ username }}</strong>
+    </div>
+    <button
+      type="button"
+      class="up-collapse sidebar-collapse-toggle"
+      id="sidebar-collapse-toggle"
+      aria-label="收起侧栏"
+      aria-expanded="true"
+      onclick="toggleSidebarCollapse()"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <polyline points="15 18 9 12 15 6"></polyline>
+      </svg>
+    </button>
+  </div>
+
+  <nav class="sidebar-nav" aria-label="主要入口">
+    <div class="sidebar-nav-group" aria-labelledby="sidebar-section-workspace">
+      <span class="sidebar-section-label nav-group-label" id="sidebar-section-workspace">工作区</span>
+      <button type="button" class="nav-item sidebar-nav-item is-active" data-dashboard-view="overview" aria-current="page" title="今日总览">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect>
+        </svg>
+        <span class="sidebar-label">今日总览</span>
+      </button>
+    </div>
+
+    <div class="sidebar-nav-group" aria-labelledby="sidebar-section-planning">
+      <span class="sidebar-section-label nav-group-label" id="sidebar-section-planning" style="margin-top:16px;">计划</span>
+      <button type="button" class="nav-item sidebar-nav-item" data-dashboard-view="projects" title="长期项目">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7Z"></path>
+        </svg>
+        <span class="sidebar-label">长期项目</span>
+      </button>
+      <button type="button" class="nav-item sidebar-nav-item" data-dashboard-view="schedule" title="日程与课表">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M8 3v4m8-4v4M4 10h16"></path>
+        </svg>
+        <span class="sidebar-label">日程与课表</span>
+      </button>
+    </div>
+
+    <div class="sidebar-nav-group" aria-labelledby="sidebar-section-management">
+      <span class="sidebar-section-label nav-group-label" id="sidebar-section-management" style="margin-top:16px;">管理</span>
+      <button type="button" class="nav-item sidebar-nav-item" data-dashboard-view="connections" title="连接与同步">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M7 17a4 4 0 1 1 .6-7.97A5.5 5.5 0 0 1 18.3 11 3.5 3.5 0 0 1 17.5 17H7Z"></path>
+        </svg>
+        <span class="sidebar-label">连接与同步</span>
+        <span class="nav-dot ui-status-dot ui-status-dot--danger sidebar-attention-dot hidden" id="connections-attention" role="status" aria-label="连接需要处理"></span>
+      </button>
+      {% if apple_calendar_enabled %}
+      <button
+        type="button"
+        class="nav-item sidebar-nav-item"
+        id="calendar-subscription-trigger"
+        data-dashboard-view="calendar"
+        aria-controls="dashboard-view-calendar"
+        title="Apple Calendar"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M8 3v4m8-4v4M4 10h16m-6 6h4"></path>
+        </svg>
+        <span class="sidebar-label">Apple Calendar</span>
+      </button>
+      {% endif %}
+      <button type="button" class="nav-item sidebar-nav-item" data-dashboard-view="settings" title="偏好设置">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"></circle><path d="M12 2.5v3m0 13v3M2.5 12h3m13 0h3M5.3 5.3l2.1 2.1m9.2 9.2 2.1 2.1m0-13.4-2.1 2.1M7.4 16.6l-2.1 2.1"></path>
+        </svg>
+        <span class="sidebar-label">偏好设置</span>
+      </button>
+    </div>
+  </nav>
+
+  <div class="side-foot sidebar-footer">
+    <button type="button" class="side-user sidebar-user" title="打开偏好设置" aria-label="打开 {{ username }} 的偏好设置" onclick="switchDashboardView('settings')">
+      <span class="avatar sidebar-user-avatar" aria-hidden="true">{{ username[:1] | upper }}</span>
+      <span class="sidebar-user-copy">
+        <strong>{{ username }}</strong>
+      </span>
+    </button>
+    <button type="button" class="side-logout sidebar-footer-action sidebar-logout" onclick="doLogout()">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+      <span class="sidebar-label">退出登录</span>
+    </button>
+  </div>
+</aside>

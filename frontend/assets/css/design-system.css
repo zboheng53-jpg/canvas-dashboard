@@ -1,0 +1,231 @@
+/* ============================================================
+ * Canvas Dashboard · 设计系统层（design-system）
+ *
+ * 与 drafts/redesign 的静态稿同源，但为安全接入真实应用做了两处隔离：
+ *  1. 所有 token 加 --ds- 前缀，避免与 tokens.css 已有的
+ *     --surface / --accent / --danger / --radius 等同名变量冲突，
+ *     保证未迁移页面零影响。
+ *  2. 仅声明与现有应用不冲突的基础组件类（.btn-quiet / .status-pill /
+ *     .due / .icon-btn / .input / .section-label / .empty-block / .sk-row /
+ *     .main-tag / .tt-block）与全部 .biz-* 业务类。
+ *     .card / .checkbox / .error-banner / .btn-secondary 已存在于应用，
+ *     待对应模板迁移时再在组件层就地收敛，不在此全局覆盖。
+ *
+ * 通过 dashboard.css 的 @layer(design-system) 作为最高优先级层引入。
+ * 模板逐个改用 .biz-* 后即可生效；未改的模板继续走 legacy 层，互不干扰。
+ * ============================================================ */
+
+
+
+/* ---------- 基础组件（非冲突类） ---------- */
+.btn-quiet {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 34px; padding: 0 16px; border-radius: var(--ds-radius-sm);
+  background: #dde9fc; border: 1px solid #bfd4f8; color: #1d4fd7;
+  font-weight: 600; font-size: 13px; cursor: pointer;
+}
+.btn-quiet:hover { background: #ccddfb; border-color: #a3c1f4; }
+.btn-quiet:active { background: #bfd3f9; }
+.btn-quiet:disabled { opacity: .55; cursor: not-allowed; }
+
+.icon-btn {
+  width: 28px; height: 28px; border-radius: 7px; color: var(--ds-ink-3);
+  display: inline-grid; place-items: center; flex: none; cursor: pointer; border: none; background: none;
+}
+.icon-btn:hover { background: #f0f2f6; color: var(--ds-ink); }
+.icon-btn.danger:hover { background: var(--ds-danger-soft); color: var(--ds-danger); }
+.icon-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+.input {
+  height: 34px; padding: 0 12px; width: 100%;
+  border: 1px solid var(--ds-line); border-radius: var(--ds-radius-sm);
+  font: inherit; font-size: 13px; color: var(--ds-ink); background: #fbfcfd; outline: none;
+}
+.input::placeholder { color: var(--ds-ink-3); }
+.input:focus { border-color: #b9cdf5; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,.10); }
+.input[readonly] { background: #f6f8fa; color: var(--ds-ink-2); }
+.field-label { display: block; font-size: 12px; font-weight: 550; color: var(--ds-ink-2); margin: 0 0 6px; }
+.help { font-size: 11.5px; color: var(--ds-ink-3); }
+.section-label { font-size: 11px; font-weight: 600; color: var(--ds-ink-3); letter-spacing: .05em; }
+
+.status-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; font-weight: 550; border-radius: 999px; padding: 2px 9px;
+}
+.status-pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+.st-ok { color: var(--ds-ink-2); background: #f2f4f7; } .st-ok .dot { background: var(--ds-green); }
+.st-warn { color: var(--ds-amber); background: var(--ds-amber-soft); } .st-warn .dot { background: var(--ds-amber); }
+.st-bad { color: var(--ds-danger); background: var(--ds-danger-soft); } .st-bad .dot { background: var(--ds-danger); }
+.st-neutral { color: var(--ds-ink-2); background: #f2f4f7; } .st-neutral .dot { background: var(--ds-ink-3); }
+
+.due {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  font-size: 11.5px; font-weight: 500; padding: 2px 8px; border-radius: 999px;
+  color: var(--ds-ink-2); background: #f2f4f7; font-variant-numeric: tabular-nums; min-width: 52px; text-align: center;
+}
+.due::before { content: ""; width: 5px; height: 5px; border-radius: 50%; display: none; flex: none; }
+.due.today::before { display: block; background: var(--ds-accent); }
+.due.soon::before { display: block; background: #d99a2b; }
+.due.overdue { color: var(--ds-danger); }
+.due.overdue::before { display: block; background: var(--ds-danger); }
+
+.empty-block { padding: 30px 18px; text-align: center; color: var(--ds-ink-3); }
+.empty-block strong { display: block; font-size: 13.5px; color: var(--ds-ink-2); font-weight: 600; margin-bottom: 3px; }
+.empty-block p { font-size: 12px; }
+.sk-row { display: flex; align-items: center; gap: 11px; padding: 10px 18px; }
+.sk-dot { width: 16px; height: 16px; border-radius: 50%; background: #edf0f4; flex: none; }
+.sk-line { height: 10px; border-radius: 5px; background: #edf0f4; }
+.sk-line.w60 { width: 60%; } .sk-line.w35 { width: 35%; }
+.sk-anim { animation: ds-sk-pulse 1.4s ease-in-out infinite; }
+@keyframes ds-sk-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .sk-anim { animation: none; } }
+
+.main-tag { font-size: 10px; font-weight: 600; color: var(--ds-src-project); background: #f3effc; border-radius: 4px; padding: 1px 5px; font-style: normal; }
+
+.tt-block { border-radius: 6px; padding: 5px 7px 5px 9px; font-size: 11px; line-height: 1.35; overflow: hidden; border: 1px solid; border-left-width: 3px; }
+.tt-block .tb-name { font-weight: 600; font-size: 11.5px; display: block; }
+.tt-block .tb-sub { opacity: .8; font-size: 10.5px; display: block; margin-top: 1px; }
+.tb-course { background: var(--ds-series-course-soft); border-color: var(--ds-series-course-border); color: #2f5f8f; }
+.tb-recurring { background: var(--ds-series-recurring-soft); border-color: var(--ds-series-recurring-border); color: #316a4e; }
+.tb-oneoff { background: var(--ds-series-oneoff-soft); border-color: var(--ds-series-oneoff-border); color: #7d5028; }
+
+button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 2px solid rgba(37,99,235,.55); outline-offset: 1px; }
+
+/* ---------- 业务组件（仅布局，视觉来自上方基础组件） ---------- */
+/* 1. 待办项 */
+.biz-todo { display: flex; align-items: flex-start; gap: 11px; padding: 10px 18px; }
+.biz-todo:hover { background: #fafbfd; }
+.biz-todo + .biz-todo { border-top: 1px solid var(--ds-line-soft); }
+.biz-todo__body { flex: 1; min-width: 0; }
+.biz-todo__title { font-size: 13.5px; font-weight: 500; }
+.biz-todo__meta { font-size: 12px; color: var(--ds-ink-3); margin-top: 1px; }
+.biz-todo__right { display: flex; align-items: center; gap: 10px; flex: none; }
+.biz-todo.is-done .biz-todo__title { color: var(--ds-ink-3); text-decoration: line-through; text-decoration-color: #c3cad4; }
+.biz-src { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--ds-ink-3); }
+.biz-src .dot { width: 6px; height: 6px; border-radius: 50%; }
+
+/* 2. 子任务 */
+.biz-subtask { display: flex; align-items: flex-start; gap: 10px; padding: 7px 18px 7px 40px; }
+.biz-subtask + .biz-subtask { border-top: 1px solid var(--ds-line-soft); }
+.biz-subtask__title { font-size: 12.5px; }
+.biz-subtask__due { margin-left: auto; font-size: 11px; color: var(--ds-ink-3); font-variant-numeric: tabular-nums; }
+.biz-subtask.is-done .biz-subtask__title { color: var(--ds-ink-3); text-decoration: line-through; }
+
+/* 3. 项目项 */
+.biz-project-item { display: block; width: 100%; text-align: left; padding: 10px 12px; border-radius: 8px; border: 1px solid transparent; background: none; cursor: pointer; }
+.biz-project-item:hover { background: #f7f9fb; }
+.biz-project-item.is-sel { background: var(--ds-accent-soft); border-color: #d5e2fa; }
+.biz-project-item__name { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.biz-project-item__next { font-size: 11.5px; color: var(--ds-ink-3); margin-top: 2px; }
+.biz-progress { display: block; height: 4px; border-radius: 2px; background: #e9edf3; margin-top: 8px; overflow: hidden; }
+.biz-progress > i { display: block; height: 100%; border-radius: 2px; background: var(--ds-src-project); }
+
+/* 4. 项目任务 */
+.biz-task { display: flex; align-items: center; gap: 10px; padding: 9px 14px; background: #fff; }
+.biz-task + .biz-task { border-top: 1px solid var(--ds-line-soft); }
+.biz-task__name { font-size: 13px; font-weight: 500; }
+.biz-task__date { font-size: 11.5px; color: var(--ds-ink-3); font-variant-numeric: tabular-nums; margin-left: auto; }
+.biz-task__actions { display: flex; gap: 2px; flex: none; }
+.biz-task.is-next { background: #fdfaf3; }
+.biz-next-tag { font-size: 10.5px; font-weight: 600; color: var(--ds-src-project); background: #f3effc; border-radius: 4px; padding: 1px 6px; margin-left: 7px; }
+
+/* 5/6. 日程项 / 课程项 —— 视觉沿用 .tt-block，业务层只给定位容器 */
+.biz-grid { position: relative; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 27px, var(--ds-line-soft) 27px, var(--ds-line-soft) 28px); border: 1px solid var(--ds-line-soft); border-radius: var(--ds-radius-sm); padding: 6px; }
+.biz-grid__col { position: relative; }
+
+/* 7. 平台连接项 */
+.biz-conn-item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 9px 10px; border-radius: 8px; border: 1px solid transparent; text-align: left; background: none; cursor: pointer; }
+.biz-conn-item:hover { background: #f7f9fb; }
+.biz-conn-item.is-sel { background: var(--ds-accent-soft); border-color: #d5e2fa; }
+.biz-conn-item__dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.biz-conn-item__name { font-size: 13px; font-weight: 600; }
+
+/* 8. 设置项 */
+.biz-setting { padding: 18px 0; border-bottom: 1px solid var(--ds-line-soft); }
+.biz-setting:last-child { border-bottom: none; }
+.biz-setting h3 { font-size: 14px; font-weight: 650; margin-top: 4px; }
+.biz-setting__body { margin-top: 10px; max-width: 640px; }
+.biz-setting p { font-size: 12.5px; color: var(--ds-ink-2); }
+.biz-setting p + p { margin-top: 6px; }
+
+/* 9. 日历订阅操作区 */
+.biz-cal { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
+.biz-cal__guide { padding: 20px 22px; border-right: 1px solid var(--ds-line-soft); }
+.biz-cal__guide h3 { font-size: 14px; font-weight: 650; }
+.biz-cal__guide > p { font-size: 12.5px; color: var(--ds-ink-3); margin-top: 4px; }
+.biz-cal__steps { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; list-style: none; }
+.biz-cal__steps li { display: flex; gap: 11px; }
+.biz-cal__steps .step-no { width: 22px; height: 22px; border-radius: 50%; flex: none; background: var(--ds-accent-soft); color: var(--ds-accent-ink); font-size: 11.5px; font-weight: 650; display: grid; place-items: center; margin-top: 1px; }
+.biz-cal__steps strong { font-size: 13px; font-weight: 600; display: block; }
+.biz-cal__steps p { font-size: 12px; color: var(--ds-ink-3); margin-top: 1px; }
+.biz-cal__work { padding: 20px 22px; }
+.biz-cal__work h3 { font-size: 14px; font-weight: 650; margin-top: 4px; }
+.biz-cal__work > .copy { font-size: 12.5px; color: var(--ds-ink-3); margin-top: 3px; }
+.biz-cal__url { margin-top: 14px; }
+.biz-cal__actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.biz-cal__status { margin-top: 10px; font-size: 12px; color: var(--ds-green); display: flex; align-items: center; gap: 6px; }
+.biz-cal__status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ds-green); }
+.biz-cal__status.is-empty { color: var(--ds-ink-3); }
+.biz-cal__status.is-empty .dot { background: var(--ds-ink-3); }
+
+/* ---------- 外壳覆写：把暖米玻璃迁到冷灰干净设计系统 ----------
+ * 这些规则位于最高层 @layer(design-system)，覆盖 dashboard-shell.css /
+ * dashboard-v103.css 的 legacy 玻璃样式；只改容器视觉，保留布局。
+ */
+.dashboard-shell {
+  background: var(--ds-page);
+  min-height: 100vh;
+}
+
+.academic-sidebar {
+  background: var(--ds-surface) !important;
+  border-color: var(--ds-line) !important;
+  border-radius: var(--ds-radius) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02) !important;
+}
+.sidebar-heading { border-color: var(--ds-line-soft); }
+.sidebar-nav-item.is-active,
+.nav-item.is-active,
+.academic-sidebar .nav-item.is-active {
+  background-color: var(--ds-accent-soft) !important;
+  color: var(--ds-accent-ink) !important;
+}
+.sidebar-collapse-toggle:hover,
+.sidebar-collapse-toggle:focus-visible { color: var(--ds-accent-ink); background: var(--ds-accent-soft); }
+
+.workspace-main .context-card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* 顶栏：保留三栏大天气/时间布局，只把玻璃容器换成白卡 */
+.top-bar.opt1-header {
+  background: var(--ds-surface) !important;
+  border-color: var(--ds-line) !important;
+  border-radius: var(--ds-radius) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.top-bar.opt1-header:hover {
+  background: var(--ds-surface) !important;
+  border-color: var(--ds-line) !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06) !important;
+}
+.opt1-col.left,
+.opt1-col.center { border-color: var(--ds-line-soft) !important; }
+
+.workspace-main .card {
+  background: var(--ds-surface) !important;
+  border-color: var(--ds-line) !important;
+  border-radius: var(--ds-radius) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02) !important;
+}
+
+@media (max-width: 680px) {
+  .biz-cal { grid-template-columns: 1fr; }
+  .biz-cal__guide { border-right: none; border-bottom: 1px solid var(--ds-line-soft); }
+  .biz-todo { flex-wrap: wrap; }
+  .biz-todo__right { width: 100%; justify-content: flex-start; }
+}

@@ -1,0 +1,10 @@
+[Unit]
+Description=Encrypted backup of Canvas Dashboard runtime data
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/home/ubuntu/canvas-dashboard/current
+ExecStart=/bin/bash /home/ubuntu/canvas-dashboard/current/deploy/run-backup.sh
+

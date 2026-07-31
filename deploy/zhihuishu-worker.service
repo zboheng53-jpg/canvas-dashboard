@@ -1,0 +1,23 @@
+[Unit]
+Description=Canvas Dashboard Zhihuishu Worker
+After=network.target canvas-dashboard.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/canvas-dashboard/current
+Environment=ZHIHUISHU_CHROMIUM_EXECUTABLE=/usr/bin/google-chrome-stable
+ExecStart=/home/ubuntu/canvas-dashboard/.venv/bin/python zhihuishu_worker.py --all-users
+Restart=on-failure
+RestartSec=30
+UMask=0077
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

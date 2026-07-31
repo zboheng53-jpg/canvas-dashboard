@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>组件实验室 · Canvas Dashboard</title>
+  {% include "_font_assets.html" %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/component-lab.css') }}">
+</head>
+<body class="component-lab-page">
+  <header class="lab-topbar">
+    <div class="lab-topbar-copy">
+      <span class="lab-eyebrow">Canvas Dashboard / Foundations</span>
+      <strong>组件实验室</strong>
+      <span class="lab-version">生产组件 · v0.3</span>
+    </div>
+    <a class="lab-back-link" href="/">返回控制台</a>
+  </header>
+
+  <div class="lab-shell">
+    <aside class="lab-sidebar" aria-label="组件实验室目录">
+      <p class="lab-sidebar-intro">同一份真实学习数据，用于比较基础视觉与组件状态。</p>
+      <nav class="lab-nav">
+        <a class="lab-nav-item is-selected" href="#foundations">基础系统</a>
+        <a class="lab-nav-item" href="#candidates">候选方案</a>
+        <a class="lab-nav-item" href="#confirmed-controls">已确认控件</a>
+        <a class="lab-nav-item" href="#buttons">按钮</a>
+        <a class="lab-nav-item" href="#forms">输入与表单</a>
+        <a class="lab-nav-item" href="#status">标签与状态</a>
+        <a class="lab-nav-item" href="#feedback">反馈与提示</a>
+        <a class="lab-nav-item" href="#states">加载与空状态</a>
+        <a class="lab-nav-item" href="#surfaces">卡片、列表与导航</a>
+        <a class="lab-nav-item" href="#modal">弹窗</a>
+      </nav>
+      <div class="lab-sidebar-note">
+        <span>当前约束</span>
+        <strong>冷灰 · 平面细线 · 6px</strong>
+        <small>桌面密度优先，移动端仅保证自然重排。</small>
+      </div>
+    </aside>
+
+    <main class="lab-main">
+      <section class="lab-introduction">
+        <div>
+          <span class="lab-eyebrow">Visual contract preview</span>
+          <h1>先验证组件，再迁移页面。</h1>
+          <p>这里不承载真实操作。所有内容均为固定样例，用于比较按钮、表单、状态与表面层级。</p>
+        </div>
+        <dl class="lab-context-facts">
+          <div><dt>用途</dt><dd>个人学习控制台</dd></div>
+          <div><dt>基准密度</dt><dd>紧凑桌面</dd></div>
+          <div><dt>交互色</dt><dd>低面积浅蓝</dd></div>
+        </dl>
+      </section>
+
+      <section class="lab-section" id="foundations">
+        <header class="lab-section-heading">
+          <div>
+            <span class="lab-section-index">01</span>
+            <h2>基础系统</h2>
+          </div>
+          <p>字体层级与颜色只在实验室中生效，不会覆盖现有控制台。</p>
+        </header>
+
+        <div class="lab-spec-grid lab-spec-grid-two">
+          <article class="lab-specimen">
+            <header class="lab-specimen-heading">
+              <h3>字体层级</h3>
+              <span>Typography</span>
+            </header>
+            <div class="type-scale">
+              <div class="type-sample type-display"><span>Display 28 / 500</span><strong>下午好，继续今天的计划。</strong></div>
+              <div class="type-sample type-heading"><span>Heading 20 / 600</span><strong>长期项目</strong></div>
+              <div class="type-sample type-title"><span>Title 16 / 600</span><strong>完成状态空间模型</strong></div>
+              <div class="type-sample type-body"><span>Body 14 / 400</span><p>自动控制原理作业将在今天 23:59 截止。</p></div>
+              <div class="type-sample type-small"><span>Meta 12 / 400</span><p>Canvas · 12 分钟前同步</p></div>
+              <div class="type-sample type-caption"><span>Caption 11 / 500</span><p>2026-07-30 · 第 18 周</p></div>
+            </div>
+          </article>
+
+          <article class="lab-specimen">
+            <header class="lab-specimen-heading">
+              <h3>颜色与表面</h3>
+              <span>Semantic surfaces</span>
+            </header>
+            <div class="color-grid">
+              <div class="color-swatch color-page"><span>页面背景</span><code>#F8FAFC</code></div>
+              <div class="color-swatch color-surface"><span>默认表面</span><code>#FFFFFF</code></div>
+              <div class="color-swatch color-subtle"><span>次级表面</span><code>#F3F6F9</code></div>
+              <div class="color-swatch color-hover"><span>悬浮表面</span><code>White + shadow</code></div>
+              <div class="color-swatch color-action"><span>主操作弱背景</span><code>#EAF2FF</code></div>
+              <div class="color-swatch color-danger"><span>危险弱背景</span><code>#FFF1F0</code></div>
+            </div>
+          </article>
+        </div>
+
+      </section>
+
+      <section class="lab-section" id="candidates">
+        <header class="lab-section-heading">
+          <div>
+            <span class="lab-section-index">02</span>
+            <h2>交互控件方向</h2>
+          </div>
+          <p>三组内容完全一致，同时比较按钮、表面、focus、高度和圆角；可选整套，也可说明希望混合哪些局部。</p>
+        </header>
+
+        <fieldset class="candidate-grid">
+          <legend class="sr-only">选择交互控件视觉方向</legend>
+
+          <article class="candidate-card" data-candidate="action-a" data-selected="true">
+            <header class="candidate-card-header">
+              <label class="candidate-choice" for="control-candidate-a">
+                <input id="control-candidate-a" type="radio" name="action-candidate" value="a" aria-label="候选 A：静默描边" checked>
+                <span><strong>A · 静默描边</strong><small>前一轮确认方向的完整控件版本</small></span>
+              </label>
+              <span class="candidate-metrics">36px · R6 · 外扩</span>
+            </header>
+            <p class="candidate-summary">主操作保持近白描边，输入框边界清楚，整体最紧凑、最安静。</p>
+            <div class="candidate-preview candidate-preview-a">
+              <div class="candidate-field">
+                <label class="candidate-field-label" for="candidate-title-a">任务名称</label>
+                <input class="candidate-control is-focus" id="candidate-title-a" type="text" value="完成状态空间模型">
+                <small class="candidate-help">显示在今日待办与 Apple Calendar 中。</small>
+              </div>
+              <div class="candidate-field is-error">
+                <label class="candidate-field-label" for="candidate-password-a">Canvas 密码</label>
+                <span class="candidate-input-shell">
+                  <input class="candidate-control" id="candidate-password-a" type="password" value="canvas">
+                  <button class="candidate-icon-button" type="button" aria-label="显示密码">◉</button>
+                </span>
+                <small class="candidate-error">密码至少需要 8 位。</small>
+              </div>
+              <div class="candidate-control-row">
+                <div class="candidate-field">
+                  <label class="candidate-field-label" for="candidate-date-a">截止日期</label>
+                  <input class="candidate-control" id="candidate-date-a" type="date" value="2026-08-02">
+                </div>
+                <div class="candidate-field">
+                  <label class="candidate-field-label" for="candidate-source-a">来源</label>
+                  <select class="candidate-control" id="candidate-source-a"><option>Canvas</option></select>
+                </div>
+              </div>
+              <label class="candidate-checkbox">
+                <input type="checkbox" checked>
+                <span>同步到 Apple Calendar</span>
+              </label>
+              <div class="candidate-actions">
+                <button class="candidate-button candidate-primary" type="button">保存设置</button>
+                <button class="candidate-button candidate-secondary" type="button">取消</button>
+                <button class="candidate-icon-button" type="button" aria-label="更多操作">•••</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="candidate-card" data-candidate="action-b">
+            <header class="candidate-card-header">
+              <label class="candidate-choice" for="control-candidate-b">
+                <input id="control-candidate-b" type="radio" name="action-candidate" value="b" aria-label="候选 B：低饱和实体">
+                <span><strong>B · 低饱和实体</strong><small>更柔和、更有表面层次</small></span>
+              </label>
+              <span class="candidate-metrics">40px · R10 · 内描边</span>
+            </header>
+            <p class="candidate-summary">石板蓝主按钮，次按钮采用弱背景；输入框靠轻表面差异而非明显边框区分。</p>
+            <div class="candidate-preview candidate-preview-b">
+              <div class="candidate-field">
+                <label class="candidate-field-label" for="candidate-title-b">任务名称</label>
+                <input class="candidate-control is-focus" id="candidate-title-b" type="text" value="完成状态空间模型">
+                <small class="candidate-help">显示在今日待办与 Apple Calendar 中。</small>
+              </div>
+              <div class="candidate-field is-error">
+                <label class="candidate-field-label" for="candidate-password-b">Canvas 密码</label>
+                <span class="candidate-input-shell">
+                  <input class="candidate-control" id="candidate-password-b" type="password" value="canvas">
+                  <button class="candidate-icon-button" type="button" aria-label="显示密码">◉</button>
+                </span>
+                <small class="candidate-error">密码至少需要 8 位。</small>
+              </div>
+              <div class="candidate-control-row">
+                <div class="candidate-field">
+                  <label class="candidate-field-label" for="candidate-date-b">截止日期</label>
+                  <input class="candidate-control" id="candidate-date-b" type="date" value="2026-08-02">
+                </div>
+                <div class="candidate-field">
+                  <label class="candidate-field-label" for="candidate-source-b">来源</label>
+                  <select class="candidate-control" id="candidate-source-b"><option>Canvas</option></select>
+                </div>
+              </div>
+              <label class="candidate-checkbox">
+                <input type="checkbox" checked>
+                <span>同步到 Apple Calendar</span>
+              </label>
+              <div class="candidate-actions">
+                <button class="candidate-button candidate-primary" type="button">保存设置</button>
+                <button class="candidate-button candidate-secondary" type="button">取消</button>
+                <button class="candidate-icon-button" type="button" aria-label="更多操作">•••</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="candidate-card" data-candidate="action-c">
+            <header class="candidate-card-header">
+              <label class="candidate-choice" for="control-candidate-c">
+                <input id="control-candidate-c" type="radio" name="action-candidate" value="c" aria-label="候选 C：清晰信号">
+                <span><strong>C · 清晰信号</strong><small>更技术化、更强调操作反馈</small></span>
+              </label>
+              <span class="candidate-metrics">44px · R4 · 双层外扩</span>
+            </header>
+            <p class="candidate-summary">鲜明蓝色主按钮，次按钮和输入框使用清晰描边，focus 最容易识别。</p>
+            <div class="candidate-preview candidate-preview-c">
+              <div class="candidate-field">
+                <label class="candidate-field-label" for="candidate-title-c">任务名称</label>
+                <input class="candidate-control is-focus" id="candidate-title-c" type="text" value="完成状态空间模型">
+                <small class="candidate-help">显示在今日待办与 Apple Calendar 中。</small>
+              </div>
+              <div class="candidate-field is-error">
+                <label class="candidate-field-label" for="candidate-password-c">Canvas 密码</label>
+                <span class="candidate-input-shell">
+                  <input class="candidate-control" id="candidate-password-c" type="password" value="canvas">
+                  <button class="candidate-icon-button" type="button" aria-label="显示密码">◉</button>
+                </span>
+                <small class="candidate-error">密码至少需要 8 位。</small>
+              </div>
+              <div class="candidate-control-row">
+                <div class="candidate-field">
+                  <label class="candidate-field-label" for="candidate-date-c">截止日期</label>
+                  <input class="candidate-control" id="candidate-date-c" type="date" value="2026-08-02">
+                </div>
+                <div class="candidate-field">
+                  <label class="candidate-field-label" for="candidate-source-c">来源</label>
+                  <select class="candidate-control" id="candidate-source-c"><option>Canvas</option></select>
+                </div>
+              </div>
+              <label class="candidate-checkbox">
+                <input type="checkbox" checked>
+                <span>同步到 Apple Calendar</span>
+              </label>
+              <div class="candidate-actions">
+                <button class="candidate-button candidate-primary" type="button">保存设置</button>
+                <button class="candidate-button candidate-secondary" type="button">取消</button>
+                <button class="candidate-icon-button" type="button" aria-label="更多操作">•••</button>
+              </div>
+            </div>
+          </article>
+        </fieldset>
+      </section>
+
+      <section class="lab-section" id="confirmed-controls" data-control-api="a">
+        <header class="lab-section-heading">
+          <div>
+            <span class="lab-section-index">A</span>
+            <h2>已确认的生产控件</h2>
+          </div>
+          <p>以下样本直接使用项目正在迁移的 <code>.ui-*</code> API，不是候选方案的模拟样式。</p>
+        </header>
+
+        <div class="lab-spec-grid lab-spec-grid-two confirmed-control-grid">
+          <article class="lab-specimen">
+            <header class="lab-specimen-heading">
+              <h3>Button / Icon Button</h3>
+              <span>36px desktop · 44px touch</span>
+            </header>
+            <div class="confirmed-control-stack">
+              <div class="button-family">
+                <button class="ui-button ui-button--primary" type="button">保存设置</button>
+                <button class="ui-button ui-button--secondary" type="button">取消</button>
+                <button class="ui-button ui-button--outline" type="button">重新同步</button>
+                <button class="ui-button ui-button--text" type="button">查看详情</button>
+                <button class="ui-button ui-button--danger" type="button">删除</button>
+              </div>
+              <div class="button-family">
+                <button class="ui-button ui-button--primary" type="button" disabled>不可用</button>
+                <button class="ui-button ui-button--primary" type="button" aria-busy="true">保存中</button>
+                <button class="ui-button ui-button--choice is-active" type="button" aria-pressed="true">Canvas</button>
+                <button class="ui-icon-button" type="button" aria-label="刷新">↻</button>
+                <button class="ui-icon-button ui-icon-button--danger" type="button" aria-label="删除">×</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="lab-specimen">
+            <header class="lab-specimen-heading">
+              <h3>Field / Control / Checkbox</h3>
+              <span>清晰边框 · 克制外扩 focus</span>
+            </header>
+            <div class="confirmed-form-grid">
+              <label class="ui-field">
+                <span class="ui-label">任务名称</span>
+                <input class="ui-control" type="text" value="完成状态空间模型">
+                <small class="ui-help">显示在待办列表与日历中。</small>
+              </label>
+              <label class="ui-field">
+                <span class="ui-label">Canvas 密码</span>
+                <span class="ui-input-shell">
+                  <input class="ui-control" type="password" value="canvas-demo-token">
+                  <button class="ui-icon-button" type="button" aria-label="显示密码">◉</button>
+                </span>
+              </label>
+              <label class="ui-field">
+                <span class="ui-label">截止日期</span>
+                <input class="ui-control" type="date" value="2026-08-02">
+              </label>
+              <label class="ui-field">
+                <span class="ui-label">来源</span>
+                <select class="ui-control"><option>Canvas</option><option>好课</option></select>
+              </label>
+              <label class="ui-checkbox-label">
+                <input class="ui-checkbox" type="checkbox" checked>
+                <span>同步到 Apple Calendar</span>
+              </label>
+              <label class="ui-field is-error">
+                <span class="ui-label">课程名称</span>
+                <input class="ui-control" type="text" aria-invalid="true" value="">
+                <small class="ui-error">请输入课程名称。</small>
+              </label>
+              <label class="ui-field">
+                <span class="ui-label">载入中的课程</span>
+                <span class="ui-input-shell is-loading">
+                  <input class="ui-control" type="text" value="正在同步" disabled>
+                </span>
+              </label>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="lab-section" id="buttons">
+        <header class="lab-section-heading">
+          <div>
+            <span class="lab-section-index">03</span>
+            <h2>按钮</h2>
+          </div>
+          <p>强制状态用于同时观察；真实交互仍支持浏览器 hover、active 与 focus-visible。</p>
+        </header>
+
+        <article class="lab-specimen">
+          <header class="lab-specimen-heading">
+            <h3>文字按钮状态</h3>
+            <span>36px default control</span>
+          </header>
+          <div class="state-grid state-grid-buttons">
+            <div class="state-cell"><span>Default</span><button class="lab-button lab-button-primary" type="button">保存设置</button></div>
+            <div class="state-cell"><span>Hover</span><button class="lab-button lab-button-primary is-hover" type="button">保存设置</button></div>
+            <div class="state-cell"><span>Active</span><button class="lab-button lab-button-primary is-active" type="button">保存设置</button></div>
+            <div class="state-cell"><span>Focus</span><button class="lab-button lab-button-primary is-focus" type="button">保存设置</button></div>
+            <div class="state-cell"><span>Disabled</span><button class="lab-button lab-button-primary" type="button" disabled>保存设置</button></div>
+            <div class="state-cell"><span>Loading</span><button class="lab-button lab-button-primary is-loading" type="button" aria-busy="true"><span class="button-spinner"></span>保存中</button></div>
+          </div>
+          <div class="button-family">
+            <button class="lab-button lab-button-primary" type="button">浅蓝主操作</button>
+            <button class="lab-button lab-button-secondary" type="button">描边次操作</button>
+            <button class="lab-button lab-button-ghost" type="button">文字弱操作</button>
+            <button class="lab-button lab-button-danger" type="button">危险操作</button>
+          </div>
+        </article>
+
+        <article class="lab-specimen">
+          <header class="lab-specimen-heading">
+            <h3>图标按钮</h3>
+            <span>32px compact control</span>
+          </header>
+          <div class="state-grid state-grid-icons">
+            <div class="state-cell"><span>Default</span><button class="lab-icon-button" type="button" aria-label="刷新"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M18.5 9A7 7 0 0 0 6.2 6.2L4 9m16 6-2.2 2.8A7 7 0 0 1 5.5 15"/></svg></button></div>
+            <div class="state-cell"><span>Hover</span><button class="lab-icon-button is-hover" type="button" aria-label="刷新悬停"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M18.5 9A7 7 0 0 0 6.2 6.2L4 9m16 6-2.2 2.8A7 7 0 0 1 5.5 15"/></svg></button></div>
+            <div class="state-cell"><span>Active</span><button class="lab-icon-button is-active" type="button" aria-label="刷新按下"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M18.5 9A7 7 0 0 0 6.2 6.2L4 9m16 6-2.2 2.8A7 7 0 0 1 5.5 15"/></svg></button></div>
+            <div class="state-cell"><span>Focus</span><button class="lab-icon-button is-focus" type="button" aria-label="刷新聚焦"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M18.5 9A7 7 0 0 0 6.2 6.2L4 9m16 6-2.2 2.8A7 7 0 0 1 5.5 15"/></svg></button></div>
+            <div class="state-cell"><span>Disabled</span><button class="lab-icon-button" type="button" aria-label="刷新不可用" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M18.5 9A7 7 0 0 0 6.2 6.2L4 9m16 6-2.2 2.8A7 7 0 0 1 5.5 15"/></svg></button></div>
+            <div class="state-cell"><span>Loading</span><button class="lab-icon-button is-loading" type="button" aria-label="正在刷新" aria-busy="true"><span class="icon-spinner"></span></button></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="lab-section" id="forms">
+        <header class="lab-section-heading">
+          <div>
+            <span class="lab-section-index">04</span>
+            <h2>输入与表单</h2>
+          </div>
+          <p>表单默认 40px 高；错误信息始终与字段绑定，不只依赖红色边框。</p>
+        </header>
+
+        <div class="lab-spec-grid lab-spec-grid-two">
+          <article class="lab-specimen">
+            <header class="lab-specimen-heading"><h3>字段类型</h3><span>Form controls</span></header>
+            <div class="form-stack">
+              <label class="lab-field">
+                <span>任务名称</span>
+                <input class="lab-input" type="text" value="完成状态空间模型">
+                <small>显示在待办列表与日历中。</small>
+              </label>
+              <label class="lab-field">
+                <span>Canvas 访问令牌</span>
+                <span class="password-control">
+                  <input class="lab-input" id="lab-password" type="password" value="canvas-demo-token">
+                  <button class="password-toggle" type="button" data-password-toggle aria-label="显示密码">显示</button>
+                </span>
+              </label>
+              <div class="form-row">
+                <label class="lab-field">
+                  <span>截止日期</span>
+                  <input class="lab-input" type="date" value="2026-08-02">
+                </label>
+                <label class="lab-field">
+                  <span>来源</span>
+                  <select class="lab-select">
+                    <option>Canvas</option>
+                    <option>好课</option>
+                    <option>自定义</option>
+                  </select>
+                </label>
+              </div>
+              <label class="lab-checkbox">
+                <input type="checkbox" checked>
+                <span><strong>加入 Apple Calendar</strong><small>有截止日期的任务会自动同步。</small></span>
+              </label>
+            </div>
+          </article>
+
+          <article class="lab-specimen">
+            <header class="lab-specimen-heading"><h3>输入状态</h3><span>Same content, forced states</span></header>
+            <div class="form-state-list">
+              <label class="lab-field lab-field-inline"><span>Default</span><input class="lab-input" type="text" value="自动控制原理"></label>
+              <label class="lab-field lab-field-inline"><span>Hover</span><input class="lab-input is-hover" type="text" value="自动控制原理"></label>
+              <label class="lab-field lab-field-inline"><span>Active</span><input class="lab-input is-active" type="text" value="自动控制原理"></label>
+              <label class="lab-field lab-field-inline"><span>Focus</span><input class="lab-input is-focus" type="text" value="自动控制原理"></label>
+              <label class="lab-field lab-field-inline"><span>Disabled</span><input class="lab-input" type="text" value="自动控制原理" disabled></label>
+              <label class="lab-field lab-field-inline"><span>Loading</span><span class="control-loading"><input class="lab-input" type="text" value="正在载入课程" disabled><i class="icon-spinner"></i></span></label>
+              <label class="lab-field lab-field-inline"><span>Read-only</span><input class="lab-input" type="text" value="自动控制原理" readonly></label>
+              <label class="lab-field lab-field-inline is-error">
+                <span>Error</span>
+                <span><input class="lab-input" type="text" value=""><small>请输入课程名称。</small></span>
+              </label>
+            </div>
+          </article>
+        </div>
+
+        <article class="lab-specimen">
+          <header class="lab-specimen-heading">
+            <h3>日期、下拉与复选框状态矩阵</h3>
+            <span>Default · hover · active · focus · disabled · loading · error / selected</span>
+          </header>
+          <div class="compact-control-matrix">
+            <div class="compact-control-group">
+              <span class="spec-label">日期输入</span>
+              <div class="compact-state-grid">
+                <label class="compact-state"><span>Default</span><input class="lab-input" type="date" value="2026-08-02"></label>
+                <label class="compact-state"><span>Hover</span><input class="lab-input is-hover" type="date" value="2026-08-02"></label>
+                <label class="compact-state"><span>Active</span><input class="lab-input is-active" type="date" value="2026-08-02"></label>
+                <label class="compact-state"><span>Focus</span><input class="lab-input is-focus" type="date" value="2026-08-02"></label>
+                <label class="compact-state"><span>Disabled</span><input class="lab-input" type="date" value="2026-08-02" disabled></label>
+                <label class="compact-state"><span>Loading</span><span class="control-loading"><input class="lab-input" type="date" value="2026-08-02" disabled><i class="icon-spinner"></i></span></label>
+                <label class="compact-state"><span>Error</span><input class="lab-input is-error-control" type="date"></label>
+              </div>
+            </div>
+
+            <div class="compact-control-group">
+              <span class="spec-label">下拉选择</span>
+              <div class="compact-state-grid">
+                <label class="compact-state"><span>Default</span><select class="lab-select"><option>Canvas</option></select></label>
+                <label class="compact-state"><span>Hover</span><select class="lab-select is-hover"><option>Canvas</option></select></label>
+                <label class="compact-state"><span>Active</span><select class="lab-select is-active"><option>Canvas</option></select></label>
+                <label class="compact-state"><span>Focus</span><select class="lab-select is-focus"><option>Canvas</option></select></label>
+                <label class="compact-state"><span>Disabled</span><select class="lab-select" disabled><option>Canvas</option></select></label>
+                <label class="compact-state"><span>Loading</span><span class="control-loading"><select class="lab-select" disabled><option>同步中</option></select><i class="icon-spinner"></i></span></label>
+                <label class="compact-state"><span>Error</span><select class="lab-select is-error-control"><option>请选择</option></select></label>
+              </div>
+            </div>
+
+            <div class="compact-control-group">
+              <span class="spec-label">复选框</span>
+              <div class="checkbox-state-row">
+                <label class="checkbox-state"><span>Default</span><input type="checkbox"></label>
+                <label class="checkbox-state is-hover"><span>Hover</span><input type="checkbox"></label>
+                <label class="checkbox-state is-active"><span>Active</span><input type="checkbox" checked></label>
+                <label class="checkbox-state is-focus"><span>Focus</span><input type="checkbox" checked></label>
+                <label class="checkbox-state"><span>Disabled</span><input type="checkbox" disabled></label>
+                <label class="checkbox-state"><span>Loading</span><i class="icon-spinner"></i></label>
+                <label class="checkbox-state is-error"><span>Error</span><input type="checkbox"></label>
+                <label class="checkbox-state"><span>Selected</span><input type="checkbox" checked></label>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="lab-section" id="status">
+        <header class="lab-section-heading">
+          <div>
+            <span class="lab-section-index">05</span>
+            <h2>已确认的信息表达组件</h2>
+          </div>
+          <p>平台来源只用小色点识别；全局状态使用“语义色点 + 明确文字”；分类标签使用柔和胶囊。</p>
+        </header>
+
+        <div class="lab-spec-grid lab-spec-grid-two">
+          <article class="lab-specimen">
+            <header class="lab-specimen-heading"><h3>Badge / Tag / Count Pill</h3><span>Soft capsule</span></header>
+            <div class="confirmed-control-stack">
+              <div class="button-family" aria-label="平台来源">
+                <span class="ui-badge ui-badge--source ui-source--canvas">Canvas</span>
+                <span class="ui-badge ui-badge--source ui-source--haoke">好课</span>
+                <span class="ui-badge ui-badge--source ui-source--zhixuemeng">智学盟</span>
+                <span class="ui-badge ui-badge--source ui-source--project">长期项目</span>
+              </div>
+              <div class="button-family" aria-label="分类与数量">
+                <span class="ui-tag">自动控制原理</span>
+                <span class="ui-tag is-selected">主项目</span>
+                <span class="ui-tag is-disabled" aria-disabled="true">已停用</span>
+                <span class="ui-count-pill">待完成 <b>12</b></span>
+                <span class="ui-count-pill ui-count-pill--danger">逾期 <b>2</b></span>
+              </div>
+            </div>
+          </article>
+
+          <article class="lab-specimen">
+            <header class="lab-specimen-heading"><h3>Status / Status Dot</h3><span>Dot + explicit text</span></header>
+            <div class="confirmed-control-stack">
+              <div class="button-family">
+                <span class="ui-status ui-status--success">已连接</span>
+                <span class="ui-status ui-status--warning">即将到期</span>
+                <span class="ui-status ui-status--danger">已逾期</span>
+                <span class="ui-status ui-status--info">同步中</span>
+                <span class="ui-status ui-status--neutral">未配置</span>
+              </div>
+              <div class="button-family" aria-label="仅用于已有可访问名称的紧凑位置">
+                <span class="ui-status-dot ui-status-dot--success" aria-hidden="true"></span><span>成功</span>
+                <span class="ui-status-dot ui-status-dot--warning" aria-hidden="true"></span><span>注意</span>
+                <span class="ui-status-dot ui-status-dot--danger" aria-hidden="true"></span><span>失败</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="lab-section" id="feedback">
+        <header class="lab-section-heading">
+          <div>
+            <span class="lab-section-index">06</span>
+            <h2>反馈与提示</h2>
+          </div>
+          <p>提示、成功、警告和错误使用同一结构，仅语义色与图标变化。</p>
+        </header>
+        <div class="feedback-stack">
+          <div class="ui-alert ui-alert--info"><div><strong>同步提示</strong><p>平台数据将保留上一次成功同步的结果。</p></div></div>
+          <div class="ui-alert ui-alert--success"><div><strong>保存成功</strong><p>偏好设置已经更新。</p></div></div>
+          <div class="ui-alert ui-alert--warning"><div><strong>订阅即将失效</strong><p>请在 Apple Calendar 中重新打开订阅地址。</p></div></div>
+          <div class="ui-alert ui-alert--danger" role="alert"><div><strong>连接失败</strong><p>Canvas 访问令牌无效，请检查后重试。</p></div></div>
+          <div class="ui-feedback ui-feedback--info" role="status">正在检查平台连接…</div>
+          <div class="ui-feedback ui-feedback--success" role="status">偏好设置已保存。</div>
+          <div class="ui-feedback ui-feedback--danger" role="alert">保存失败，请稍后重试。</div>
+        </div>
+      </section>
+
+      <section class="lab-section" id="states">
+        <header class="lab-section-heading">
+          <div>
+            <span class="lab-section-index">07</span>
+            <h2>加载与空状态</h2>
+          </div>
+          <p>状态区域保持安静，避免用大面积插画打断学习工具的工作流。</p>
+        </header>
+        <div class="lab-spec-grid lab-spec-grid-two">
+          <article class="lab-specimen">
+            <header class="lab-specimen-heading"><h3>加载状态</h3><span>Loading</span></header>
+            <div class="loading-list" aria-label="待办加载示例" aria-busy="true">
+              <div class="loading-row"><span class="ui-skeleton"></span><div><i class="ui-skeleton"></i><i class="ui-skeleton"></i></div></div>
+              <div class="loading-row"><span class="ui-skeleton"></span><div><i class="ui-skeleton"></i><i class="ui-skeleton"></i></div></div>
+              <div class="loading-row"><span class="ui-skeleton"></span><div><i class="ui-skeleton"></i><i class="ui-skeleton"></i></div></div>
+            </div>
+            <div class="ui-loading" role="status">正在同步 Canvas…</div>
+          </article>
+          <article class="lab-specimen">
+            <header class="lab-specimen-heading"><h3>空状态</h3><span>Empty</span></header>
+            <div class="ui-empty">
+              <span class="ui-empty__art" aria-hidden="true"></span>
+              <strong>今天的待办已经完成</strong>
+              <p>新的课程任务同步后会出现在这里。</p>
+              <button class="ui-button ui-button--secondary" type="button">添加自定义待办</button>
+            </div>
+            <div class="ui-empty ui-empty--compact"><strong>暂无已完成记录</strong></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="lab-section" id="surfaces">
+        <header class="lab-section-heading">
+          <div>
+            <span class="lab-section-index">08</span>
+            <h2>卡片、列表与导航</h2>
+          </div>
+          <p>真实产品示例使用与总览页相近的学习内容，但不复制现有页面布局。</p>
+        </header>
+
+        <div class="product-context">
+          <nav class="context-nav" aria-label="产品导航示例">
+            <button class="context-nav-item is-selected" type="button"><span>今日总览</span><small>6</small></button>
+            <button class="context-nav-item" type="button"><span>长期项目</span><small>2</small></button>
+            <button class="context-nav-item is-hover" type="button"><span>连接与同步</span><small>4</small></button>
+            <button class="context-nav-item is-focus" type="button"><span>Apple Calendar</span><small>1</small></button>
+            <button class="context-nav-item is-active" type="button"><span>偏好设置</span><small>—</small></button>
+            <button class="context-nav-item is-loading" type="button" aria-busy="true"><span>正在同步</span><i class="icon-spinner"></i></button>
+            <button class="context-nav-item" type="button" disabled><span>归档</span><small>—</small></button>
+          </nav>
+
+          <div class="context-content">
+            <article class="product-card">
+              <header>
+                <div><span class="lab-eyebrow">Next action</span><h3>自动化课程设计</h3></div>
+                <span class="ui-tag is-selected">主项目</span>
+              </header>
+              <p>完成控制系统设计、仿真验证与答辩材料。</p>
+              <div class="product-card-actions">
+                <button class="lab-button lab-button-primary" type="button">继续项目</button>
+                <button class="lab-button lab-button-ghost" type="button">查看全部</button>
+              </div>
+            </article>
+
+            <div class="list-specimen">
+              <button class="lab-list-item" type="button">
+                <span class="list-check"></span>
+                <span class="list-copy"><strong>完成状态空间模型</strong><small>自动化课程设计 · 7 月 31 日</small></span>
+                <span class="ui-status ui-status--warning">明天</span>
+              </button>
+              <button class="lab-list-item is-hover" type="button">
+                <span class="list-check"></span>
+                <span class="list-copy"><strong>整理仿真结果与图表</strong><small>自动化课程设计 · 8 月 2 日</small></span>
+                <span class="ui-tag">项目</span>
+              </button>
+              <button class="lab-list-item is-active" type="button">
+                <span class="list-check"></span>
+                <span class="list-copy"><strong>准备课程设计答辩提纲</strong><small>自动化课程设计 · 8 月 4 日</small></span>
+                <span class="ui-tag">Active</span>
+              </button>
+              <button class="lab-list-item is-focus" type="button">
+                <span class="list-check"></span>
+                <span class="list-copy"><strong>整理实验数据</strong><small>大学物理 · 8 月 5 日</small></span>
+                <span class="ui-tag">Focus</span>
+              </button>
+              <button class="lab-list-item is-selected" type="button">
+                <span class="list-check"></span>
+                <span class="list-copy"><strong>《自动控制原理》第七章练习</strong><small>Canvas · 今天 23:59</small></span>
+                <span class="ui-status ui-status--danger">今天</span>
+              </button>
+              <button class="lab-list-item is-loading" type="button" aria-busy="true">
+                <span class="icon-spinner"></span>
+                <span class="list-copy"><strong>正在载入待办</strong><small>同步平台数据…</small></span>
+                <span class="ui-tag">Loading</span>
+              </button>
+              <button class="lab-list-item" type="button" disabled>
+                <span class="list-check"></span>
+                <span class="list-copy"><strong>已归档任务</strong><small>不可操作</small></span>
+                <span class="ui-tag is-disabled" aria-disabled="true">归档</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="lab-section" id="modal">
+        <header class="lab-section-heading">
+          <div>
+            <span class="lab-section-index">09</span>
+            <h2>弹窗</h2>
+          </div>
+          <p>弹窗保持单一白色表面，操作层级与普通表单一致。</p>
+        </header>
+        <article class="lab-specimen modal-launcher">
+          <div>
+            <strong>新建学习任务</strong>
+            <p>检查标题、说明、表单间距、关闭方式与操作区。</p>
+          </div>
+          <button class="lab-button lab-button-primary" type="button" data-modal-open>打开弹窗示例</button>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div class="lab-dialog-backdrop" data-modal-backdrop hidden>
+    <section class="lab-dialog" role="dialog" aria-modal="true" aria-labelledby="lab-dialog-title">
+      <header class="lab-dialog-header">
+        <div>
+          <span class="lab-eyebrow">Custom todo</span>
+          <h2 id="lab-dialog-title">新建学习任务</h2>
+        </div>
+        <button class="lab-icon-button" type="button" data-modal-close aria-label="关闭弹窗">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </header>
+      <div class="lab-dialog-body">
+        <label class="lab-field">
+          <span>任务名称</span>
+          <input class="lab-input" type="text" value="整理自动化课程笔记">
+        </label>
+        <div class="form-row">
+          <label class="lab-field"><span>截止日期</span><input class="lab-input" type="date" value="2026-08-02"></label>
+          <label class="lab-field"><span>标签</span><select class="lab-select"><option>学习笔记</option><option>课程作业</option></select></label>
+        </div>
+      </div>
+      <footer class="lab-dialog-actions">
+        <button class="lab-button lab-button-ghost" type="button" data-modal-close>取消</button>
+        <button class="lab-button lab-button-primary" type="button">添加任务</button>
+      </footer>
+    </section>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/component-lab.js') }}"></script>
+</body>
+</html>

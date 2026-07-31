@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Canvas Dashboard Zhihuishu login session cleanup
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=30s
+Persistent=true
+Unit=zhihuishu-login-cleanup.service
+
+[Install]
+WantedBy=timers.target

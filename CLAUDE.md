@@ -1,0 +1,95 @@
+# Canvas Dashboard Agent Guide
+
+Flask webapp for aggregating unfinished assignments and exams from Canvas, 好课, 智学盟, 智慧树, and custom todos.
+
+`AGENTS.md` is the canonical project rule file. `CLAUDE.md` must point to the same content; prefer a symbolic link, and use a hard link on Windows when symbolic-link privilege is unavailable.
+
+## 核心交互规则
+
+1. **新建分支与意图说明**：每次面对一个新问题时，先新建一个 Git 分支，**用中文写清楚本次修改的意图**。
+2. **本地效果验收**：在本地开发环境（http://127.0.0.1:5000/）完成修改与测试后，请用户进行效果验收。
+3. **合并、推送与部署**：验收完成后，将分支修改合并到 `main` 分支，确认 `git push origin main` 成功后，再部署到服务器上。
+
+## 开发原则与数据安全
+
+- **小步修改**：根据需求做最小化精准修改，避免重构无关代码或无意义的大面积格式化。
+- **数据保护**：`data/` 目录、平台凭据、缓存及生产配置属于敏感数据，未经明确授权不得随意覆盖、删除或迁移。
+- **实事求是**：明确汇报命令与测试结果，若命令无法执行须说明具体原因。
+- **核心语言**：Python 后端为主，前端为 Vanilla JS + Fetch API，保持代码直接简洁。
+
+## 项目结构
+
+```text
+canvas-dashboard/
+├── app.py                         # Flask 主路由与 API 接口
+├── auth.py                        # 站点多用户系统、密码哈希与旧数据迁移
+├── user_paths.py                  # 用户独立数据路径管理 (data/users/<username>/)
+├── storage.py                     # 并发安全 JSON 读写与原子替换
+├── tongji_timetable.py            # 一网通办课表 CDP 抓取与解析
+├── tongji_login_sessions.py       # 同济加强认证短时 noVNC 窗口
+├── schedule_store.py              # 课程与日程项存储
+├── project_store.py                # 长期项目存储
+├── canvas_auth.py                 # Canvas iCal 订阅抓取与解析
+├── haoke_client.py                # 好课 API 客户端与缓存管理
+├── zhixuemeng_client.py           # 智学盟客户端 (Token/课程/作业)
+├── zhihuishu_store.py             # 智慧树缓存、状态与配置
+├── zhihuishu_worker.py            # 智慧树后台多进程刷新 Worker
+├── zhihuishu_browser.py           # 智慧树 Playwright 浏览器自动化
+├── zhihuishu_login_sessions.py    # 智慧树短时 noVNC 登录窗口
+├── frontend/                      # 可独立打开的前端工作区
+│   ├── templates/                 # Jinja 页面 (index.html 主控制台, auth_*, login_*)
+│   └── assets/                    # css、js 与 downloads；仍通过 /static/ 提供
+├── tests/                         # Pytest 单元测试与 Playwright 回归测试
+├── deploy/                        # Nginx 与 systemd 部署参考配置
+├── data/                          # 本地运行时数据 (不可随意篡改)
+├── AGENTS.md                      # 规范指引 (本文件)
+└── CLAUDE.md                      # 与 AGENTS.md 内容一致
+```
+
+## 常用命令
+
+- **本地运行**：
+  ```powershell
+  .\.venv\Scripts\python.exe -m pip install -r requirements.txt pytest
+  # 前台开发与诊断：
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\dev.ps1
+  # 常驻本地服务：
+  .\.venv\Scripts\python.exe serve.py
+  ```
+- **自动化测试**：
+  ```powershell
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1
+  # 单独运行特定测试：
+  .\.venv\Scripts\python.exe -m pytest tests\test_p0_safety.py -q
+  .\.venv\Scripts\python.exe -m pytest tests\test_design_system_lint.py -q
+  .\.venv\Scripts\python.exe -m pytest tests\test_visual_regression.py -q
+  ```
+- **生产部署**：
+  ```powershell
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\.agents\skills\deploy-canvas-dashboard\scripts\deploy.ps1
+  ```
+
+## 架构与平台核心机制
+
+- **存储与并发 (`storage.py`)**：
+  - JSON 读写使用绝对路径加锁，写操作采用临时文件 + 原子替换 (`atomic replace`)。
+  - 数据文件损坏时 `fail-closed`（备份 `.corrupt` 并抛出 `JsonFileCorruptionError`），切勿直接用空值覆盖。
+  - 同一账户的自定义 Todo 更新必须通过 `locked_json_update()`。
+- **用户隔离与路由**：
+  - 所有 API 均需要站点 Session（除 `/healthz`、`/login`、`/register`、`/api/auth/*` 及 `/calendar/<token>.ics` 外）。
+  - 用户独立数据存放于 `data/users/<username>/`，全局配置包含 `users.json`, `.flask_secret_key`, `.encryption_key` 等。
+  - 生产 Session 必须校验不可变 `account_id` 与 `session_version`；永久删除必须经 `auth.delete_account()`，并保留不参与常规备份的删除账本以防旧备份复活账户。
+- **统一待办状态**：
+  - 平台缓存不得被本地完成、隐藏、标红、删除或标题/截止时间覆盖直接改写；统一通过各平台 `PlatformStateStore` 状态文件叠加，并允许恢复上游显示值。
+- **平台同步元数据**：
+  - `platform_sync_status.json` 只保存非敏感的连接、刷新、失败与日历资格状态；必须继续使用锁与原子写，并在损坏时 fail-closed。不得写入密码、Token、Cookie 或订阅地址。
+- **长期项目 (`project_store.py`)**：
+  - 存储位于 `data/users/<username>/projects.json` (v2)，采用锁 + 原子写。
+  - 唯一主项目与 Next Action 原子维护，支持活动/完成/归档状态与重新开启。
+  - 有日期未完成任务及项目截止事项接入统一待办与 Apple 日历（导出稳定 UID `project-task-...` / `project-due-...`）。
+- **第三方平台特点**：
+  - **Canvas**：解析 iCal feed，缓存于 `canvas_cache.json`。
+  - **好课**：凭据加密存储，`/api/haoke/todos` 缓存优先，后台守护进程异步刷新。
+  - **智学盟**：使用 `X-Access-Token`，支持课程与作业列表抓取。
+  - **智慧树**：路由只读缓存/状态；后台通过 `zhihuishu_worker.py --all-users` 定时拉取；独立 Chromium profile 运行；支持 noVNC 远程登录窗口。
+  - **同济课表**：前端直接打开短时 noVNC 认证窗口；用户完成微信扫码或短信加强认证后，后端通过该窗口的 CDP 读取当前可见课表。只解析渲染中的表格并展开 `rowspan`/`colspan`，失败时保留上次成功缓存，认证结束或过期后删除临时 profile。

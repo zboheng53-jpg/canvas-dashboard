@@ -1,0 +1,57 @@
+# Local runtime data. Never commit this directory.
+data/
+
+# Secrets and local environment.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python artifacts.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pytest-tmp-*/
+.pytest-sandbox/
+.coverage
+htmlcov/
+
+# Virtual environments.
+.venv/
+venv/
+env/
+
+# Local logs.
+*.log
+*.err.log
+canvas-dashboard.tar.gz
+
+# Browser/user profiles and automation caches.
+chrome_cdp_profile/
+zhihuishu_chrome_profile/
+zhihuishu_chromium_profile/
+
+# OS/editor files.
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local agent/tool state.
+.claude/
+.superpowers/
+.worktrees/
+.recovery/
+
+# Manual production snapshots used only for recovery review.
+服务器版本/
+服务器版本.gz
+
+# Local drafts and trash bin directory
+drafts/*
+!drafts/.gitkeep
+!drafts/README.md
+
+# Generated static page for importing the real Flask/Jinja dashboard into Open Design.
+frontend/open-design-preview/

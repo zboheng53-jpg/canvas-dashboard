@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily encrypted Canvas Dashboard data backup
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=30min
+Persistent=true
+Unit=canvas-dashboard-backup.service
+
+[Install]
+WantedBy=timers.target
+

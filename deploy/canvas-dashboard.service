@@ -1,0 +1,24 @@
+[Unit]
+Description=Canvas Dashboard (Flask/Waitress)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/canvas-dashboard/current
+EnvironmentFile=-/etc/canvas-dashboard/canvas-dashboard.env
+Environment=ZHIHUISHU_CHROMIUM_EXECUTABLE=/usr/bin/google-chrome-stable
+ExecStart=/home/ubuntu/canvas-dashboard/.venv/bin/python serve.py
+Restart=on-failure
+RestartSec=3
+UMask=0077
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

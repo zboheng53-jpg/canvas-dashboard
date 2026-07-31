@@ -1,0 +1,2147 @@
+/*
+ * Legacy dashboard theme overrides.
+ *
+ * Exact copies of style.css and dashboard-shell.css were removed during the
+ * CSS foundation migration. Only rules that intentionally differ remain here.
+ */
+
+.weather-outline-icon {
+  width: 1em;
+  height: 1em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (max-width: 768px) {
+  .schedule-manager-heading { align-items: stretch; flex-direction: column; }
+  .manager-section-heading { align-items: flex-start; flex-direction: column; gap: 7px; }
+  .manager-section-heading p { max-width: none; text-align: left; }
+  .schedule-item-form { grid-template-columns: 1fr 1fr; }
+  .schedule-item-form input[name="title"] { grid-column: 1 / -1; }
+  .schedule-item-form button { grid-column: 1 / -1; }
+  .schedule-course-row, .schedule-item-row { align-items: flex-start; flex-direction: column; }
+  .schedule-item-actions { justify-content: flex-start; }
+  .project-manager-heading { align-items: stretch; flex-direction: column; }
+  .project-manager-layout { grid-template-columns: 1fr; }
+  .project-browser { display: grid; gap: 10px; }
+  .project-detail { padding: 15px; }
+  .project-detail-title-row, .project-task-toolbar { align-items: stretch; flex-direction: column; }
+  .project-detail-actions, .project-task-toolbar > div:last-child { flex-wrap: wrap; }
+  .project-group-heading { align-items: flex-start; }
+  .project-group-actions { flex: 0 0 auto; }
+  .project-task-row { grid-template-columns: 16px minmax(0, 1fr) auto 30px; }
+  .project-task-toolbar p { max-width: 500px; }
+  .project-modal-backdrop { padding: 12px; }
+  .project-modal-card { max-height: calc(100vh - 24px); padding: 16px; }
+  .console-manager-heading { align-items: stretch; flex-direction: column; }
+  .console-secondary-button { align-self: flex-start; }
+  .settings-summary-grid { grid-template-columns: 1fr; }
+  .connection-platform-grid .login-card { min-height: 124px; }
+  .calendar-subscription-workspace { padding: 18px; }
+  .calendar-subscription-actions { display: grid; grid-template-columns: 1fr; }
+  .calendar-subscription-actions button { width: 100%; }
+}
+
+@media (min-width: 961px) {
+  .workspace-main .dashboard-view[data-view-panel="connections"] {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+  }
+
+  .workspace-main .dashboard-view[data-view-panel="connections"] .connections-manager-card {
+    min-height: 0;
+  }
+}
+
+.legend-recurring .legend-dot { background: #2f6fe4; }
+
+.schedule-card-recurring {
+  background: linear-gradient(135deg, #eaf2ff 0%, #dbeafe 100%);
+  border-left: 3px solid #2f6fe4;
+  color: #1e40af;
+}
+
+    body {
+      background: var(--bg-gradient) !important;
+      background-attachment: fixed !important;
+      color: var(--text-primary) !important;
+      font-family: var(--font-body) !important;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Confirmed direction: headings and content titles use the shared editorial serif. */
+    h1, h4, h5, h6 {
+      font-family: var(--font-title) !important;
+      font-weight: 500 !important;
+      letter-spacing: -0.01em !important;
+      color: var(--text-primary) !important;
+    }
+
+    /* 1.1. 大而轻、舒展且极具书卷感的主要内容/卡片标题（待办清单、长期项目、今日日程） */
+    .card-title,
+    .rail-card-heading h2,
+    #dashboard-view-projects .project-list-heading h2,
+    .section-header h2,
+    .card.enter-main-card .header-left-group h2,
+    #dashboard-view-projects .project-manager-heading h1 {
+      font-family: var(--font-serif) !important;
+      letter-spacing: -0.02em !important;
+      color: var(--text-primary) !important;
+      line-height: 1.3 !important;
+    }
+
+    .card-title,
+    .rail-card-heading h2,
+    #dashboard-view-projects .project-list-heading h2 {
+      font-size: 19px !important;
+      font-weight: 500 !important;
+    }
+
+    .section-header h2,
+    .card.enter-main-card .header-left-group h2,
+    #dashboard-view-projects .project-manager-heading h1 {
+      font-size: 30px !important;
+      font-weight: 400 !important;
+    }
+
+    /* 2. 重新设计的控制台风格顶部身份区 (Console Greeting Area) */
+    .sidebar-heading {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      padding: 22px 16px 20px 20px !important;
+      background: rgba(255, 255, 255, 0.4) !important;
+      backdrop-filter: blur(10px) !important;
+      -webkit-backdrop-filter: blur(10px) !important;
+      border-bottom: 1px solid rgba(226, 220, 210, 0.45) !important;
+      border-radius: var(--radius-card) var(--radius-card) 0 0 !important;
+      gap: 12px !important;
+      transition: all 0.25s ease !important;
+    }
+
+    .sidebar-brand {
+      display: flex !important;
+      align-items: center !important;
+      gap: 12px !important;
+      min-width: 0 !important;
+      flex: 1 !important;
+    }
+
+    /* 精致圆形头像容器 */
+    .sidebar-avatar-container {
+      position: relative !important;
+      width: 38px !important;
+      height: 38px !important;
+      flex-shrink: 0 !important;
+    }
+
+    .sidebar-avatar-circle {
+      width: 100% !important;
+      height: 100% !important;
+      background: rgba(140, 150, 158, 0.12) !important;
+      border: 1px solid rgba(47, 111, 228, 0.15) !important;
+      border-radius: 50% !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      font-family: var(--font-sans) !important;
+      font-size: 15px !important;
+      font-weight: 600 !important;
+      color: var(--text-primary) !important;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.03), 0 2px 6px rgba(0,0,0,0.02) !important;
+    }
+
+    /* 浮动天气挂件 */
+    #sidebar-greeting-icon.sidebar-brand-mark {
+      position: absolute !important;
+      bottom: -2px !important;
+      right: -2px !important;
+      width: 18px !important;
+      height: 18px !important;
+      background: #FFFFFF !important;
+      border: 1px solid rgba(226, 220, 210, 0.8) !important;
+      border-radius: 50% !important;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.08) !important;
+      font-size: 10px !important;
+      line-height: 1 !important;
+      margin: 0 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      transition: background-color 0.3s ease !important;
+    }
+
+    #sidebar-greeting-icon .weather-outline-icon {
+      width: 12px;
+      height: 12px;
+      stroke-width: 1.8;
+    }
+
+    #sidebar-greeting-icon.is-night {
+      background: #1E293B !important;
+      border-color: rgba(255, 255, 255, 0.15) !important;
+    }
+
+    .sidebar-brand-copy {
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: center !important;
+      min-width: 0 !important;
+      flex: 1 !important;
+    }
+
+    #sidebar-greeting-title,
+    .sidebar-greeting-title {
+      font-family: var(--font-title) !important;
+      font-style: normal !important;
+      font-size: 18px !important;
+      font-weight: 300 !important;
+      color: var(--text-muted) !important;
+      line-height: 1.25 !important;
+      letter-spacing: 0.01em !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      display: block !important;
+    }
+
+    #sidebar-greeting,
+    .sidebar-brand-copy strong {
+      font-family: var(--font-title) !important;
+      font-size: 18px !important;
+      font-weight: 500 !important;
+      color: var(--text-primary) !important;
+      line-height: 1.25 !important;
+      letter-spacing: -0.01em !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      display: block !important;
+      margin-top: 2px !important;
+    }
+
+    /* 现代克制的折叠按钮 */
+    .sidebar-collapse-toggle {
+      width: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+
+
+
+
+      flex-shrink: 0;
+    }
+
+    .sidebar-collapse-svg {
+      width: 14px !important;
+      height: 14px !important;
+      transition: transform 0.25s ease !important;
+    }
+
+    /* 折叠状态下的特别处理，支持垂直布局防拥挤 */
+    .sidebar-collapsed .sidebar-heading {
+      flex-direction: column !important;
+      gap: 10px !important;
+      padding: 18px 0 16px 0 !important;
+      background: transparent !important;
+      border-bottom: none !important;
+    }
+
+    .sidebar-collapsed .sidebar-brand {
+      display: flex !important;
+      justify-content: center !important;
+      width: 100% !important;
+    }
+
+    .sidebar-collapsed .sidebar-avatar-container {
+      margin: 0 auto !important;
+    }
+
+    .sidebar-collapsed .sidebar-collapse-toggle {
+      margin: 0 auto;
+      transform: rotate(180deg);
+    }
+
+    /* 3. 莫兰迪半透明晶莹分割线 (1px 白高光 + 柔暖灰 Hairline) */
+    .card, .rail-card, #dashboard-view-projects .project-manager-card {
+      background: var(--glass-surface) !important;
+      backdrop-filter: var(--blur-strength) !important;
+      -webkit-backdrop-filter: var(--blur-strength) !important;
+      border: 1px solid var(--glass-border) !important;
+      border-radius: var(--radius-card) !important;
+      box-shadow: var(--glass-shadow) !important;
+      padding: 20px !important; /* 舒适呼吸感 (20px 模块内边距) */
+      transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+    }
+
+    .academic-sidebar {
+      background: var(--glass-surface) !important;
+      backdrop-filter: var(--blur-strength) !important;
+      -webkit-backdrop-filter: var(--blur-strength) !important;
+      border: 1px solid var(--glass-border) !important;
+      border-radius: var(--radius-card) !important;
+      box-shadow: var(--glass-shadow) !important;
+      padding: 0 !important; /* 恢复侧边栏容器 0 外边距与内缩，避免叠加 20px padding 导致挤压 */
+      transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+    }
+
+    .card:hover, .rail-card:hover {
+      background: var(--glass-surface-hover) !important;
+      border-color: rgba(215, 208, 195, 0.9) !important;
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 1), 0 6px 24px -4px rgba(70, 80, 72, 0.07) !important;
+    }
+
+    /* 4. 侧边栏 Nav 激活项与导航文字：经典蓝 (#2F6FE4) 主导指示条 & 14.4px 精细字号 & 加粗 */
+    .sidebar-nav-item,
+    .sidebar-footer-action {
+      font-size: 14px !important;
+      font-weight: 400 !important;
+      letter-spacing: 0.015em !important;
+    }
+
+    .sidebar-section-label {
+      font-weight: 500 !important;
+      letter-spacing: 0.04em !important;
+      color: #94A3B8 !important;
+    }
+
+    .sidebar-nav-item.is-active {
+      background: var(--color-primary-soft) !important;
+      color: var(--color-primary) !important;
+      border: 1px solid var(--color-primary-border) !important;
+      border-left: 3px solid var(--color-primary) !important;
+      border-radius: 8px !important;
+      font-weight: 600 !important;
+    }
+
+    .sidebar-nav-item.is-active svg {
+      stroke: var(--color-primary) !important;
+    }
+
+    .sidebar-nav-item:hover:not(.is-active) {
+      background: rgba(242, 239, 232, 0.6) !important;
+      color: #2C3237 !important;
+    }
+
+    /* Accessibility Baseline: Focus-Visible & Motion Safety */
+    button:not(.ui-button):not(.ui-icon-button):focus-visible,
+    a:focus-visible,
+    input:not(.ui-control):focus-visible,
+    select:not(.ui-control):focus-visible {
+      outline: 2px solid var(--accent-primary) !important;
+      outline-offset: 2px !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, ::before, ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    /* Button Micro-Interactions & Active States */
+    button:not(.ui-button):not(.ui-icon-button), .btn, .sidebar-nav-item {
+      transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+
+    button:not(.ui-button):not(.ui-icon-button):active, .btn:active, .sidebar-nav-item:active {
+      transform: scale(0.98) !important;
+    }
+
+    /* Typography Polish: All-Caps & Numeric Formatting */
+    .kicker, .eyebrow {
+      letter-spacing: 0.06em !important;
+      font-variant-numeric: tabular-nums !important;
+    }
+
+    /* 6. 待办/优先事项 List-Row System (静音化列表，彻底消除粗重粉绿背景卡片) */
+    .unified-item, .todo-item {
+      position: relative !important;
+      overflow: hidden !important;
+      transition: background 0.15s ease, border-color 0.15s ease !important;
+      border-radius: 0 !important;
+      padding: 9px 8px !important;
+      margin-bottom: 0 !important;
+      display: flex !important;
+      align-items: center !important;
+      gap: 12px !important;
+      border: none !important;
+      border-bottom: 1px solid rgba(226, 220, 210, 0.45) !important;
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+
+    .unified-item-wrap:last-child .unified-item,
+    .todo-group-items > .unified-item-wrap:last-child .unified-item {
+      border-bottom: none !important;
+    }
+
+    .unified-item:hover, .todo-item:hover {
+      background: rgba(245, 243, 238, 0.6) !important;
+    }
+
+    /* 彻底清除笨重左侧色条伪元素::before */
+    .unified-item::before, .todo-item::before {
+      display: none !important;
+      content: none !important;
+    }
+
+    /* 紧急/高优先 与 次高/普通优先 (不使用全行彩色背景，仅适度点缀截止日期与极小标识) */
+    .unified-item.urgent,
+    .todo-item.priority-high,
+    .todo-item.urgent,
+    [data-priority="high"],
+    .unified-item.approaching,
+    .todo-item.priority-medium,
+    .todo-item.approaching,
+    .todo-item.priority,
+    [data-priority="medium"] {
+      background: transparent !important;
+      border-color: transparent !important;
+      border-bottom: 1px solid rgba(226, 220, 210, 0.45) !important;
+      box-shadow: none !important;
+    }
+
+    .unified-item.urgent:hover,
+    .todo-item.priority-high:hover,
+    .todo-item.urgent:hover,
+    .unified-item.approaching:hover,
+    .todo-item.priority-medium:hover,
+    .todo-item.approaching:hover,
+    .todo-item.priority:hover {
+      background: rgba(245, 243, 238, 0.6) !important;
+    }
+
+    /* 7. 待办截止状态辨识度增强 (Deadline State Distinction) */
+    .unified-item .item-due, .todo-item .item-due {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-number);
+      font-size: 12px;
+      line-height: 1.2;
+      padding: 2px 7px;
+      border-radius: 5px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    /* 已逾期 (Overdue): 柔和危险红 badge */
+    .unified-item.is-overdue .item-due,
+    .unified-item.urgent.is-overdue .item-due,
+    .todo-item.urgent.is-overdue .item-due {
+      color: var(--color-danger);
+      background: var(--color-danger-soft);
+      border: 1px solid var(--color-danger-border);
+      font-weight: 500;
+    }
+
+    /* 今日到期 (Due Today): 暖琥珀 warning badge */
+    .unified-item.is-today .item-due,
+    .unified-item.urgent.is-today .item-due,
+    .todo-item.urgent.is-today .item-due {
+      color: var(--color-warning);
+      background: var(--color-warning-soft);
+      border: 1px solid var(--color-warning-border);
+      font-weight: 500;
+    }
+
+    /* 近期/3天内到期 (Approaching): 暖秋叶金黄色 warning badge */
+    .unified-item.approaching .item-due,
+    .unified-item.is-approaching .item-due,
+    .todo-item.approaching .item-due {
+      color: var(--color-warning);
+      background: var(--color-warning-soft);
+      border: 1px solid var(--color-warning-border);
+      font-weight: 500;
+    }
+
+    /* 普通远期到期 (Normal / Remote): 静音中性灰 */
+    .unified-item.remote .item-due,
+    .unified-item.is-normal .item-due,
+    .todo-item.remote .item-due {
+      color: #94A3B8;
+      background: transparent;
+      border: 1px solid transparent;
+      font-weight: 400;
+    }
+
+    /* 待办分组标题去厚重化与留白 */
+    .todo-group {
+      margin-top: 24px !important;
+    }
+    .todo-group:first-child {
+      margin-top: 0 !important;
+    }
+    .todo-group-heading {
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+      padding-top: 6px !important;
+      padding-bottom: 12px !important;
+      margin-bottom: 12px !important;
+      border-bottom: 1px solid var(--border-light) !important;
+    }
+    .todo-group-heading h3 {
+      margin: 0 !important;
+      color: var(--text-secondary) !important;
+      font-family: var(--font-serif) !important;
+      font-size: 17px !important;
+      font-weight: 500 !important;
+      letter-spacing: 0.01em !important;
+      line-height: 1.3 !important;
+    }
+    .todo-group-heading span {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      min-width: 22px !important;
+      height: 22px !important;
+      padding: 0 6px !important;
+      font-family: var(--font-number) !important;
+      font-size: 12px !important;
+      font-weight: 500 !important;
+      color: var(--text-muted) !important;
+      background: rgba(148, 163, 184, 0.08) !important;
+      border-radius: 999px !important;
+    }
+
+    /* 标题 (视觉第一核心层级) */
+    .unified-item .item-title, .todo-item .item-title {
+      font-weight: 500 !important;
+      color: #1E293B !important;
+      font-size: 14px !important;
+      line-height: 1.4 !important;
+    }
+
+    /* 课程与项目 (收敛为普通中性灰文本，杜绝亮蓝醒目胶囊包围) */
+    .unified-item .item-course:not(button), .todo-item .item-course:not(button) {
+      color: #94A3B8;
+      background: transparent;
+      border: none;
+      font-size: 12.5px;
+      font-weight: 400;
+      padding: 0;
+      border-radius: 0;
+      margin-left: auto;
+      margin-right: 8px;
+      white-space: nowrap;
+      height: auto;
+      line-height: 1.4;
+      max-width: 140px;
+    }
+
+    /* 操作按钮组：常驻 100% 不透明，清晰无透光 */
+    .unified-item .item-desktop-actions, .todo-item .item-desktop-actions {
+      opacity: 1 !important;
+    }
+
+    .unified-item:hover .item-desktop-actions, .todo-item:hover .item-desktop-actions {
+      opacity: 1 !important;
+    }
+
+    /* Desktop Layout Phase 1 Styles */
+    @media (min-width: 769px) {
+      #dashboard-shell {
+        max-width: 1560px !important;
+      }
+
+      .dashboard-grid {
+        grid-template-columns: 240px minmax(0, 1fr) !important;
+        gap: 24px !important;
+      }
+
+      /* Keep the existing desktop collapse control functional under the V103 grid. */
+      .sidebar-collapsed .dashboard-grid {
+        grid-template-columns: 72px minmax(0, 1fr) !important;
+      }
+      .card.context-card {
+        padding: 0 !important;
+        margin-bottom: 12px !important;
+        border-radius: var(--radius-card) !important;
+        overflow: hidden;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+      }
+
+      .top-bar.opt1-header {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr 1fr !important;
+        gap: 24px !important;
+        align-items: center !important;
+        background: var(--glass-surface) !important;
+        border: 1px solid var(--glass-border) !important;
+        border-radius: var(--radius-card) !important;
+        padding: 20px 24px !important;
+        box-shadow: var(--glass-shadow) !important;
+        backdrop-filter: var(--blur-strength) !important;
+        -webkit-backdrop-filter: var(--blur-strength) !important;
+        transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+      }
+
+      .top-bar.opt1-header:hover {
+        background: var(--glass-surface-hover) !important;
+        border-color: rgba(215, 208, 195, 0.9) !important;
+        box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 1), 0 6px 24px -4px rgba(70, 80, 72, 0.07) !important;
+      }
+
+      .opt1-col {
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+        text-align: center !important;
+      }
+
+      .opt1-col.left {
+        align-items: center !important;
+        text-align: center !important;
+        justify-content: center !important;
+        border-right: 1px solid rgba(215, 208, 195, 0.55) !important;
+        padding-right: 20px !important;
+      }
+
+      .opt1-col.center {
+        align-items: center !important;
+        text-align: center !important;
+        justify-content: center !important;
+        border-right: 1px solid rgba(215, 208, 195, 0.55) !important;
+        padding: 0 20px !important;
+      }
+
+      .opt1-col.right {
+        align-items: center !important;
+        text-align: center !important;
+        justify-content: center !important;
+        padding-left: 20px !important;
+      }
+
+      .opt1-time {
+        font-family: var(--font-number) !important;
+        font-size: 34px !important;
+        font-weight: 400 !important;
+        color: #1E293B !important;
+        line-height: 1.1 !important;
+        letter-spacing: -0.02em !important;
+      }
+
+      .opt1-date {
+        font-size: 13px !important;
+        color: #94A3B8 !important;
+        margin-top: 5px !important;
+        font-weight: 400 !important;
+        display: flex !important;
+        gap: 8px !important;
+        justify-content: center !important;
+      }
+
+      .opt1-temp-row {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        font-family: var(--font-number) !important;
+        font-size: 26px !important;
+        font-weight: 400 !important;
+        color: #1E293B !important;
+      }
+
+      .opt1-weather-detail {
+        font-size: 13.5px !important;
+        color: #64748B !important;
+        margin-top: 3px !important;
+        font-weight: 500 !important;
+      }
+
+      .opt1-week-pill {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        background: var(--color-primary-soft, #EAF2FF) !important;
+        color: var(--color-primary, #2F6FE4) !important;
+        border: 1px solid var(--color-primary-border, #C9DBFA) !important;
+        padding: 4px 14px !important;
+        border-radius: 99px !important;
+        font-size: 13px !important;
+        font-weight: 700 !important;
+      }
+
+      .opt1-term {
+        font-size: 13.5px !important;
+        color: #64748B !important;
+        margin-top: 6px !important;
+        font-weight: 500 !important;
+      }
+
+      .weather-icn-opt1 {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #D97706;
+      }
+
+      @media (max-width: 768px) {
+        .top-bar.opt1-header {
+          grid-template-columns: 1fr !important;
+          gap: 14px !important;
+          text-align: center !important;
+        }
+        .opt1-col.left, .opt1-col.center, .opt1-col.right {
+          border: none !important;
+          padding: 0 !important;
+          align-items: center !important;
+          text-align: center !important;
+        }
+        .opt1-date {
+          justify-content: center !important;
+        }
+      }
+
+      .clock-section {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .clock-section .time {
+        font-family: var(--font-number) !important;
+        font-size: 38px;
+        font-weight: 400;
+        letter-spacing: -0.02em;
+        line-height: 1;
+        color: #0F172A !important;
+      }
+
+      .clock-section .date-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 6px;
+        font-size: 13px;
+        font-weight: 400;
+        color: #94A3B8 !important;
+      }
+
+      .clock-section .date-info span#date {
+        font-family: var(--font-number) !important;
+        letter-spacing: 0.01em;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .clock-section .date-info span#weekday {
+        padding-left: 10px;
+        border-left: 1px solid #E2E8F0;
+        color: #64748B !important;
+        letter-spacing: 0.02em;
+      }
+
+      .top-right-group {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 6px;
+      }
+
+      .weather-card {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 0;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+      }
+
+      .weather-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .weather-emoji {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+      }
+
+      .weather-emoji .weather-outline-icon {
+        width: 25px;
+        height: 25px;
+        filter: drop-shadow(0 1px 4px rgba(47, 111, 228, 0.12));
+      }
+
+      .weather-temp {
+        font-family: var(--font-number) !important;
+        font-size: 26px;
+        font-weight: 400;
+        letter-spacing: -0.01em;
+        line-height: 1;
+        color: #0F172A !important;
+      }
+
+      .weather-right {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+        text-align: right;
+      }
+
+      .weather-desc {
+        font-size: 14px;
+        font-weight: 500;
+        color: #1E293B !important;
+        line-height: 1.2;
+      }
+
+      .weather-detail {
+        font-size: 12.5px;
+        color: #64748B !important;
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+
+      .term-info {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+        margin-top: 4px;
+        font-size: 14px;
+        font-weight: 400;
+        color: #475569 !important;
+      }
+
+      .term-info #term-info {
+        background: transparent;
+        padding: 0;
+        border-radius: 0;
+        letter-spacing: 0.01em;
+      }
+
+      .unified-item {
+        display: grid !important;
+        grid-template-columns: auto 1fr 110px 95px 24px 84px !important;
+        align-items: center !important;
+        gap: 12px !important;
+      }
+
+      .unified-item .item-desktop-actions {
+        display: flex !important;
+        gap: 4px !important;
+      }
+
+      .item-course:not(button) {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-start;
+        font-size: 12px;
+        font-weight: 500;
+        padding: 2px 8px;
+        border-radius: 6px;
+        background: #F1F5F9;
+        color: #475569;
+        border: none;
+        max-width: 110px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        box-sizing: border-box;
+        text-decoration: none;
+        height: 22px;
+        line-height: 18px;
+        cursor: default;
+      }
+
+      .item-course-empty {
+        color: #94A3B8 !important;
+        background: transparent !important;
+        border: none !important;
+        opacity: 0.6;
+      }
+
+      .card.enter-main-card .section-header {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        padding: 0 0 12px 0 !important;
+        border-bottom: none !important;
+      }
+
+      .card.enter-main-card .header-left-group {
+        display: flex !important;
+        align-items: center !important;
+        gap: 16px !important;
+      }
+
+      .card.enter-main-card .header-left-group h2 {
+        font-family: var(--font-serif) !important;
+        font-size: 32px !important;
+        font-weight: 400 !important;
+        color: var(--text-primary) !important;
+        margin: 0 !important;
+        white-space: nowrap !important;
+        letter-spacing: -0.02em !important;
+      }
+
+      .card.enter-main-card .stats-bar-inline {
+        display: none !important;
+      }
+
+      .card.enter-main-card .stats-bar-under-add {
+        display: flex !important;
+        align-items: center !important;
+        gap: 20px !important;
+        padding: 4px 4px 6px 4px !important;
+        font-size: 13.5px !important;
+        font-family: var(--font-body) !important;
+        color: var(--text-secondary) !important;
+        font-weight: 400 !important;
+      }
+
+      .card.enter-main-card .todo-header-divider {
+        height: 1px !important;
+        background-color: rgba(44, 50, 55, 0.2) !important;
+        margin: 2px 0 12px 0 !important;
+      }
+
+      .card.enter-main-card .header-right {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 12px !important;
+        flex-wrap: nowrap !important;
+        white-space: nowrap !important;
+        margin-right: 0 !important;
+      }
+
+      .card.enter-main-card .header-info {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        white-space: nowrap !important;
+        margin: 0 !important;
+      }
+
+      .card.enter-main-card .last-updated {
+
+        white-space: nowrap;
+      }
+
+      .card.enter-main-card .btn-refresh {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+
+
+
+
+
+
+
+
+
+      }
+
+      /* Row 2: Add Todo Form */
+      .card.enter-main-card .add-todo-form {
+        margin: 0 0 8px 0 !important;
+        padding: 0 !important;
+        background: transparent !important;
+        border-bottom: none !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        width: 100% !important;
+      }
+
+      .card.enter-main-card .add-todo-form input[type="text"] {
+        flex: 1;
+
+
+
+
+
+
+
+
+      }
+
+      .card.enter-main-card .add-todo-form input[type="date"] {
+        width: 135px;
+
+
+
+
+
+
+
+
+
+      }
+
+      /* 保持按钮位置不变，修改颜色为经典蓝 */
+      .card.enter-main-card .add-todo-form button:not(.btn-wide):not(.btn-primary):not(.btn-secondary):not(.btn-accent):not(.btn-submit) {
+        width: 38px;
+
+
+
+
+
+
+
+
+
+
+      }
+
+      .card.enter-main-card .section-divider {
+        display: none !important;
+      }
+
+      /* Right Rail Cards Alignment & Styling */
+      .rail-card {
+        padding: 24px !important;
+        border-radius: var(--radius-card) !important;
+        background: #FFFFFF !important;
+        border: 1px solid rgba(226, 232, 240, 0.9) !important;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 16px -2px rgba(15, 23, 42, 0.05) !important;
+      }
+
+      .rail-card::after {
+        display: none !important;
+      }
+
+      .rail-card-heading {
+        margin-bottom: 14px !important;
+      }
+
+      .placeholder-kicker,
+      .rail-card-kicker {
+        font-family: var(--font-kicker) !important;
+        font-size: 10px !important;
+        font-weight: 500 !important;
+        letter-spacing: 0.1em !important;
+        color: #94A3B8 !important;
+        margin-bottom: 4px !important;
+        text-transform: uppercase !important;
+        display: block !important;
+      }
+
+      .rail-card-heading h2 {
+        font-family: var(--font-title) !important;
+        font-size: 20px !important;
+        font-weight: 500 !important;
+        color: #0F172A !important;
+        letter-spacing: -0.015em !important;
+      }
+
+      .rail-card-index {
+        font-family: var(--font-number) !important;
+        font-size: 12px !important;
+        font-weight: 500 !important;
+        color: #64748B !important;
+        background: #F1F5F9 !important;
+        padding: 2px 8px !important;
+        border-radius: 10px !important;
+      }
+
+      /* Long-term Projects Card Items */
+      .project-overview-content {
+        margin-top: 8px !important;
+        gap: 12px !important;
+      }
+
+      .project-overview-main {
+        gap: 5px !important;
+        padding-bottom: 8px !important;
+      }
+
+      .project-overview-objective {
+        font-family: var(--font-body) !important;
+        font-size: 12px !important;
+        line-height: 1.45 !important;
+        color: #64748B !important;
+      }
+
+      .project-overview-due {
+        font-family: var(--font-number) !important;
+        font-size: 11.5px !important;
+        color: #94A3B8 !important;
+        font-weight: 400 !important;
+      }
+
+      .project-overview-section {
+        padding-top: 8px !important;
+        border-top: 1px dashed #E2E8F0 !important;
+        gap: 6px !important;
+      }
+
+      .project-overview-section-heading {
+        font-family: var(--font-kicker) !important;
+        font-size: 10px !important;
+        font-weight: 500 !important;
+        color: #94A3B8 !important;
+        letter-spacing: 0.05em !important;
+        text-transform: uppercase !important;
+      }
+
+      .project-overview-task {
+        grid-template-columns: 14px 1fr !important;
+        gap: 8px !important;
+        padding: 3px 0 !important;
+      }
+
+      .project-overview-task strong {
+        font-size: 12px !important;
+        font-weight: 500 !important;
+        color: #0F172A !important;
+      }
+
+      .project-overview-task small {
+        font-size: 11px !important;
+        color: #64748B !important;
+        font-variant-numeric: tabular-nums !important;
+      }
+
+      /* Today's Schedule Card Items */
+      .today-schedule-list {
+        margin-top: 8px !important;
+        gap: 8px !important;
+      }
+
+      .today-schedule-row {
+        grid-template-columns: 82px 1fr !important;
+        gap: 10px !important;
+        padding: 8px 12px !important;
+        background: #F8FAFC !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 8px !important;
+        transition: all 0.15s ease !important;
+      }
+
+      .today-schedule-row:hover {
+        background: #FFFFFF !important;
+        border-color: #CBD5E1 !important;
+        box-shadow: 0 2px 4px rgba(15, 23, 42, 0.03) !important;
+      }
+
+      .today-schedule-row time {
+        font-family: var(--font-number) !important;
+        font-size: 11.5px !important;
+        font-weight: 500 !important;
+        color: #1E293B !important;
+        font-variant-numeric: tabular-nums !important;
+      }
+
+      .today-schedule-row strong {
+        font-size: 12.5px !important;
+        font-weight: 600 !important;
+        color: #0F172A !important;
+      }
+
+      .today-schedule-row small {
+        font-size: 11px !important;
+        color: #475569 !important;
+        margin-top: 2px !important;
+      }
+
+      .today-deadlines {
+        margin-top: 10px !important;
+        padding-top: 10px !important;
+        border-top: 1px solid #E2E8F0 !important;
+        gap: 6px !important;
+      }
+
+      .today-deadlines > span {
+        font-family: var(--font-kicker) !important;
+        font-size: 10px !important;
+        font-weight: 500 !important;
+        color: #94A3B8 !important;
+        letter-spacing: 0.05em !important;
+        text-transform: uppercase !important;
+      }
+
+      .today-deadline-item {
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        padding: 3px 0 !important;
+      }
+
+      .today-deadlines strong {
+        font-size: 12px !important;
+        font-weight: 500 !important;
+        color: #1E293B !important;
+      }
+
+      .today-deadline-course {
+        margin-top: 0 !important;
+        font-size: 11px !important;
+        color: var(--color-primary) !important;
+        background: var(--color-primary-soft) !important;
+        padding: 1px 6px !important;
+        border-radius: 4px !important;
+        white-space: nowrap !important;
+      }
+
+      /* Full Projects View Alignment & Styling */
+      #dashboard-view-projects .project-manager-card {
+        background: #FFFFFF !important;
+        border: 1px solid rgba(226, 232, 240, 0.9) !important;
+        border-radius: var(--radius-card) !important;
+        padding: 24px 24px !important;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03), 0 4px 16px -2px rgba(15, 23, 42, 0.04) !important;
+      }
+
+      /* Unified Cards & Managers Layout for all panels (Projects, Schedule, Connections, Calendar, Settings) */
+      .project-manager-card,
+      .schedule-manager-card,
+      .connections-manager-card,
+      .calendar-subscription-card,
+      .settings-manager-card {
+        background: #FFFFFF !important;
+        border: 1px solid rgba(226, 232, 240, 0.9) !important;
+        border-radius: var(--radius-card) !important;
+        padding: 24px !important;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03), 0 4px 16px -2px rgba(15, 23, 42, 0.04) !important;
+        margin-bottom: 24px !important;
+        transition: all 0.2s ease !important;
+      }
+
+      .project-manager-heading,
+      .schedule-manager-heading,
+      .connections-manager-heading,
+      .console-manager-heading {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        margin-bottom: 20px !important;
+        padding-bottom: 16px !important;
+        border-bottom: 1px solid #E2E8F0 !important;
+      }
+
+      .placeholder-kicker,
+      .rail-card-kicker,
+      .connections-manager-card .placeholder-kicker,
+      .calendar-subscription-card .placeholder-kicker,
+      .settings-manager-card .placeholder-kicker,
+      .schedule-manager-card .placeholder-kicker {
+        font-family: var(--font-kicker) !important;
+        font-size: 10px !important;
+        font-weight: 500 !important;
+        letter-spacing: 0.1em !important;
+        color: #94A3B8 !important;
+        text-transform: uppercase !important;
+        display: block !important;
+        margin-bottom: 4px !important;
+      }
+
+      /* Unified Main Heading style for all panels (Overview, Projects, Schedule, Connections, Calendar, Settings) */
+      .section-header h2,
+      .card.enter-main-card .header-left-group h2,
+      .project-manager-heading h1,
+      .schedule-manager-heading h1,
+      .connections-manager-heading h1,
+      .console-manager-heading h1 {
+        font-family: var(--font-serif) !important;
+        font-size: 30px !important;
+        font-weight: 400 !important;
+        color: var(--text-primary) !important;
+        margin: 0 !important;
+        line-height: 1.2 !important;
+        letter-spacing: -0.02em !important;
+      }
+
+      .project-manager-heading p,
+      .schedule-manager-heading p,
+      .connections-manager-heading p,
+      .console-manager-heading p {
+        font-family: var(--font-body) !important;
+        font-size: 13px !important;
+        color: var(--text-secondary) !important;
+        margin: 4px 0 0 0 !important;
+      }
+
+      #dashboard-view-projects .project-manager-layout {
+        display: grid !important;
+        grid-template-columns: 320px minmax(0, 1fr) !important;
+        gap: 32px !important;
+        margin-top: 20px !important;
+      }
+
+      #dashboard-view-projects .project-browser {
+        background: transparent !important;
+        border: none !important;
+        border-right: 1px solid #E2E8F0 !important;
+        border-radius: 0 !important;
+        padding: 0 28px 0 0 !important;
+      }
+
+      #dashboard-view-projects .project-list-heading h2 {
+        font-family: var(--font-body) !important;
+        font-size: 19px !important;
+        font-weight: 500 !important;
+        color: #1E293B !important;
+        margin: 0 !important;
+        letter-spacing: -0.015em !important;
+      }
+
+      #dashboard-view-projects #active-project-count,
+      #dashboard-view-projects #completed-project-count,
+      #dashboard-view-projects #archived-project-count {
+        font-family: var(--font-number) !important;
+        font-size: 11.5px !important;
+        font-weight: 500 !important;
+        color: #94A3B8 !important;
+        background: transparent !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+      }
+
+      #dashboard-view-projects .project-history-section summary {
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        color: #475569 !important;
+        padding: 8px 0 !important;
+        cursor: pointer !important;
+      }
+
+      /* 待办事项列表稳定表格化对齐 (Stable Table Grid Layout for Todo Rows) */
+      .unified-item, .todo-item {
+        display: grid !important;
+        grid-template-columns: 55px minmax(120px, 1fr) 140px 100px 32px 75px !important;
+        align-items: center !important;
+        gap: 16px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        padding: 9px 12px !important;
+      }
+
+      .unified-item .item-source-badge, .todo-item .item-source-badge {
+        grid-column: 1 !important;
+        justify-self: start !important;
+        margin: 0 !important;
+      }
+
+      .unified-item .item-title, .todo-item .item-title {
+        grid-column: 2 !important;
+        justify-self: start !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        width: 100% !important;
+        margin: 0 !important;
+      }
+
+      .unified-item .item-course, .todo-item .item-course {
+        grid-column: 3;
+        justify-self: start;
+        margin: 0;
+        max-width: 100%;
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .unified-item .item-due, .todo-item .item-due {
+        grid-column: 4;
+        justify-self: start;
+        margin: 0;
+        text-align: left;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .unified-item .item-subtask-slot, .todo-item .item-subtask-slot {
+        grid-column: 5 !important;
+        justify-self: center !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        margin: 0 !important;
+      }
+
+      .unified-item .item-desktop-actions, .todo-item .item-desktop-actions {
+        grid-column: 6 !important;
+        justify-self: end !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        margin: 0 !important;
+      }
+
+    .unified-item .mobile-action-trigger, .todo-item .mobile-action-trigger,
+    .unified-item .item-mobile-actions, .todo-item .item-mobile-actions {
+      display: none;
+    }
+
+    /* Keep the subtask toggle and its three item actions on one even rhythm. */
+    .unified-item, .todo-item {
+      grid-template-columns: 55px minmax(120px, 1fr) 140px 100px 114px !important;
+    }
+
+    .unified-item .item-subtask-slot, .todo-item .item-subtask-slot {
+      grid-column: 5 !important;
+      grid-row: 1 !important;
+      justify-self: start !important;
+      width: 24px !important;
+      min-height: 24px !important;
+    }
+
+    .unified-item .item-desktop-actions, .todo-item .item-desktop-actions {
+      grid-column: 5 !important;
+      grid-row: 1 !important;
+      justify-self: end !important;
+      gap: 6px !important;
+    }
+
+    .unified-item .item-subtask-slot .subtask-toggle,
+    .unified-item .item-desktop-actions button,
+    .todo-item .item-subtask-slot .subtask-toggle,
+    .todo-item .item-desktop-actions button {
+      width: 24px;
+
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
+    /* ==========================================================================
+       Redesigned Layout Structures for Projects and Connections (image-1 & image-3)
+       ========================================================================== */
+
+    .project-tabs {
+      display: flex !important;
+      background: rgba(47, 111, 228, 0.05) !important;
+      border-radius: 8px !important;
+      padding: 3px !important;
+      margin-bottom: 16px !important;
+      gap: 4px !important;
+      border: 1px solid rgba(47, 111, 228, 0.08) !important;
+    }
+    .project-tab-btn {
+      flex: 1;
+
+
+
+
+
+
+
+
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    /* List Card Styles */
+    .project-list-item {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: stretch !important;
+      padding: 12px 14px !important;
+      gap: 6px !important;
+    }
+    .project-list-next-task {
+      font-size: 11px !important;
+      color: var(--text-muted) !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      white-space: nowrap !important;
+      margin-top: 2px !important;
+      display: block !important;
+    }
+    .project-list-progress-wrapper {
+      height: 4px !important;
+      background: rgba(0, 0, 0, 0.05) !important;
+      border-radius: 2px !important;
+      overflow: hidden !important;
+      margin-top: 6px !important;
+      width: 100% !important;
+    }
+    .project-list-progress-bar {
+      height: 100% !important;
+      background: var(--text-secondary) !important;
+      border-radius: 2px !important;
+      transition: width 0.3s ease !important;
+    }
+
+    /* 2. Project Details Page Header & Tags */
+    .project-detail-kicker {
+      font-size: 11px !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.08em !important;
+      color: var(--text-muted) !important;
+      font-weight: 600 !important;
+      display: block !important;
+      margin-bottom: 6px !important;
+    }
+    .project-detail-title h2 {
+      font-size: 24px !important;
+      font-family: var(--font-serif) !important;
+      font-weight: 500 !important;
+      margin: 0 !important;
+    }
+    .project-tags-row {
+      display: flex !important;
+      flex-wrap: wrap !important;
+      gap: 6px !important;
+      margin-top: 10px !important;
+      margin-bottom: 12px !important;
+    }
+    /* 3. Highlighted Next Action Box */
+    .project-next-action-card {
+      display: flex !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+      padding: 16px 20px !important;
+      background: #FFFFFF !important;
+      border: 1px solid rgba(0, 0, 0, 0.06) !important;
+      border-radius: 10px !important;
+      margin-top: 16px !important;
+      margin-bottom: 20px !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+    }
+    .project-next-action-card.is-empty {
+      background: rgba(0, 0, 0, 0.01) !important;
+      border-style: dashed !important;
+    }
+    .project-next-action-left {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 4px !important;
+      min-width: 0 !important;
+      flex: 1 !important;
+    }
+    .project-next-action-label {
+      font-size: 10px !important;
+      font-weight: 600 !important;
+      color: var(--text-muted) !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.05em !important;
+    }
+    .project-next-action-text {
+      font-size: 14px !important;
+      font-weight: 600 !important;
+      color: var(--text-primary) !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      white-space: nowrap !important;
+    }
+    .project-next-action-text.text-muted {
+      color: var(--text-muted) !important;
+      font-weight: 400 !important;
+    }
+    .project-next-action-btn-complete,
+    .project-next-action-btn-choose {
+
+
+
+
+
+
+
+
+      flex-shrink: 0;
+      margin-left: 16px;
+    }
+    .project-detail-divider {
+      border: none !important;
+      border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+      margin: 16px 0 !important;
+    }
+
+    /* 4. Column Group Cards Without Backgrounds */
+    @media (min-width: 920px) {
+      .project-groups {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 20px !important;
+      }
+    }
+    .project-group-card {
+      background: transparent !important;
+      border: none !important;
+      border-top: 1px solid #2C3237 !important;
+      border-radius: 0 !important;
+      padding: 12px 0 0 0 !important;
+    }
+    .project-group-heading {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      margin-bottom: 12px !important;
+    }
+    .project-group-heading h4 {
+      font-size: 13px !important;
+      font-weight: 600 !important;
+      color: var(--text-primary) !important;
+      margin: 0 !important;
+    }
+    .project-task-row {
+      display: flex !important;
+      align-items: center !important;
+      padding: 8px 4px !important;
+      background: transparent !important;
+      border: none !important;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
+      border-radius: 0 !important;
+      gap: 8px !important;
+    }
+    .project-task-row:hover {
+      background: rgba(0, 0, 0, 0.02) !important;
+    }
+    .project-task-name-btn {
+      flex: 1;
+
+
+
+
+
+
+
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .project-task-date {
+      font-size: 10px !important;
+      color: var(--text-muted) !important;
+      font-family: var(--font-number) !important;
+      margin-left: auto !important;
+      margin-right: 8px !important;
+    }
+    .project-task-actions {
+      display: flex !important;
+      gap: 4px !important;
+      opacity: 0 !important;
+      transition: opacity 0.15s ease !important;
+    }
+    .project-task-row:hover .project-task-actions {
+      opacity: 1 !important;
+    }
+    .project-task-action-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+
+
+
+
+
+
+    }
+
+    /* Login Cards on Left */
+    .connections-list-panel .login-card {
+      border: 1px solid var(--border) !important;
+      border-left: 1px solid var(--border) !important; /* Overwrite thick left border */
+      padding: 10px 12px !important;
+      min-height: 52px !important;
+      border-radius: 8px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      text-decoration: none !important;
+    }
+    .login-card-left {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 2px !important;
+      min-width: 0 !important;
+      flex: 1 !important;
+    }
+    .login-card-title {
+      font-size: 13px !important;
+      font-weight: 600 !important;
+      color: var(--text-primary) !important;
+      display: block !important;
+    }
+    .login-card-subtitle {
+      font-size: 10px !important;
+      color: var(--text-muted) !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      display: block !important;
+    }
+    .connections-list-panel .login-card.is-selected {
+      border-color: var(--color-primary-border) !important;
+      background: var(--color-primary-soft) !important;
+      box-shadow: 0 1px 3px rgba(47, 111, 228, 0.12) !important;
+    }
+
+    /* Platform Details Header Square Icon & Grid */
+    .detail-platform-icon-circle {
+      border-radius: 8px !important;
+      border: 1px solid rgba(0, 0, 0, 0.08) !important;
+      background: #FFFFFF !important;
+      width: 44px !important;
+      height: 44px !important;
+      font-size: 16px !important;
+      font-weight: 600 !important;
+      color: var(--text-primary) !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+    }
+    .detail-platform-title-wrap div:last-child {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 4px !important;
+      align-items: flex-start !important;
+    }
+    .detail-platform-title {
+      font-size: 18px !important;
+      font-weight: 600 !important;
+      margin: 0 !important;
+    }
+    .detail-platform-header .btn-refresh {
+      width: 36px;
+
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+
+
+
+
+
+    }
+
+    /* Grid Divider Style */
+    .status-grid {
+      display: grid !important;
+      grid-template-columns: 140px 1fr !important;
+      gap: 0 !important;
+      font-size: 13px !important;
+      color: var(--text-primary) !important;
+      margin-bottom: 20px !important;
+      border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
+    }
+    .status-grid dt, .status-grid dd {
+      padding: 10px 0 !important;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+      margin: 0 !important;
+    }
+    .status-grid dt {
+      font-weight: 500 !important;
+      color: var(--text-secondary) !important;
+    }
+    .status-grid dd {
+      font-family: var(--font-mono) !important;
+      color: var(--text-primary) !important;
+    }
+
+    /* Side-by-side action buttons */
+    .zhihuishu-login-actions {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .zhihuishu-login-actions button {
+      width: auto;
+
+
+
+    }
+
+    /* ==========================================================================
+       Unified Button and Control System (统一按钮与控件系统)
+       ========================================================================== */
+    /* 1. 主操作按钮 (Primary Action Buttons) */
+    .btn-primary,
+    .project-button-primary,
+    .btn-schedule-primary,
+    .calendar-panel-primary,
+    .connection-primary-action,
+    #btn-add-schedule-item,
+    #zhs-btn-open-login-inline,
+    #calendar-subscription-create{
+
+
+
+
+
+
+
+
+
+
+
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    /* 2. 次要/描边按钮 (Secondary / Outline Buttons) */
+    .btn-secondary,
+    .project-button-secondary,
+    .btn-schedule-secondary,
+    .btn-refresh,
+    #calendar-subscription-open,
+    #calendar-subscription-copy,
+    .btn-auth-secondary,
+    .btn-secondary-action,
+    #schedule-management-open,
+    #zhs-btn-complete-login-inline,
+    #zxm-send-sms-btn-inline {
+
+
+
+
+
+
+
+
+
+
+
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    /* 3. 危险与警示操作按钮 (Danger / Destructive Action Buttons) */
+    .btn-danger,
+    .project-button-danger,
+    .calendar-panel-revoke,
+    .btn-logout-action,
+    #calendar-subscription-revoke,
+    #zhs-btn-cancel-login-inline {
+
+
+
+
+
+
+
+
+
+
+
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    /* 5. 宽度适应类 (Width Modifiers) */
+    .btn-wide {
+      width: 100%;
+    }
+
+    /* Blue actions mirror the existing “刷新状态” secondary control. */
+
+    .btn-primary,
+    .btn-accent,
+    .btn-submit,
+    .btn-auth-primary,
+    .project-button-primary,
+    .project-next-action-btn-complete,
+    .btn-schedule-primary,
+    .calendar-panel-primary,
+    .connection-primary-action,
+    .subtask-add-btn,
+    .card.enter-main-card .add-todo-form button:not(.btn-wide):not(.btn-primary):not(.btn-secondary):not(.btn-accent):not(.btn-submit),
+    #btn-add-schedule-item,
+    #schedule-refresh-button,
+    #zhs-btn-open-login-inline,
+    #calendar-subscription-create{
+
+
+
+
+
+
+
+
+
+      flex: 0 0 auto;
+    }
+
+    /* v103 overview content and project task cards */
+    .project-overview-main {
+      gap: 9px !important;
+      padding: 14px !important;
+      background: rgba(248, 250, 252, 0.72) !important;
+      border: 1px solid rgba(226, 232, 240, 0.95) !important;
+      border-radius: 10px !important;
+      box-shadow: 0 2px 7px rgba(15, 23, 42, 0.025) !important;
+      transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease !important;
+    }
+
+    .project-overview-main:hover {
+      background: #FFFFFF !important;
+      border-color: rgba(47, 111, 228, 0.28) !important;
+      box-shadow: 0 7px 16px rgba(15, 23, 42, 0.055) !important;
+      transform: translateY(-1px) !important;
+    }
+
+    .project-overview-title {
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 10px !important;
+    }
+
+    .project-overview-title span {
+      padding: 2px 7px !important;
+      border: 0 !important;
+      border-radius: 5px !important;
+      background: rgba(30, 41, 59, 0.06) !important;
+      color: #475569 !important;
+      font-family: var(--font-number) !important;
+      font-size: 10.5px !important;
+      font-weight: 500 !important;
+      letter-spacing: 0.01em !important;
+    }
+
+    .project-overview-objective {
+      color: #64748B !important;
+      font-family: var(--font-body) !important;
+      font-size: 12px !important;
+      line-height: 1.55 !important;
+      letter-spacing: 0.01em !important;
+    }
+
+    .project-overview-stats,
+    .project-overview-due {
+      color: #64748B !important;
+      font-family: var(--font-number) !important;
+      font-size: 11px !important;
+      line-height: 1.45 !important;
+      letter-spacing: 0.01em !important;
+    }
+
+    .project-overview-section {
+      gap: 7px !important;
+      padding-top: 10px !important;
+      border-top: 1px dashed #E2E8F0 !important;
+    }
+
+    .project-overview-section-heading {
+      color: #94A3B8 !important;
+      font-family: var(--font-kicker) !important;
+      font-size: 10px !important;
+      font-weight: 500 !important;
+      letter-spacing: 0.05em !important;
+    }
+
+    .project-overview-task {
+      grid-template-columns: 14px minmax(0, 1fr) !important;
+      gap: 8px !important;
+      padding: 3px 0 !important;
+    }
+
+    .project-overview-task strong {
+      color: #0F172A !important;
+      font-family: var(--font-body) !important;
+      font-size: 12px !important;
+      font-weight: 500 !important;
+      line-height: 1.45 !important;
+      letter-spacing: 0.005em !important;
+    }
+
+    .project-overview-task small {
+      color: #64748B !important;
+      font-family: var(--font-number) !important;
+      font-size: 11px !important;
+      line-height: 1.4 !important;
+      letter-spacing: 0.01em !important;
+    }
+
+    .today-schedule-list {
+      margin-top: 8px !important;
+      gap: 8px !important;
+    }
+
+    .today-schedule-row {
+      grid-template-columns: 82px minmax(0, 1fr) !important;
+      gap: 10px !important;
+      padding: 9px 12px !important;
+      background: #F8FAFC !important;
+      border: 1px solid #E2E8F0 !important;
+      border-radius: 8px !important;
+      transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
+    }
+
+    .today-schedule-row:hover {
+      background: #FFFFFF !important;
+      border-color: #CBD5E1 !important;
+      box-shadow: 0 2px 4px rgba(15, 23, 42, 0.03) !important;
+    }
+
+    .today-schedule-row time {
+      color: #1E293B !important;
+      font-family: var(--font-number) !important;
+      font-size: 11.5px !important;
+      font-weight: 500 !important;
+      line-height: 1.45 !important;
+      letter-spacing: 0.01em !important;
+      font-variant-numeric: tabular-nums !important;
+    }
+
+    .today-schedule-row strong {
+      color: #0F172A !important;
+      font-family: var(--font-body) !important;
+      font-size: 12.5px !important;
+      font-weight: 600 !important;
+      line-height: 1.45 !important;
+      letter-spacing: 0.005em !important;
+    }
+
+    .today-schedule-row small {
+      margin-top: 3px !important;
+      color: #475569 !important;
+      font-family: var(--font-body) !important;
+      font-size: 11px !important;
+      line-height: 1.4 !important;
+      letter-spacing: 0.01em !important;
+    }
+
+    .today-deadlines {
+      margin-top: 10px !important;
+      padding-top: 10px !important;
+      border-top: 1px solid #E2E8F0 !important;
+      gap: 7px !important;
+    }
+
+    .today-deadlines > span {
+      color: #94A3B8 !important;
+      font-family: var(--font-kicker) !important;
+      font-size: 10px !important;
+      font-weight: 500 !important;
+      letter-spacing: 0.05em !important;
+    }
+
+    .today-deadline-item {
+      align-items: center !important;
+      flex-direction: row !important;
+      justify-content: space-between !important;
+      gap: 10px !important;
+      padding: 3px 0 !important;
+    }
+
+    .today-deadlines strong {
+      color: #1E293B !important;
+      font-family: var(--font-body) !important;
+      font-size: 12px !important;
+      font-weight: 500 !important;
+      letter-spacing: 0.005em !important;
+    }
+
+    .today-deadline-course {
+      margin-top: 0 !important;
+      padding: 1px 6px !important;
+      border-radius: 4px !important;
+      background: var(--color-primary-soft) !important;
+      color: var(--color-primary) !important;
+      font-family: var(--font-body) !important;
+      font-size: 11px !important;
+      white-space: nowrap !important;
+    }
+
+    .project-groups {
+      gap: 14px !important;
+    }
+
+    .project-group-card {
+      padding: 14px !important;
+      background: rgba(248, 250, 252, 0.72) !important;
+      border: 1px solid rgba(226, 232, 240, 0.95) !important;
+      border-radius: 10px !important;
+      box-shadow: 0 2px 7px rgba(15, 23, 42, 0.025) !important;
+      transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease !important;
+    }
+
+    .project-group-card:hover {
+      background: rgba(255, 255, 255, 0.96) !important;
+      border-color: rgba(47, 111, 228, 0.24) !important;
+      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.045) !important;
+    }
+
+    .project-group-heading {
+      margin-bottom: 10px !important;
+    }
+
+    .project-group-heading h4 {
+      color: #1E293B !important;
+      font-family: var(--font-body) !important;
+      font-size: 13px !important;
+      font-weight: 600 !important;
+      letter-spacing: -0.005em !important;
+    }
+
+    .project-task-list {
+      gap: 6px !important;
+      margin-top: 0 !important;
+    }
+
+    .project-task-row {
+      display: grid !important;
+      grid-template-columns: 16px minmax(0, 1fr) auto auto !important;
+      gap: 8px !important;
+      padding: 9px 10px !important;
+      background: #FFFFFF !important;
+      border: 1px solid rgba(226, 232, 240, 0.9) !important;
+      border-radius: 7px !important;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.018) !important;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease !important;
+    }
+
+    .project-task-row:hover,
+    .project-task-row:focus-within {
+      background: #FFFFFF !important;
+      border-color: #CBD5E1 !important;
+      box-shadow: 0 3px 8px rgba(15, 23, 42, 0.045) !important;
+    }
+
+    .project-task-date {
+      color: #64748B !important;
+      font-family: var(--font-number) !important;
+      font-size: 10.5px !important;
+      letter-spacing: 0.01em !important;
+    }
+
+    body {
+      background: var(--bg-main) !important;
+      background-attachment: initial !important;
+    }
+
+@media (min-width: 961px) {
+  .workspace-main .dashboard-view[data-view-panel="connections"] .connections-manager-card {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+    margin-bottom: 0 !important;
+    overflow: hidden;
+  }
+
+  .workspace-main .dashboard-view[data-view-panel="connections"] .connections-detail-panel {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}

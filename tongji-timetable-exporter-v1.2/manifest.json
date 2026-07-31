@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "同济课表导出",
+  "description": "将同济大学教学管理系统的学生课表和已选课程导出为 Excel 兼容文件。",
+  "version": "1.2.0",
+  "permissions": ["activeTab", "scripting", "downloads"],
+  "host_permissions": ["https://1.tongji.edu.cn/*"],
+  "action": {
+    "default_title": "导出同济课表",
+    "default_popup": "popup.html"
+  }
+}
