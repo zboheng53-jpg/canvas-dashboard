@@ -90,9 +90,9 @@
       <section class="column main-column">
         <!-- Unified Main Card -->
         <section class="card listcard enter-main-card">
-          <div class="card-head">
-            <h2 style="font-size: 22px;">待办清单</h2>
-            <div class="right">
+          <div class="card-head section-header">
+            <div class="header-left-group"><h2 style="font-size: 22px;">&#24453;&#21150;&#28165;&#21333;</h2></div>
+            <div class="right header-right">
               <button type="button" class="ui-button ui-button--text muted last-updated sync-status-button" id="list-updated" style="font-size:12px; background:none; border:none; cursor:pointer;" aria-label="查看平台同步状态">已同步</button>
               <button class="ui-icon-button icon-btn btn-refresh" id="btn-refresh" title="刷新待办" aria-label="刷新待办"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"></path></svg></button>
             </div>
@@ -104,7 +104,7 @@
             <button type="submit" class="ui-button ui-button--primary btn-quiet">添加</button>
           </form>
 
-          <select id="todo-source-select" class="ui-control todo-source-select hidden" style="display:none;" aria-label="按来源筛选待办">
+          <select id="todo-source-select" class="ui-control todo-source-select" style="position: absolute; opacity: 0; pointer-events: auto; width: 1px; height: 1px; margin: -1px; overflow: hidden;" aria-label="按来源筛选待办">
             <option value="all">全部</option>
             <option value="canvas">Canvas</option>
             <option value="haoke">好课</option>
@@ -121,13 +121,13 @@
 
           <!-- 来源筛选 Chips -->
           <div class="src-filters todo-source-filters" id="todo-source-filters" role="group" aria-label="按来源筛选待办">
-            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter is-on" data-todo-source="all" aria-pressed="true">全部 <span class="n" id="src-count-all">0</span></button>
-            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="canvas" aria-pressed="false"><span class="dot" style="background:var(--src-canvas)"></span>Canvas <span class="n" id="src-count-canvas">0</span></button>
-            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="haoke" aria-pressed="false"><span class="dot" style="background:var(--src-haoke)"></span>好课 <span class="n" id="src-count-haoke">0</span></button>
-            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="zhixuemeng" aria-pressed="false"><span class="dot" style="background:var(--src-zxm)"></span>智学盟 <span class="n" id="src-count-zhixuemeng">0</span></button>
-            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="zhihuishu" aria-pressed="false"><span class="dot" style="background:var(--src-zhs)"></span>智慧树 <span class="n" id="src-count-zhihuishu">0</span></button>
-            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="project" aria-pressed="false"><span class="dot" style="background:var(--src-project)"></span>项目 <span class="n" id="src-count-project">0</span></button>
-            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="custom" aria-pressed="false"><span class="dot" style="background:var(--src-custom)"></span>自定义 <span class="n" id="src-count-custom">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter is-on" data-todo-source="all" aria-pressed="true">全部 <span class="n" id="src-count-all">(0)</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="canvas" aria-pressed="false"><span class="dot" style="background:var(--src-canvas)"></span>Canvas <span class="n" id="src-count-canvas">(0)</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="haoke" aria-pressed="false"><span class="dot" style="background:var(--src-haoke)"></span>好课 <span class="n" id="src-count-haoke">(0)</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="zhixuemeng" aria-pressed="false"><span class="dot" style="background:var(--src-zxm)"></span>智学盟 <span class="n" id="src-count-zhixuemeng">(0)</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="zhihuishu" aria-pressed="false"><span class="dot" style="background:var(--src-zhs)"></span>智慧树 <span class="n" id="src-count-zhihuishu">(0)</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="project" aria-pressed="false"><span class="dot" style="background:var(--src-project)"></span>项目 <span class="n" id="src-count-project">(0)</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="custom" aria-pressed="false"><span class="dot" style="background:var(--src-custom)"></span>自定义 <span class="n" id="src-count-custom">(0)</span></button>
           </div>
 
           <!-- Unified todo list -->
@@ -1566,7 +1566,7 @@
         const source = button.dataset.todoSource;
         const countSpan = button.querySelector('.n') || document.getElementById('src-count-' + source);
         if (countSpan) {
-          countSpan.textContent = counts[source] || 0;
+          countSpan.textContent = `(${counts[source] || 0})`;
         } else {
           button.textContent = `${labels[source]} (${counts[source] || 0})`;
         }
