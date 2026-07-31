@@ -1,12 +1,12 @@
-<section class="rail-card rail-card-projects enter-right-card" id="long-term-projects-card" aria-labelledby="long-term-projects-title">
-  <div class="rail-card-heading">
-    <div>
-      <span class="rail-card-kicker">PROJECTS</span>
-      <h2 id="long-term-projects-title">长期项目</h2>
+<section class="card rail-card-projects enter-right-card" id="long-term-projects-card" aria-labelledby="long-term-projects-title">
+  <div class="card-head">
+    <h2 id="long-term-projects-title" style="font-size: 20px;">长期项目</h2>
+    <span class="muted" id="long-term-projects-sub">进行中</span>
+    <div class="right">
+      <button type="button" class="icon-btn" title="新建项目" onclick="openProjectsView()"><svg viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"></path></svg></button>
     </div>
-    <button type="button" class="ui-button ui-button--text project-overview-all" onclick="openProjectsView()">查看全部</button>
   </div>
-  <div class="project-overview-content" id="project-overview-content" aria-live="polite" aria-busy="true">
+  <div class="proj-list project-overview-content" id="project-overview-content" aria-live="polite" aria-busy="true">
     <div class="ui-loading ui-loading--block rail-empty-state is-loading" role="status">
       <div>
         <strong>正在加载长期项目…</strong>

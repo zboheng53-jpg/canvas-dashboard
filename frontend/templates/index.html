@@ -66,60 +66,75 @@
     </header>
     </div>
 
+    <!-- KPI 概览 -->
+    <div class="kpis" id="dashboard-kpis">
+      <div class="kpi">
+        <div class="k-label">待完成</div>
+        <div class="k-value" id="stat-pending-count">0</div>
+        <div class="k-hint" id="stat-pending-diff">未有新变化</div>
+      </div>
+      <div class="kpi">
+        <div class="k-label">48 小时内截止</div>
+        <div class="k-value" id="stat-due-count">0</div>
+        <div class="k-hint warn" id="stat-due-overdue">含 0 项已逾期</div>
+      </div>
+      <div class="kpi">
+        <div class="k-label">今日课程</div>
+        <div class="k-value" id="stat-course-count">0</div>
+        <div class="k-hint" id="stat-course-next">无更多课程</div>
+      </div>
+    </div>
+
     <!-- Main Content -->
     <main>
       <section class="column main-column">
         <!-- Unified Main Card -->
-        <div class="card enter-main-card">
-          <div class="section-header">
-            <div class="header-left-group"><h2>&#24453;&#21150;&#28165;&#21333;</h2></div>
-            <div class="header-right">
-              <select id="todo-source-select" class="ui-control todo-source-select" aria-label="按来源筛选待办">
-                <option value="all">全部</option>
-                <option value="canvas">Canvas</option>
-                <option value="haoke">好课</option>
-                <option value="zhixuemeng">智学盟</option>
-                <option value="zhihuishu">智慧树</option>
-                <option value="project">项目</option>
-                <option value="custom">自定义</option>
-              </select>
-              <div class="header-info">
-                <button type="button" class="ui-button ui-button--text last-updated sync-status-button" id="list-updated" aria-label="查看平台同步状态"></button>
-                <button class="ui-icon-button btn-refresh" id="btn-refresh" title="&#21047;&#26032;" aria-label="刷新待办">&#x21bb;</button>
-              </div>
+        <section class="card listcard enter-main-card">
+          <div class="card-head">
+            <h2 style="font-size: 22px;">待办清单</h2>
+            <div class="right">
+              <button type="button" class="ui-button ui-button--text muted last-updated sync-status-button" id="list-updated" style="font-size:12px; background:none; border:none; cursor:pointer;" aria-label="查看平台同步状态">已同步</button>
+              <button class="ui-icon-button icon-btn btn-refresh" id="btn-refresh" title="刷新待办" aria-label="刷新待办"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"></path></svg></button>
             </div>
           </div>
 
-        <!-- Add custom todo -->
-        <form class="add-todo-form" id="add-todo-form">
-          <input type="text" id="new-todo-input" placeholder="&#28155;&#21152;&#26032;&#24453;&#21150;..." autocomplete="off" class="ui-control todo-title-input">
-          <input type="date" id="new-todo-due" class="ui-control date-input" aria-label="截止日期" title="截止日期">
-          <button type="submit" class="ui-button ui-button--primary">+</button>
-        </form>
+          <form class="add-row add-todo-form" id="add-todo-form">
+            <input type="text" id="new-todo-input" placeholder="添加新待办…" autocomplete="off" class="ui-control input todo-title-input">
+            <input type="date" id="new-todo-due" class="ui-control input date date-input" aria-label="截止日期" title="截止日期">
+            <button type="submit" class="ui-button ui-button--primary btn-quiet">添加</button>
+          </form>
 
-        <!-- Stats Bar -->
-        <div class="stats-bar-under-add" id="stats-bar">
-          <span class="ui-count-pill stat-pill">&#24453;&#23436;&#25104; <b class="stat-count" id="stat-total">0</b> &#39033;</span>
-          <span class="ui-count-pill ui-count-pill--danger stat-pill urgent">&#21363;&#23558;&#21040;&#26399; <b class="stat-count urgent" id="stat-urgent">0</b> &#39033;</span>
-        </div>
+          <select id="todo-source-select" class="ui-control todo-source-select hidden" style="display:none;" aria-label="按来源筛选待办">
+            <option value="all">全部</option>
+            <option value="canvas">Canvas</option>
+            <option value="haoke">好课</option>
+            <option value="zhixuemeng">智学盟</option>
+            <option value="zhihuishu">智慧树</option>
+            <option value="project">项目</option>
+            <option value="custom">自定义</option>
+          </select>
 
-        <div class="todo-header-divider"></div>
+          <div class="stats-bar-under-add hidden" id="stats-bar" style="display:none;">
+            <span class="ui-count-pill stat-pill">待完成 <b class="stat-count" id="stat-total">0</b> 项</span>
+            <span class="ui-count-pill ui-count-pill--danger stat-pill urgent">即将到期 <b class="stat-count urgent" id="stat-urgent">0</b> 项</span>
+          </div>
 
-        <div class="todo-source-filters hidden" id="todo-source-filters" role="group" aria-label="按来源筛选待办">
-          <button type="button" class="ui-button ui-button--choice todo-source-filter is-active" data-todo-source="all" aria-pressed="true">全部 (0)</button>
-          <button type="button" class="ui-button ui-button--choice todo-source-filter" data-todo-source="canvas" aria-pressed="false">Canvas (0)</button>
-          <button type="button" class="ui-button ui-button--choice todo-source-filter" data-todo-source="haoke" aria-pressed="false">好课 (0)</button>
-          <button type="button" class="ui-button ui-button--choice todo-source-filter" data-todo-source="zhixuemeng" aria-pressed="false">智学盟 (0)</button>
-          <button type="button" class="ui-button ui-button--choice todo-source-filter" data-todo-source="zhihuishu" aria-pressed="false">智慧树 (0)</button>
-          <button type="button" class="ui-button ui-button--choice todo-source-filter" data-todo-source="project" aria-pressed="false">项目 (0)</button>
-          <button type="button" class="ui-button ui-button--choice todo-source-filter" data-todo-source="custom" aria-pressed="false">自定义 (0)</button>
-        </div>
+          <!-- 来源筛选 Chips -->
+          <div class="src-filters todo-source-filters" id="todo-source-filters" role="group" aria-label="按来源筛选待办">
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter is-on" data-todo-source="all" aria-pressed="true">全部 <span class="n" id="src-count-all">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="canvas" aria-pressed="false"><span class="dot" style="background:var(--src-canvas)"></span>Canvas <span class="n" id="src-count-canvas">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="haoke" aria-pressed="false"><span class="dot" style="background:var(--src-haoke)"></span>好课 <span class="n" id="src-count-haoke">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="zhixuemeng" aria-pressed="false"><span class="dot" style="background:var(--src-zxm)"></span>智学盟 <span class="n" id="src-count-zhixuemeng">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="zhihuishu" aria-pressed="false"><span class="dot" style="background:var(--src-zhs)"></span>智慧树 <span class="n" id="src-count-zhihuishu">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="project" aria-pressed="false"><span class="dot" style="background:var(--src-project)"></span>项目 <span class="n" id="src-count-project">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="custom" aria-pressed="false"><span class="dot" style="background:var(--src-custom)"></span>自定义 <span class="n" id="src-count-custom">0</span></button>
+          </div>
 
-        <!-- Unified todo list -->
-        <div class="todo-list" id="todo-list" data-layout-mode="hybrid">
-          <div class="ui-loading ui-loading--block empty-state" role="status">&#21152;&#36733;&#20013;...</div>
-        </div>
-        </div><!-- /.card -->
+          <!-- Unified todo list -->
+          <div class="listscroll todo-list" id="todo-list" data-layout-mode="hybrid">
+            <div class="ui-loading ui-loading--block empty-state" role="status">加载中...</div>
+          </div>
+        </section><!-- /.card -->
 
       </section>
     </main>
@@ -1549,8 +1564,14 @@
 
       document.querySelectorAll('button[data-todo-source]').forEach((button) => {
         const source = button.dataset.todoSource;
-        button.textContent = `${labels[source]} (${counts[source] || 0})`;
+        const countSpan = button.querySelector('.n') || document.getElementById('src-count-' + source);
+        if (countSpan) {
+          countSpan.textContent = counts[source] || 0;
+        } else {
+          button.textContent = `${labels[source]} (${counts[source] || 0})`;
+        }
         const isActive = source === todoSourceFilter;
+        button.classList.toggle('is-on', isActive);
         button.classList.toggle('is-active', isActive);
         button.setAttribute('aria-pressed', String(isActive));
       });
@@ -1577,8 +1598,8 @@
         const rank = (item) => item.done ? 4 : (item.due_ts && item.due_ts.slice(0, 10) < today ? (item.manualHighlighted ? 0 : 1) : (item.manualHighlighted ? 2 : 3));
         return rank(a) - rank(b) || dueKey(a).localeCompare(dueKey(b)) || a._stableIndex - b._stableIndex;
       });
-      groups.week.sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || (b.manualHighlighted ? 1 : 0) - (a.manualHighlighted ? 1 : 0) || dueKey(a).localeCompare(dueKey(b)) || a._stableIndex - b._stableIndex);
-      groups.later.sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || (b.manualHighlighted ? 1 : 0) - (a.manualHighlighted ? 1 : 0) || dueKey(a).localeCompare(dueKey(b)) || a._stableIndex - b._stableIndex);
+      groups.week.sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || (b.manualHighlighted ? 1 : 0) - (a.manualHighlighted ? 0 : 1) || dueKey(a).localeCompare(dueKey(b)) || a._stableIndex - b._stableIndex);
+      groups.later.sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || (b.manualHighlighted ? 1 : 0) - (a.manualHighlighted ? 0 : 1) || dueKey(a).localeCompare(dueKey(b)) || a._stableIndex - b._stableIndex);
       return Object.entries(groups)
         .filter(([, groupedItems]) => groupedItems.length)
         .map(([key, groupedItems]) => ({ title: labels[key], items: groupedItems }));
@@ -1909,19 +1930,46 @@
     }
 
     function updateStatsBar(unified) {
-      const pending = unified.filter(item => !item.done && !item.hidden).length;
-      let urgent = 0;
-      unified.forEach(item => {
-        if (item.done || item.hidden) return;
+      const activeItems = unified.filter(item => !item.done && !item.hidden);
+      const pending = activeItems.length;
+
+      const todayStr = window.customToday || new Date().toISOString().slice(0, 10);
+      const now = Date.now();
+
+      let due48h = 0;
+      let overdue = 0;
+      activeItems.forEach(item => {
         if (item.due_ts) {
-          const hoursLeft = (new Date(item.due_ts).getTime() - Date.now()) / 3600000;
-          if (hoursLeft <= 72) urgent++;
+          const dueStr = item.due_ts.slice(0, 10);
+          const dueTime = new Date(item.due_ts).getTime();
+          const hoursLeft = (dueTime - now) / 3600000;
+          if (dueStr < todayStr || hoursLeft < 0) {
+            overdue++;
+            due48h++;
+          } else if (hoursLeft <= 48) {
+            due48h++;
+          }
         }
       });
+
       const totalEl = document.getElementById('stat-total');
       const urgentEl = document.getElementById('stat-urgent');
       if (totalEl) totalEl.textContent = pending;
-      if (urgentEl) urgentEl.textContent = urgent;
+      if (urgentEl) urgentEl.textContent = overdue + due48h;
+
+      // Update Top KPI Cards
+      const pendingCountEl = document.getElementById('stat-pending-count');
+      const pendingDiffEl = document.getElementById('stat-pending-diff');
+      const dueCountEl = document.getElementById('stat-due-count');
+      const dueOverdueEl = document.getElementById('stat-due-overdue');
+
+      if (pendingCountEl) pendingCountEl.textContent = pending;
+      if (pendingDiffEl) pendingDiffEl.textContent = pending > 0 ? `${pending} 项待处理` : '全部完成';
+      if (dueCountEl) dueCountEl.textContent = due48h;
+      if (dueOverdueEl) {
+        dueOverdueEl.textContent = overdue > 0 ? `含 ${overdue} 项已逾期` : '无逾期事项';
+        dueOverdueEl.classList.toggle('warn', overdue > 0);
+      }
     }
 
     async function togglePlatformCompletion(platform, id, done) {

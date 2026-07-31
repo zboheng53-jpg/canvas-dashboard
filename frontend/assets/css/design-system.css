@@ -18,6 +18,12 @@
 
 
 /* ---------- 基础组件（非冲突类） ---------- */
+.placeholder-kicker,
+.rail-card-kicker,
+.rail-card-index {
+  display: none !important;
+}
+
 .btn-quiet {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   height: 34px; padding: 0 16px; border-radius: var(--ds-radius-sm);
