@@ -8,6 +8,7 @@ JS_ROOT = PROJECT_ROOT / "frontend" / "assets" / "js"
 CSS_ROOT = PROJECT_ROOT / "frontend" / "assets" / "css"
 
 BUTTON_EXCEPTIONS = {
+    "biz-project-item__next",
     "btn-delete",
     "btn-dismiss",
     "btn-flag",
@@ -16,6 +17,8 @@ BUTTON_EXCEPTIONS = {
     "f-chip",
     "icon-btn",
     "login-card",
+    "proj-name",
+    "project-todo-link",
     "project-browser-item",
     "project-choice-row",
     "project-list-item",

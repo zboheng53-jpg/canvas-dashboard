@@ -64,7 +64,7 @@ def test_css_layer_declaration_integrity():
 
     expected = {
         dashboard_css: "@layer legacy, tokens, foundation, components, patterns, pages, utilities, design-system;",
-        app_css: "@layer legacy, tokens, foundation, components, patterns, pages, utilities;",
+        app_css: "@layer legacy, tokens, foundation, components, patterns, pages, utilities, design-system;",
     }
 
     for css_file, expected_layer in expected.items():

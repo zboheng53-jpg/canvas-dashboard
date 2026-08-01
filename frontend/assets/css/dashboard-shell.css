@@ -82,6 +82,93 @@
   border-bottom: 1px solid var(--shell-border-soft);
 }
 
+/* ---- 侧栏用户卡片（与重设计稿一致：问候 + 用户名） ---- */
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 10px;
+  margin-bottom: 2px;
+  background: transparent;
+  border-radius: 10px;
+  position: relative;
+  min-width: 0;
+}
+.up-avatar-wrapper {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  flex: none;
+}
+.up-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--avatar-bg, #f1f5f9);
+  border: 1px solid var(--shell-border-soft, #eef0f3);
+  box-shadow: 0 0 0 2px var(--avatar-ring, #eff6ff);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #1c2330);
+}
+.up-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.up-greeting {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 300;
+  letter-spacing: 0.01em;
+  color: var(--text-muted, #7d8694);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+.up-name {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--text-primary, #1c2330);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+.up-collapse {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  margin-left: auto;
+  border-radius: 7px;
+  color: #7d8694;
+  display: grid;
+  place-items: center;
+}
+.up-collapse:hover {
+  background: #f4f6f9;
+  color: var(--text-primary, #1c2330);
+}
+.up-collapse svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .sidebar-brand {
   display: flex;
   align-items: center;
@@ -193,8 +280,8 @@
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  gap: 18px;
-  padding: 18px 10px;
+  gap: 16px;
+  padding: 16px 10px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -1388,7 +1475,7 @@
     width: 100%;
     transition: all 0.2s ease;
   }
-  
+
   .connections-list-panel .login-card::before {
     display: none; /* Hide top bar on desktop list */
   }
@@ -1746,14 +1833,7 @@
 
 }
 
-.connection-form-inline {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) 128px !important;
-  gap: 10px !important;
-  align-items: center !important;
-  width: 100% !important;
-  margin-bottom: 12px !important;
-}
+
 
 .connection-form-inline input {
   min-width: 0;
@@ -1818,14 +1898,7 @@
     flex: 1;
   }
 
-  .workspace-main .dashboard-view[data-view-panel="connections"] .connections-manager-card {
-    display: flex;
-    min-height: 0;
-    flex: 1;
-    flex-direction: column;
-    margin-bottom: 0 !important;
-    overflow: hidden;
-  }
+
 
   .workspace-main .dashboard-view[data-view-panel="connections"] .connections-detail-panel {
     overflow-x: hidden;

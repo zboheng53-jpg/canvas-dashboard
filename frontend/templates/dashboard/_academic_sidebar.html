@@ -32,6 +32,7 @@
           <rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect>
         </svg>
         <span class="sidebar-label">今日总览</span>
+        <span class="nav-count" data-nav-count="overview" hidden></span>
       </button>
     </div>
 
@@ -42,6 +43,7 @@
           <path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7Z"></path>
         </svg>
         <span class="sidebar-label">长期项目</span>
+        <span class="nav-count" data-nav-count="projects" hidden></span>
       </button>
       <button type="button" class="nav-item sidebar-nav-item" data-dashboard-view="schedule" title="日程与课表">
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -67,12 +69,12 @@
         id="calendar-subscription-trigger"
         data-dashboard-view="calendar"
         aria-controls="dashboard-view-calendar"
-        title="Apple Calendar"
+        title="日历订阅"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M8 3v4m8-4v4M4 10h16m-6 6h4"></path>
         </svg>
-        <span class="sidebar-label">Apple Calendar</span>
+        <span class="sidebar-label">日历订阅</span>
       </button>
       {% endif %}
       <button type="button" class="nav-item sidebar-nav-item" data-dashboard-view="settings" title="偏好设置">

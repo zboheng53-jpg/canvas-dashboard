@@ -81,32 +81,17 @@
       color: var(--text-primary) !important;
     }
 
-    /* 1.1. 大而轻、舒展且极具书卷感的主要内容/卡片标题（待办清单、长期项目、今日日程） */
-    .card-title,
-    .rail-card-heading h2,
-    #dashboard-view-projects .project-list-heading h2,
-    .section-header h2,
-    .card.enter-main-card .header-left-group h2,
-    #dashboard-view-projects .project-manager-heading h1 {
-      font-family: var(--font-serif) !important;
-      letter-spacing: -0.02em !important;
-      color: var(--text-primary) !important;
-      line-height: 1.3 !important;
-    }
 
-    .card-title,
-    .rail-card-heading h2,
-    #dashboard-view-projects .project-list-heading h2 {
-      font-size: 19px !important;
-      font-weight: 500 !important;
-    }
+
+
 
     .section-header h2,
-    .card.enter-main-card .header-left-group h2,
-    #dashboard-view-projects .project-manager-heading h1 {
-      font-size: 30px !important;
-      font-weight: 400 !important;
+    .card.enter-main-card .header-left-group h2 {
+      font-size: 22px !important;
+      font-weight: 600 !important;
     }
+
+
 
     /* 2. 重新设计的控制台风格顶部身份区 (Console Greeting Area) */
     .sidebar-heading {
@@ -198,7 +183,7 @@
     .sidebar-greeting-title {
       font-family: var(--font-title) !important;
       font-style: normal !important;
-      font-size: 18px !important;
+      font-size: 15px !important;
       font-weight: 300 !important;
       color: var(--text-muted) !important;
       line-height: 1.25 !important;
@@ -212,7 +197,7 @@
     #sidebar-greeting,
     .sidebar-brand-copy strong {
       font-family: var(--font-title) !important;
-      font-size: 18px !important;
+      font-size: 15px !important;
       font-weight: 500 !important;
       color: var(--text-primary) !important;
       line-height: 1.25 !important;
@@ -268,26 +253,17 @@
       transform: rotate(180deg);
     }
 
-    /* 3. 莫兰迪半透明晶莹分割线 (1px 白高光 + 柔暖灰 Hairline) */
-    .card, .rail-card, #dashboard-view-projects .project-manager-card {
-      background: var(--glass-surface) !important;
-      backdrop-filter: var(--blur-strength) !important;
-      -webkit-backdrop-filter: var(--blur-strength) !important;
-      border: 1px solid var(--glass-border) !important;
-      border-radius: var(--radius-card) !important;
-      box-shadow: var(--glass-shadow) !important;
-      padding: 20px !important; /* 舒适呼吸感 (20px 模块内边距) */
-      transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
-    }
+
 
     .academic-sidebar {
-      background: var(--glass-surface) !important;
-      backdrop-filter: var(--blur-strength) !important;
-      -webkit-backdrop-filter: var(--blur-strength) !important;
-      border: 1px solid var(--glass-border) !important;
-      border-radius: var(--radius-card) !important;
-      box-shadow: var(--glass-shadow) !important;
-      padding: 0 !important; /* 恢复侧边栏容器 0 外边距与内缩，避免叠加 20px padding 导致挤压 */
+      background: var(--ds-surface, #ffffff) !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      border: none !important;
+      border-right: 1px solid var(--ds-line, #e6e8ec) !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      padding: 18px 12px 14px !important; /* 设计稿 .side 内边距 */
       transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
     }
 
@@ -297,36 +273,41 @@
       box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 1), 0 6px 24px -4px rgba(70, 80, 72, 0.07) !important;
     }
 
-    /* 4. 侧边栏 Nav 激活项与导航文字：经典蓝 (#2F6FE4) 主导指示条 & 14.4px 精细字号 & 加粗 */
+    /* 4. 侧边栏 Nav：对齐设计稿 .nav-item（15px、无字距；激活 = accent-soft 底 + accent-ink 字） */
     .sidebar-nav-item,
     .sidebar-footer-action {
-      font-size: 14px !important;
+      font-size: 15px !important;
       font-weight: 400 !important;
-      letter-spacing: 0.015em !important;
+      letter-spacing: 0 !important;
     }
 
+    /* 设计稿 .nav-group-label：serif 17px / ink-3 / 无字距 */
     .sidebar-section-label {
+      font-family: var(--font-serif) !important;
       font-weight: 500 !important;
-      letter-spacing: 0.04em !important;
-      color: #94A3B8 !important;
+      font-size: 17px !important;
+      letter-spacing: 0 !important;
+      color: var(--ds-ink-3, #7d8694) !important;
+      line-height: 1.3 !important;
+      padding: 0 10px 4px !important;
+      text-transform: none !important;
     }
 
     .sidebar-nav-item.is-active {
-      background: var(--color-primary-soft) !important;
-      color: var(--color-primary) !important;
-      border: 1px solid var(--color-primary-border) !important;
-      border-left: 3px solid var(--color-primary) !important;
-      border-radius: 8px !important;
+      background: var(--accent-soft, #eff4fe) !important;
+      color: var(--ds-accent-ink, #1d4fd7) !important;
+      border: none !important;
+      border-radius: 7px !important;
       font-weight: 600 !important;
     }
 
     .sidebar-nav-item.is-active svg {
-      stroke: var(--color-primary) !important;
+      stroke: currentColor !important;
     }
 
     .sidebar-nav-item:hover:not(.is-active) {
-      background: rgba(242, 239, 232, 0.6) !important;
-      color: #2C3237 !important;
+      background: #f4f6f9 !important;
+      color: #1c2330 !important;
     }
 
     /* Accessibility Baseline: Focus-Visible & Motion Safety */
@@ -495,7 +476,7 @@
       color: var(--text-secondary) !important;
       font-family: var(--font-serif) !important;
       font-size: 17px !important;
-      font-weight: 500 !important;
+      font-weight: 600 !important;
       letter-spacing: 0.01em !important;
       line-height: 1.3 !important;
     }
@@ -578,13 +559,15 @@
         grid-template-columns: 1fr 1fr 1fr !important;
         gap: 24px !important;
         align-items: center !important;
-        background: var(--glass-surface) !important;
-        border: 1px solid var(--glass-border) !important;
-        border-radius: var(--radius-card) !important;
+        /* 设计稿：轻量磨砂玻璃（78% 半透白 + backdrop blur），tokens 的
+           --glass-surface 已被重定义为实色白，这里显式写回设计值 */
+        background: rgba(255, 255, 255, 0.78) !important;
+        border: 1px solid rgba(226, 220, 210, 0.85) !important;
+        border-radius: 14px !important;
         padding: 20px 24px !important;
-        box-shadow: var(--glass-shadow) !important;
-        backdrop-filter: var(--blur-strength) !important;
-        -webkit-backdrop-filter: var(--blur-strength) !important;
+        box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.9), 0 4px 20px -2px rgba(70, 80, 72, 0.04) !important;
+        backdrop-filter: blur(16px) saturate(135%) !important;
+        -webkit-backdrop-filter: blur(16px) saturate(135%) !important;
         transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
       }
 
@@ -873,10 +856,11 @@
 
       .card.enter-main-card .section-header {
         display: flex !important;
-        align-items: center !important;
+        align-items: flex-end !important;
         justify-content: space-between !important;
-        padding: 0 0 12px 0 !important;
-        border-bottom: none !important;
+        padding: 15px 18px 12px !important; /* 设计稿 .card-head */
+        margin-bottom: 0 !important;
+        border-bottom: 1px solid var(--line-soft, #eef0f3) !important;
       }
 
       .card.enter-main-card .header-left-group {
@@ -900,14 +884,7 @@
       }
 
       .card.enter-main-card .stats-bar-under-add {
-        display: flex !important;
-        align-items: center !important;
-        gap: 20px !important;
-        padding: 4px 4px 6px 4px !important;
-        font-size: 13.5px !important;
-        font-family: var(--font-body) !important;
-        color: var(--text-secondary) !important;
-        font-weight: 400 !important;
+        display: none !important; /* 设计稿无此统计条：计数已在 KPI 卡与来源筛选 chips 呈现 */
       }
 
       .card.enter-main-card .todo-header-divider {
@@ -920,7 +897,7 @@
         display: flex !important;
         flex-direction: row !important;
         align-items: center !important;
-        gap: 12px !important;
+        gap: 6px !important; /* 设计稿 .card-head .right */
         flex-wrap: nowrap !important;
         white-space: nowrap !important;
         margin-right: 0 !important;
@@ -955,15 +932,15 @@
 
       }
 
-      /* Row 2: Add Todo Form */
+      /* Row 2: Add Todo Form —— 设计稿 .add-row：12px 18px padding + 底部分隔线 */
       .card.enter-main-card .add-todo-form {
-        margin: 0 0 8px 0 !important;
-        padding: 0 !important;
+        margin: 0 !important;
+        padding: 12px 18px !important;
         background: transparent !important;
-        border-bottom: none !important;
+        border-bottom: 1px solid var(--line-soft, #eef0f3) !important;
         display: flex !important;
         align-items: center !important;
-        gap: 10px !important;
+        gap: 8px !important;
         width: 100% !important;
       }
 
@@ -1011,13 +988,14 @@
         display: none !important;
       }
 
-      /* Right Rail Cards Alignment & Styling */
+      /* Right Rail Cards Alignment & Styling —— 设计稿：零 padding 白卡、
+         #e6e8ec 细边框、10px 圆角、无投影（内部区块各自 padding） */
       .rail-card {
-        padding: 24px !important;
-        border-radius: var(--radius-card) !important;
-        background: #FFFFFF !important;
-        border: 1px solid rgba(226, 232, 240, 0.9) !important;
-        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 16px -2px rgba(15, 23, 42, 0.05) !important;
+        padding: 0 !important;
+        border-radius: 10px !important;
+        background: #ffffff !important;
+        border: 1px solid var(--line, #e6e8ec) !important;
+        box-shadow: none !important;
       }
 
       .rail-card::after {
@@ -1028,17 +1006,7 @@
         margin-bottom: 14px !important;
       }
 
-      .placeholder-kicker,
-      .rail-card-kicker {
-        font-family: var(--font-kicker) !important;
-        font-size: 10px !important;
-        font-weight: 500 !important;
-        letter-spacing: 0.1em !important;
-        color: #94A3B8 !important;
-        margin-bottom: 4px !important;
-        text-transform: uppercase !important;
-        display: block !important;
-      }
+
 
       .rail-card-heading h2 {
         font-family: var(--font-title) !important;
@@ -1058,10 +1026,10 @@
         border-radius: 10px !important;
       }
 
-      /* Long-term Projects Card Items */
+      /* Long-term Projects Card Items（设计稿 .proj-list 紧贴 card-head 分隔线） */
       .project-overview-content {
-        margin-top: 8px !important;
-        gap: 12px !important;
+        margin-top: 0 !important;
+        gap: 0 !important;
       }
 
       .project-overview-main {
@@ -1197,127 +1165,39 @@
         white-space: nowrap !important;
       }
 
-      /* Full Projects View Alignment & Styling */
-      #dashboard-view-projects .project-manager-card {
-        background: #FFFFFF !important;
-        border: 1px solid rgba(226, 232, 240, 0.9) !important;
-        border-radius: var(--radius-card) !important;
-        padding: 24px 24px !important;
-        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03), 0 4px 16px -2px rgba(15, 23, 42, 0.04) !important;
-      }
 
-      /* Unified Cards & Managers Layout for all panels (Projects, Schedule, Connections, Calendar, Settings) */
-      .project-manager-card,
-      .schedule-manager-card,
-      .connections-manager-card,
-      .calendar-subscription-card,
-      .settings-manager-card {
-        background: #FFFFFF !important;
-        border: 1px solid rgba(226, 232, 240, 0.9) !important;
-        border-radius: var(--radius-card) !important;
-        padding: 24px !important;
-        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03), 0 4px 16px -2px rgba(15, 23, 42, 0.04) !important;
-        margin-bottom: 24px !important;
-        transition: all 0.2s ease !important;
-      }
 
-      .project-manager-heading,
-      .schedule-manager-heading,
-      .connections-manager-heading,
-      .console-manager-heading {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: space-between !important;
-        margin-bottom: 20px !important;
-        padding-bottom: 16px !important;
-        border-bottom: 1px solid #E2E8F0 !important;
-      }
 
-      .placeholder-kicker,
-      .rail-card-kicker,
-      .connections-manager-card .placeholder-kicker,
-      .calendar-subscription-card .placeholder-kicker,
-      .settings-manager-card .placeholder-kicker,
-      .schedule-manager-card .placeholder-kicker {
-        font-family: var(--font-kicker) !important;
-        font-size: 10px !important;
-        font-weight: 500 !important;
-        letter-spacing: 0.1em !important;
-        color: #94A3B8 !important;
-        text-transform: uppercase !important;
-        display: block !important;
-        margin-bottom: 4px !important;
-      }
+
+
+
+
 
       /* Unified Main Heading style for all panels (Overview, Projects, Schedule, Connections, Calendar, Settings) */
       .section-header h2,
-      .card.enter-main-card .header-left-group h2,
-      .project-manager-heading h1,
-      .schedule-manager-heading h1,
-      .connections-manager-heading h1,
-      .console-manager-heading h1 {
+      .card.enter-main-card .header-left-group h2 {
         font-family: var(--font-serif) !important;
-        font-size: 30px !important;
-        font-weight: 400 !important;
+        font-size: 22px !important; /* 设计稿「待办清单」标题 */
+        font-weight: 600 !important;
         color: var(--text-primary) !important;
         margin: 0 !important;
         line-height: 1.2 !important;
         letter-spacing: -0.02em !important;
       }
 
-      .project-manager-heading p,
-      .schedule-manager-heading p,
-      .connections-manager-heading p,
-      .console-manager-heading p {
-        font-family: var(--font-body) !important;
-        font-size: 13px !important;
-        color: var(--text-secondary) !important;
-        margin: 4px 0 0 0 !important;
-      }
 
-      #dashboard-view-projects .project-manager-layout {
-        display: grid !important;
-        grid-template-columns: 320px minmax(0, 1fr) !important;
-        gap: 32px !important;
-        margin-top: 20px !important;
-      }
 
-      #dashboard-view-projects .project-browser {
-        background: transparent !important;
-        border: none !important;
-        border-right: 1px solid #E2E8F0 !important;
-        border-radius: 0 !important;
-        padding: 0 28px 0 0 !important;
-      }
 
-      #dashboard-view-projects .project-list-heading h2 {
-        font-family: var(--font-body) !important;
-        font-size: 19px !important;
-        font-weight: 500 !important;
-        color: #1E293B !important;
-        margin: 0 !important;
-        letter-spacing: -0.015em !important;
-      }
 
-      #dashboard-view-projects #active-project-count,
-      #dashboard-view-projects #completed-project-count,
-      #dashboard-view-projects #archived-project-count {
-        font-family: var(--font-number) !important;
-        font-size: 11.5px !important;
-        font-weight: 500 !important;
-        color: #94A3B8 !important;
-        background: transparent !important;
-        padding: 0 !important;
-        border-radius: 0 !important;
-      }
 
-      #dashboard-view-projects .project-history-section summary {
-        font-size: 13px !important;
-        font-weight: 500 !important;
-        color: #475569 !important;
-        padding: 8px 0 !important;
-        cursor: pointer !important;
-      }
+
+
+
+
+
+
+
+
 
       /* 待办事项列表稳定表格化对齐 (Stable Table Grid Layout for Todo Rows) */
       .unified-item, .todo-item {
@@ -1450,54 +1330,13 @@
       gap: 4px;
     }
 
-    /* List Card Styles */
-    .project-list-item {
-      display: flex !important;
-      flex-direction: column !important;
-      align-items: stretch !important;
-      padding: 12px 14px !important;
-      gap: 6px !important;
-    }
-    .project-list-next-task {
-      font-size: 11px !important;
-      color: var(--text-muted) !important;
-      overflow: hidden !important;
-      text-overflow: ellipsis !important;
-      white-space: nowrap !important;
-      margin-top: 2px !important;
-      display: block !important;
-    }
-    .project-list-progress-wrapper {
-      height: 4px !important;
-      background: rgba(0, 0, 0, 0.05) !important;
-      border-radius: 2px !important;
-      overflow: hidden !important;
-      margin-top: 6px !important;
-      width: 100% !important;
-    }
-    .project-list-progress-bar {
-      height: 100% !important;
-      background: var(--text-secondary) !important;
-      border-radius: 2px !important;
-      transition: width 0.3s ease !important;
-    }
 
-    /* 2. Project Details Page Header & Tags */
-    .project-detail-kicker {
-      font-size: 11px !important;
-      text-transform: uppercase !important;
-      letter-spacing: 0.08em !important;
-      color: var(--text-muted) !important;
-      font-weight: 600 !important;
-      display: block !important;
-      margin-bottom: 6px !important;
-    }
-    .project-detail-title h2 {
-      font-size: 24px !important;
-      font-family: var(--font-serif) !important;
-      font-weight: 500 !important;
-      margin: 0 !important;
-    }
+
+
+
+
+
+
     .project-tags-row {
       display: flex !important;
       flex-wrap: wrap !important;
@@ -1505,49 +1344,12 @@
       margin-top: 10px !important;
       margin-bottom: 12px !important;
     }
-    /* 3. Highlighted Next Action Box */
-    .project-next-action-card {
-      display: flex !important;
-      justify-content: space-between !important;
-      align-items: center !important;
-      padding: 16px 20px !important;
-      background: #FFFFFF !important;
-      border: 1px solid rgba(0, 0, 0, 0.06) !important;
-      border-radius: 10px !important;
-      margin-top: 16px !important;
-      margin-bottom: 20px !important;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
-    }
-    .project-next-action-card.is-empty {
-      background: rgba(0, 0, 0, 0.01) !important;
-      border-style: dashed !important;
-    }
-    .project-next-action-left {
-      display: flex !important;
-      flex-direction: column !important;
-      gap: 4px !important;
-      min-width: 0 !important;
-      flex: 1 !important;
-    }
-    .project-next-action-label {
-      font-size: 10px !important;
-      font-weight: 600 !important;
-      color: var(--text-muted) !important;
-      text-transform: uppercase !important;
-      letter-spacing: 0.05em !important;
-    }
-    .project-next-action-text {
-      font-size: 14px !important;
-      font-weight: 600 !important;
-      color: var(--text-primary) !important;
-      overflow: hidden !important;
-      text-overflow: ellipsis !important;
-      white-space: nowrap !important;
-    }
-    .project-next-action-text.text-muted {
-      color: var(--text-muted) !important;
-      font-weight: 400 !important;
-    }
+
+
+
+
+
+
     .project-next-action-btn-complete,
     .project-next-action-btn-choose {
 
@@ -1561,51 +1363,16 @@
       flex-shrink: 0;
       margin-left: 16px;
     }
-    .project-detail-divider {
-      border: none !important;
-      border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
-      margin: 16px 0 !important;
-    }
+
 
     /* 4. Column Group Cards Without Backgrounds */
     @media (min-width: 920px) {
-      .project-groups {
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 20px !important;
-      }
-    }
-    .project-group-card {
-      background: transparent !important;
-      border: none !important;
-      border-top: 1px solid #2C3237 !important;
-      border-radius: 0 !important;
-      padding: 12px 0 0 0 !important;
-    }
-    .project-group-heading {
-      display: flex !important;
-      align-items: center !important;
-      justify-content: space-between !important;
-      margin-bottom: 12px !important;
-    }
-    .project-group-heading h4 {
-      font-size: 13px !important;
-      font-weight: 600 !important;
-      color: var(--text-primary) !important;
-      margin: 0 !important;
-    }
-    .project-task-row {
-      display: flex !important;
-      align-items: center !important;
-      padding: 8px 4px !important;
-      background: transparent !important;
-      border: none !important;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
-      border-radius: 0 !important;
-      gap: 8px !important;
-    }
-    .project-task-row:hover {
-      background: rgba(0, 0, 0, 0.02) !important;
-    }
+
+
+
+
+
+
     .project-task-name-btn {
       flex: 1;
 
@@ -1619,22 +1386,9 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .project-task-date {
-      font-size: 10px !important;
-      color: var(--text-muted) !important;
-      font-family: var(--font-number) !important;
-      margin-left: auto !important;
-      margin-right: 8px !important;
-    }
-    .project-task-actions {
-      display: flex !important;
-      gap: 4px !important;
-      opacity: 0 !important;
-      transition: opacity 0.15s ease !important;
-    }
-    .project-task-row:hover .project-task-actions {
-      opacity: 1 !important;
-    }
+
+
+
     .project-task-action-btn {
       display: inline-flex;
       align-items: center;
@@ -1648,71 +1402,15 @@
 
     }
 
-    /* Login Cards on Left */
-    .connections-list-panel .login-card {
-      border: 1px solid var(--border) !important;
-      border-left: 1px solid var(--border) !important; /* Overwrite thick left border */
-      padding: 10px 12px !important;
-      min-height: 52px !important;
-      border-radius: 8px !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: space-between !important;
-      text-decoration: none !important;
-    }
-    .login-card-left {
-      display: flex !important;
-      flex-direction: column !important;
-      gap: 2px !important;
-      min-width: 0 !important;
-      flex: 1 !important;
-    }
-    .login-card-title {
-      font-size: 13px !important;
-      font-weight: 600 !important;
-      color: var(--text-primary) !important;
-      display: block !important;
-    }
-    .login-card-subtitle {
-      font-size: 10px !important;
-      color: var(--text-muted) !important;
-      white-space: nowrap !important;
-      overflow: hidden !important;
-      text-overflow: ellipsis !important;
-      display: block !important;
-    }
-    .connections-list-panel .login-card.is-selected {
-      border-color: var(--color-primary-border) !important;
-      background: var(--color-primary-soft) !important;
-      box-shadow: 0 1px 3px rgba(47, 111, 228, 0.12) !important;
-    }
 
-    /* Platform Details Header Square Icon & Grid */
-    .detail-platform-icon-circle {
-      border-radius: 8px !important;
-      border: 1px solid rgba(0, 0, 0, 0.08) !important;
-      background: #FFFFFF !important;
-      width: 44px !important;
-      height: 44px !important;
-      font-size: 16px !important;
-      font-weight: 600 !important;
-      color: var(--text-primary) !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
-    }
-    .detail-platform-title-wrap div:last-child {
-      display: flex !important;
-      flex-direction: column !important;
-      gap: 4px !important;
-      align-items: flex-start !important;
-    }
-    .detail-platform-title {
-      font-size: 18px !important;
-      font-weight: 600 !important;
-      margin: 0 !important;
-    }
+
+
+
+
+
+
+
+
     .detail-platform-header .btn-refresh {
       width: 36px;
 
@@ -1725,30 +1423,12 @@
 
 
     }
+    }
 
-    /* Grid Divider Style */
-    .status-grid {
-      display: grid !important;
-      grid-template-columns: 140px 1fr !important;
-      gap: 0 !important;
-      font-size: 13px !important;
-      color: var(--text-primary) !important;
-      margin-bottom: 20px !important;
-      border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
-    }
-    .status-grid dt, .status-grid dd {
-      padding: 10px 0 !important;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
-      margin: 0 !important;
-    }
-    .status-grid dt {
-      font-weight: 500 !important;
-      color: var(--text-secondary) !important;
-    }
-    .status-grid dd {
-      font-family: var(--font-mono) !important;
-      color: var(--text-primary) !important;
-    }
+
+
+
+
 
     /* Side-by-side action buttons */
     .zhihuishu-login-actions {
@@ -2062,67 +1742,23 @@
       white-space: nowrap !important;
     }
 
-    .project-groups {
-      gap: 14px !important;
-    }
 
-    .project-group-card {
-      padding: 14px !important;
-      background: rgba(248, 250, 252, 0.72) !important;
-      border: 1px solid rgba(226, 232, 240, 0.95) !important;
-      border-radius: 10px !important;
-      box-shadow: 0 2px 7px rgba(15, 23, 42, 0.025) !important;
-      transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease !important;
-    }
 
-    .project-group-card:hover {
-      background: rgba(255, 255, 255, 0.96) !important;
-      border-color: rgba(47, 111, 228, 0.24) !important;
-      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.045) !important;
-    }
 
-    .project-group-heading {
-      margin-bottom: 10px !important;
-    }
 
-    .project-group-heading h4 {
-      color: #1E293B !important;
-      font-family: var(--font-body) !important;
-      font-size: 13px !important;
-      font-weight: 600 !important;
-      letter-spacing: -0.005em !important;
-    }
 
-    .project-task-list {
-      gap: 6px !important;
-      margin-top: 0 !important;
-    }
 
-    .project-task-row {
-      display: grid !important;
-      grid-template-columns: 16px minmax(0, 1fr) auto auto !important;
-      gap: 8px !important;
-      padding: 9px 10px !important;
-      background: #FFFFFF !important;
-      border: 1px solid rgba(226, 232, 240, 0.9) !important;
-      border-radius: 7px !important;
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.018) !important;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease !important;
-    }
 
-    .project-task-row:hover,
-    .project-task-row:focus-within {
-      background: #FFFFFF !important;
-      border-color: #CBD5E1 !important;
-      box-shadow: 0 3px 8px rgba(15, 23, 42, 0.045) !important;
-    }
 
-    .project-task-date {
-      color: #64748B !important;
-      font-family: var(--font-number) !important;
-      font-size: 10.5px !important;
-      letter-spacing: 0.01em !important;
-    }
+
+
+
+
+
+
+
+
+
 
     body {
       background: var(--bg-main) !important;
@@ -2130,18 +1766,33 @@
     }
 
 @media (min-width: 961px) {
-  .workspace-main .dashboard-view[data-view-panel="connections"] .connections-manager-card {
-    display: flex;
-    min-height: 0;
-    flex: 1;
-    flex-direction: column;
-    margin-bottom: 0 !important;
-    overflow: hidden;
-  }
+
 
   .workspace-main .dashboard-view[data-view-panel="connections"] .connections-detail-panel {
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
   }
+}
+
+/* ============================================================
+ * 设计稿保真终裁（本文件内 @layer legacy 最高效力位置）
+ * 总览主卡 + 右栏卡：纯白、#e6e8ec 细边框、10px 圆角、无投影、零 padding
+ * （内部区块 card-head / add-row / src-filters / proj / timeline 各自 padding）
+ * ============================================================ */
+.dashboard-view[data-view-panel="overview"] .card:not(.context-card),
+.dashboard-right-rail .rail-card {
+  background: var(--surface, #ffffff) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid var(--line, #e6e8ec) !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.dashboard-view[data-view-panel="overview"] .card:not(.context-card):hover,
+.dashboard-right-rail .rail-card:hover {
+  background: var(--surface, #ffffff) !important;
+  border-color: var(--line, #e6e8ec) !important;
+  box-shadow: none !important;
 }

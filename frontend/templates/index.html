@@ -121,13 +121,13 @@
 
           <!-- 来源筛选 Chips -->
           <div class="src-filters todo-source-filters" id="todo-source-filters" role="group" aria-label="按来源筛选待办">
-            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter is-on" data-todo-source="all" aria-pressed="true">全部 <span class="n" id="src-count-all">(0)</span></button>
-            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="canvas" aria-pressed="false"><span class="dot" style="background:var(--src-canvas)"></span>Canvas <span class="n" id="src-count-canvas">(0)</span></button>
-            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="haoke" aria-pressed="false"><span class="dot" style="background:var(--src-haoke)"></span>好课 <span class="n" id="src-count-haoke">(0)</span></button>
-            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="zhixuemeng" aria-pressed="false"><span class="dot" style="background:var(--src-zxm)"></span>智学盟 <span class="n" id="src-count-zhixuemeng">(0)</span></button>
-            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="zhihuishu" aria-pressed="false"><span class="dot" style="background:var(--src-zhs)"></span>智慧树 <span class="n" id="src-count-zhihuishu">(0)</span></button>
-            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="project" aria-pressed="false"><span class="dot" style="background:var(--src-project)"></span>项目 <span class="n" id="src-count-project">(0)</span></button>
-            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="custom" aria-pressed="false"><span class="dot" style="background:var(--src-custom)"></span>自定义 <span class="n" id="src-count-custom">(0)</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter is-on" data-todo-source="all" aria-pressed="true">全部 <span class="n" id="src-count-all">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="canvas" aria-pressed="false"><span class="dot" style="background:var(--src-canvas)"></span>Canvas <span class="n" id="src-count-canvas">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="haoke" aria-pressed="false"><span class="dot" style="background:var(--src-haoke)"></span>好课 <span class="n" id="src-count-haoke">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="zhixuemeng" aria-pressed="false"><span class="dot" style="background:var(--src-zxm)"></span>智学盟 <span class="n" id="src-count-zhixuemeng">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="zhihuishu" aria-pressed="false"><span class="dot" style="background:var(--src-zhs)"></span>智慧树 <span class="n" id="src-count-zhihuishu">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="project" aria-pressed="false"><span class="dot" style="background:var(--src-project)"></span>项目 <span class="n" id="src-count-project">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="custom" aria-pressed="false"><span class="dot" style="background:var(--src-custom)"></span>自定义 <span class="n" id="src-count-custom">0</span></button>
           </div>
 
           <!-- Unified todo list -->
@@ -1095,6 +1095,10 @@
       if (!container) return;
       container.setAttribute('aria-busy', 'false');
       container.replaceChildren();
+      const scheduleSub = document.getElementById('today-schedule-sub');
+      if (scheduleSub) {
+        scheduleSub.textContent = data.timed.length ? `${data.timed.length} 节` : '无日程';
+      }
       if (!data.timed.length && !data.deadlines.length) {
         const empty = scheduleElement('div', 'ui-empty rail-empty-state');
         const art = scheduleElement('span', 'ui-empty__art');
@@ -1102,21 +1106,47 @@
         empty.append(art, scheduleElement('strong', '', '今天没有日程'), scheduleElement('p', '', '课程、固定事项和一次性事项会显示在这里'));
         container.append(empty); return;
       }
-      const list = scheduleElement('div', 'today-schedule-list');
+      // 设计稿：时间线样式（时间两列 + 圆点 + now 蓝色高亮）
+      const timeline = scheduleElement('div', 'tl-timeline');
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const toMinutes = (t) => {
+        if (!t) return 0;
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+      };
       data.timed.forEach((item) => {
-        const row = scheduleElement('div', `ui-list-item agenda-item agenda-${item.kind}`);
-        row.append(scheduleElement('time', '', item.start_time === item.end_time ? item.start_time : `${item.start_time}–${item.end_time}`));
-        const copy = scheduleElement('div', '');
+        const startMin = toMinutes(item.start_time);
+        const endMin = item.end_time ? toMinutes(item.end_time) : startMin;
+        const isNow = nowMinutes >= startMin && nowMinutes <= endMin;
+        const row = scheduleElement('div', `tl-item ${isNow ? 'now' : ''} agenda-${item.kind}`);
+        // 时间列：08:00 换行 09:35
+        const time = scheduleElement('div', 'tl-time', '');
+        if (item.end_time && item.end_time !== item.start_time) {
+          time.innerHTML = `${item.start_time}<br>${item.end_time}`;
+        } else {
+          time.textContent = item.start_time;
+        }
+        row.append(time);
+        // 中间圆点 + 连线
+        const rail = scheduleElement('div', 'tl-rail');
+        rail.append(scheduleElement('span', 'tl-dot'));
+        rail.append(scheduleElement('span', 'tl-line'));
+        row.append(rail);
+        // 右侧标题 + 子信息
+        const body = scheduleElement('div', 'tl-body');
         const displayTitle = formatScheduleTitle(item.title);
-        const titleEl = scheduleElement('strong', '', item.kind === 'deadline' ? `◆ ${displayTitle}` : displayTitle);
-        titleEl.title = item.course ? `${item.course} · ${item.title}` : item.title;
-        copy.append(titleEl);
+        const name = scheduleElement('div', 'tl-name', displayTitle);
+        name.title = item.course ? `${item.course} · ${item.title}` : item.title;
+        body.append(name);
         const metaText = item.location || item.course;
-        if (metaText) copy.append(scheduleElement('small', '', metaText));
-        row.append(copy);
-        row.querySelector('strong')?.classList.add('ui-list-item__title');
-        row.querySelector('small')?.classList.add('ui-list-item__meta');
-        list.append(row);
+        if (metaText) body.append(scheduleElement('div', 'tl-sub', metaText));
+        if (isNow) {
+          const pill = scheduleElement('span', 'now-pill', '现在');
+          name.append(pill);
+        }
+        row.append(body);
+        timeline.append(row);
       });
       if (data.deadlines.length) {
         const group = scheduleElement('div', 'today-deadlines');
@@ -1132,9 +1162,9 @@
           }
           group.append(itemEl);
         });
-        list.append(group);
+        timeline.append(group);
       }
-      container.append(list);
+      container.append(timeline);
     }
 
     function renderTodayScheduleState(title, detail, isError = false) {
@@ -1566,7 +1596,7 @@
         const source = button.dataset.todoSource;
         const countSpan = button.querySelector('.n') || document.getElementById('src-count-' + source);
         if (countSpan) {
-          countSpan.textContent = `(${counts[source] || 0})`;
+          countSpan.textContent = String(counts[source] || 0);
         } else {
           button.textContent = `${labels[source]} (${counts[source] || 0})`;
         }
@@ -1589,20 +1619,33 @@
     }
 
     function buildTodoGroups(items) {
-      const labels = { today: '今日优先', week: '本周安排', later: '之后' };
-      const groups = { today: [], week: [], later: [] };
-      const today = window.customToday || new Date().toISOString().slice(0, 10);
+      // 设计稿分组：已逾期 / 今天 / 明天 / 本周内 / 无日期
+      const labels = { overdue: '已逾期', today: '今天', tomorrow: '明天', week: '本周内', nodate: '无日期' };
+      const groups = { overdue: [], today: [], tomorrow: [], week: [], nodate: [] };
+      const todayStr = window.customToday || new Date().toISOString().slice(0, 10);
+      const today = new Date(todayStr + 'T00:00:00');
+      const tomorrow = new Date(today.getTime() + 86400000);
+      const weekEnd = new Date(today.getTime() + 7 * 86400000);
       const dueKey = (item) => item.due_ts || '9999-12-31T23:59:59';
-      items.forEach((item) => groups[timeGroupForTodo(item)].push(item));
-      groups.today.sort((a, b) => {
-        const rank = (item) => item.done ? 4 : (item.due_ts && item.due_ts.slice(0, 10) < today ? (item.manualHighlighted ? 0 : 1) : (item.manualHighlighted ? 2 : 3));
-        return rank(a) - rank(b) || dueKey(a).localeCompare(dueKey(b)) || a._stableIndex - b._stableIndex;
+      items.forEach((item) => {
+        if (item.done) { groups.today.push(item); return; }
+        if (!item.due_ts) { groups.nodate.push(item); return; }
+        const dueDate = new Date(item.due_ts.slice(0, 10) + 'T00:00:00');
+        if (dueDate < today) { groups.overdue.push(item); return; }
+        if (dueDate.getTime() === today.getTime()) { groups.today.push(item); return; }
+        if (dueDate.getTime() === tomorrow.getTime()) { groups.tomorrow.push(item); return; }
+        if (dueDate < weekEnd) { groups.week.push(item); return; }
+        groups.week.push(item);
       });
-      groups.week.sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || (b.manualHighlighted ? 1 : 0) - (a.manualHighlighted ? 0 : 1) || dueKey(a).localeCompare(dueKey(b)) || a._stableIndex - b._stableIndex);
-      groups.later.sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || (b.manualHighlighted ? 1 : 0) - (a.manualHighlighted ? 0 : 1) || dueKey(a).localeCompare(dueKey(b)) || a._stableIndex - b._stableIndex);
-      return Object.entries(groups)
-        .filter(([, groupedItems]) => groupedItems.length)
-        .map(([key, groupedItems]) => ({ title: labels[key], items: groupedItems }));
+      const sortGroup = (arr) => arr.sort((a, b) =>
+        (b.manualHighlighted ? 1 : 0) - (a.manualHighlighted ? 1 : 0) ||
+        dueKey(a).localeCompare(dueKey(b)) || a._stableIndex - b._stableIndex
+      );
+      Object.values(groups).forEach(sortGroup);
+      const order = ['overdue', 'today', 'tomorrow', 'week', 'nodate'];
+      return order
+        .filter((k) => groups[k].length)
+        .map((k) => ({ key: k, title: labels[k], items: groups[k] }));
     }
 
     function renderUnifiedList() {
@@ -1858,6 +1901,7 @@
             ? `<button class="ui-button ui-button--text ui-list-item__meta item-due project-due-editable" onclick="startProjectTodoDueEdit(this)" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" aria-label="修改截止日期">${item.due_str}</button>`
           : `<span class="ui-list-item__meta item-due">${item.due_str}</span>`;
 
+        // courseHtml 改为整合进副标题，详见下方 rowHtml 重构
         let courseHtml = '';
         if (item.source === 'project') {
           courseHtml = `<button class="ui-button ui-button--text ui-list-item__meta item-course project-todo-link" onclick="openProjectsView(${item.projectId})">${escapeHtml(item.course)} ↗</button>`;
@@ -1881,18 +1925,35 @@
 
         const animAttr = doAnimate ? `enter-item" style="animation-delay:${0.34 + idx * 0.04}s` : '';
 
+        // 设计稿两行结构：body（上：标题+副标题）+ right（下：来源+截止胶囊+操作）
+        // 副标题：课程名 · 类型 · 截止时间（与原 .item-course 合并到副标题）
+        const metaParts = [];
+        if (item.course) {
+          metaParts.push(item.source === 'project'
+            ? `<button type="button" class="project-todo-link" onclick="openProjectsView(${item.projectId})">${escapeHtml(item.course)}</button>`
+            : escapeHtml(item.course));
+        }
+        if (item.type && !item.course) metaParts.push(escapeHtml(item.type));
+        if (!item.course && item.labels && item.labels.length) metaParts.push(escapeHtml(item.labels[0]));
+        const dueInMeta = item.due_str && !dueHtml.includes('item-due editable-due') && !dueHtml.includes('project-due-editable');
+        const metaText = metaParts.join(' · ');
+        const metaHtml = metaText ? `<div class="biz-todo__meta">${metaText}</div>` : '';
+
         const rowHtml = `
           <div class="ui-list-item ui-list-item--interactive todo-row${uiListStateClass}${uiListMutedClass} ${urgencyClass} ${manualFlag ? 'manual-flagged' : ''} ${isDismissed ? 'dismissed' : ''} ${animAttr}">
-            <span class="item-source-badge" title="${item.disconnected ? '平台已断开；显示最后一次同步数据' : item.type}">
-              <span class="ui-badge ui-badge--source ui-source--${item.source} src-${item.source}">${item.type}</span>
-              ${item.disconnected ? '<span class="ui-status ui-status--warning">已断开</span>' : ''}
-            </span>
-            ${titleHtml}
-            ${courseHtml}
-            ${labelsHtml}
-            ${dueHtml}
-            <span class="item-subtask-slot">${subtaskToggleHtml}</span>
-            <span class="item-desktop-actions">${actionsHtml}</span>
+            <div class="biz-todo__body">
+              <div class="biz-todo__title">${titleHtml}</div>
+              ${metaHtml}
+            </div>
+            <div class="biz-todo__right">
+              <span class="item-source-badge" title="${item.disconnected ? '平台已断开；显示最后一次同步数据' : item.type}">
+                <span class="ui-badge ui-badge--source ui-source--${item.source} src-${item.source}">${item.type}</span>
+                ${item.disconnected ? '<span class="ui-status ui-status--warning">已断开</span>' : ''}
+              </span>
+              ${dueHtml}
+              <span class="item-subtask-slot">${subtaskToggleHtml}</span>
+              <span class="item-desktop-actions">${actionsHtml}</span>
+            </div>
             <button class="ui-icon-button mobile-action-trigger" onclick="toggleMobileActions('${item.id}')" aria-label="更多操作" aria-expanded="${mobileActionsOpen}">•••</button>
             <span class="item-mobile-actions ${mobileActionsOpen ? 'open' : ''}">${actionsHtml}</span>
           </div>
@@ -1914,10 +1975,10 @@
       };
 
       container.innerHTML = buildTodoGroups(filteredItems).map((group) => `
-        <section class="todo-group">
+        <section class="todo-group ${group.key === 'overdue' ? 'is-overdue' : ''}">
           <div class="todo-group-heading">
             <h3 class="ui-card__title">${escapeHtml(group.title)}</h3>
-            <span class="ui-count-pill">(${group.items.length})</span>
+            <span class="ui-count-pill">${group.items.length}</span>
           </div>
           <div class="todo-group-items">${group.items.map(renderTodoItem).join('')}</div>
         </section>
@@ -1926,6 +1987,21 @@
       container.scrollTop = savedScrollTop;
 
       if (doAnimate) firstItemRender = false;
+
+      // 侧栏 nav-count 数字：今日总览的未完成待办数；长期项目的进行中数（从 #active-project-count 读）
+      const overviewCount = unified.filter((it) => !it.done && !it.hidden).length;
+      const overviewEl = document.querySelector('[data-nav-count="overview"]');
+      if (overviewEl) {
+        if (overviewCount > 0) { overviewEl.textContent = overviewCount; overviewEl.hidden = false; }
+        else { overviewEl.textContent = ''; overviewEl.hidden = true; }
+      }
+      const projectsEl = document.querySelector('[data-nav-count="projects"]');
+      const activeProjectsEl = document.getElementById('active-project-count');
+      if (projectsEl && activeProjectsEl) {
+        const n = Number(activeProjectsEl.textContent || '0');
+        if (n > 0) { projectsEl.textContent = n; projectsEl.hidden = false; }
+        else { projectsEl.textContent = ''; projectsEl.hidden = true; }
+      }
 
     }
 

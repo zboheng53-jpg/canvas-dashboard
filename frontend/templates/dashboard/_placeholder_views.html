@@ -2,7 +2,6 @@
   <div class="card project-manager-card">
     <div class="project-manager-heading">
       <div>
-        <span class="placeholder-kicker">项目</span>
         <h1>长期项目</h1>
         <p>在左侧快速切换项目，在右侧持续推进下一步行动。</p>
       </div>
@@ -38,7 +37,7 @@
 <div class="project-modal-backdrop hidden" id="project-editor-modal">
   <div class="project-modal-card" role="dialog" aria-modal="true" aria-labelledby="project-editor-title">
     <div class="project-modal-header">
-      <div><span class="placeholder-kicker">PROJECT</span><h2 id="project-editor-title">新建项目</h2></div>
+      <div><h2 id="project-editor-title">新建项目</h2></div>
       <button type="button" class="ui-icon-button project-modal-close" onclick="closeProjectModal()" aria-label="关闭">×</button>
     </div>
     <form id="project-editor-form" class="project-modal-form">
@@ -58,7 +57,7 @@
 <div class="project-modal-backdrop hidden" id="project-task-modal">
   <div class="project-modal-card" role="dialog" aria-modal="true" aria-labelledby="project-task-title">
     <div class="project-modal-header">
-      <div><span class="placeholder-kicker">TASK</span><h2 id="project-task-title">添加任务</h2></div>
+      <div><h2 id="project-task-title">添加任务</h2></div>
       <button type="button" class="ui-icon-button project-modal-close" onclick="closeProjectTaskModal()" aria-label="关闭">×</button>
     </div>
     <form id="project-task-form" class="project-modal-form">
@@ -80,7 +79,7 @@
 <div class="project-modal-backdrop hidden" id="project-group-modal">
   <div class="project-modal-card project-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="project-group-title">
     <div class="project-modal-header">
-      <div><span class="placeholder-kicker">GROUP</span><h2 id="project-group-title">新建分组</h2></div>
+      <div><h2 id="project-group-title">新建分组</h2></div>
       <button type="button" class="ui-icon-button project-modal-close" onclick="closeProjectGroupModal()" aria-label="关闭">×</button>
     </div>
     <form id="project-group-form" class="project-modal-form">
@@ -99,7 +98,7 @@
 <div class="project-modal-backdrop hidden" id="project-choice-modal">
   <div class="project-modal-card project-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="project-choice-title">
     <div class="project-modal-header">
-      <div><span class="placeholder-kicker">NEXT ACTION</span><h2 id="project-choice-title">选择下一步</h2></div>
+      <div><h2 id="project-choice-title">选择下一步</h2></div>
       <button type="button" class="ui-icon-button project-modal-close" onclick="closeProjectChoiceModal()" aria-label="关闭">×</button>
     </div>
     <div class="project-choice-list" id="project-choice-list"></div>
@@ -109,7 +108,7 @@
 <div class="project-modal-backdrop hidden" id="project-confirm-modal">
   <div class="project-modal-card project-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="project-confirm-title">
     <div class="project-modal-header">
-      <div><span class="placeholder-kicker">CONFIRM</span><h2 id="project-confirm-title">确认操作</h2></div>
+      <div><h2 id="project-confirm-title">确认操作</h2></div>
       <button type="button" class="ui-icon-button project-modal-close" onclick="closeProjectConfirmModal(false)" aria-label="关闭">×</button>
     </div>
     <p class="project-confirm-copy" id="project-confirm-copy"></p>
@@ -124,7 +123,6 @@
   <div class="card schedule-manager-card">
     <div class="schedule-manager-heading">
       <div>
-        <span class="placeholder-kicker">WEEKLY SCHEDULE</span>
         <h1>周排程与课表</h1>
         <div class="schedule-meta-line">
           <p id="schedule-term-meta">尚未导入本学期课表</p>
@@ -250,7 +248,7 @@
   <div class="schedule-modal-card schedule-management-modal-card" role="dialog" aria-modal="true" aria-labelledby="schedule-management-title">
     <div class="schedule-modal-header">
       <div>
-        <span class="placeholder-kicker">TIMETABLE SETTINGS</span>
+
         <h3 id="schedule-management-title">课表管理</h3>
       </div>
       <button type="button" class="ui-icon-button schedule-modal-close" onclick="closeScheduleManagementModal()" aria-label="关闭">×</button>
@@ -278,7 +276,6 @@
   <div class="card console-manager-card business-manager-card connections-manager-card">
     <div class="console-manager-heading business-manager-heading connections-manager-heading">
       <div>
-        <span class="placeholder-kicker">CONNECTIONS</span>
         <h1>连接与同步</h1>
         <p>统一管理学习平台账号，并查看当前连接状态与详细配置。</p>
       </div>
@@ -311,7 +308,7 @@
       </section>
 
       <section class="connections-detail-panel" id="connections-detail-panel" data-od-id="connection-detail" aria-live="polite" aria-busy="false">
-      
+
       <!-- Canvas Details -->
       <div class="connection-detail-section hidden" id="detail-canvas">
         <div class="detail-platform-header">
@@ -477,7 +474,6 @@
   <div class="card console-manager-card business-manager-card calendar-subscription-card" id="calendar-subscription-card">
     <div class="console-manager-heading business-manager-heading">
       <div>
-        <span class="placeholder-kicker">日历订阅</span>
         <h1 id="calendar-subscription-title">Apple Calendar</h1>
         <p>将带日期的未完成任务和日程，以只读订阅方式同步到 Apple 日历。</p>
       </div>
@@ -531,16 +527,20 @@
   <div class="card console-manager-card business-manager-card settings-manager-card">
     <div class="console-manager-heading business-manager-heading">
       <div>
-        <span class="placeholder-kicker">设置中心</span>
         <h1>偏好设置</h1>
-        <p>优先管理登录安全与账户生命周期；同步说明和数据边界作为参考信息列在后面。</p>
+        <p>常用账户安全设置优先展示；数据说明与危险操作可按需展开。</p>
       </div>
     </div>
-    <div class="ui-card settings-summary-grid">
+    <div class="ui-card settings-summary-grid settings-progressive-layout">
+      <section class="ui-card-section settings-item settings-account-overview" aria-labelledby="settings-account-title">
+        <div class="settings-section-heading"><span class="ui-section-label manager-section-index">账号</span><h2 class="ui-card__title" id="settings-account-title">当前账号</h2></div>
+        <div class="settings-section-content settings-account-row"><div><p class="settings-account-name">{{ username }}</p><p>平台连接、同步数据与日历订阅均按此站点账号隔离保存。</p></div><span class="ui-status ui-status--success settings-account-status">当前设备已登录</span></div>
+      </section>
+
       <section class="ui-card-section settings-item settings-session-security" aria-labelledby="settings-security-title">
         <div class="settings-section-heading">
           <span class="ui-section-label manager-section-index">登录安全</span>
-          <h2 class="ui-card__title" id="settings-security-title">账户安全</h2>
+          <h2 class="ui-card__title" id="settings-security-title">退出其他设备</h2>
         </div>
         <div class="settings-section-content">
           <p>连续 30 天未访问网站后，登录状态会自动失效。</p>
@@ -553,12 +553,20 @@
           <p id="revoke-sessions-status" class="ui-feedback ui-feedback--neutral calendar-subscription-status" role="status" aria-live="polite"></p>
         </div>
       </section>
-      <section class="ui-card-section ui-surface--danger settings-item settings-danger-zone" aria-labelledby="settings-delete-title">
-        <div class="settings-section-heading">
-          <span class="ui-section-label manager-section-index">数据与账号</span>
-          <h2 class="ui-card__title" id="settings-delete-title">永久删除账户</h2>
+
+      <details class="settings-disclosure settings-data-disclosure">
+        <summary><span><b>数据与隐私说明</b><small>了解凭据、同步数据和订阅链接如何保存</small></span><i aria-hidden="true">⌄</i></summary>
+        <div class="settings-disclosure-content">
+          <p>平台凭据会加密存储，仅用于同步学习信息。</p>
+          <p>由于网站由个人维护，网站运行者在服务器维护过程中，理论上具备接触账户数据、平台凭据和学习信息的技术权限。请仅在你信任网站运行者的情况下连接平台。</p>
+          <p>Apple Calendar 订阅链接等同于访问凭证，任何获得链接的人都可能读取其中导出的任务标题和截止时间。</p>
+          <p>学习平台统一在侧栏“连接与同步”中管理；日历订阅使用独立的“日历订阅”入口。</p>
         </div>
-        <div class="settings-section-content">
+      </details>
+
+      <details class="settings-disclosure settings-danger-zone" id="settings-danger-disclosure">
+        <summary><span><b id="settings-delete-title">危险操作</b><small>展开后才能永久删除当前账户</small></span><i aria-hidden="true">⌄</i></summary>
+        <div class="settings-disclosure-content settings-danger-content">
           <p>将删除网站账号、平台连接、缓存、日历订阅、自定义待办、项目、课表与排程。历史加密备份中的副本会按备份轮换到期。</p>
           <div class="ui-alert ui-alert--danger account-delete-warning" role="note">
             <div><strong>此操作不可撤销</strong><p>请先完成两步确认，避免误删当前账号。</p></div>
@@ -578,27 +586,14 @@
             </div>
           </form>
         </div>
-      </section>
-      <div class="settings-secondary-divider" role="presentation">其他信息</div>
-      <section class="ui-card-section settings-item" aria-labelledby="settings-account-title">
-        <div class="settings-section-heading"><span class="ui-section-label manager-section-index">账号</span><h2 class="ui-card__title" id="settings-account-title">当前账号</h2></div>
-        <div class="settings-section-content"><p class="settings-account-name">{{ username }}</p><p>平台连接、同步数据与日历订阅均按此站点账号隔离保存。</p></div>
-      </section>
-      <section class="ui-card-section settings-item" aria-labelledby="settings-subscription-title">
-        <div class="settings-section-heading"><span class="ui-section-label manager-section-index">功能入口</span><h2 class="ui-card__title" id="settings-subscription-title">同步与订阅</h2></div>
-        <div class="settings-section-content"><p>学习平台统一在侧栏“连接与同步”中管理；日历订阅使用独立的“Apple Calendar”入口。</p></div>
-      </section>
-      <section class="ui-card-section settings-item settings-data-security" aria-labelledby="settings-data-title">
-        <div class="settings-section-heading"><span class="ui-section-label manager-section-index">数据边界</span><h2 class="ui-card__title" id="settings-data-title">数据与安全</h2></div>
-        <div class="settings-section-content"><p>平台凭据会加密存储，仅用于同步学习信息。</p><p>由于网站由个人维护，网站运行者在服务器维护过程中，理论上具备接触账户数据、平台凭据和学习信息的技术权限。请仅在你信任网站运行者的情况下连接平台。</p><p>Apple Calendar 订阅链接等同于访问凭证，任何获得链接的人都可能读取其中导出的任务标题和截止时间。</p></div>
-      </section>
+      </details>
     </div>
   </div>
 </section>
 
 <div class="project-modal-backdrop hidden" id="platform-data-confirm-modal">
   <div class="project-modal-card project-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="platform-data-confirm-title">
-    <div class="project-modal-header"><div><span class="placeholder-kicker">PLATFORM DATA</span><h2 id="platform-data-confirm-title">清除平台数据</h2></div><button type="button" class="ui-icon-button project-modal-close" onclick="closePlatformDataConfirm()" aria-label="关闭">×</button></div>
+    <div class="project-modal-header"><div><h2 id="platform-data-confirm-title">清除平台数据</h2></div><button type="button" class="ui-icon-button project-modal-close" onclick="closePlatformDataConfirm()" aria-label="关闭">×</button></div>
     <p class="project-confirm-copy" id="platform-data-confirm-copy"></p>
     <div class="project-modal-actions"><button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="closePlatformDataConfirm()">取消</button><button type="button" class="ui-button ui-button--danger project-button-danger" onclick="confirmClearPlatformData()">确认清除</button></div>
   </div>
