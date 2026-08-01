@@ -58,60 +58,15 @@ def write_json_file(path: Path, data) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(data, ensure_ascii=False, indent=2)
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{path.name}.",
-        suffix=".tmp",
-        dir=str(path.parent),
-        text=True,
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(payload)
-            f.flush()
-            os.fsync(f.fileno())
-        for attempt in range(20):
-            try:
-                os.replace(tmp_name, path)
-                break
-            except PermissionError:
-                if attempt == 19:
-                    raise
-                time.sleep(0.05)
-    except Exception:
-        try:
-            os.unlink(tmp_name)
-        except FileNotFoundError:
-            pass
-        raise
+    with _lock_for(path):
+        path.write_text(payload, encoding="utf-8")
 
 
 def write_bytes_file(path: Path, data: bytes) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{path.name}.",
-        suffix=".tmp",
-        dir=str(path.parent),
-    )
-    try:
-        with os.fdopen(fd, "wb") as f:
-            f.write(data)
-            f.flush()
-            os.fsync(f.fileno())
-        for attempt in range(20):
-            try:
-                os.replace(tmp_name, path)
-                break
-            except PermissionError:
-                if attempt == 19:
-                    raise
-                time.sleep(0.05)
-    except Exception:
-        try:
-            os.unlink(tmp_name)
-        except FileNotFoundError:
-            pass
-        raise
+    with _lock_for(path):
+        path.write_bytes(data)
 
 
 def load_or_create_bytes(path: Path, create_value):

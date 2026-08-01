@@ -1,4 +1,4 @@
-@layer legacy, tokens, foundation, components, patterns, pages, utilities;
+@layer legacy, tokens, foundation, components, patterns, pages, utilities, design-system;
 
 @import url("./style.css") layer(legacy);
 @import url("./dashboard-shell.css") layer(legacy);
@@ -8,3 +8,4 @@
 @import url("./components.css") layer(components);
 @import url("./patterns.css") layer(patterns);
 @import url("./business.css") layer(pages);
+@import url("./design-system.css") layer(design-system);

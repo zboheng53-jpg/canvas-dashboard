@@ -915,8 +915,14 @@ function overviewTaskRow(project, task, checkbox = false) {
 function renderProjectOverview(data) {
   const container = document.getElementById("project-overview-content");
   if (!container) return;
+  // 同步填侧栏 nav-count 与项目视图 tab 计数（与 renderProjectWorkspace 行为一致）
+  const activeCount = Number(data.active_project_count || 0);
+  document.querySelectorAll("#active-project-count").forEach((el) => { el.textContent = activeCount; });
+  // 右栏卡片副标题：设计稿为「N 个进行中」
+  const railSub = document.getElementById("long-term-projects-sub");
+  if (railSub) railSub.textContent = activeCount ? `${activeCount} 个进行中` : "暂无项目";
   const project = data.main_project;
-  if (!data.active_project_count) {
+  if (!activeCount) {
     renderProjectOverviewState("暂无长期项目", "创建一个长期项目，开始组织接下来的行动。", "新建项目", "openProjectsView().then(() => openProjectModal())");
     return;
   }
@@ -924,29 +930,38 @@ function renderProjectOverview(data) {
     renderProjectOverviewState("尚未设置主项目", "从进行中的项目里选择一个当前重点。", "选择主项目", "openProjectsView()");
     return;
   }
-  const otherCount = Math.max(0, data.active_project_count - 1);
+  const otherCount = Math.max(0, activeCount - 1);
+  const total = project.completed_count + project.pending_count;
+  const pct = total ? Math.min(100, Math.round((project.completed_count / total) * 100)) : 0;
+  const dueText = projectDueText(project);
+  const upcoming = project.upcoming_tasks || [];
+  // 设计稿 .proj 块：名称 + 剩余天数 / 进度条 / 副信息 / 下一步蓝卡 / 任务预览
   container.innerHTML = `
-    <div class="project-overview-main">
-      <div class="project-overview-title">
-        <button type="button" onclick="openProjectsView(${project.id})" class="ui-button ui-button--text ui-button--heading ui-button--start">${pEscape(project.name)}</button>
-        <span class="ui-tag is-selected">主项目</span>
+    <div class="proj">
+      <div class="proj-top">
+        <button type="button" class="proj-name" onclick="openProjectsView(${project.id})" title="查看项目详情">${pEscape(project.name)}</button>
+        ${dueText ? `<span class="proj-due${project.due_state === "overdue" ? " is-overdue" : ""}">${pEscape(dueText)}</span>` : ""}
       </div>
-      ${project.objective ? `<p class="project-overview-objective">${pEscape(project.objective)}</p>` : ""}
-      <p class="project-overview-stats">已完成 ${project.completed_count} 项 · 待完成 ${project.pending_count} 项</p>
-      ${project.due_date ? `<p class="project-overview-due${project.due_state === "overdue" ? " is-overdue" : ""}">${pEscape(projectDueText(project))}</p>` : ""}
-      <section class="project-overview-section">
-        <div class="project-overview-section-heading"><span>下一步行动</span><button type="button" onclick="openProjectChoiceModal(${project.id})" class="ui-button ui-button--secondary">${project.next_action ? "更换下一步" : "选择下一步"}</button></div>
-        ${project.next_action
-          ? overviewTaskRow(project, project.next_action, true)
-          : '<div class="ui-empty ui-empty--compact project-overview-empty-line"><strong>暂无下一步行动</strong></div>'}
-        <button type="button" class="ui-button ui-button--secondary project-overview-add" onclick="openProjectTaskModal(${project.id}, null, null, true)">＋ 添加下一步行动</button>
-      </section>
-      ${project.upcoming_tasks.length ? `
-        <section class="project-overview-section project-overview-recent">
-          <div class="project-overview-section-heading"><span>近期任务</span></div>
-          ${project.upcoming_tasks.map((task) => overviewTaskRow(project, task)).join("")}
-        </section>` : ""}
-      <div class="project-overview-links">
+      <div class="bar"><i style="width:${pct}%"></i></div>
+      <div class="proj-sub">${project.completed_count} / ${total} 任务完成${project.objective ? ` · ${pEscape(project.objective)}` : ""}</div>
+      ${project.next_action ? `
+        <button type="button" class="biz-project-item__next" onclick="openProjectsView(${project.id})" title="打开项目查看下一步">
+          <b>下一步</b>${pEscape(project.next_action.name)}
+          ${project.next_action.due_date ? `<span class="late">${pEscape(project.next_action.due_date)}</span>` : ""}
+        </button>` : `
+        <button type="button" class="biz-project-item__next is-empty" onclick="openProjectsView(${project.id})" title="选择下一步行动">
+          <b>下一步</b>未设置
+        </button>`}
+      ${upcoming.length ? `
+        <div class="proj-tasks">
+          ${upcoming.map((task) => `
+            <div class="pt${task.done ? " is-done" : ""}">
+              <input type="checkbox" class="pt-check ui-checkbox" aria-label="完成${pEscape(task.name)}" onchange="completeOverviewTask(${project.id}, ${task.id}, this)" ${task.done ? "checked" : ""}>
+              <span class="t">${pEscape(task.name)}</span>
+              <span class="d">${pEscape(task.due_date || (task.done ? "已完成" : ""))}</span>
+            </div>`).join("")}
+        </div>` : ""}
+      <div class="proj-links">
         ${project.hidden_task_count ? `<button type="button" onclick="openProjectsView(${project.id})" class="ui-button ui-button--text">还有 ${project.hidden_task_count} 项 →</button>` : ""}
         ${otherCount ? `<button type="button" onclick="openProjectsView()" class="ui-button ui-button--text">另外 ${otherCount} 个项目进行中 →</button>` : ""}
       </div>

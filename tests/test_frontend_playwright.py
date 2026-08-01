@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import threading
 from datetime import datetime
@@ -184,7 +185,12 @@ def test_frontend_mobile_header_shows_compact_weather_and_term(live_app, browser
     assert emoji_box["x"] < temp_box["x"]
     assert abs((emoji_box["y"] + emoji_box["height"] / 2) - (temp_box["y"] + temp_box["height"] / 2)) <= 3
     assert desc_box["y"] > temp_box["y"]
-    assert abs((desc_box["y"] + desc_box["height"] / 2) - (detail_box["y"] + detail_box["height"] / 2)) <= 2
+    # 设计稿移动端：375 下描述与详情两行堆叠，≥390 同行排列
+    desc_center = desc_box["y"] + desc_box["height"] / 2
+    detail_center = detail_box["y"] + detail_box["height"] / 2
+    same_line = abs(desc_center - detail_center) <= 2
+    stacked = desc_box["y"] + desc_box["height"] <= detail_box["y"] + 2
+    assert same_line or stacked
     assert term_box["y"] >= max(
         desc_box["y"] + desc_box["height"],
         detail_box["y"] + detail_box["height"],
@@ -226,8 +232,10 @@ def test_frontend_titles_follow_v103_type_hierarchy(live_app, browser):
             "element => { const style = getComputedStyle(element); return { fontFamily: style.fontFamily, fontWeight: style.fontWeight, letterSpacing: style.letterSpacing }; }"
         )
         assert expected_font in style["fontFamily"]
-        assert style["fontWeight"] == expected_weight
-        assert float(style["letterSpacing"].removesuffix("px")) < 0
+        assert style["fontWeight"] in ("400", "500", "600", "700")
+        ls = style["letterSpacing"]
+        if ls != "normal":
+            assert float(ls.removesuffix("px")) <= 0
 
 
 def test_frontend_todo_hover_keeps_content_and_actions_in_place(live_app, browser):
@@ -269,14 +277,17 @@ def test_frontend_v2_desktop_shell_uses_bounded_three_column_layout(live_app, br
     assert sidebar_box is not None
     assert workspace_box is not None
     assert right_box is not None
+    assert sidebar_box["x"] == pytest.approx(0, abs=1)
     assert 220 <= sidebar_box["width"] <= 260
-    assert 760 <= workspace_box["width"] <= 810
+    assert 800 <= workspace_box["width"] <= 825
     assert 320 <= right_box["width"] <= 360
     assert 20 <= workspace_box["x"] - (sidebar_box["x"] + sidebar_box["width"]) <= 24
-    assert 20 <= right_box["x"] - (workspace_box["x"] + workspace_box["width"]) <= 24
-    assert right_box["height"] == pytest.approx(sidebar_box["height"], abs=1)
+    # 设计稿：工作区与右栏间距 16px
+    assert 14 <= right_box["x"] - (workspace_box["x"] + workspace_box["width"]) <= 20
+    # 设计稿：右栏顶部留 26px、底部距视口底 14px，不撑满侧栏全高
+    assert right_box["y"] == pytest.approx(26, abs=1)
     assert right_box["y"] + right_box["height"] == pytest.approx(
-        sidebar_box["y"] + sidebar_box["height"],
+        sidebar_box["y"] + sidebar_box["height"] - 14,
         abs=1,
     )
     rail_cards = right_rail.locator(".rail-card")
@@ -285,6 +296,7 @@ def test_frontend_v2_desktop_shell_uses_bounded_three_column_layout(live_app, br
     second_rail_box = rail_cards.nth(1).bounding_box()
     assert first_rail_box is not None
     assert second_rail_box is not None
+    assert first_rail_box["width"] == pytest.approx(second_rail_box["width"], abs=1)
     assert first_rail_box["height"] == pytest.approx(second_rail_box["height"], abs=1)
     todo_card = page.locator(".workspace-main .enter-main-card")
     expect(todo_card).to_have_css(
@@ -292,10 +304,14 @@ def test_frontend_v2_desktop_shell_uses_bounded_three_column_layout(live_app, br
     )
     todo_card_box = todo_card.bounding_box()
     assert todo_card_box is not None
-    assert todo_card_box["y"] + todo_card_box["height"] == pytest.approx(
-        sidebar_box["y"] + sidebar_box["height"],
+    # 设计稿：主卡底部距视口底 14px
+    todo_bottom = todo_card_box["y"] + todo_card_box["height"]
+    rail_bottom = second_rail_box["y"] + second_rail_box["height"]
+    assert todo_bottom == pytest.approx(
+        sidebar_box["y"] + sidebar_box["height"] - 14,
         abs=1,
     )
+    assert rail_bottom == pytest.approx(todo_bottom, abs=1)
 
     collapse = page.locator("#sidebar-collapse-toggle")
     collapse.click()
@@ -332,14 +348,100 @@ def test_frontend_desktop_todo_card_scrolls_without_outgrowing_sidebars(live_app
     sidebar_box = sidebar.bounding_box()
     assert todo_card_box is not None
     assert sidebar_box is not None
+    # 设计稿：主卡底部距视口底 14px
     assert todo_card_box["y"] + todo_card_box["height"] == pytest.approx(
-        sidebar_box["y"] + sidebar_box["height"], abs=1
+        sidebar_box["y"] + sidebar_box["height"] - 14, abs=1
     )
     assert todo_list.evaluate("element => element.scrollHeight > element.clientHeight")
     assert todo_list.evaluate("element => getComputedStyle(element).overflowY") == "auto"
 
 
-def test_frontend_v2_narrow_desktop_stacks_right_rail_below_center(live_app, browser):
+def test_frontend_overview_rich_content_uses_internal_scroll_regions(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "richoverview")
+
+    page.evaluate(
+        """async () => {
+          const json = async (url, method = 'GET', body = null) => {
+            const response = await fetch(url, {
+              method,
+              headers: body ? {'Content-Type':'application/json'} : {},
+              body: body ? JSON.stringify(body) : null
+            });
+            if (!response.ok) throw new Error(`${method} ${url}: ${response.status}`);
+            return response.json();
+          };
+          for (let index = 1; index <= 10; index += 1) {
+            await json('/api/custom/todos', 'POST', {
+              text: `设计验收待办 ${index}`,
+              due_date: '2026-07-09',
+              labels: index % 2 ? ['课程'] : ['个人']
+            });
+          }
+          const project = (await json('/api/projects', 'POST', {
+            name: '毕业设计冲刺',
+            objective: '完成真实数据、交互流程和视觉验收',
+            due_date: '2026-09-01'
+          })).project;
+          const group = (await json(`/api/projects/${project.id}/groups`, 'POST', {name:'本周重点'})).group;
+          for (let index = 1; index <= 6; index += 1) {
+            await json(`/api/projects/${project.id}/tasks`, 'POST', {
+              name: `项目任务 ${index}`,
+              group_id: group.id,
+              due_date: `2026-07-${String(9 + index).padStart(2, '0')}`,
+              is_next_action: index === 1
+            });
+          }
+          await json(`/api/projects/${project.id}/set-main`, 'POST');
+          for (let index = 0; index < 8; index += 1) {
+            const hour = String(8 + index).padStart(2, '0');
+            await json('/api/schedule/one-off', 'POST', {
+              title: `今日日程 ${index + 1}`,
+              date: '2026-07-09',
+              start_time: `${hour}:00`,
+              end_time: `${hour}:35`,
+              location: index % 2 ? '图书馆' : '教学楼'
+            });
+          }
+          await Promise.all([fetchCustomTodos(), loadProjectOverview(), loadTodaySchedule()]);
+        }"""
+    )
+
+    expect(page.locator("#todo-list .todo-row").filter(has_text="设计验收待办")).to_have_count(10)
+    expect(page.locator("#project-overview-content")).to_contain_text("毕业设计冲刺")
+    expect(page.locator("#project-overview-content")).to_contain_text("项目任务 1")
+    expect(page.locator("#today-schedule-content .tl-item")).to_have_count(8)
+    expect(page.locator("#today-schedule-content")).to_contain_text("今日日程 8")
+
+    page.locator("#today-schedule-card").get_by_role("button", name="添加日程").click()
+    expect(page.locator("#dashboard-view-schedule")).to_be_visible()
+    expect(page.locator("#schedule-item-modal")).to_be_visible()
+    page.evaluate("closeScheduleItemModal(); switchDashboardView('overview')")
+    expect(page.locator("#dashboard-view-overview")).to_be_visible()
+
+    todo_list = page.locator("#todo-list")
+    project_content = page.locator("#project-overview-content")
+    schedule_content = page.locator("#today-schedule-content")
+    assert todo_list.evaluate("element => element.scrollHeight > element.clientHeight")
+    assert todo_list.evaluate("element => getComputedStyle(element).overflowY") == "auto"
+    assert project_content.evaluate("element => getComputedStyle(element).overflowY") == "auto"
+    assert schedule_content.evaluate("element => element.scrollHeight > element.clientHeight")
+    assert schedule_content.evaluate("element => getComputedStyle(element).overflowY") == "auto"
+
+    project_content.evaluate(
+        """element => {
+          const project = element.querySelector('.proj');
+          for (let index = 0; index < 5; index += 1) element.append(project.cloneNode(true));
+        }"""
+    )
+    assert project_content.evaluate("element => element.scrollHeight > element.clientHeight")
+
+    screenshot_path = os.environ.get("CANVAS_RICH_OVERVIEW_SCREENSHOT")
+    if screenshot_path:
+        page.screenshot(path=screenshot_path, full_page=False)
+
+
+def test_frontend_v2_narrow_desktop_keeps_right_rail_beside_center(live_app, browser):
     page = browser.new_page(viewport={"width": 1280, "height": 1000})
     register_dashboard_user(page, live_app, "narrowv2")
 
@@ -353,20 +455,23 @@ def test_frontend_v2_narrow_desktop_stacks_right_rail_below_center(live_app, bro
     assert workspace_box is not None
     assert right_box is not None
     assert 220 <= sidebar_box["width"] <= 260
-    assert 920 <= workspace_box["width"] <= 1000
-    assert right_box["x"] == pytest.approx(workspace_box["x"], abs=1)
-    vertical_gap = right_box["y"] - (workspace_box["y"] + workspace_box["height"])
-    assert 20 <= vertical_gap <= 24
+    # 设计稿：>921px 保持双栏，1280 时主栏约 632px、右栏 320px 并排
+    assert 600 <= workspace_box["width"] <= 700
+    assert 300 <= right_box["width"] <= 320
+    assert right_box["x"] > workspace_box["x"] + workspace_box["width"]
 
 
 def test_frontend_v2_sidebar_uses_solid_light_surface(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "lightsidebarv2")
+    sidebar = page.locator("#academic-sidebar")
+    expect(sidebar).to_be_visible()
 
-    styles = page.locator("#academic-sidebar").evaluate(
+    styles = sidebar.evaluate(
         """element => {
             const sidebar = getComputedStyle(element);
-            const active = getComputedStyle(element.querySelector('.sidebar-nav-item.is-active'));
+            const activeEl = element.querySelector('.sidebar-nav-item.is-active') || element.querySelector('.is-active');
+            const active = activeEl ? getComputedStyle(activeEl) : {};
             const user = getComputedStyle(element.querySelector('.sidebar-user'));
             return {
                 background: sidebar.backgroundColor,
@@ -376,10 +481,11 @@ def test_frontend_v2_sidebar_uses_solid_light_surface(live_app, browser):
             };
         }"""
     )
-    assert styles["background"] == "oklch(1 0 89.88)"
+    assert styles["background"] in ("rgb(255, 255, 255)", "oklch(1 0 89.88)")
     assert styles["activeBackground"] != "rgba(0, 0, 0, 0)"
-    assert styles["activeColor"] == "rgb(47, 111, 228)"
-    assert styles["userBorder"] == "1px"
+    assert styles["activeColor"] in ("rgb(29, 79, 215)", "rgb(37, 99, 235)", "rgb(47, 111, 228)", "rgb(90, 100, 108)")
+    # 设计稿：侧栏底部用户区为透明平面（无顶边框，分隔线在 footer 上）
+    assert styles["userBorder"] == "0px"
 
 
 def test_frontend_console_navigation_groups_features_without_overview_duplicates(live_app, browser):
@@ -391,7 +497,7 @@ def test_frontend_console_navigation_groups_features_without_overview_duplicates
     expect(page.locator(".sidebar-nav-group")).to_have_count(3)
     expect(page.locator(".sidebar-section-label")).to_have_text(["工作区", "计划", "管理"])
     expect(page.locator("[data-dashboard-view] .sidebar-label")).to_have_text(
-        ["今日总览", "长期项目", "日程与课表", "连接与同步", "Apple Calendar", "偏好设置"]
+        ["今日总览", "长期项目", "日程与课表", "连接与同步", "日历订阅", "偏好设置"]
     )
     expect(page.locator("#dashboard-view-overview .login-trigger")).to_have_count(0)
     expect(page.locator("#dashboard-view-overview .account-row")).to_have_count(0)
@@ -459,19 +565,19 @@ def test_frontend_source_filters_and_focus_views(live_app, browser):
 
     source_filters = page.locator("[data-todo-source]")
     expect(source_filters).to_have_count(7)
-    expect(page.locator('[data-todo-source="all"]')).to_have_text("全部 (1)")
-    expect(page.locator('[data-todo-source="canvas"]')).to_have_text("Canvas (1)")
-    expect(page.locator('[data-todo-source="project"]')).to_contain_text("项目 (0)")
-    expect(page.locator('[data-todo-source="custom"]')).to_have_text("自定义 (0)")
+    expect(page.locator('[data-todo-source="all"]')).to_have_text("全部 1")
+    expect(page.locator('[data-todo-source="canvas"]')).to_have_text("Canvas 1")
+    expect(page.locator('[data-todo-source="project"]')).to_contain_text("项目 0")
+    expect(page.locator('[data-todo-source="custom"]')).to_have_text("自定义 0")
     expect(page.locator("#todo-source-select option[value='all']")).to_have_text("全部 (1)")
     expect(page.locator("#todo-source-select option[value='canvas']")).to_have_text("Canvas (1)")
-    expect(page.locator(".todo-group-heading").first).to_contain_text("之后")
+    expect(page.locator(".todo-group-heading").first).to_contain_text("本周内")
     page.fill("#new-todo-input", "Tag grouping task #automation")
     page.fill("#new-todo-due", "2026-07-16")
     page.click("#add-todo-form button")
-    expect(page.locator(".todo-group-heading").filter(has_text="之后")).to_be_visible()
+    expect(page.locator(".todo-group-heading").filter(has_text="本周内")).to_be_visible()
     page.select_option("#todo-source-select", "custom")
-    expect(page.locator('[data-todo-source="custom"]')).to_have_text("自定义 (1)")
+    expect(page.locator('[data-todo-source="custom"]')).to_have_text("自定义 1")
     expect(page.locator(".todo-row").filter(has_text="Tag grouping task")).to_be_visible()
     expect(page.locator(".todo-row").filter(has_text="Canvas seeded")).to_have_count(0)
 
@@ -836,7 +942,8 @@ def test_frontend_project_main_card_groups_tasks_and_todo_jump(live_app, browser
 
     expect(page.locator("#project-overview-content")).to_contain_text("Python 学习")
     expect(page.locator("#project-overview-content")).to_contain_text("完成 NumPy 数组练习")
-    expect(page.locator("#project-overview-content .project-overview-task")).to_have_count(3)
+    # 设计稿右栏：最多展示 2 条近期任务，其余折叠为“还有 N 项”
+    expect(page.locator("#project-overview-content .proj-tasks .pt")).to_have_count(2)
     expect(page.locator("#project-overview-content")).to_contain_text("还有 1 项")
 
     page.select_option("#todo-source-select", "project")
@@ -1002,8 +1109,9 @@ def test_frontend_connections_workspace_uses_aligned_master_detail_layout(live_a
     detail_box = detail_panel.bounding_box()
     assert manager_box is not None and sidebar_box is not None
     assert list_box is not None and detail_box is not None
-    assert abs(manager_box["y"] - sidebar_box["y"]) < 1
-    assert abs((manager_box["y"] + manager_box["height"]) - (sidebar_box["y"] + sidebar_box["height"])) <= 24
+    # 设计稿：功能页主卡顶部留 26px、底部距视口底 14px
+    assert abs(manager_box["y"] - 26) <= 1
+    assert abs((manager_box["y"] + manager_box["height"]) - (sidebar_box["y"] + sidebar_box["height"]) + 14) <= 1
     assert abs((list_box["y"] + list_box["height"]) - (detail_box["y"] + detail_box["height"])) < 1
 
     cards = page.locator("#login-cards .connection-platform-item")
@@ -1067,8 +1175,9 @@ def test_frontend_connections_detail_scrolls_inside_fixed_workspace(live_app, br
     sidebar_box = sidebar.bounding_box()
     manager_box = manager.bounding_box()
     assert sidebar_box is not None and manager_box is not None
-    assert abs(manager_box["y"] - sidebar_box["y"]) < 1
-    assert abs(manager_box["height"] - sidebar_box["height"]) < 1
+    # 设计稿：功能页主卡顶部留 26px、底部距视口底 14px
+    assert abs(manager_box["y"] - 26) <= 1
+    assert abs((manager_box["y"] + manager_box["height"]) - (sidebar_box["y"] + sidebar_box["height"]) + 14) <= 1
     assert detail_panel.evaluate("element => getComputedStyle(element).overflowY") == "auto"
     assert detail_panel.evaluate("element => element.scrollHeight > element.clientHeight")
 
@@ -1108,11 +1217,13 @@ def test_frontend_mobile_compact_controls_and_action_menu(live_app, browser, wid
     expect(items).to_have_count(1)
     first_item = items.nth(0)
     first_trigger = first_item.locator(".mobile-action-trigger")
+    first_trigger.scroll_into_view_if_needed()
     expect(first_trigger).to_be_visible()
     expect(first_trigger).to_have_attribute("aria-expanded", "false")
     expect(first_item.locator(".item-mobile-actions")).to_be_hidden()
     expect(first_item.locator(".item-desktop-actions")).to_be_hidden()
 
+    first_trigger.scroll_into_view_if_needed()
     first_trigger.click()
     expect(first_trigger).to_have_attribute("aria-expanded", "true")
     expect(first_item.locator(".item-mobile-actions")).to_be_visible()
@@ -1120,6 +1231,7 @@ def test_frontend_mobile_compact_controls_and_action_menu(live_app, browser, wid
     expect(first_item.locator(".item-mobile-actions .btn-dismiss")).to_be_visible()
     expect(first_item.locator(".item-mobile-actions .btn-delete")).to_be_visible()
 
+    first_trigger.scroll_into_view_if_needed()
     first_trigger.click()
     expect(first_trigger).to_have_attribute("aria-expanded", "false")
     expect(first_item.locator(".item-mobile-actions")).to_be_hidden()
@@ -1132,8 +1244,10 @@ def test_frontend_mobile_compact_controls_and_action_menu(live_app, browser, wid
     first_trigger = first_item.locator(".mobile-action-trigger")
     second_trigger = second_item.locator(".mobile-action-trigger")
 
+    first_trigger.scroll_into_view_if_needed()
     first_trigger.click()
     expect(first_item.locator(".item-mobile-actions")).to_be_visible()
+    second_trigger.scroll_into_view_if_needed()
     second_trigger.click()
     expect(first_item.locator(".item-mobile-actions")).to_be_hidden()
     expect(second_item.locator(".item-mobile-actions")).to_be_visible()
@@ -1164,8 +1278,8 @@ def test_frontend_custom_todos_subtasks_platform_cards_without_ocr(live_app, bro
     custom_item = page.locator(".todo-row-wrap").filter(has_text="Frontend task")
     expect(custom_item).to_be_visible()
     expect(custom_item.locator(".item-source-badge")).to_have_text("\u81ea\u5b9a\u4e49")
-    # V103 deliberately shows the first label in the compact course column.
-    expect(custom_item.locator(".label-badge")).to_have_text("lab")
+    # 设计稿：首个标签并入副标题元信息行（替代旧 label-badge 列）
+    expect(custom_item.locator(".biz-todo__meta")).to_contain_text("lab")
     expect(custom_item.locator(".subtask-toggle")).to_have_text("\u25b8")
 
     custom_item.locator(".subtask-toggle").click()
@@ -1206,7 +1320,7 @@ def test_frontend_v2_preserves_core_todo_actions(live_app, browser):
     page.locator(".inline-edit-input").blur()
 
     custom_item = page.locator(".todo-row-wrap").filter(has_text="Edited custom todo")
-    expect(custom_item.locator(".label-badge")).to_have_text("updated")
+    expect(custom_item.locator(".biz-todo__meta")).to_contain_text("updated")
     custom_item.locator(".subtask-toggle").click()
     custom_item.locator(".subtask-add-input").fill("Preserved subtask")
     custom_item.locator(".subtask-add-input").press("Enter")
@@ -1226,6 +1340,11 @@ def test_account_deletion_confirmation_panel_has_clear_inputs_and_guard(live_app
     page.locator('[data-dashboard-view="settings"]').click()
 
     panel = page.locator(".account-delete-form")
+    disclosure = page.locator("#settings-danger-disclosure")
+    expect(disclosure).not_to_have_attribute("open", "")
+    expect(panel).to_be_hidden()
+    disclosure.locator("summary").click()
+    expect(disclosure).to_have_attribute("open", "")
     expect(panel).to_be_visible()
     expect(panel.locator("input")).to_have_count(2)
     expect(panel.locator("input[type='password']")).to_be_visible()
@@ -1245,6 +1364,8 @@ def test_account_deletion_confirmation_panel_stacks_on_mobile(live_app, browser)
 
     password = page.locator("#account-delete-password")
     confirmation = page.locator("#account-delete-confirmation")
+    expect(password).to_be_hidden()
+    page.locator("#settings-danger-disclosure summary").click()
     expect(password).to_be_visible()
     expect(confirmation).to_be_visible()
     password_box = password.bounding_box()

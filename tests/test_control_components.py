@@ -8,21 +8,31 @@ JS_ROOT = PROJECT_ROOT / "frontend" / "assets" / "js"
 CSS_ROOT = PROJECT_ROOT / "frontend" / "assets" / "css"
 
 BUTTON_EXCEPTIONS = {
+    "biz-project-item__next",
     "btn-delete",
     "btn-dismiss",
     "btn-flag",
+    "btn-quiet",
     "connection-platform-item",
+    "f-chip",
+    "icon-btn",
     "login-card",
+    "proj-name",
+    "project-todo-link",
     "project-browser-item",
     "project-choice-row",
     "project-list-item",
+    "side-logout",
+    "side-user",
     "sidebar-footer-action",
     "sidebar-collapse-toggle",
     "sidebar-nav-item",
     "sidebar-scrim",
     "sidebar-user",
     "subtask-toggle",
+    "sync-status-button",
     "todo-action-button",
+    "up-collapse",
 }
 MIGRATED_VISUAL_CLASSES = set(
     """

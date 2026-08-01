@@ -61,10 +61,13 @@ def test_css_layer_declaration_integrity():
     """Ensure dashboard.css and app.css declare proper @layer ordering."""
     dashboard_css = CSS_DIR / "dashboard.css"
     app_css = CSS_DIR / "app.css"
-    
-    expected_layer = "@layer legacy, tokens, foundation, components, patterns, pages, utilities;"
-    
-    for css_file in [dashboard_css, app_css]:
+
+    expected = {
+        dashboard_css: "@layer legacy, tokens, foundation, components, patterns, pages, utilities, design-system;",
+        app_css: "@layer legacy, tokens, foundation, components, patterns, pages, utilities, design-system;",
+    }
+
+    for css_file, expected_layer in expected.items():
         content = css_file.read_text(encoding="utf-8")
         assert expected_layer in content, f"Missing or corrupted @layer statement in {css_file.name}"
 

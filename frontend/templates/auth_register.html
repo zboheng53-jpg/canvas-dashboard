@@ -6,28 +6,35 @@
   <title>注册 · Canvas Dashboard</title>
   {% include "_font_assets.html" %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
   <script>window.CSRF_TOKEN = "{{ csrf_token() }}";</script>
   <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
 </head>
 <body>
-  <div class="dashboard">
-    <div class="card enter-main-card">
-      <div class="section-header">
-        <h2>注册</h2>
+  <div class="dashboard auth-page">
+    <div class="card auth-card">
+      <div class="card-head section-header" style="padding: 0 0 12px; border-bottom: 1px solid var(--ds-line-soft, #eef0f3);">
+        <div class="header-left-group"><h2 style="font-size: 20px; font-weight: 600;">注册</h2></div>
       </div>
 
-      <form class="add-todo-form auth-form mb-s" id="register-form">
-        <input type="text" id="register-username" placeholder="用户名（3-20位字母/数字/下划线）" autocomplete="username" class="ui-control">
-        <input type="password" id="register-password" placeholder="密码（至少6位）" autocomplete="new-password" class="ui-control">
-        <button type="submit" class="ui-button ui-button--primary ui-button--block btn-wide btn-accent">注册</button>
+      <form class="auth-form" id="register-form">
+        <div class="field-group">
+          <label class="field-label" for="register-username">用户名</label>
+          <input type="text" id="register-username" placeholder="3-20位字母/数字/下划线" autocomplete="username" class="ui-control input">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="register-password">密码</label>
+          <input type="password" id="register-password" placeholder="至少6位" autocomplete="new-password" class="ui-control input">
+        </div>
+        <button type="submit" class="ui-button ui-button--primary ui-button--block btn-quiet" style="height:40px; font-size:14px; width:100%; margin-top:6px;">注册</button>
       </form>
 
-      <p class="ui-help setup-hint">已有账号？<a href="/login">直接登录</a></p>
+      <p class="ui-help setup-hint" style="margin-top:16px; text-align:center; font-size:13px;">已有账号？<a href="/login" style="color:var(--ds-accent-ink, #1d4fd7); font-weight:600;">直接登录</a></p>
 
-      <div class="ui-alert ui-alert--danger ui-alert--compact error-banner hidden" id="register-error" role="alert"></div>
+      <div class="ui-alert ui-alert--danger ui-alert--compact error-banner hidden" id="register-error" role="alert" style="margin-top:12px;"></div>
     </div>
     {% if icp_number %}
-    <footer class="site-footer">
+    <footer class="site-footer" style="margin-top: 20px;">
       <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">{{ icp_number }}</a>
     </footer>
     {% endif %}

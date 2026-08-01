@@ -56,6 +56,8 @@ app.json.ensure_ascii = False
 app.secret_key = auth.get_secret_key()
 app.permanent_session_lifetime = auth.SESSION_LIFETIME
 app.config["MAX_CONTENT_LENGTH"] = settings.MAX_CONTENT_LENGTH_BYTES
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.jinja_env.auto_reload = True
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",

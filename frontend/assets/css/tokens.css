@@ -24,40 +24,115 @@
   --line-height-control: 1.4;
   --line-height-help: 1.5;
 
+  /* Redesign Design Tokens */
+  --page: #f7f8fa;
+  --surface: #ffffff;
+  --ink: #1c2330;
+  --ink-2: #5b6472;
+  --ink-3: #7d8694;
+  --line: #e6e8ec;
+  --line-soft: #eef0f3;
+  --accent: #2563eb;
+  --accent-soft: #eff4fe;
+  --accent-ink: #1d4fd7;
+  --danger: #d64545;
+  --danger-soft: #fdf0f0;
+  --danger-border: #f0c7c4;
+  --amber: #b07208;
+  --amber-soft: #fdf6e7;
+  --green: #2e7d5a;
+  --green-soft: #ecf6f1;
+  --green-border: #cce8d9;
+  --src-canvas: #c4564f;
+  --src-haoke: #2f8a64;
+  --src-zxm: #4078c8;
+  --src-zhs: #c48a2c;
+  --src-project: #8068c5;
+  --src-custom: #8a94a3;
+  --series-course: #4078b5;
+  --series-course-soft: #edf4fb;
+  --series-course-border: #b9d0e8;
+  --series-recurring: #3f815f;
+  --series-recurring-soft: #edf7f1;
+  --series-recurring-border: #bdddc9;
+  --series-oneoff: #986036;
+  --series-oneoff-soft: #fcf3e9;
+  --series-oneoff-border: #e8c8aa;
+  --avatar-bg: #f1f5f9;
+  --avatar-ring: #eff6ff;
+  --badge-bg: #1e293b;
+  --badge-moon: #60a5fa;
+
+  /* Redesign --ds- aliases */
+  --ds-page: var(--page);
+  --ds-surface: var(--surface);
+  --ds-ink: var(--ink);
+  --ds-ink-2: var(--ink-2);
+  --ds-ink-3: var(--ink-3);
+  --ds-line: var(--line);
+  --ds-line-soft: var(--line-soft);
+  --ds-accent: var(--accent);
+  --ds-accent-soft: var(--accent-soft);
+  --ds-accent-ink: var(--accent-ink);
+  --ds-danger: var(--danger);
+  --ds-danger-soft: var(--danger-soft);
+  --ds-danger-border: var(--danger-border);
+  --ds-amber: var(--amber);
+  --ds-amber-soft: var(--amber-soft);
+  --ds-green: var(--green);
+  --ds-green-soft: var(--green-soft);
+  --ds-radius: 10px;
+  --ds-radius-sm: 7px;
+  --ds-src-canvas: var(--src-canvas);
+  --ds-src-haoke: var(--src-haoke);
+  --ds-src-zxm: var(--src-zxm);
+  --ds-src-zhs: var(--src-zhs);
+  --ds-src-project: var(--src-project);
+  --ds-src-custom: var(--src-custom);
+  --ds-series-course: var(--series-course);
+  --ds-series-course-soft: var(--series-course-soft);
+  --ds-series-course-border: var(--series-course-border);
+  --ds-series-recurring: var(--series-recurring);
+  --ds-series-recurring-soft: var(--series-recurring-soft);
+  --ds-series-recurring-border: var(--series-recurring-border);
+  --ds-series-oneoff: var(--series-oneoff);
+  --ds-series-oneoff-soft: var(--series-oneoff-soft);
+  --ds-series-oneoff-border: var(--series-oneoff-border);
+
   /* Confirmed semantic palette for new and migrated UI */
-  --color-page: #f8fafc;
-  --color-surface: #ffffff;
+  --color-page: var(--page);
+  --color-surface: var(--surface);
   --color-surface-subtle: #f3f6f9;
   --color-surface-hover: #ffffff;
-  --color-text-primary: #1e293b;
-  --color-text-secondary: #475569;
-  --color-text-muted: #64748b;
+  --color-text-primary: var(--ink);
+  --color-text-secondary: var(--ink-2);
+  --color-text-muted: var(--ink-3);
   --color-on-strong: #ffffff;
-  --color-border: #e2e8f0;
+  --color-border: var(--line);
   --color-border-strong: #cbd5e1;
-  --color-action: #2f6fe4;
-  --color-action-hover: #255fcb;
-  --color-action-active: #1f55b5;
-  --color-action-soft: #eaf2ff;
+  --color-action: var(--accent);
+  --color-action-hover: #1d4fd7;
+  --color-action-active: #1e40af;
+  --color-action-soft: var(--accent-soft);
   --color-action-soft-hover: #deebff;
-  --color-action-border: #c9dbfa;
-  --color-success: #2e7d5a;
-  --color-success-soft: #edf8f2;
-  --color-success-border: #cce8d9;
-  --color-warning: #a65f00;
-  --color-warning-soft: #fff7e6;
+  --color-action-border: #bfd4f8;
+  --color-success: var(--green);
+  --color-success-soft: var(--green-soft);
+  --color-success-border: var(--green-border);
+  --color-warning: var(--amber);
+  --color-warning-soft: var(--amber-soft);
   --color-warning-border: #efd9ac;
-  --color-danger: #c2413b;
-  --color-danger-hover: #a93631;
-  --color-danger-soft: #fff1f0;
-  --color-danger-border: #edc8c5;
+  --color-danger: var(--danger);
+  --color-danger-hover: #b91c1c;
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-border: var(--danger-border);
   --color-info: #356c9c;
   --color-info-soft: #eef6fc;
   --color-info-border: #cce1ef;
   --color-neutral: #526071;
   --color-neutral-soft: #f3f6f9;
   --color-neutral-border: #dbe3eb;
-  --color-focus-ring: rgba(47, 111, 228, 0.24);
+  --color-focus-ring: rgba(37, 99, 235, 0.24);
 
   /* Source identity. These colors identify origin, never result or severity. */
   --color-source-canvas: #c45b55;
@@ -148,15 +223,10 @@
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --focus-ring: 0 0 0 3px var(--color-focus-ring);
 
-  /*
-   * Legacy compatibility aliases.
-   * These preserve the current dashboard while components migrate to the
-   * semantic names above. Do not use these aliases in new component CSS.
-   */
+  /* Legacy compatibility aliases */
   --bg-main: oklch(96.35% 0.0067 97.35);
   --bg-gradient: var(--bg-main);
   --bg: var(--bg-main);
-  --surface: oklch(100% 0 89.88);
   --card-bg: var(--surface);
   --glass-surface: var(--surface);
   --glass-surface-hover: var(--surface);
@@ -166,43 +236,34 @@
   --glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 4px 20px -2px rgba(70, 80, 72, 0.04);
 
   --text: #2c3237;
-  --text-primary: #2c3237;
   --text-secondary: #5a646c;
-  --text-muted: #8c969e;
   --border: rgba(226, 220, 210, 0.85);
   --border-light: rgba(226, 220, 210, 0.6);
   --border-subtle: rgba(215, 208, 195, 0.45);
 
-  --color-primary: var(--color-action);
+  /* 品牌主色：设计稿品牌蓝。大量 legacy 规则引用 var(--color-primary)，
+     缺失会导致 stroke/color 等声明在计算值阶段失效（如激活导航图标不可见） */
+  --color-primary: #2f6fe4;
+  --color-primary-border: #c9dbfa;
   --color-primary-hover: #245fc7;
   --color-primary-active: var(--color-action-active);
   --color-primary-soft: var(--color-action-soft);
   --color-primary-soft-hover: #f3f7ff;
-  --color-primary-border: var(--color-action-border);
-  --accent: var(--color-primary);
   --accent-primary: var(--color-primary);
   --accent-hover: var(--color-primary-hover);
-  --accent-soft: var(--color-primary-soft);
   --accent-subtle: var(--color-primary-soft-hover);
   --accent-badge: #8c5b4c;
 
-  --danger: var(--color-danger);
   --danger-hover: var(--color-danger-hover);
   --danger-bg: var(--color-danger-soft);
-  --danger-border: var(--color-danger-border);
-  --warning: var(--color-warning);
   --warning-bg: var(--color-warning-soft);
-  --warning-border: var(--color-warning-border);
 
-  --src-canvas: var(--color-source-canvas);
   --src-canvas-bg: rgba(196, 91, 85, 0.08);
-  --src-haoke: var(--color-source-haoke);
   --src-haoke-bg: rgba(47, 138, 100, 0.08);
   --src-zhixuemeng: var(--color-source-zhixuemeng);
   --src-zhixuemeng-bg: rgba(64, 120, 200, 0.08);
   --src-zhihuishu: var(--color-source-zhihuishu);
   --src-zhihuishu-bg: rgba(196, 138, 44, 0.08);
-  --src-custom: var(--color-source-custom);
   --src-custom-bg: rgba(105, 117, 134, 0.08);
 
   --btn-primary-bg: var(--color-primary);
@@ -227,7 +288,6 @@
   --sidebar-muted: #8c969e;
 
   --radius: 12px;
-  --radius-sm: 8px;
   --radius-card: 12px;
   --radius-btn: 8px;
   --blur-strength: blur(16px) saturate(135%);

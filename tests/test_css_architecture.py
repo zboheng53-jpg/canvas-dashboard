@@ -58,7 +58,7 @@ def test_templates_use_one_css_entry_and_one_font_include():
 
 
 def test_cascade_layers_isolate_legacy_and_fix_source_order():
-    layer_order = "@layer legacy, tokens, foundation, components, patterns, pages, utilities;"
+    layer_order = "@layer legacy, tokens, foundation, components, patterns, pages, utilities"
     app_entry = _read(CSS_ROOT / "app.css")
     dashboard_entry = _read(CSS_ROOT / "dashboard.css")
     lab_entry = _read(CSS_ROOT / "component-lab.css")

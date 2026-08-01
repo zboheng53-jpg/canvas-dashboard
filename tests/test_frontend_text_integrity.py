@@ -14,7 +14,7 @@ def test_index_template_has_valid_visible_chinese_and_no_leaked_tags():
     assert "&#24453;&#21150;&#28165;&#21333;" in index_text
     assert "今日总览" in sidebar_text
     assert "连接与同步" in sidebar_text
-    assert "Apple Calendar" in sidebar_text
+    assert "日历订阅" in sidebar_text
     assert "退出登录" in sidebar_text
     assert "智慧树" in views_text
     assert "Apple Calendar 订阅" in views_text
@@ -124,20 +124,19 @@ def test_schedule_login_and_connection_primary_actions_have_shared_contract():
 
 
 def test_v103_overview_and_project_task_cards_keep_the_refined_card_hierarchy():
-    css_text = (Path(__file__).parents[1] / "frontend" / "assets" / "css" / "dashboard-v103.css").read_text(
+    """重设计后的卡片层级规则收敛在 design-system.css（v103 legacy 规则已下线）。"""
+    css_text = (Path(__file__).parents[1] / "frontend" / "assets" / "css" / "design-system.css").read_text(
         encoding="utf-8"
     )
 
     expected_rules = [
-        "/* v103 overview content and project task cards */",
-        "background: rgba(248, 250, 252, 0.72) !important;",
-        "border: 1px solid rgba(226, 232, 240, 0.95) !important;",
-        ".today-schedule-row time {",
-        "letter-spacing: 0.01em !important;",
-        ".project-group-card {",
-        "box-shadow: 0 2px 7px rgba(15, 23, 42, 0.025) !important;",
-        ".project-task-row {",
-        "background: #FFFFFF !important;",
+        "功能页重设计落地",
+        ".project-task-group {",
+        ".project-task-item {",
+        ".project-next-action-card {",
+        ".connections-layout {",
+        ".calendar-subscription-layout {",
+        ".settings-danger-zone {",
     ]
     for rule in expected_rules:
         assert rule in css_text
