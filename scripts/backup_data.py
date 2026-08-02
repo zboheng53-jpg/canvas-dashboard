@@ -175,6 +175,10 @@ def keygen(private_key_path: Path, public_key_path: Path) -> None:
 def create_backup(data_dir: Path, output_dir: Path, public_key_path: Path, retention: int) -> Path:
     if not data_dir.is_dir():
         raise FileNotFoundError(f"Data directory does not exist: {data_dir}")
+    # Production may place the data directory on a separate volume and expose
+    # it through a symlink. Resolve only this trusted root; symlinks inside the
+    # protected data tree remain rejected by _included_files/_tar_filter.
+    data_dir = data_dir.resolve()
     files = _included_files(data_dir)
     manifest = _build_manifest(data_dir, files)
     public_key = serialization.load_pem_public_key(public_key_path.read_bytes())
