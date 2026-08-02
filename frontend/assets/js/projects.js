@@ -360,7 +360,18 @@ function renderProjectDetail() {
   if (!project) {
     detail.innerHTML = `
       <div class="ui-empty project-detail-empty">
-        <span class="ui-empty__art" aria-hidden="true"></span>
+        <span class="ui-empty__art" aria-hidden="true">
+          <svg width="72" height="64" viewBox="0 0 72 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="36" cy="32" r="28" fill="#EFF6FF" opacity="0.9"/>
+            <rect x="18" y="18" width="36" height="30" rx="6" fill="#FFFFFF" stroke="#93C5FD" stroke-width="1.5" stroke-dasharray="3 3"/>
+            <path d="M26 33H46" stroke="#BFDBFE" stroke-width="1.5"/>
+            <circle cx="26" cy="33" r="3" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.5"/>
+            <circle cx="36" cy="33" r="3" fill="#FFFFFF" stroke="#3B82F6" stroke-width="1.5"/>
+            <circle cx="46" cy="33" r="3" fill="#FFFFFF" stroke="#60A5FA" stroke-width="1.5"/>
+            <path d="M22 18V15C22 13.8954 22.8954 13 24 13H30C31.1046 13 32 13.8954 32 15V18" stroke="#93C5FD" stroke-width="1.5"/>
+            <path d="M52 14L52.7 16.3L55 17L52.7 17.7L52 20L51.3 17.7L49 17L51.3 16.3L52 14Z" fill="#60A5FA"/>
+          </svg>
+        </span>
         <strong>${projectRecords.some((item) => item.status === "active") ? "选择一个项目查看详情" : "暂无长期项目"}</strong>
         <p>${projectRecords.length ? "从左侧项目列表中选择。" : "新建一个项目，开始组织长期目标。"}</p>
         ${projectRecords.length ? "" : '<button type="button" class="ui-button ui-button--primary project-button-primary" onclick="openProjectModal()">新建项目</button>'}
@@ -895,7 +906,18 @@ function renderProjectOverviewState(title, copy, actionLabel = "", action = "") 
   if (!container) return;
   container.innerHTML = `
     <div class="ui-empty rail-empty-state">
-      <span class="ui-empty__art" aria-hidden="true"></span>
+      <span class="ui-empty__art" aria-hidden="true">
+        <svg width="72" height="64" viewBox="0 0 72 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="36" cy="32" r="28" fill="#EFF6FF" opacity="0.9"/>
+          <rect x="18" y="18" width="36" height="30" rx="6" fill="#FFFFFF" stroke="#93C5FD" stroke-width="1.5" stroke-dasharray="3 3"/>
+          <path d="M26 33H46" stroke="#BFDBFE" stroke-width="1.5"/>
+          <circle cx="26" cy="33" r="3" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.5"/>
+          <circle cx="36" cy="33" r="3" fill="#FFFFFF" stroke="#3B82F6" stroke-width="1.5"/>
+          <circle cx="46" cy="33" r="3" fill="#FFFFFF" stroke="#60A5FA" stroke-width="1.5"/>
+          <path d="M22 18V15C22 13.8954 22.8954 13 24 13H30C31.1046 13 32 13.8954 32 15V18" stroke="#93C5FD" stroke-width="1.5"/>
+          <path d="M52 14L52.7 16.3L55 17L52.7 17.7L52 20L51.3 17.7L49 17L51.3 16.3L52 14Z" fill="#60A5FA"/>
+        </svg>
+      </span>
       <div><strong>${pEscape(title)}</strong><p>${pEscape(copy)}</p></div>
       ${actionLabel ? `<button type="button" class="ui-button ui-button--primary project-empty-create" onclick="${action}">${pEscape(actionLabel)}</button>` : ""}
     </div>`;
