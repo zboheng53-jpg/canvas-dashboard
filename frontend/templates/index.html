@@ -1801,7 +1801,17 @@
       if (filteredItems.length === 0) {
         container.innerHTML = `
           <div class="ui-empty empty-state">
-            <span class="ui-empty__art" aria-hidden="true"></span>
+            <span class="ui-empty__art" aria-hidden="true">
+              <svg width="72" height="64" viewBox="0 0 72 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="36" cy="32" r="28" fill="#EFF6FF" opacity="0.9"/>
+                <rect x="18" y="14" width="36" height="36" rx="6" fill="#FFFFFF" stroke="#93C5FD" stroke-width="1.5" stroke-dasharray="3 3"/>
+                <rect x="24" y="22" width="8" height="8" rx="2" stroke="#3B82F6" stroke-width="1.5" fill="#FFFFFF"/>
+                <path d="M26 26L28 28L30 25" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round"/>
+                <rect x="36" y="25" width="12" height="3" rx="1.5" fill="#60A5FA"/>
+                <rect x="24" y="36" width="20" height="3" rx="1.5" fill="#BFDBFE"/>
+                <path d="M54 14L55 17L58 18L55 19L54 22L53 19L50 18L53 17L54 14Z" fill="#3B82F6"/>
+              </svg>
+            </span>
             <strong>${unified.length ? '该来源暂无待办事项' : '没有待办事项'}</strong>
             <p>${unified.length ? '切换来源或清除筛选后可查看其他待办。' : '新的课程任务同步后会显示在这里。'}</p>
           </div>`;
