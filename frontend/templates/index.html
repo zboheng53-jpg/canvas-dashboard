@@ -1103,6 +1103,7 @@
         const empty = scheduleElement('div', 'ui-empty rail-empty-state');
         const art = scheduleElement('span', 'ui-empty__art');
         art.setAttribute('aria-hidden', 'true');
+        art.innerHTML = `<svg width="72" height="64" viewBox="0 0 72 64" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="36" cy="32" r="28" fill="#EFF6FF" opacity="0.9"/><rect x="20" y="16" width="32" height="34" rx="5" fill="#FFFFFF" stroke="#93C5FD" stroke-width="1.5" stroke-dasharray="3 3"/><path d="M20 23H52" stroke="#BFDBFE" stroke-width="1.5"/><line x1="28" y1="13" x2="28" y2="17" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round"/><line x1="44" y1="13" x2="44" y2="17" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round"/><circle cx="36" cy="35" r="7" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.5"/><path d="M36 31V35L39 37" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round"/><path d="M52 38L52.7 40.3L55 41L52.7 41.7L52 44L51.3 41.7L49 41L51.3 40.3L52 38Z" fill="#3B82F6"/></svg>`;
         empty.append(art, scheduleElement('strong', '', '今天没有日程'), scheduleElement('p', '', '课程、固定事项和一次性事项会显示在这里'));
         container.append(empty); return;
       }
@@ -1173,6 +1174,9 @@
       const state = scheduleElement('div', `ui-empty rail-empty-state${isError ? ' ui-empty--danger is-error' : ''}`);
       const art = scheduleElement('span', 'ui-empty__art');
       art.setAttribute('aria-hidden', 'true');
+      if (!isError) {
+        art.innerHTML = `<svg width="72" height="64" viewBox="0 0 72 64" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="36" cy="32" r="28" fill="#EFF6FF" opacity="0.9"/><rect x="20" y="16" width="32" height="34" rx="5" fill="#FFFFFF" stroke="#93C5FD" stroke-width="1.5" stroke-dasharray="3 3"/><path d="M20 23H52" stroke="#BFDBFE" stroke-width="1.5"/><line x1="28" y1="13" x2="28" y2="17" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round"/><line x1="44" y1="13" x2="44" y2="17" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round"/><circle cx="36" cy="35" r="7" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.5"/><path d="M36 31V35L39 37" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round"/><path d="M52 38L52.7 40.3L55 41L52.7 41.7L52 44L51.3 41.7L49 41L51.3 40.3L52 38Z" fill="#3B82F6"/></svg>`;
+      }
       state.append(art, scheduleElement('strong', '', title), scheduleElement('p', '', detail));
       container.replaceChildren(state);
     }
