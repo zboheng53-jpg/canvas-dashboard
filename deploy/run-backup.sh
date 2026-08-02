@@ -3,7 +3,9 @@ set -euo pipefail
 
 root=/home/ubuntu/canvas-dashboard
 backup_tool="$root/current/scripts/backup_data.py"
-if [ ! -f "$backup_tool" ]; then
+if [ -f "$root/incoming/backup_data.py" ]; then
+    backup_tool="$root/incoming/backup_data.py"
+elif [ ! -f "$backup_tool" ]; then
     backup_tool="$root/incoming/backup_data.py"
 fi
 stopped=0
