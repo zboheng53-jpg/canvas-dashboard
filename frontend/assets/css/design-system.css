@@ -853,6 +853,66 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   margin-left: 6px;
 }
 
+/* 右栏今日日程：给长标题留出完整的阅读宽度和行间距。 */
+#today-schedule-card .card-head {
+  padding: 18px 20px 14px !important;
+}
+#today-schedule-card .card-head h2 {
+  font-size: 22px !important;
+}
+#today-schedule-card .tl-timeline {
+  padding: 12px 0 18px;
+}
+#today-schedule-card .tl-item {
+  gap: 14px;
+  padding: 12px 20px;
+}
+#today-schedule-card .tl-time {
+  width: 62px;
+  line-height: 1.5;
+}
+#today-schedule-card .tl-body {
+  padding-bottom: 9px;
+}
+#today-schedule-card .tl-name {
+  display: -webkit-box;
+  overflow: hidden;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+#today-schedule-card .tl-sub {
+  margin-top: 4px;
+  line-height: 1.4;
+}
+#today-schedule-card .today-deadlines {
+  margin: 16px 20px 0 !important;
+  padding: 14px 0 0 !important;
+  gap: 10px !important;
+}
+#today-schedule-card .today-deadline-item {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: start !important;
+  gap: 5px !important;
+  padding: 0 !important;
+}
+#today-schedule-card .today-deadlines strong {
+  width: 100% !important;
+  min-width: 0 !important;
+  line-height: 1.55 !important;
+  overflow-wrap: anywhere !important;
+  -webkit-line-clamp: 3 !important;
+}
+#today-schedule-card .today-deadline-course {
+  justify-self: start !important;
+  margin-top: 0 !important;
+  padding: 3px 8px !important;
+  font-size: 10.5px !important;
+  line-height: 1.35 !important;
+}
+
 /* 侧栏 nav-count 数字徽章（设计稿"今日总览 7"） */
 .sidebar-nav-item .nav-count {
   margin-left: auto;
@@ -1133,17 +1193,18 @@ section.card.listcard,
 .academic-sidebar .sidebar-footer {
   background: transparent !important;
   border-top: 1px solid var(--ds-line-soft, #eef0f3) !important;
-  padding: 10px 0 0 !important;
-  gap: 2px !important;
+  padding: 16px 8px 14px !important;
+  gap: 6px !important;
 }
 .academic-sidebar .sidebar-user {
   justify-content: flex-start !important;
   background: transparent !important;
   border: none !important;
   border-radius: 7px !important;
-  padding: 7px 10px !important;
+  min-height: 44px !important;
+  padding: 9px 10px !important;
   margin-bottom: 0 !important;
-  gap: 9px !important;
+  gap: 10px !important;
 }
 .academic-sidebar .sidebar-user:hover,
 .academic-sidebar .sidebar-user:focus-visible {
@@ -1151,29 +1212,30 @@ section.card.listcard,
   border: none !important;
 }
 .academic-sidebar .sidebar-user-avatar {
-  width: 26px !important;
-  height: 26px !important;
+  width: 32px !important;
+  height: 32px !important;
   background: #e8ecf3 !important;
   border: none !important;
   color: var(--ds-ink-2, #5b6472) !important;
-  font-size: 12px !important;
+  font-size: 13px !important;
   font-weight: 600 !important;
 }
 .academic-sidebar .sidebar-user-copy strong {
-  font-size: 13px !important;
+  font-size: 14px !important;
   font-weight: 400 !important;
   color: var(--ds-ink-2, #5b6472) !important;
 }
 .academic-sidebar .sidebar-logout {
-  padding: 7px 10px !important;
-  gap: 9px !important;
-  font-size: 13px !important;
+  min-height: 42px !important;
+  padding: 10px !important;
+  gap: 11px !important;
+  font-size: 14px !important;
   font-weight: 400 !important;
   color: var(--ds-ink-3, #7d8694) !important;
 }
 .academic-sidebar .sidebar-logout svg {
-  width: 15px !important;
-  height: 15px !important;
+  width: 18px !important;
+  height: 18px !important;
   opacity: 0.7;
 }
 .academic-sidebar .sidebar-logout:hover {
@@ -1181,6 +1243,12 @@ section.card.listcard,
   color: #b91c1c !important;
 }
 .academic-sidebar .sidebar-logout:hover svg { opacity: 1; }
+.sidebar-collapsed .academic-sidebar .sidebar-user,
+.sidebar-collapsed .academic-sidebar .sidebar-logout {
+  justify-content: center !important;
+  padding-right: 0 !important;
+  padding-left: 0 !important;
+}
 
 /* ---------- 7. 顶栏天气模块字号（设计稿 .opt1-temp-row 26px / 图标 24px / 明细 13.5px） ---------- */
 .opt1-temp-row .weather-temp {
@@ -1280,12 +1348,12 @@ section.card.listcard,
 .dashboard-placeholder-view .console-manager-heading h1,
 .dashboard-placeholder-view .connections-manager-heading h1 {
   font-family: var(--font-serif) !important;
-  font-size: 17px !important;
+  font-size: 28px !important;
   font-weight: 600 !important;
   letter-spacing: -0.01em !important;
   color: var(--ds-ink, #1c2330) !important;
   margin: 0 !important;
-  line-height: 1.35 !important;
+  line-height: 1.25 !important;
   text-transform: none !important;
 }
 .dashboard-placeholder-view .project-manager-heading p,
@@ -1314,6 +1382,15 @@ section.card.listcard,
 }
 /* 页头里的 meta 行（课表学期信息）继承副标题样式 */
 .dashboard-placeholder-view .schedule-meta-line p { margin: 3px 0 0 !important; }
+
+@media (max-width: 768px) {
+  .dashboard-placeholder-view .project-manager-heading h1,
+  .dashboard-placeholder-view .schedule-manager-heading h1,
+  .dashboard-placeholder-view .console-manager-heading h1,
+  .dashboard-placeholder-view .connections-manager-heading h1 {
+    font-size: 24px !important;
+  }
+}
 
 /* ---------- 2. 状态行（设计稿 .status-line：细灰小字 + 底部分隔线，空时隐藏） ---------- */
 .dashboard-placeholder-view .project-manager-status,
