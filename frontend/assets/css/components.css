@@ -810,6 +810,18 @@ input[type="time"].ui-control {
   transform: translateY(4px);
 }
 
+.ui-empty__art:has(svg) {
+  width: auto;
+  height: auto;
+  border: none;
+  background: transparent;
+}
+
+.ui-empty__art:has(svg)::before,
+.ui-empty__art:has(svg)::after {
+  display: none;
+}
+
 .ui-empty strong {
   color: var(--color-text-primary);
   font-family: var(--font-title);

@@ -1283,7 +1283,16 @@ section.card.listcard,
   box-shadow: none !important;
 }
 .todo-list .ui-empty__art,
-.rail-card .ui-empty__art { display: none !important; }
+.rail-card .ui-empty__art {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 64px;
+  margin-bottom: 6px !important;
+  border: none !important;
+  background: transparent !important;
+}
 .todo-list .ui-empty strong,
 .rail-card .ui-empty strong,
 .rail-card .ui-loading--block strong {
@@ -1853,7 +1862,16 @@ section.card.listcard,
   box-shadow: none !important;
 }
 .project-manager-list .ui-empty__art,
-.project-detail .ui-empty__art { display: none !important; }
+.project-detail .ui-empty__art {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 64px;
+  margin-bottom: 6px !important;
+  border: none !important;
+  background: transparent !important;
+}
 .project-manager-list .ui-empty strong,
 .project-detail .ui-empty strong {
   display: block !important;

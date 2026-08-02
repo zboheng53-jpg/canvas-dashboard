@@ -94,3 +94,12 @@ def test_token_scale_consistency():
     
     for token in required_tokens:
         assert token in content, f"Missing required design system token {token} in tokens.css"
+
+
+def test_empty_art_not_hidden():
+    """Ensure empty state illustrations are not forcefully hidden in design-system.css."""
+    ds_css = CSS_DIR / "design-system.css"
+    content = ds_css.read_text(encoding="utf-8")
+    hidden_rule = ".todo-list .ui-empty__art,\n.rail-card .ui-empty__art { display: none !important; }"
+    assert hidden_rule not in content, "Empty art is still hidden with display: none !important in design-system.css"
+
