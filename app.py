@@ -43,6 +43,7 @@ import tongji_login_sessions
 import tongji_timetable
 import project_store
 import platform_sync
+import dashboard_preferences
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger("app")
 
@@ -556,6 +557,32 @@ def index():
 def component_lab():
     """Render the isolated visual component laboratory for authenticated users."""
     return render_template("component_lab.html")
+
+
+@app.route("/api/dashboard/preferences", methods=["GET", "PUT"])
+def api_dashboard_preferences():
+    """Read or update account-scoped overview display preferences."""
+    username = session["username"]
+    if request.method == "GET":
+        return jsonify({"ok": True, **dashboard_preferences.load(username)})
+
+    data = read_json_request()
+    visible_sources = data.get("visible_todo_sources") if data else None
+    if (
+        not isinstance(visible_sources, list)
+        or any(
+            not isinstance(source, str) or source not in dashboard_preferences.TODO_SOURCES
+            for source in visible_sources
+        )
+        or len(visible_sources) != len(set(visible_sources))
+    ):
+        return api_error(
+            "visible_todo_sources_invalid",
+            "待办来源显示设置无效",
+            400,
+        )
+    preferences = dashboard_preferences.save_visible_todo_sources(username, visible_sources)
+    return jsonify({"ok": True, **preferences})
 
 
 @app.route("/login/<platform>")

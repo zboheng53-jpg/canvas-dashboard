@@ -106,10 +106,10 @@
 
           <select id="todo-source-select" class="ui-control todo-source-select" style="position: absolute; opacity: 0; pointer-events: auto; width: 1px; height: 1px; margin: -1px; overflow: hidden;" aria-label="按来源筛选待办">
             <option value="all">全部</option>
-            <option value="canvas">Canvas</option>
-            <option value="haoke">好课</option>
-            <option value="zhixuemeng">智学盟</option>
-            <option value="zhihuishu">智慧树</option>
+            <option value="canvas" hidden disabled>Canvas</option>
+            <option value="haoke" hidden disabled>好课</option>
+            <option value="zhixuemeng" hidden disabled>智学盟</option>
+            <option value="zhihuishu" hidden disabled>智慧树</option>
             <option value="project">项目</option>
             <option value="custom">自定义</option>
           </select>
@@ -122,12 +122,33 @@
           <!-- 来源筛选 Chips -->
           <div class="src-filters todo-source-filters" id="todo-source-filters" role="group" aria-label="按来源筛选待办">
             <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter is-on" data-todo-source="all" aria-pressed="true">全部 <span class="n" id="src-count-all">0</span></button>
-            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="canvas" aria-pressed="false"><span class="dot" style="background:var(--src-canvas)"></span>Canvas <span class="n" id="src-count-canvas">0</span></button>
-            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="haoke" aria-pressed="false"><span class="dot" style="background:var(--src-haoke)"></span>好课 <span class="n" id="src-count-haoke">0</span></button>
-            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="zhixuemeng" aria-pressed="false"><span class="dot" style="background:var(--src-zxm)"></span>智学盟 <span class="n" id="src-count-zhixuemeng">0</span></button>
-            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="zhihuishu" aria-pressed="false"><span class="dot" style="background:var(--src-zhs)"></span>智慧树 <span class="n" id="src-count-zhihuishu">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter hidden" data-todo-source="canvas" aria-pressed="false"><span class="dot" style="background:var(--src-canvas)"></span>Canvas <span class="n" id="src-count-canvas">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter hidden" data-todo-source="haoke" aria-pressed="false"><span class="dot" style="background:var(--src-haoke)"></span>好课 <span class="n" id="src-count-haoke">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter hidden" data-todo-source="zhixuemeng" aria-pressed="false"><span class="dot" style="background:var(--src-zxm)"></span>智学盟 <span class="n" id="src-count-zhixuemeng">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter hidden" data-todo-source="zhihuishu" aria-pressed="false"><span class="dot" style="background:var(--src-zhs)"></span>智慧树 <span class="n" id="src-count-zhihuishu">0</span></button>
             <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="project" aria-pressed="false"><span class="dot" style="background:var(--src-project)"></span>项目 <span class="n" id="src-count-project">0</span></button>
             <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="custom" aria-pressed="false"><span class="dot" style="background:var(--src-custom)"></span>自定义 <span class="n" id="src-count-custom">0</span></button>
+            <details class="todo-source-manager" id="todo-source-manager">
+              <summary class="todo-source-manager-trigger" aria-label="管理今日总览来源标签">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6"></path></svg>
+                管理标签
+              </summary>
+              <div class="todo-source-manager-panel" id="todo-source-manager-panel">
+                <div class="todo-source-manager-heading">
+                  <div><strong>今日总览标签</strong><span>只显示你会用到的来源</span></div>
+                  <button type="button" class="ui-icon-button todo-source-manager-close" aria-label="关闭标签管理" onclick="document.getElementById('todo-source-manager').removeAttribute('open')">×</button>
+                </div>
+                <div class="todo-source-visibility-options" id="todo-source-visibility-options">
+                  <label class="todo-source-visibility-option hidden" data-todo-source-option="canvas"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="canvas" checked><span class="dot" style="background:var(--src-canvas)"></span><span>Canvas</span><small>来自连接与同步</small></label>
+                  <label class="todo-source-visibility-option hidden" data-todo-source-option="haoke"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="haoke" checked><span class="dot" style="background:var(--src-haoke)"></span><span>好课</span><small>来自连接与同步</small></label>
+                  <label class="todo-source-visibility-option hidden" data-todo-source-option="zhixuemeng"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="zhixuemeng" checked><span class="dot" style="background:var(--src-zxm)"></span><span>智学盟</span><small>来自连接与同步</small></label>
+                  <label class="todo-source-visibility-option hidden" data-todo-source-option="zhihuishu"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="zhihuishu" checked><span class="dot" style="background:var(--src-zhs)"></span><span>智慧树</span><small>来自连接与同步</small></label>
+                  <label class="todo-source-visibility-option" data-todo-source-option="project"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="project" checked><span class="dot" style="background:var(--src-project)"></span><span>项目</span><small>长期项目</small></label>
+                  <label class="todo-source-visibility-option" data-todo-source-option="custom"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="custom" checked><span class="dot" style="background:var(--src-custom)"></span><span>自定义</span><small>手动添加</small></label>
+                </div>
+                <p class="todo-source-manager-status" id="todo-source-manager-status" role="status" aria-live="polite">连接过的平台会自动出现在这里。</p>
+              </div>
+            </details>
           </div>
 
           <!-- Unified todo list -->
@@ -1553,7 +1574,68 @@
       }
     }
 
+    const TODO_SOURCE_ORDER = ['canvas', 'haoke', 'zhixuemeng', 'zhihuishu', 'project', 'custom'];
+    const TODO_PLATFORM_SOURCES = new Set(['canvas', 'haoke', 'zhixuemeng', 'zhihuishu']);
+    let visibleTodoSources = new Set(TODO_SOURCE_ORDER);
+    let todoSourcePreferenceRevision = 0;
+    let todoSourcePreferenceSaveTimer = null;
     let todoSourceFilter = 'all';
+
+    function todoSourceIsAvailable(source, counts) {
+      if (!TODO_PLATFORM_SOURCES.has(source)) return true;
+      const sync = platformSyncs[source];
+      return (counts[source] || 0) > 0 || Boolean(sync && sync.connection_state !== 'unconfigured');
+    }
+
+    async function loadTodoSourcePreferences() {
+      const status = document.getElementById('todo-source-manager-status');
+      try {
+        const response = await fetch('/api/dashboard/preferences');
+        const result = await response.json();
+        if (!response.ok || !result.ok || !Array.isArray(result.visible_todo_sources)) {
+          throw new Error(result.error || '读取失败');
+        }
+        visibleTodoSources = new Set(
+          result.visible_todo_sources.filter((source) => TODO_SOURCE_ORDER.includes(source))
+        );
+        if (status) status.textContent = '设置会保存到你的账户；可选平台随连接状态自动更新。';
+        renderUnifiedList();
+      } catch (error) {
+        if (status) status.textContent = '暂时无法读取设置，当前使用默认标签。';
+      }
+    }
+
+    function setTodoSourceVisibility(source, visible) {
+      if (!TODO_SOURCE_ORDER.includes(source)) return;
+      if (visible) visibleTodoSources.add(source);
+      else visibleTodoSources.delete(source);
+      if (!visible && todoSourceFilter === source) todoSourceFilter = 'all';
+      renderUnifiedList();
+
+      const revision = ++todoSourcePreferenceRevision;
+      const status = document.getElementById('todo-source-manager-status');
+      if (status) status.textContent = '正在保存…';
+      clearTimeout(todoSourcePreferenceSaveTimer);
+      todoSourcePreferenceSaveTimer = setTimeout(async () => {
+        const requestedSources = TODO_SOURCE_ORDER.filter((item) => visibleTodoSources.has(item));
+        try {
+          const response = await fetch('/api/dashboard/preferences', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({visible_todo_sources: requestedSources}),
+          });
+          const result = await response.json();
+          if (!response.ok || !result.ok) throw new Error(result.error || '保存失败');
+          if (revision !== todoSourcePreferenceRevision) return;
+          visibleTodoSources = new Set(result.visible_todo_sources || requestedSources);
+          if (status) status.textContent = '已保存；可选平台随连接状态自动更新。';
+          renderUnifiedList();
+        } catch (error) {
+          if (revision !== todoSourcePreferenceRevision) return;
+          if (status) status.textContent = '保存失败，请稍后重试。';
+        }
+      }, 250);
+    }
 
     function setTodoSourceFilter(source) {
       todoSourceFilter = source;
@@ -1584,6 +1666,10 @@
       };
       const counts = { all: items.length, canvas: 0, haoke: 0, zhixuemeng: 0, zhihuishu: 0, project: 0, custom: 0 };
       items.forEach((item) => { if (counts[item.source] !== undefined) counts[item.source] += 1; });
+      const displayedSources = new Set(
+        TODO_SOURCE_ORDER.filter((source) => todoSourceIsAvailable(source, counts) && visibleTodoSources.has(source))
+      );
+      if (todoSourceFilter !== 'all' && !displayedSources.has(todoSourceFilter)) todoSourceFilter = 'all';
 
       const selectEl = document.getElementById('todo-source-select');
       if (selectEl) {
@@ -1592,12 +1678,16 @@
           const source = opt.value || opt.dataset.todoSource;
           if (labels[source]) {
             opt.textContent = `${labels[source]} (${counts[source] || 0})`;
+            const isDisplayed = source === 'all' || displayedSources.has(source);
+            opt.hidden = !isDisplayed;
+            opt.disabled = !isDisplayed;
           }
         });
       }
 
       document.querySelectorAll('button[data-todo-source]').forEach((button) => {
         const source = button.dataset.todoSource;
+        button.classList.toggle('hidden', source !== 'all' && !displayedSources.has(source));
         const countSpan = button.querySelector('.n') || document.getElementById('src-count-' + source);
         if (countSpan) {
           countSpan.textContent = String(counts[source] || 0);
@@ -1608,6 +1698,17 @@
         button.classList.toggle('is-on', isActive);
         button.classList.toggle('is-active', isActive);
         button.setAttribute('aria-pressed', String(isActive));
+      });
+
+      document.querySelectorAll('[data-todo-source-option]').forEach((option) => {
+        const source = option.dataset.todoSourceOption;
+        const available = todoSourceIsAvailable(source, counts);
+        option.classList.toggle('hidden', !available);
+        const input = option.querySelector('[data-todo-source-visibility]');
+        if (input) {
+          input.disabled = !available;
+          input.checked = visibleTodoSources.has(source);
+        }
       });
     }
 
@@ -3130,6 +3231,7 @@
     tickClock();
 
     if (!isDemoMode) {
+      loadTodoSourcePreferences();
       fetchWeather();
       fetchTerm();
       fetchCanvasTodos();

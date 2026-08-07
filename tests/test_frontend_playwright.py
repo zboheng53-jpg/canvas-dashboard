@@ -593,6 +593,47 @@ def test_frontend_source_filters_and_focus_views(live_app, browser):
     assert schedule_box is not None and schedule_box["width"] > 800
 
 
+def test_frontend_source_labels_follow_connections_and_persist_visibility(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "sourcepreferences")
+
+    visible_filters = page.locator(".todo-source-filter:visible")
+    expect(visible_filters).to_have_count(5)
+    expect(page.locator('[data-todo-source="canvas"]')).to_be_visible()
+    # The shared fixture returns a successful 好课 sync, so it is treated as
+    # connected even though it currently has zero assignments.
+    expect(page.locator('[data-todo-source="haoke"]')).to_be_visible()
+    expect(page.locator('[data-todo-source="zhixuemeng"]')).to_be_hidden()
+    expect(page.locator('[data-todo-source="zhihuishu"]')).to_be_hidden()
+
+    page.locator("#todo-source-manager summary").click()
+    expect(page.locator(".todo-source-visibility-option:visible")).to_have_count(4)
+    filter_box = page.locator("#todo-source-filters").bounding_box()
+    panel_box = page.locator("#todo-source-manager-panel").bounding_box()
+    assert filter_box is not None and panel_box is not None
+    assert panel_box["x"] >= filter_box["x"]
+    assert panel_box["x"] + panel_box["width"] <= filter_box["x"] + filter_box["width"] + 1
+    canvas_toggle = page.locator('[data-todo-source-visibility="canvas"]')
+    expect(canvas_toggle).to_be_checked()
+    canvas_toggle.uncheck()
+
+    expect(page.locator('[data-todo-source="canvas"]')).to_be_hidden()
+    expect(page.locator(".todo-row").filter(has_text="Canvas seeded")).to_be_visible()
+    expect(page.locator("#todo-source-manager-status")).to_have_text(re.compile(r"已保存"))
+
+    page.reload()
+    expect(page.locator('[data-todo-source="canvas"]')).to_be_hidden()
+    expect(page.locator(".todo-row").filter(has_text="Canvas seeded")).to_be_visible()
+    page.locator("#todo-source-manager summary").click()
+    expect(page.locator('[data-todo-source-visibility="canvas"]')).not_to_be_checked()
+    page.set_viewport_size({"width": 390, "height": 844})
+    expect(page.locator("#todo-source-manager-panel")).to_be_visible()
+    assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    assert page.locator("#todo-source-visibility-options").evaluate(
+        "element => getComputedStyle(element).gridTemplateColumns.split(' ').length"
+    ) == 2
+
+
 def test_frontend_v2_mobile_menu_placeholders_and_stacked_modules(live_app, browser):
     page = browser.new_page(viewport={"width": 390, "height": 844})
     register_dashboard_user(page, live_app, "mobilev2")

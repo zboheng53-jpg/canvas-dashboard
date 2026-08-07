@@ -15,6 +15,17 @@
     const button = event.target.closest('[data-todo-source]');
     if (button) setTodoSourceFilter(button.dataset.todoSource);
   });
+  byId('todo-source-visibility-options')?.addEventListener('change', (event) => {
+    const input = event.target.closest('[data-todo-source-visibility]');
+    if (input) setTodoSourceVisibility(input.dataset.todoSourceVisibility, input.checked);
+  });
+  document.addEventListener('click', (event) => {
+    const manager = byId('todo-source-manager');
+    if (manager?.open && !manager.contains(event.target)) manager.removeAttribute('open');
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') byId('todo-source-manager')?.removeAttribute('open');
+  });
   byId('todo-list')?.addEventListener('click', (event) => {
     const projectDueEl = event.target.closest('.project-due-editable');
     if (projectDueEl) { startProjectTodoDueEdit(projectDueEl); return; }
