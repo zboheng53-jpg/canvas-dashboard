@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Canvas Dashboard · Logo 草图</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f4f6f9;
+      --surface: #ffffff;
+      --ink: #1c2330;
+      --ink-2: #5b6472;
+      --ink-3: #86909e;
+      --line: #e3e7ed;
+      --line-strong: #cfd6df;
+      --blue: #2563eb;
+      --blue-dark: #164fc5;
+      --blue-soft: #eaf1ff;
+      --cyan: #69d2e7;
+      --canvas-red: #c4564f;
+      --green: #2e7d5a;
+      --radius: 18px;
+      --shadow: 0 16px 44px rgba(28, 35, 48, .08);
+      font-family: "Geist", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(37, 99, 235, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(37, 99, 235, .035) 1px, transparent 1px),
+        var(--page);
+      background-size: 32px 32px;
+    }
+
+    button { font: inherit; }
+
+    .page {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 56px 0 80px;
+    }
+
+    .intro {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 40px;
+      align-items: end;
+      margin-bottom: 34px;
+    }
+
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin: 0 0 12px;
+      color: var(--blue-dark);
+      font-size: 12px;
+      font-weight: 760;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 22px;
+      height: 2px;
+      background: var(--blue);
+    }
+
+    h1 {
+      margin: 0;
+      font-family: "Noto Serif SC", "Songti SC", serif;
+      font-size: clamp(34px, 5vw, 62px);
+      font-weight: 650;
+      letter-spacing: -.045em;
+      line-height: 1.08;
+    }
+
+    .intro-copy {
+      max-width: 690px;
+      margin: 16px 0 0;
+      color: var(--ink-2);
+      font-size: 15px;
+      line-height: 1.8;
+    }
+
+    .legend {
+      display: grid;
+      gap: 8px;
+      min-width: 190px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .72);
+      backdrop-filter: blur(12px);
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      color: var(--ink-2);
+      font-size: 12px;
+    }
+
+    .legend-row strong { color: var(--ink); font-weight: 680; }
+
+    .swatches { display: flex; gap: 5px; }
+    .swatch { width: 14px; height: 14px; border-radius: 50%; }
+
+    .concepts {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .concept {
+      position: relative;
+      overflow: hidden;
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: 0 1px 0 rgba(28, 35, 48, .02);
+      transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .concept:hover {
+      transform: translateY(-3px);
+      border-color: #b9c8df;
+      box-shadow: var(--shadow);
+    }
+
+    .concept.is-selected {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, .12), var(--shadow);
+    }
+
+    .concept-visual {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 238px;
+      padding: 34px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .concept-visual::after {
+      content: "";
+      position: absolute;
+      inset: 20px;
+      border: 1px dashed rgba(37, 99, 235, .12);
+      border-radius: 12px;
+      pointer-events: none;
+    }
+
+    .hero-mark {
+      width: 112px;
+      height: 112px;
+      filter: drop-shadow(0 12px 18px rgba(24, 50, 96, .14));
+    }
+
+    .size-rail {
+      position: absolute;
+      right: 17px;
+      bottom: 15px;
+      z-index: 1;
+      display: flex;
+      align-items: end;
+      gap: 8px;
+      padding: 8px 9px;
+      border: 1px solid rgba(207, 214, 223, .8);
+      border-radius: 9px;
+      background: rgba(255,255,255,.88);
+      box-shadow: 0 4px 12px rgba(28,35,48,.06);
+    }
+
+    .size-rail svg:nth-child(1) { width: 16px; height: 16px; }
+    .size-rail svg:nth-child(2) { width: 24px; height: 24px; }
+    .size-rail svg:nth-child(3) { width: 32px; height: 32px; }
+
+    .concept-copy { padding: 21px 22px 22px; }
+
+    .concept-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .concept-name {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 720;
+      letter-spacing: -.015em;
+    }
+
+    .concept-id {
+      color: var(--ink-3);
+      font-family: "Cascadia Mono", Consolas, monospace;
+      font-size: 11px;
+    }
+
+    .concept-copy p {
+      min-height: 44px;
+      margin: 9px 0 18px;
+      color: var(--ink-2);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .select-button {
+      width: 100%;
+      height: 38px;
+      border: 1px solid var(--line-strong);
+      border-radius: 9px;
+      color: var(--ink);
+      background: white;
+      cursor: pointer;
+      transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+
+    .select-button:hover { border-color: #8da9d6; background: var(--blue-soft); }
+    .select-button:focus-visible { outline: 3px solid rgba(37,99,235,.22); outline-offset: 2px; }
+    .is-selected .select-button { color: white; border-color: var(--blue); background: var(--blue); }
+
+    .preview-panel {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .browser-preview, .app-preview {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      box-shadow: 0 1px 0 rgba(28,35,48,.02);
+    }
+
+    .section-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      color: var(--ink-2);
+      font-size: 12px;
+      font-weight: 680;
+      letter-spacing: .04em;
+    }
+
+    .browser-chrome { padding: 18px; background: #252525; border-radius: 0 0 17px 17px; }
+
+    .tab-strip { display: flex; align-items: end; height: 56px; }
+
+    .browser-tab {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: min(360px, 80%);
+      height: 48px;
+      padding: 0 14px;
+      color: #f4f4f4;
+      background: #343434;
+      border-radius: 12px 12px 0 0;
+      font-size: 15px;
+    }
+
+    .browser-tab svg { flex: none; width: 26px; height: 26px; }
+    .browser-tab span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .tab-close { margin-left: auto; color: #d4d4d4; font-size: 22px; font-weight: 300; }
+
+    .address-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 42px;
+      padding: 0 15px;
+      border: 1px solid #555;
+      border-radius: 22px;
+      color: #d7d7d7;
+      background: #2b2b2b;
+      font-size: 14px;
+    }
+
+    .lock { color: #aeb4bc; }
+    .domain { color: white; }
+
+    .app-preview-body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      min-height: 158px;
+      padding: 24px;
+    }
+
+    .app-icon {
+      width: 82px;
+      height: 82px;
+      border-radius: 19px;
+      box-shadow: 0 13px 24px rgba(24, 50, 96, .18);
+    }
+
+    .app-wordmark strong { display: block; font-size: 18px; letter-spacing: -.02em; }
+    .app-wordmark span { display: block; margin-top: 5px; color: var(--ink-3); font-size: 12px; }
+
+    .empty-state {
+      color: var(--ink-3);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .footer-note {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      margin-top: 18px;
+      padding: 16px 4px 0;
+      color: var(--ink-3);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .footer-note strong { color: var(--ink-2); }
+
+    .logo-shape { display: block; overflow: visible; }
+
+    @media (max-width: 900px) {
+      .concepts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .preview-panel { grid-template-columns: 1fr; }
+      .intro { grid-template-columns: 1fr; }
+      .legend { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 600px) {
+      .page { width: min(100% - 24px, 1180px); padding-top: 32px; }
+      .concepts { grid-template-columns: 1fr; }
+      .legend { grid-template-columns: 1fr; }
+      .footer-note { align-items: flex-start; flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <!-- SVG sprite: every mark is intentionally self-contained and favicon-safe. -->
+  <svg width="0" height="0" aria-hidden="true" style="position:absolute">
+    <defs>
+      <linearGradient id="blueGradient" x1="10" y1="8" x2="54" y2="58" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#3c7cf5"/>
+        <stop offset="1" stop-color="#174fcb"/>
+      </linearGradient>
+
+      <symbol id="logo-confluence" viewBox="0 0 64 64">
+        <rect width="64" height="64" rx="15" fill="url(#blueGradient)"/>
+        <path d="M18 15h15v8H24v9h-8V17a2 2 0 0 1 2-2Z" fill="#fff"/>
+        <path d="M46 49H31v-8h9v-9h8v15a2 2 0 0 1-2 2Z" fill="#fff"/>
+        <path d="M39 15h7a2 2 0 0 1 2 2v9h-8V15Z" fill="#69d2e7"/>
+        <path d="M16 38h8v11h-6a2 2 0 0 1-2-2v-9Z" fill="#69d2e7"/>
+        <rect x="27" y="27" width="10" height="10" rx="2.5" fill="#fff"/>
+      </symbol>
+
+      <symbol id="logo-canvas" viewBox="0 0 64 64">
+        <rect width="64" height="64" rx="15" fill="#1c2330"/>
+        <rect x="14" y="14" width="36" height="36" rx="7" fill="#fff"/>
+        <path d="M32 14v36M14 32h36" stroke="#cfd8e6" stroke-width="3"/>
+        <rect x="17" y="17" width="12" height="12" rx="3" fill="#2563eb"/>
+        <rect x="35" y="35" width="12" height="12" rx="3" fill="#69d2e7"/>
+        <circle cx="41" cy="23" r="3.5" fill="#c4564f"/>
+      </symbol>
+
+      <symbol id="logo-deadline" viewBox="0 0 64 64">
+        <rect width="64" height="64" rx="15" fill="#2563eb"/>
+        <path d="M32 13a19 19 0 1 0 18.3 24.1" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+        <path d="M32 22v11l7 5" fill="none" stroke="#69d2e7" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="m41.5 18.5 4 4 7.5-8" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+
+      <symbol id="logo-page" viewBox="0 0 64 64">
+        <rect width="64" height="64" rx="15" fill="#eef4ff"/>
+        <path d="M18 11h21l10 10v31H18a4 4 0 0 1-4-4V15a4 4 0 0 1 4-4Z" fill="#2563eb"/>
+        <path d="M39 11v10h10" fill="#91b2f4"/>
+        <path d="M22 29h19M22 36h14" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+        <path d="m22 44 3 3 6-7" fill="none" stroke="#69d2e7" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+
+      <symbol id="logo-route" viewBox="0 0 64 64">
+        <rect width="64" height="64" rx="15" fill="#1c2330"/>
+        <circle cx="18" cy="18" r="6" fill="#69d2e7"/>
+        <circle cx="46" cy="18" r="6" fill="#fff"/>
+        <circle cx="18" cy="46" r="6" fill="#fff"/>
+        <path d="M18 27c0 8 6 9 14 9s14 2 14 10" fill="none" stroke="#6d98f4" stroke-width="6" stroke-linecap="round"/>
+        <path d="M46 27c0 8-6 9-14 9" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+        <path d="m40 43 6 6 6-6" fill="none" stroke="#69d2e7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+
+      <symbol id="logo-monogram" viewBox="0 0 64 64">
+        <rect width="64" height="64" rx="15" fill="#2563eb"/>
+        <path d="M44.5 19.2A19 19 0 1 0 44.5 45" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+        <path d="M31 20h5c9 0 14 4.5 14 12s-5 12-14 12h-5V20Z" fill="none" stroke="#69d2e7" stroke-width="5.5" stroke-linejoin="round"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <main class="page">
+    <header class="intro">
+      <div>
+        <p class="eyebrow">Identity study · round 01</p>
+        <h1>给汇聚学习任务的<br>控制台一个记忆点。</h1>
+        <p class="intro-copy">六个方向都以“小尺寸先行”为原则：不依赖文字，在 16px 的浏览器标签上仍能辨认。点击任一方案，可在底部查看它放进真实浏览器标签和桌面图标后的感觉。</p>
+      </div>
+      <aside class="legend" aria-label="设计约束">
+        <div class="legend-row"><span>主色</span><span class="swatches"><i class="swatch" style="background:#2563eb"></i><i class="swatch" style="background:#1c2330"></i><i class="swatch" style="background:#69d2e7"></i></span></div>
+        <div class="legend-row"><span>最小尺寸</span><strong>16 × 16 px</strong></div>
+        <div class="legend-row"><span>应用场景</span><strong>Web / PWA</strong></div>
+      </aside>
+    </header>
+
+    <section class="concepts" aria-label="Logo 方案">
+      <article class="concept" data-logo="logo-confluence" data-name="汇流方格">
+        <div class="concept-visual">
+          <svg class="logo-shape hero-mark" role="img" aria-label="汇流方格 Logo"><use href="#logo-confluence"/></svg>
+          <div class="size-rail" aria-label="16、24、32 像素预览">
+            <svg><use href="#logo-confluence"/></svg><svg><use href="#logo-confluence"/></svg><svg><use href="#logo-confluence"/></svg>
+          </div>
+        </div>
+        <div class="concept-copy">
+          <div class="concept-heading"><h2 class="concept-name">汇流方格</h2><span class="concept-id">A / CONFLUENCE</span></div>
+          <p>四个任务块向中心汇聚，负形里藏着一个 C；最像“多平台聚合”的产品本质。</p>
+          <button class="select-button" type="button">预览这个方案</button>
+        </div>
+      </article>
+
+      <article class="concept" data-logo="logo-canvas" data-name="课程画布">
+        <div class="concept-visual">
+          <svg class="logo-shape hero-mark" role="img" aria-label="课程画布 Logo"><use href="#logo-canvas"/></svg>
+          <div class="size-rail" aria-label="16、24、32 像素预览">
+            <svg><use href="#logo-canvas"/></svg><svg><use href="#logo-canvas"/></svg><svg><use href="#logo-canvas"/></svg>
+          </div>
+        </div>
+        <div class="concept-copy">
+          <div class="concept-heading"><h2 class="concept-name">课程画布</h2><span class="concept-id">B / CANVAS</span></div>
+          <p>把课表、任务、提醒放进同一块四分画布；信息密度高，仪表盘属性最强。</p>
+          <button class="select-button" type="button">预览这个方案</button>
+        </div>
+      </article>
+
+      <article class="concept" data-logo="logo-deadline" data-name="截止轨迹">
+        <div class="concept-visual">
+          <svg class="logo-shape hero-mark" role="img" aria-label="截止轨迹 Logo"><use href="#logo-deadline"/></svg>
+          <div class="size-rail" aria-label="16、24、32 像素预览">
+            <svg><use href="#logo-deadline"/></svg><svg><use href="#logo-deadline"/></svg><svg><use href="#logo-deadline"/></svg>
+          </div>
+        </div>
+        <div class="concept-copy">
+          <div class="concept-heading"><h2 class="concept-name">截止轨迹</h2><span class="concept-id">C / DEADLINE</span></div>
+          <p>时钟缺口转化为完成勾，强调“看见截止时间，然后完成它”的核心动作。</p>
+          <button class="select-button" type="button">预览这个方案</button>
+        </div>
+      </article>
+
+      <article class="concept" data-logo="logo-page" data-name="任务折页">
+        <div class="concept-visual">
+          <svg class="logo-shape hero-mark" role="img" aria-label="任务折页 Logo"><use href="#logo-page"/></svg>
+          <div class="size-rail" aria-label="16、24、32 像素预览">
+            <svg><use href="#logo-page"/></svg><svg><use href="#logo-page"/></svg><svg><use href="#logo-page"/></svg>
+          </div>
+        </div>
+        <div class="concept-copy">
+          <div class="concept-heading"><h2 class="concept-name">任务折页</h2><span class="concept-id">D / PAGE</span></div>
+          <p>一张带折角的课程任务单，最直白、亲和，适合以“作业管理”为第一认知。</p>
+          <button class="select-button" type="button">预览这个方案</button>
+        </div>
+      </article>
+
+      <article class="concept" data-logo="logo-route" data-name="聚合路径">
+        <div class="concept-visual">
+          <svg class="logo-shape hero-mark" role="img" aria-label="聚合路径 Logo"><use href="#logo-route"/></svg>
+          <div class="size-rail" aria-label="16、24、32 像素预览">
+            <svg><use href="#logo-route"/></svg><svg><use href="#logo-route"/></svg><svg><use href="#logo-route"/></svg>
+          </div>
+        </div>
+        <div class="concept-copy">
+          <div class="concept-heading"><h2 class="concept-name">聚合路径</h2><span class="concept-id">E / ROUTE</span></div>
+          <p>多个来源沿路径收束为一个下一步；比方格更动态，也呼应项目里的 Next Action。</p>
+          <button class="select-button" type="button">预览这个方案</button>
+        </div>
+      </article>
+
+      <article class="concept" data-logo="logo-monogram" data-name="CD 字标">
+        <div class="concept-visual">
+          <svg class="logo-shape hero-mark" role="img" aria-label="CD 字标 Logo"><use href="#logo-monogram"/></svg>
+          <div class="size-rail" aria-label="16、24、32 像素预览">
+            <svg><use href="#logo-monogram"/></svg><svg><use href="#logo-monogram"/></svg><svg><use href="#logo-monogram"/></svg>
+          </div>
+        </div>
+        <div class="concept-copy">
+          <div class="concept-heading"><h2 class="concept-name">CD 字标</h2><span class="concept-id">F / MONOGRAM</span></div>
+          <p>C 与 D 共用轮廓，品牌指向最直接；形式稳重，适合未来扩展到桌面端。</p>
+          <button class="select-button" type="button">预览这个方案</button>
+        </div>
+      </article>
+    </section>
+
+    <section class="preview-panel" aria-live="polite">
+      <div class="browser-preview">
+        <div class="section-label"><span>浏览器标签实景</span><span id="preview-status">尚未选择</span></div>
+        <div class="browser-chrome">
+          <div class="tab-strip">
+            <div class="browser-tab">
+              <svg id="tab-logo" aria-hidden="true"><use href="#logo-confluence"/></svg>
+              <span>Canvas Dashboard</span><b class="tab-close">×</b>
+            </div>
+          </div>
+          <div class="address-bar"><span class="lock">▣</span><span>https://</span><span class="domain">canvas-dashboard.xyz</span></div>
+        </div>
+      </div>
+      <div class="app-preview">
+        <div class="section-label"><span>应用图标</span><span>82 × 82</span></div>
+        <div class="app-preview-body" id="app-preview-body">
+          <p class="empty-state">从上方选择一个方案<br>查看实际应用效果</p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer-note">
+      <span><strong>草图阶段</strong> · 所有图形均为内联 SVG，可继续调整造型、颜色和圆角。</span>
+      <span>选择后再制作 SVG / PNG / ICO 正式资源并接入站点。</span>
+    </footer>
+  </main>
+
+  <script>
+    const cards = [...document.querySelectorAll('.concept')];
+    const tabUse = document.querySelector('#tab-logo use');
+    const status = document.querySelector('#preview-status');
+    const appPreview = document.querySelector('#app-preview-body');
+
+    function selectConcept(card) {
+      cards.forEach((item) => {
+        const selected = item === card;
+        item.classList.toggle('is-selected', selected);
+        item.querySelector('.select-button').textContent = selected ? '已选中 · 再看看' : '预览这个方案';
+      });
+
+      const logo = card.dataset.logo;
+      const name = card.dataset.name;
+      tabUse.setAttribute('href', `#${logo}`);
+      status.textContent = `正在预览：${name}`;
+      appPreview.innerHTML = `
+        <svg class="app-icon" role="img" aria-label="${name} 应用图标"><use href="#${logo}"/></svg>
+        <div class="app-wordmark"><strong>Canvas Dashboard</strong><span>${name} · icon study</span></div>
+      `;
+      document.querySelector('.preview-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    cards.forEach((card) => card.querySelector('.select-button').addEventListener('click', () => selectConcept(card)));
+  </script>
+</body>
+</html>

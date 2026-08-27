@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Canvas Dashboard</title>
+  <desc id="desc">A blue assignment page with a folded corner and a completed check mark.</desc>
+  <rect width="64" height="64" rx="15" fill="#EEF4FF"/>
+  <path d="M18 10h21l11 11v28a5 5 0 0 1-5 5H18a5 5 0 0 1-5-5V15a5 5 0 0 1 5-5Z" fill="#2563EB"/>
+  <path d="M39 10v11h11Z" fill="#91B2F4"/>
+  <path d="M22 29h19M22 36h14" fill="none" stroke="#FFF" stroke-width="4" stroke-linecap="round"/>
+  <path d="m22 45 3.5 3.5 7-8" fill="none" stroke="#69D2E7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
