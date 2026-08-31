@@ -173,7 +173,7 @@ def test_frontend_mobile_header_shows_compact_weather_and_term(live_app, browser
     expect(weather_desc).to_be_visible()
     expect(weather_detail).to_be_visible()
     expect(weather_detail).to_contain_text("湿度 55%")
-    expect(weather_detail).to_contain_text("风速 8 m/s")
+    expect(weather_detail).not_to_contain_text("风速")
     expect(term_info).to_be_visible()
 
     emoji_box = page.locator(".weather-emoji").bounding_box()

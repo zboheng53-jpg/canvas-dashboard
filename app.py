@@ -376,15 +376,24 @@ WMO_CODES = {
     85: ("\u9635\u96ea", "\u2744\ufe0f"),
     86: ("\u5f3a\u9635\u96ea", "\u2744\ufe0f"),
     95: ("\u96f7\u66b4", "\u26c8\ufe0f"),
-    96: ("\u96f7\u66b4\u4f34\u51b0\u96f9", "\u26c8\ufe0f"),
-    99: ("\u96f7\u66b4\u4f34\u51b0\u96f9", "\u26c8\ufe0f"),
+    # Open-Meteo 仅在中欧提供冰雹预报；国内不把 96/99 展示成确定冰雹。
+    96: ("\u5f3a\u5bf9\u6d41\u96f7\u96e8", "\u26c8\ufe0f"),
+    99: ("\u5f3a\u5bf9\u6d41\u96f7\u96e8", "\u26c8\ufe0f"),
 }
-WEATHER_URL = (
-    "https://api.open-meteo.com/v1/forecast"
-    "?latitude=31.23&longitude=121.47"
-    "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m"
-    "&timezone=Asia/Shanghai"
-)
+WEATHER_CAMPUSES = {
+    "siping": {"name": "\u56db\u5e73\u8def\u6821\u533a", "latitude": 31.28294, "longitude": 121.501489},
+    "jiading": {"name": "\u5609\u5b9a\u6821\u533a", "latitude": 31.28984, "longitude": 121.17712},
+}
+
+
+def _weather_url_for(campus: str) -> str:
+    location = WEATHER_CAMPUSES[campus]
+    return (
+        "https://api.open-meteo.com/v1/forecast"
+        f"?latitude={location['latitude']}&longitude={location['longitude']}"
+        "&current=temperature_2m,relative_humidity_2m,weather_code"
+        "&timezone=Asia/Shanghai"
+    )
 
 
 def _todos_file(username):
@@ -780,7 +789,10 @@ def api_clock():
 @app.route("/api/weather")
 def api_weather():
     try:
-        resp = requests.get(WEATHER_URL, timeout=10)
+        campus = request.args.get("campus", "siping")
+        if campus not in WEATHER_CAMPUSES:
+            return api_error("weather_campus_invalid", "\u6821\u533a\u65e0\u6548", 400)
+        resp = requests.get(_weather_url_for(campus), timeout=10)
         data = resp.json()
         current = data.get("current", {})
         code = current.get("weather_code", -1)
@@ -789,7 +801,8 @@ def api_weather():
             "ok": True,
             "temperature": current.get("temperature_2m"),
             "humidity": current.get("relative_humidity_2m"),
-            "wind_speed": current.get("wind_speed_10m"),
+            "campus": campus,
+            "campus_name": WEATHER_CAMPUSES[campus]["name"],
             "weather_code": code,
             "weather_desc": desc,
             "weather_emoji": emoji,

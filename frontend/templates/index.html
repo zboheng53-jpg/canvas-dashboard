@@ -6,7 +6,7 @@
   <title>Canvas Dashboard</title>
   {% include "_favicon.html" %}
   {% include "_font_assets.html" %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=weather-campus-text-6">
   <script>window.CSRF_TOKEN = "{{ csrf_token() }}";</script>
   <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
   <script src="{{ url_for('static', filename='js/weather-icons.js') }}"></script>
@@ -44,14 +44,22 @@
     <!-- Top Bar -->
     <div class="card context-card">
     <header class="top-bar opt1-header enter-top-bar">
-      <div class="opt1-col left">
-        <div class="opt1-temp-row">
+     <div class="opt1-col left">
+        <div class="weather-campus-switch" role="tablist" aria-label="选择天气校区">
+         <button type="button" class="ui-button weather-campus-option is-active" data-campus="siping" role="tab" aria-selected="true">四平路校区</button>
+          <span class="weather-campus-separator" aria-hidden="true">·</span>
+         <button type="button" class="ui-button weather-campus-option" data-campus="jiading" role="tab" aria-selected="false">嘉定校区</button>
+        </div>
+       <div class="opt1-temp-row">
           <span class="weather-icn-opt1 weather-emoji" id="weather-emoji" role="img" aria-label="天气">
             <svg class="weather-outline-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5"></circle><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.28 5.28l1.42 1.42M17.3 17.3l1.42 1.42M18.72 5.28 17.3 6.7M6.7 17.3l-1.42 1.42"></path></svg>
           </span>
           <span class="weather-temp" id="weather-temp">--&deg;</span>
         </div>
-        <div class="opt1-weather-detail"><span id="weather-desc" class="weather-desc">&#21152;&#36733;&#20013;...</span> · <span id="weather-detail" class="weather-detail"></span></div>
+       <div class="opt1-weather-detail">
+         <span id="weather-desc" class="weather-desc">&#21152;&#36733;&#20013;...</span>
+          <span id="weather-detail" class="weather-detail"></span>
+        </div>
       </div>
       <div class="opt1-col center">
         <div class="opt1-time" id="time">--:--:--</div>
@@ -1303,9 +1311,34 @@
     setInterval(tickClock, 1000);
 
     // ---- Weather ----
+    const WEATHER_CAMPUS_STORAGE_KEY = 'dashboard.weatherCampus';
+
+    function selectedWeatherCampus() {
+      return document.querySelector('.weather-campus-option.is-active')?.dataset.campus || 'siping';
+    }
+
+    function initializeWeatherCampus() {
+      const campusOptions = document.querySelectorAll('.weather-campus-option');
+      if (!campusOptions.length) return;
+      const savedCampus = window.localStorage.getItem(WEATHER_CAMPUS_STORAGE_KEY);
+      const activateCampus = (campus) => {
+        campusOptions.forEach((option) => {
+          const isActive = option.dataset.campus === campus;
+          option.classList.toggle('is-active', isActive);
+          option.setAttribute('aria-selected', String(isActive));
+        });
+      };
+      if (savedCampus === 'siping' || savedCampus === 'jiading') activateCampus(savedCampus);
+      campusOptions.forEach((option) => option.addEventListener('click', () => {
+        activateCampus(option.dataset.campus);
+        window.localStorage.setItem(WEATHER_CAMPUS_STORAGE_KEY, selectedWeatherCampus());
+        fetchWeather();
+      }));
+    }
+
     async function fetchWeather() {
       try {
-        const resp = await fetch('/api/weather');
+        const resp = await fetch(`/api/weather?campus=${encodeURIComponent(selectedWeatherCampus())}`);
         const data = await resp.json();
         if (data.ok) {
           window.DashboardWeatherIcons.renderWeather(
@@ -1315,8 +1348,7 @@
           );
           document.getElementById('weather-temp').textContent = `${data.temperature}\u00b0C`;
           document.getElementById('weather-desc').textContent = data.weather_desc;
-          document.getElementById('weather-detail').textContent =
-            `\u6e7f\u5ea6 ${data.humidity}% \u00b7 \u98ce\u901f ${data.wind_speed} m/s`;
+          document.getElementById('weather-detail').textContent = `\u6e7f\u5ea6 ${data.humidity}%`;
         }
       } catch (e) { console.error('Weather fetch failed:', e); }
     }
@@ -3230,6 +3262,7 @@
       initClock();
     }
     tickClock();
+    initializeWeatherCampus();
 
     if (!isDemoMode) {
       loadTodoSourcePreferences();

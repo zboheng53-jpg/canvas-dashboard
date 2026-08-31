@@ -628,6 +628,7 @@
       }
 
       .opt1-temp-row {
+        margin-top: 0;
         display: flex !important;
         align-items: center !important;
         gap: 8px !important;
@@ -638,10 +639,19 @@
       }
 
       .opt1-weather-detail {
+        display: flex !important;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 5px;
+        justify-content: center;
         font-size: 13.5px !important;
         color: #64748B !important;
         margin-top: 3px !important;
         font-weight: 500 !important;
+      }
+
+      .weather-desc::after {
+        content: ' ·';
       }
 
       .opt1-week-pill {

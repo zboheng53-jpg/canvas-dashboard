@@ -52,6 +52,60 @@ def test_weather_cloudy_response_is_chinese_and_uses_icon(tmp_path, monkeypatch)
     assert body["weather_emoji"] == "\u2601\ufe0f"
 
 
+def test_weather_endpoint_uses_tongji_siping_campus_coordinates(tmp_path, monkeypatch):
+    requested_urls = []
+
+    class WeatherResponse:
+        def json(self):
+            return {"current": {"weather_code": 0}}
+
+    def fake_get(url, **_kwargs):
+        requested_urls.append(url)
+        return WeatherResponse()
+
+    monkeypatch.setattr(dashboard_app, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(dashboard_app.requests, "get", fake_get)
+    dashboard_app.app.config.update(TESTING=True)
+
+    with dashboard_app.app.test_client() as client:
+        with client.session_transaction() as sess:
+            sess["username"] = "alice"
+        response = client.get("/api/weather")
+
+    assert response.status_code == 200
+    assert "latitude=31.28294&longitude=121.501489" in requested_urls[0]
+
+
+def test_weather_endpoint_accepts_jiading_campus(tmp_path, monkeypatch):
+    requested_urls = []
+
+    class WeatherResponse:
+        def json(self):
+            return {"current": {"weather_code": 0}}
+
+    def fake_get(url, **_kwargs):
+        requested_urls.append(url)
+        return WeatherResponse()
+
+    monkeypatch.setattr(dashboard_app, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(dashboard_app.requests, "get", fake_get)
+    dashboard_app.app.config.update(TESTING=True)
+
+    with dashboard_app.app.test_client() as client:
+        with client.session_transaction() as sess:
+            sess["username"] = "alice"
+        response = client.get("/api/weather?campus=jiading")
+
+    assert response.status_code == 200
+    assert response.get_json()["campus_name"] == "嘉定校区"
+    assert "latitude=31.28984&longitude=121.17712" in requested_urls[0]
+
+
+def test_weather_hail_codes_are_rendered_as_generic_severe_convection():
+    assert dashboard_app.WMO_CODES[96][0] == "强对流雷雨"
+    assert dashboard_app.WMO_CODES[99][0] == "强对流雷雨"
+
+
 def test_greeting_info_by_hour():
     expected_mappings = {
         0: ("夜深了", "🌙", True),
