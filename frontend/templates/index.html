@@ -6,7 +6,7 @@
   <title>Canvas Dashboard</title>
   {% include "_favicon.html" %}
   {% include "_font_assets.html" %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}?v=weather-campus-text-6">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
   <script>window.CSRF_TOKEN = "{{ csrf_token() }}";</script>
   <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
   <script src="{{ url_for('static', filename='js/weather-icons.js') }}"></script>
