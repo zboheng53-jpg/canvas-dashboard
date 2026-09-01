@@ -62,7 +62,11 @@ function Receive-RemoteBackup {
     )
 
     for ($attempt = 1; $attempt -le 3; $attempt++) {
-        & scp @SshOptions "${Remote}:$RemotePath" $LocalPath
+        # The production host intermittently closes the modern SFTP-backed
+        # scp stream while transferring encrypted backups.  Use the legacy
+        # SCP protocol here; SSH host-key verification and encryption remain
+        # enforced by $SshOptions.
+        & scp "-O" @SshOptions "${Remote}:$RemotePath" $LocalPath
         if ($LASTEXITCODE -eq 0) {
             return
         }
