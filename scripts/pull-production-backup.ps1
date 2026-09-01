@@ -15,11 +15,31 @@ $PrivateKey = Join-Path $KeyDirectory "private.pem"
 $PublicKey = Join-Path $KeyDirectory "public.pem"
 $SshOptions = @(
     "-o", "BatchMode=yes",
+    "-o", "ServerAliveInterval=20",
+    "-o", "ServerAliveCountMax=6",
     "-o", "StrictHostKeyChecking=yes",
     "-o", "HostKeyAlgorithms=ssh-ed25519",
     "-o", "UserKnownHostsFile=$KnownHosts"
 )
 $Remote = "ubuntu@124.222.188.101"
+
+function Receive-RemoteBackup {
+    param(
+        [string]$RemotePath,
+        [string]$LocalPath
+    )
+
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        & scp @SshOptions "${Remote}:$RemotePath" $LocalPath
+        if ($LASTEXITCODE -eq 0) {
+            return
+        }
+        if ($attempt -lt 3) {
+            Start-Sleep -Seconds (5 * $attempt)
+        }
+    }
+    throw "Failed to download the encrypted backup after three verified transfer attempts."
+}
 
 New-Item -ItemType Directory -Force -Path $KeyDirectory, $BackupDirectory | Out-Null
 if (-not (Test-Path $PrivateKey) -or -not (Test-Path $PublicKey)) {
@@ -49,8 +69,7 @@ if ($LASTEXITCODE -ne 0 -or -not $LatestRemote) {
 }
 $LocalBackup = Join-Path $BackupDirectory ([IO.Path]::GetFileName($LatestRemote))
 if (-not (Test-Path $LocalBackup)) {
-    & scp @SshOptions "${Remote}:$LatestRemote" $LocalBackup
-    if ($LASTEXITCODE -ne 0) { throw "Failed to download the encrypted backup." }
+    Receive-RemoteBackup -RemotePath $LatestRemote -LocalPath $LocalBackup
 }
 
 $VerifyOutput = & $Python $BackupTool verify --input $LocalBackup --private-key $PrivateKey
