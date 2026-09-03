@@ -215,7 +215,17 @@ def create_backup(data_dir: Path, output_dir: Path, public_key_path: Path, reten
                 manifest_info.size = len(manifest_payload)
                 manifest_info.mtime = int(datetime.now(timezone.utc).timestamp())
                 archive.addfile(manifest_info, io.BytesIO(manifest_payload))
-                archive.add(data_dir, arcname="data", recursive=True, filter=_tar_filter(data_dir))
+                # Archive only the already-validated regular files.  Adding the
+                # whole directory tree recursively can re-encounter excluded
+                # runtime symlinks (for example Chromium locks) even though
+                # they are not part of the durable backup manifest.
+                for path in files:
+                    archive.add(
+                        path,
+                        arcname=f"data/{path.relative_to(data_dir).as_posix()}",
+                        recursive=False,
+                        filter=_tar_filter(data_dir),
+                    )
             encryptor.finalize()
             output.write(encryptor.tag)
             output.flush()
