@@ -104,6 +104,10 @@ def test_release_installer_checks_and_restarts_all_units():
     assert ".previous-release" in rollback
     assert "canvas-dashboard.https.nginx" in rollback
     assert "seq 1 20" in rollback
+    assert "-ignore_readdir_race" in install
+    assert '[ ! -e "$path" ] || exit 1' in install
+    assert 'ln -sfn "$root/data" "$release/data"' in install
+    assert 'ln -sfn "$root/.venv" "$release/.venv"' in install
     for script in (install, rollback):
         assert "sudo test -f /etc/letsencrypt/live/canvas-dashboard.xyz/fullchain.pem" in script
         assert "--resolve canvas-dashboard.xyz:443:127.0.0.1" in script

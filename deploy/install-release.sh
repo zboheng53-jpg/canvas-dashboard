@@ -52,11 +52,25 @@ build_browser_login_image() {
 
 correct_runtime_permissions() {
     # The application and worker run as ubuntu.  Keep all durable user data
-    # private without restricting release/current, Docker, Chromium or logs.
+    # private. Chromium can remove cache entries while shutting down, so accept
+    # only paths that disappeared between discovery and the permission change.
     sudo install -d -o ubuntu -g ubuntu -m 0700 "$root/data" || return
-    sudo chown -R ubuntu:ubuntu "$root/data" || return
-    sudo find "$root/data" -type d -exec chmod 0700 {} + || return
-    sudo find "$root/data" -type f -exec chmod 0600 {} + || return
+    sudo find "$root/data" -ignore_readdir_race -exec sh -c '
+        owner=$1; shift
+        for path do
+            chown "$owner" "$path" 2>/dev/null || [ ! -e "$path" ] || exit 1
+        done
+    ' sh ubuntu:ubuntu {} + || return
+    sudo find "$root/data" -ignore_readdir_race -type d -exec sh -c '
+        for path do
+            chmod 0700 "$path" 2>/dev/null || [ ! -e "$path" ] || exit 1
+        done
+    ' sh {} + || return
+    sudo find "$root/data" -ignore_readdir_race -type f -exec sh -c '
+        for path do
+            chmod 0600 "$path" 2>/dev/null || [ ! -e "$path" ] || exit 1
+        done
+    ' sh {} + || return
 }
 
 activate_release() {
@@ -115,8 +129,8 @@ test -f "$release/app.py"
 test -f "$release/deploy/canvas-dashboard.nginx"
 test -f "$release/deploy/canvas-dashboard.service"
 test -f /etc/canvas-dashboard/backup-public.pem
-ln -s "$root/data" "$release/data"
-ln -s "$root/.venv" "$release/.venv"
+ln -sfn "$root/data" "$release/data"
+ln -sfn "$root/.venv" "$release/.venv"
 
 if [ -L "$root/current" ]; then
     previous=$(readlink -f "$root/current")
@@ -137,8 +151,8 @@ else
     cp "$release/deploy/canvas-dashboard.https.nginx" "$legacy/deploy/"
     sudo cp /etc/nginx/sites-enabled/canvas-dashboard "$legacy/deploy/canvas-dashboard.nginx"
     sudo chown ubuntu:ubuntu "$legacy/deploy/canvas-dashboard.nginx"
-    ln -s "$root/data" "$legacy/data"
-    ln -s "$root/.venv" "$legacy/.venv"
+    ln -sfn "$root/data" "$legacy/data"
+    ln -sfn "$root/.venv" "$legacy/.venv"
     previous="$legacy"
 fi
 
