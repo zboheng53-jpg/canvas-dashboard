@@ -45,7 +45,7 @@ function Send-DeployArchive {
 Write-Host "Starting verified release deployment..." -ForegroundColor Cyan
 
 Write-Host "Running local regression and compilation gates..." -ForegroundColor Yellow
-& .\scripts\test.ps1
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1
 if ($LASTEXITCODE -ne 0) { throw "Local tests failed. Deployment aborted." }
 $PythonFiles = @(& git ls-files -- "*.py")
 if ($LASTEXITCODE -ne 0 -or $PythonFiles.Count -eq 0) { throw "Failed to enumerate tracked Python files." }
