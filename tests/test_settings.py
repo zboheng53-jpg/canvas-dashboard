@@ -42,4 +42,4 @@ def test_settings_invalid_numeric_overrides_fall_back(monkeypatch):
 
     assert settings.APP_PORT == 5000
     assert settings.HAOKE_TENANT_ID == 88
-    assert settings.TERM_START_DATE.isoformat() == "2026-03-02"
+    assert settings.TERM_START_DATE.isoformat() == "2026-09-14"

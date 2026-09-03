@@ -1937,7 +1937,7 @@ def _compute_week_num(target_date, semester_start_date):
     days_until_monday = (7 - semester_start_date.weekday()) % 7
     start_monday = semester_start_date + timedelta(days=days_until_monday)
     days_from_start_monday = (target_date - start_monday).days
-    return days_from_start_monday // 7 + 1
+    return max(0, days_from_start_monday // 7 + 1)
 
 
 def _load_term_config(target_date=None):
@@ -1979,20 +1979,20 @@ def _load_term_config(target_date=None):
                     week_num = (target_date - sem["start_monday"]).days // 7 + 1
                     return sem["label"], week_num, sem["start_monday"].strftime("%Y-%m-%d")
 
-            # If before first configured semester
+            # Dates before the first configured semester belong to its
+            # preparation period (第 0 周).
             if target_date < parsed_semesters[0]["start_monday"]:
                 first = parsed_semesters[0]
-                week_num = _compute_week_num(target_date, first["start_monday"])
-                return first["label"], week_num, first["start_monday"].strftime("%Y-%m-%d")
+                return first["label"], 0, first["start_monday"].strftime("%Y-%m-%d")
 
-            # Check if in gap between semesters or after last semester
+            # A break immediately before a configured semester is its
+            # preparation period (第 0 周), following Tongji's calendar wording.
             for i in range(len(parsed_semesters) - 1):
                 prev_sem = parsed_semesters[i]
                 next_sem = parsed_semesters[i + 1]
                 prev_end = prev_sem["start_monday"] + timedelta(weeks=prev_sem["weeks"]) - timedelta(days=1)
                 if prev_end < target_date < next_sem["start_monday"]:
-                    week_num = (target_date - prev_sem["start_monday"]).days // 7 + 1
-                    return prev_sem["label"], week_num, prev_sem["start_monday"].strftime("%Y-%m-%d")
+                    return next_sem["label"], 0, next_sem["start_monday"].strftime("%Y-%m-%d")
 
             # If after last semester
             last = parsed_semesters[-1]

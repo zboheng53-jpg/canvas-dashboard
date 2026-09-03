@@ -38,7 +38,7 @@ def test_index_template_has_valid_visible_chinese_and_no_leaked_tags():
 
 
 def test_default_term_label_is_readable_chinese():
-    assert settings.TERM_LABEL == "2025-2026\u5b66\u5e74 \u7b2c\u4e8c\u5b66\u671f"
+    assert settings.TERM_LABEL == "2026-2027\u5b66\u5e74 \u7b2c\u4e00\u5b66\u671f"
 
 
 def test_dashboard_template_never_treats_production_domain_as_demo():

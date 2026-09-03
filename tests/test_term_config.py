@@ -27,7 +27,7 @@ def test_load_term_config_multi_semester(tmp_path, monkeypatch):
                 {
                     "term_label": "2026-2027学年 第一学期",
                     "start_date": "2026-09-14",
-                    "weeks": 19,
+                    "weeks": 18,
                 },
             ]
         }),
@@ -45,10 +45,22 @@ def test_load_term_config_multi_semester(tmp_path, monkeypatch):
     assert label20 == "2025-2026学年 第二学期"
     assert week20 == 20
 
+    # The days before classes start are displayed as the coming term's week 0.
+    label_zero, week_zero, start_zero = dashboard_app._load_term_config(dt.date(2026, 9, 3))
+    assert label_zero == "2026-2027学年 第一学期"
+    assert week_zero == 0
+    assert start_zero == "2026-09-14"
+
     # First day of 2026-2027 1st semester
     label_next, week_next, _ = dashboard_app._load_term_config(dt.date(2026, 9, 14))
     assert label_next == "2026-2027学年 第一学期"
     assert week_next == 1
+
+    # The calendar ends on Friday in week 18; the remaining weekend is still
+    # part of the same academic week rather than a nineteenth week.
+    label_final, week_final, _ = dashboard_app._load_term_config(dt.date(2027, 1, 17))
+    assert label_final == "2026-2027学年 第一学期"
+    assert week_final == 18
 
 
 def test_load_term_config_single_override_fallback(tmp_path, monkeypatch):
@@ -68,3 +80,14 @@ def test_load_term_config_single_override_fallback(tmp_path, monkeypatch):
     assert week_num == 1
     assert start_str == "2026-09-07"
 
+
+def test_default_term_uses_week_zero_before_classes_start(tmp_path, monkeypatch):
+    config_file = tmp_path / "term_config.json"
+    config_file.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(dashboard_app, "_TERM_CONFIG_FILE", config_file)
+
+    label, week_num, start_str = dashboard_app._load_term_config(dt.date(2026, 9, 3))
+
+    assert label == "2026-2027学年 第一学期"
+    assert week_num == 0
+    assert start_str == "2026-09-14"
