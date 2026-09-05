@@ -18,6 +18,7 @@ def _client(tmp_path, monkeypatch, username="alice"):
     monkeypatch.setattr(user_paths, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard_app, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard_app, "user_dir", resolve_user_dir)
+    dashboard_app.app.config.update(TESTING=True)
     client = dashboard_app.app.test_client()
     with client.session_transaction() as session:
         session["username"] = username
@@ -497,3 +498,32 @@ def test_today_schedule_only_returns_busy_items_and_date_only_deadlines(tmp_path
     assert [item["title"] for item in data["timed"]] == ["自动控制", "实验", "组会"]
     assert [item["location"] for item in data["timed"]] == ["北229", "电信楼", "图书馆"]
     assert data["deadlines"] == [{"title": "周度复盘", "course": "Python学习"}, {"title": "实验报告"}]
+
+
+def test_delete_course_and_clear_courses(tmp_path, monkeypatch):
+    client, _ = _client(tmp_path, monkeypatch)
+    courses = [
+        {"id": "AUTO101:0", "code": "AUTO101", "name": "自动控制原理", "sessions": []},
+        {"id": "MATH201:1", "code": "MATH201", "name": "高等数学", "sessions": []},
+    ]
+    schedule_store.save_courses("alice", "测试学期", "2026-03-02", courses, "2026-03-01T00:00:00+08:00")
+
+    # Delete single course by ID
+    resp = client.delete("/api/schedule/courses/AUTO101:0", headers=client.csrf_headers)
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is True
+    assert len(data["courses"]["courses"]) == 1
+    assert data["courses"]["courses"][0]["name"] == "高等数学"
+
+    # Delete non-existent course returns 404
+    resp_404 = client.delete("/api/schedule/courses/NONEXISTENT", headers=client.csrf_headers)
+    assert resp_404.status_code == 404
+
+    # Clear all courses
+    clear_resp = client.delete("/api/schedule/courses", headers=client.csrf_headers)
+    assert clear_resp.status_code == 200
+    clear_data = clear_resp.get_json()
+    assert clear_data["ok"] is True
+    assert clear_data["courses"]["courses"] == []
+    assert clear_data["courses"]["term"] == ""

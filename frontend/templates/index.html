@@ -611,6 +611,8 @@
             location: session.location || course.location || '',
             start_time: session.start_time,
             end_time: session.end_time,
+            session,
+            courseIndex,
             raw: course
           });
         });
@@ -656,6 +658,10 @@
         card.style.left = `calc(${lane / laneCount * 100}% + 3px)`;
         card.style.width = `calc(${100 / laneCount}% - 5px)`;
         card.style.right = 'auto';
+      } else {
+        card.style.left = '3px';
+        card.style.right = '3px';
+        card.style.width = 'calc(100% - 6px)';
       }
       const fullDescription = [event.title, `${event.start_time} - ${event.end_time}`, event.location].filter(Boolean).join('\n');
       card.title = fullDescription;
@@ -741,6 +747,51 @@
         : '尚未导入本学期课表';
       if (meta) meta.textContent = metaText;
       if (summary) summary.textContent = `${metaText} · 已导入 ${(courses.courses || []).length} 门课程`;
+
+      const courseList = courses.courses || [];
+      const headerClearBtn = document.getElementById('schedule-header-clear-btn');
+      const coursesSection = document.getElementById('schedule-courses-section');
+      const coursesListEl = document.getElementById('schedule-courses-list');
+      const coursesCountEl = document.getElementById('schedule-courses-count');
+
+      if (headerClearBtn) {
+        headerClearBtn.disabled = courseList.length === 0;
+        headerClearBtn.title = courseList.length === 0 ? '当前暂无已导入课程' : '清空本学期已导入课程';
+      }
+
+      if (coursesSection && coursesListEl) {
+        if (courseList.length > 0) {
+          coursesSection.classList.remove('hidden');
+          if (coursesCountEl) coursesCountEl.textContent = `${courseList.length} 门`;
+          coursesListEl.replaceChildren();
+          courseList.forEach((course) => {
+            const item = scheduleElement('div', 'schedule-course-manage-item');
+            const info = scheduleElement('div', 'schedule-course-manage-info');
+            const nameEl = scheduleElement('div', 'schedule-course-manage-name', course.name || '未命名课程');
+            const sessionTimes = (course.sessions || []).map(s => `${weekdayLabels[s.weekday]} ${s.start_time}-${s.end_time}`).join('；');
+            const metaParts = [course.teacher, sessionTimes, course.location].filter(Boolean);
+            const metaEl = scheduleElement('div', 'schedule-course-manage-meta', metaParts.join(' · ') || '无时间信息');
+            info.append(nameEl, metaEl);
+
+            const delBtn = scheduleElement('button', 'ui-button ui-button--secondary ui-button--sm schedule-course-manage-delete', '删除');
+            delBtn.type = 'button';
+            delBtn.title = `从课表中移除「${course.name}」`;
+            delBtn.addEventListener('click', async (e) => {
+              e.stopPropagation();
+              const cName = course.name || '此课程';
+              if (!confirm(`确定从课表中移除「${cName}」吗？\n移除后可通过重新导入课表恢复。`)) return;
+              const cId = course.id || course.code || course.name;
+              await deleteCourseById(cId, cName);
+            });
+
+            item.append(info, delBtn);
+            coursesListEl.append(item);
+          });
+        } else {
+          coursesSection.classList.add('hidden');
+          coursesListEl.replaceChildren();
+        }
+      }
 
       const weekDates = getWeekDates(currentScheduleWeekOffset);
       const todayISO = formatDateISO(new Date());
@@ -855,13 +906,63 @@
       scheduleResizeFrame = requestAnimationFrame(() => renderScheduleManager(scheduleData));
     });
 
+    let currentViewingCourse = null;
+    let currentViewingCourseEvent = null;
+
     function onScheduleCardClick(event, dateISO) {
       if (event.kind === 'course') {
-        const course = event.raw;
-        alert(`【课程】${course.name}\n时间：${event.start_time} - ${event.end_time}\n地点：${event.location || '按课表安排'}\n教师：${course.teacher || '未指定'}`);
+        openScheduleCourseModal(event.raw, event);
         return;
       }
       openScheduleItemModal(event.kind, event.raw, {date: dateISO});
+    }
+
+    function openScheduleCourseModal(course, event) {
+      currentViewingCourse = course;
+      currentViewingCourseEvent = event;
+      const modal = document.getElementById('schedule-course-modal');
+      if (!modal) return;
+      document.getElementById('schedule-course-title').textContent = course.name || '未命名课程';
+      document.getElementById('schedule-course-teacher').textContent = course.teacher || '未指定';
+      document.getElementById('schedule-course-time').textContent = `${event.start_time} - ${event.end_time}`;
+      document.getElementById('schedule-course-location').textContent = event.location || course.location || '按课表安排';
+
+      const weeksRow = document.getElementById('schedule-course-weeks-row');
+      const weeksVal = document.getElementById('schedule-course-weeks');
+      const session = event.session;
+      let weeksText = '';
+      if (course.raw_time) {
+        weeksText = course.raw_time;
+      } else if (session?.weeks?.length) {
+        const minW = Math.min(...session.weeks);
+        const maxW = Math.max(...session.weeks);
+        const parityText = session.parity === 'odd' ? '（单周）' : session.parity === 'even' ? '（双周）' : '';
+        weeksText = `第 ${minW}-${maxW} 周 ${parityText}`.trim();
+      } else if (session?.date_start && session?.date_end) {
+        weeksText = `${session.date_start} 至 ${session.date_end}`;
+      }
+      if (weeksText && weeksVal && weeksRow) {
+        weeksVal.textContent = weeksText;
+        weeksRow.classList.remove('hidden');
+      } else if (weeksRow) {
+        weeksRow.classList.add('hidden');
+      }
+      modal.classList.remove('hidden');
+    }
+
+    function closeScheduleCourseModal() {
+      document.getElementById('schedule-course-modal')?.classList.add('hidden');
+      currentViewingCourse = null;
+      currentViewingCourseEvent = null;
+    }
+
+    async function deleteCourseFromModal() {
+      if (!currentViewingCourse) return;
+      const courseName = currentViewingCourse.name || '此课程';
+      const courseId = currentViewingCourse.id || currentViewingCourse.code || currentViewingCourse.name;
+      if (!confirm(`确定从课表中移除「${courseName}」吗？\n移除后可通过重新导入课表恢复。`)) return;
+      closeScheduleCourseModal();
+      await deleteCourseById(courseId, courseName);
     }
 
     function openScheduleOverlapPopover(events, dateISO, anchor) {
@@ -1100,6 +1201,41 @@
       const data = await response.json();
       if (!response.ok || !data.ok) { setScheduleStatus('删除失败', true); return; }
       await loadScheduleManager(); await loadTodaySchedule();
+    }
+
+    async function deleteCourseById(courseId, courseName = '') {
+      setScheduleStatus('正在删除课程…');
+      try {
+        const response = await fetch(`/api/schedule/courses/${encodeURIComponent(courseId)}`, {method: 'DELETE'});
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || '删除失败');
+        setScheduleStatus(courseName ? `已从课表中移除「${courseName}」` : '已从课表中移除该课程');
+        await loadScheduleManager();
+        await loadTodaySchedule();
+      } catch (error) {
+        setScheduleStatus(error.message || '删除课程失败，请重试', true);
+      }
+    }
+
+    async function clearAllCourses() {
+      const courseList = scheduleData?.courses?.courses || [];
+      if (courseList.length === 0) {
+        alert('当前尚未导入课表，无需清空。');
+        return;
+      }
+      if (!confirm('确定清空本学期已导入的所有课程吗？\n清空后课表将被重置，需通过统一身份认证或插件重新导入。')) return;
+      setScheduleStatus('正在清空课表…');
+      try {
+        const response = await fetch('/api/schedule/courses', {method: 'DELETE'});
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || '清空失败');
+        setScheduleStatus('已清空本学期全部课程');
+        closeScheduleManagementModal();
+        await loadScheduleManager();
+        await loadTodaySchedule();
+      } catch (error) {
+        setScheduleStatus(error.message || '清空课表失败，请重试', true);
+      }
     }
 
     function formatScheduleTitle(title) {

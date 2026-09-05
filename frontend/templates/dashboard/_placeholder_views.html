@@ -140,6 +140,7 @@
         </div>
       </div>
       <div class="schedule-header-actions">
+        <button type="button" class="ui-button ui-button--danger btn-schedule-action" id="schedule-header-clear-btn" onclick="clearAllCourses()">清空课表</button>
         <button type="button" class="ui-button ui-button--secondary btn-schedule-action btn-schedule-secondary" id="schedule-management-open" onclick="openScheduleManagementModal()">课表管理</button>
         <button type="button" class="ui-button ui-button--primary btn-schedule-action btn-schedule-primary" id="btn-add-schedule-item" onclick="openScheduleItemModal('one-off')">＋ 添加事项</button>
       </div>
@@ -255,11 +256,46 @@
   </div>
 </div>
 
+<!-- Modal for viewing course details and deleting course -->
+<div class="schedule-modal-backdrop hidden" id="schedule-course-modal" onclick="if(event.target===this)closeScheduleCourseModal()">
+  <div class="schedule-modal-card schedule-course-modal-card" role="dialog" aria-modal="true" aria-labelledby="schedule-course-title">
+    <div class="schedule-modal-header">
+      <div>
+        <span class="schedule-course-badge">课程详情</span>
+        <h3 id="schedule-course-title">课程名称</h3>
+      </div>
+      <button type="button" class="ui-icon-button schedule-modal-close" onclick="closeScheduleCourseModal()" aria-label="关闭">×</button>
+    </div>
+    <div class="schedule-course-details" id="schedule-course-details">
+      <div class="schedule-detail-row">
+        <span class="schedule-detail-label">授课教师</span>
+        <span class="schedule-detail-value" id="schedule-course-teacher">-</span>
+      </div>
+      <div class="schedule-detail-row">
+        <span class="schedule-detail-label">上课时间</span>
+        <span class="schedule-detail-value" id="schedule-course-time">-</span>
+      </div>
+      <div class="schedule-detail-row">
+        <span class="schedule-detail-label">上课地点</span>
+        <span class="schedule-detail-value" id="schedule-course-location">-</span>
+      </div>
+      <div class="schedule-detail-row" id="schedule-course-weeks-row">
+        <span class="schedule-detail-label">周次安排</span>
+        <span class="schedule-detail-value" id="schedule-course-weeks">-</span>
+      </div>
+    </div>
+    <div class="schedule-modal-actions">
+      <button type="button" class="ui-button ui-button--danger btn-delete" id="schedule-course-delete" onclick="deleteCourseFromModal()">删除此课程</button>
+      <span class="schedule-modal-action-spacer"></span>
+      <button type="button" class="ui-button ui-button--secondary btn-cancel" onclick="closeScheduleCourseModal()">关闭</button>
+    </div>
+  </div>
+</div>
+
 <div class="schedule-modal-backdrop hidden" id="schedule-management-modal" onclick="if(event.target===this)closeScheduleManagementModal()">
   <div class="schedule-modal-card schedule-management-modal-card" role="dialog" aria-modal="true" aria-labelledby="schedule-management-title">
     <div class="schedule-modal-header">
       <div>
-
         <h3 id="schedule-management-title">课表管理</h3>
       </div>
       <button type="button" class="ui-icon-button schedule-modal-close" onclick="closeScheduleManagementModal()" aria-label="关闭">×</button>
@@ -268,8 +304,17 @@
     <div class="schedule-management-actions">
       <button type="button" class="ui-button ui-button--secondary schedule-refresh-button" id="schedule-refresh-button" onclick="openTongjiLoginSession()">统一身份认证登录</button>
       <input class="schedule-file-input" id="schedule-file-input" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-      <button type="button" class="ui-button ui-button--secondary schedule-refresh-button schedule-import-button" id="schedule-import-button" onclick="document.getElementById('schedule-file-input').click()">从插件文件导入</button>
-      <a class="schedule-refresh-button schedule-download-link" href="/static/downloads/tongji-timetable-exporter-v1.2.zip" download>下载课表插件 v1.2</a>
+      <button type="button" class="ui-button ui-button--secondary schedule-refresh-button schedule-import-button" id="schedule-import-button" onclick="document.getElementById('schedule-file-input').click()">从插件导入</button>
+      <a class="ui-button ui-button--secondary schedule-refresh-button schedule-download-link" id="schedule-download-link" href="/static/downloads/tongji-timetable-exporter-v1.2.zip" download>下载插件</a>
+    </div>
+    <div class="schedule-courses-section hidden" id="schedule-courses-section">
+      <div class="schedule-courses-section-header">
+        <h4>已导入课程</h4>
+        <span class="schedule-courses-count" id="schedule-courses-count"></span>
+      </div>
+      <div class="schedule-courses-list" id="schedule-courses-list">
+        <!-- Rendered by JS -->
+      </div>
     </div>
     <p class="ui-help schedule-login-note">数据说明：登录会在临时浏览器窗口中完成，网站不会保存你的同济统一身份认证密码。认证结束或过期后，临时登录环境会被删除，只保留导入后的课表数据。</p>
   </div>

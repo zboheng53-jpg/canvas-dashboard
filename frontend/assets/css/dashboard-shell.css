@@ -2741,9 +2741,123 @@
 
 .schedule-management-actions #schedule-refresh-button {
   grid-column: 1 / -1;
-
-
 }
+
+/* Course details modal */
+.schedule-course-modal-card { max-width: 440px; }
+.schedule-course-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--sidebar-blue);
+  background: var(--sidebar-blue-soft);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+.schedule-course-details {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: #faf9f7;
+  border: 1px solid var(--shell-border-soft);
+  border-radius: 8px;
+  margin: 4px 0 16px;
+}
+.schedule-detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.schedule-detail-label {
+  color: var(--shell-muted);
+  flex-shrink: 0;
+  width: 70px;
+}
+.schedule-detail-value {
+  color: var(--shell-ink);
+  font-weight: 500;
+  text-align: right;
+  word-break: break-word;
+}
+
+/* Schedule management course list & clear */
+.schedule-courses-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--shell-border-soft);
+}
+.schedule-courses-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.schedule-courses-section-header h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--shell-ink);
+  margin: 0;
+}
+.schedule-courses-count {
+  font-size: 12px;
+  color: var(--shell-muted);
+}
+.schedule-courses-list {
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.schedule-course-manage-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #faf9f7;
+  border: 1px solid var(--shell-border-soft);
+  gap: 8px;
+}
+.schedule-course-manage-info {
+  flex: 1;
+  min-width: 0;
+}
+.schedule-course-manage-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--shell-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.schedule-course-manage-meta {
+  font-size: 11px;
+  color: var(--shell-muted);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.schedule-course-manage-delete {
+  font-size: 12px;
+  height: 26px;
+  padding: 0 8px;
+}
+.schedule-management-danger-zone {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--shell-border-soft);
+}
+.schedule-clear-courses-button {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
 .schedule-management-modal-card .schedule-login-note { margin: 13px 0 0; }
 
 @media (max-width: 1100px) {

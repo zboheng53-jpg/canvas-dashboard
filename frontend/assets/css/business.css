@@ -250,6 +250,11 @@
  */
 .schedule-block {
   position: absolute;
+  left: 3px;
+  right: 3px;
+  width: calc(100% - 6px);
+  display: block;
+  text-align: left;
   overflow: hidden;
   box-sizing: border-box;
   padding: var(--space-1) var(--space-2);
@@ -288,6 +293,7 @@
 .schedule-block .schedule-card-time,
 .schedule-block .schedule-card-loc,
 .schedule-block .schedule-card-summary {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

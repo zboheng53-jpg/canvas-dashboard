@@ -1596,6 +1596,22 @@ def api_schedule_import():
     return jsonify({"ok": True, "courses": schedule_store.load_courses(username)})
 
 
+@app.route("/api/schedule/courses", methods=["DELETE"])
+def api_schedule_courses_clear():
+    username = session["username"]
+    schedule_store.clear_courses(username)
+    return jsonify({"ok": True, "courses": schedule_store.load_courses(username)})
+
+
+@app.route("/api/schedule/courses/<path:course_id>", methods=["DELETE"])
+def api_schedule_course_delete(course_id):
+    username = session["username"]
+    found = schedule_store.delete_course(username, course_id)
+    if not found:
+        return api_error("course_not_found", "未找到指定课程", 404)
+    return jsonify({"ok": True, "courses": schedule_store.load_courses(username)})
+
+
 @app.route("/api/schedule/<kind>", methods=["POST"])
 def api_schedule_item_create(kind):
     if kind not in {"recurring", "one-off"}:

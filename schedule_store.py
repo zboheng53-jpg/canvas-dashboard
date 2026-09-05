@@ -20,6 +20,36 @@ def save_courses(username, term, semester_start, courses, updated_at):
     return True
 
 
+def clear_courses(username):
+    default = {"term": "", "semester_start": "", "updated_at": None, "courses": []}
+    locked_json_update(_courses_file(username), default, lambda _data: {"term": "", "semester_start": "", "updated_at": None, "courses": []})
+    return True
+
+
+def delete_course(username, course_identifier):
+    default = {"term": "", "semester_start": "", "updated_at": None, "courses": []}
+    found = {"value": False}
+    target = str(course_identifier)
+    def update(data):
+        courses = data.get("courses", [])
+        new_courses = []
+        for idx, course in enumerate(courses):
+            cid = str(course.get("id") or course.get("code") or "")
+            cname = str(course.get("name") or "")
+            if not found["value"] and (cid == target or cname == target or str(idx) == target):
+                found["value"] = True
+                continue
+            new_courses.append(course)
+        data["courses"] = new_courses
+        if not new_courses:
+            data["term"] = ""
+            data["semester_start"] = ""
+            data["updated_at"] = None
+        return data
+    locked_json_update(_courses_file(username), default, update)
+    return found["value"]
+
+
 def load_items(username):
     return read_json_file(_items_file(username), {"recurring": [], "one_off": []})
 
