@@ -847,7 +847,6 @@
           visibleEvents.forEach((event, lane) => {
             const block = buildScheduleCard(event, dateISO, lane, visibleEvents.length);
             block.classList.add('schedule-block', `schedule-block-${event.kind}`);
-            block.classList.remove('schedule-card', `schedule-card-${event.kind}`);
             block.querySelector('.schedule-card-title')?.classList.add('ui-list-item__title');
             block.querySelectorAll('.schedule-card-time, .schedule-card-loc, .schedule-card-summary')
               .forEach((element) => element.classList.add('ui-list-item__meta'));

@@ -720,14 +720,16 @@ def test_frontend_schedule_is_fixed_height_precise_and_editable(live_app, browse
     expect(page.locator("#schedule-management-open")).to_be_visible()
     expect(page.locator("#schedule-import-button")).to_be_hidden()
     expect(page.locator(".schedule-range-hint")).to_have_count(0)
-    expect(page.locator(".schedule-header-actions > button")).to_have_count(2)
+    expect(page.locator(".schedule-header-actions > button")).to_have_count(3)
     assert page.locator(".schedule-header-actions > button").evaluate_all(
         """buttons => {
           const boxes = buttons.map(button => button.getBoundingClientRect());
-          return buttons[0].id === 'schedule-management-open'
-            && buttons[1].id === 'btn-add-schedule-item'
+          return buttons[0].id === 'schedule-header-clear-btn'
+            && buttons[1].id === 'schedule-management-open'
+            && buttons[2].id === 'btn-add-schedule-item'
             && Math.abs(boxes[0].height - 36) <= 2
-            && Math.abs(boxes[1].height - 36) <= 2;
+            && Math.abs(boxes[1].height - 36) <= 2
+            && Math.abs(boxes[2].height - 36) <= 2;
         }"""
     )
     assert page.evaluate(
