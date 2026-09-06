@@ -527,3 +527,129 @@ def test_delete_course_and_clear_courses(tmp_path, monkeypatch):
     assert clear_data["ok"] is True
     assert clear_data["courses"]["courses"] == []
     assert clear_data["courses"]["term"] == ""
+
+
+def test_parse_grid_table_multi_week_user_format():
+    grid_table = [
+        ["节次/周次", "周一", "周二", "周三", "周四", "周五", "周六", "周日"],
+        [
+            "第5节课",
+            "",
+            "",
+            "",
+            "",
+            (
+                "[5-8节] [5-6] 实践I（机器人结构与设计）(CME2606) 焦宏飞(11068) 北129\n"
+                "[5-8节] [7-8] 实践I（机器人结构与设计）(CME2606) 张长柱(13528) 北129\n"
+                "[5-8节] [11-12] 实践I（机器人结构与设计）(CME2606) 魏先顺(15027) 北129\n"
+                "[5-8节] [9-10] 实践I（机器人结构与设计）(CME2606) 张磊(17530) 北129\n"
+                "[5-8节] [3-4] 实践I（机器人结构与设计）(CME2606) 陈永霖(24166) 北129\n"
+                "[5-8节] [1-2] 实践I（机器人结构与设计）(CME2606) 赵冬华(25176) 北129\n"
+                "[5-8节] [13, 16] 实践I（机器人结构与设计）(CME2606) 焦宏飞(11068),魏先顺(15027) 北218\n"
+                "[5-8节] [15] 实践I（机器人结构与设计）(CME2606) 陈永霖(24166) 北218\n"
+                "[5-8节] [14] 实践I（机器人结构与设计）(CME2606) 赵冬华(25176) 北218"
+            ),
+            "",
+            "",
+        ],
+    ]
+    raw_identifiers, grid_courses = tongji_timetable._parse_grid_table(grid_table)
+    assert "CME2606" in grid_courses
+    course = grid_courses["CME2606"]
+    assert course["name"] == "实践I（机器人结构与设计）"
+    assert course["code"] == "CME2606"
+    assert len(course["sessions"]) == 9
+    assert all(s["weekday"] == 4 for s in course["sessions"])
+    assert all(s["start_time"] == "13:30" and s["end_time"] == "17:05" for s in course["sessions"])
+
+    all_weeks = [s["weeks"] for s in course["sessions"]]
+    assert [5, 6] in all_weeks
+    assert [7, 8] in all_weeks
+    assert [11, 12] in all_weeks
+    assert [9, 10] in all_weeks
+    assert [3, 4] in all_weeks
+    assert [1, 2] in all_weeks
+    assert [13, 16] in all_weeks
+    assert [15] in all_weeks
+    assert [14] in all_weeks
+
+    locations = {s["location"] for s in course["sessions"]}
+    assert "北129" in locations
+    assert "北218" in locations
+
+
+def test_parse_selected_courses_tables_merges_multi_row_course():
+    list_header = ["序号", "课程代码", "课程名称", "教师", "上课时间", "上课地点"]
+    list_rows = [
+        ["1", "CME2606", "实践I（机器人结构与设计）", "赵冬华", "周五 5-8节 [1-2]", "北129"],
+        ["2", "CME2606", "实践I（机器人结构与设计）", "陈永霖", "周五 5-8节 [3-4]", "北129"],
+        ["3", "CME2606", "实践I（机器人结构与设计）", "焦宏飞", "周五 5-8节 [5-6]", "北129"],
+        ["4", "CME2606", "实践I（机器人结构与设计）", "张长柱", "周五 5-8节 [7-8]", "北129"],
+        ["5", "CME2606", "实践I（机器人结构与设计）", "张磊", "周五 5-8节 [9-10]", "北129"],
+        ["6", "CME2606", "实践I（机器人结构与设计）", "魏先顺", "周五 5-8节 [11-12]", "北129"],
+        ["7", "CME2606", "实践I（机器人结构与设计）", "焦宏飞,魏先顺", "周五 5-8节 [13, 16]", "北218"],
+        ["8", "CME2606", "实践I（机器人结构与设计）", "赵冬华", "周五 5-8节 [14]", "北218"],
+        ["9", "CME2606", "实践I（机器人结构与设计）", "陈永霖", "周五 5-8节 [15]", "北218"],
+    ]
+    tables = [
+        [list_header] + list_rows,
+        [
+            ["节次/周次", "周一", "周二", "周三", "周四", "周五", "周六", "周日"],
+            ["第5节课", "", "", "", "", "实践I（机器人结构与设计）(CME2606)", "", ""],
+        ],
+    ]
+    courses = tongji_timetable._parse_selected_courses_tables(tables)
+    assert len(courses) == 1
+    c = courses[0]
+    assert c["name"] == "实践I（机器人结构与设计）"
+    assert c["code"] == "CME2606"
+    assert len(c["sessions"]) == 9
+    weeks_list = [s["weeks"] for s in c["sessions"]]
+    assert [1, 2] in weeks_list
+    assert [5, 6] in weeks_list
+    assert [13, 16] in weeks_list
+
+
+def test_today_entries_multi_week_filtering(tmp_path, monkeypatch):
+    client, _ = _client(tmp_path, monkeypatch)
+    semester_start = date(2026, 9, 14)
+    sessions = [
+        {"weekday": 4, "weeks": [1, 2], "start_time": "13:30", "end_time": "17:05", "location": "北129"},
+        {"weekday": 4, "weeks": [3, 4], "start_time": "13:30", "end_time": "17:05", "location": "北129"},
+        {"weekday": 4, "weeks": [5, 6], "start_time": "13:30", "end_time": "17:05", "location": "北129"},
+        {"weekday": 4, "weeks": [7, 8], "start_time": "13:30", "end_time": "17:05", "location": "北129"},
+        {"weekday": 4, "weeks": [9, 10], "start_time": "13:30", "end_time": "17:05", "location": "北129"},
+        {"weekday": 4, "weeks": [11, 12], "start_time": "13:30", "end_time": "17:05", "location": "北129"},
+        {"weekday": 4, "weeks": [13, 16], "start_time": "13:30", "end_time": "17:05", "location": "北218"},
+        {"weekday": 4, "weeks": [14], "start_time": "13:30", "end_time": "17:05", "location": "北218"},
+        {"weekday": 4, "weeks": [15], "start_time": "13:30", "end_time": "17:05", "location": "北218"},
+    ]
+    course = {
+        "id": "CME2606:0",
+        "code": "CME2606",
+        "name": "实践I（机器人结构与设计）",
+        "teacher": "焦宏飞 / 张长柱 / 魏先顺",
+        "location": "北129 / 北218",
+        "sessions": sessions,
+    }
+    schedule_store.save_courses("alice", "2026秋", semester_start.isoformat(), [course], "2026-09-01T00:00:00+08:00")
+
+    before = schedule_store.today_entries("alice", date(2026, 9, 11), semester_start.isoformat())
+    assert len(before["timed"]) == 0
+
+    w1 = schedule_store.today_entries("alice", date(2026, 9, 18), semester_start.isoformat())
+    assert len(w1["timed"]) == 1
+    assert w1["timed"][0]["location"] == "北129"
+
+    w5 = schedule_store.today_entries("alice", date(2026, 10, 16), semester_start.isoformat())
+    assert len(w5["timed"]) == 1
+    assert w5["timed"][0]["location"] == "北129"
+
+    w14 = schedule_store.today_entries("alice", date(2026, 12, 18), semester_start.isoformat())
+    assert len(w14["timed"]) == 1
+    assert w14["timed"][0]["location"] == "北218"
+
+    w16 = schedule_store.today_entries("alice", date(2027, 1, 1), semester_start.isoformat())
+    assert len(w16["timed"]) == 1
+    assert w16["timed"][0]["location"] == "北218"
+

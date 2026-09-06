@@ -96,10 +96,10 @@ def today_entries(username, today, semester_start):
     for course in cache.get("courses", []):
         for session in course.get("sessions", []):
             in_dates = session.get("date_start") and session.get("date_end") and session["date_start"] <= today.isoformat() <= session["date_end"]
-            valid_week = session.get("weekday") == today.weekday() and (not session.get("weeks") or week in session["weeks"])
+            valid_week = session.get("weekday") == today.weekday() and (week > 0 if semester_start else True) and (not session.get("weeks") or week in session["weeks"])
             parity = session.get("parity")
-            if parity == "odd" and week % 2 == 0: valid_week = False
-            if parity == "even" and week % 2 != 0: valid_week = False
+            if parity == "odd" and (week <= 0 or week % 2 == 0): valid_week = False
+            if parity == "even" and (week <= 0 or week % 2 != 0): valid_week = False
             if in_dates or valid_week:
                 timed.append({"kind": "course", "title": course.get("name", "课程"), "location": session.get("location") or course.get("location", ""), "start_time": session["start_time"], "end_time": session["end_time"]})
     for item in items.get("recurring", []):

@@ -79,7 +79,7 @@ def _header_index(headers, aliases):
 
 
 def _split_segments(raw_time):
-    separator = r"[；;\n]+|[,，](?=\s*(?:(?:周|星期)[一二三四五六日天]|20\d{2}[./-]))"
+    separator = r"[；;\n]+|[,，](?=\s*(?:(?:周|星期)[一二三四五六日天]|20\d{2}[./-]|\[?\s*\d{1,2}\s*[-~至]\s*\d{1,2}\s*节))"
     return [part.strip() for part in re.split(separator, raw_time or "") if part.strip()]
 
 
@@ -122,11 +122,15 @@ def _parse_date_range(text):
 def parse_time_segments(raw_time, fallback_locations=""):
     """Turn a course's original time string into independent meeting segments."""
     result = []
+    last_weekday = None
     for text in _split_segments(raw_time):
         weekday_match = re.search(r"(?:周|星期)([一二三四五六日天])", text)
         start_period, end_period = _parse_periods(text)
         date_start, date_end = _parse_date_range(text)
-        if not weekday_match and not date_start:
+        weekday = WEEKDAYS.get(weekday_match.group(1)) if weekday_match else last_weekday
+        if weekday is not None:
+            last_weekday = weekday
+        if weekday is None and not date_start:
             continue
         if start_period is None:
             continue
@@ -135,7 +139,7 @@ def parse_time_segments(raw_time, fallback_locations=""):
         location = re.sub(r"\[[^\]]*\]", "", location)
         location = re.sub(r"(?:第)?[\d、，,\s~-]+周|[单双]周", "", location).strip(" ，,;；")
         result.append({
-            "weekday": WEEKDAYS.get(weekday_match.group(1)) if weekday_match else None,
+            "weekday": weekday,
             "weeks": weeks,
             "parity": parity,
             "start_period": start_period,
@@ -194,8 +198,140 @@ def _visible_timetable_tables(page):
     return page.locator("table:visible").evaluate_all(_VISIBLE_TABLES_SCRIPT)
 
 
+def _parse_grid_table(grid_table):
+    """Extract course identifiers and detailed sessions from the visual grid table."""
+    if not grid_table:
+        return set(), {}
+
+    header = grid_table[0]
+    day_cols = {}
+    for col_idx, col_name in enumerate(header):
+        col_clean = re.sub(r"\s+", "", col_name)
+        for w_name, w_val in WEEKDAYS.items():
+            if w_name in col_clean:
+                day_cols[col_idx] = w_val
+                break
+
+    grid_course_identifiers = set()
+    grid_courses_by_key = {}
+    w_names = ["一", "二", "三", "四", "五", "六", "日"]
+
+    for row in grid_table[1:]:
+        if not row:
+            continue
+        row_label = row[0] if row else ""
+        p_match = re.search(r"第?\s*(\d{1,2})\s*节", row_label)
+        default_period = int(p_match.group(1)) if p_match else None
+
+        for col_idx, weekday in day_cols.items():
+            if col_idx >= len(row):
+                continue
+            cell_text = row[col_idx].strip()
+            if not cell_text:
+                continue
+
+            for c_code in re.findall(r"\(([A-Za-z0-9_-]{5,12})\)", cell_text):
+                grid_course_identifiers.add(c_code)
+
+            for raw_line in cell_text.splitlines():
+                line = raw_line.strip()
+                if not line:
+                    continue
+
+                code_match = re.search(r"\(([A-Za-z0-9_-]{5,12})\)", line)
+                if not code_match:
+                    continue
+                c_code = code_match.group(1)
+
+                sp, ep = None, None
+                p_match_line = re.search(r"\[?\s*(\d{1,2})\s*(?:[-~至]\s*(\d{1,2}))?\s*节\s*\]?", line)
+                if p_match_line and p_match_line.start() < code_match.start():
+                    sp = int(p_match_line.group(1))
+                    ep = int(p_match_line.group(2) or p_match_line.group(1))
+                elif default_period is not None:
+                    sp, ep = default_period, default_period
+                else:
+                    continue
+
+                if sp not in PERIOD_TIMES or ep not in PERIOD_TIMES or ep < sp:
+                    continue
+
+                weeks = []
+                parity = None
+                for wm in re.finditer(r"\[([^\]]+)\]", line):
+                    w_cand = wm.group(1)
+                    if "节" in w_cand:
+                        continue
+                    w_parsed, p_parsed = _parse_weeks("[" + w_cand + "]")
+                    if w_parsed:
+                        weeks = w_parsed
+                        parity = p_parsed
+                        break
+
+                prefix = line[:code_match.start()].strip()
+                prefix = re.sub(r"\[?\s*\d{1,2}\s*(?:[-~至]\s*\d{1,2})?\s*节\s*\]?", "", prefix).strip()
+                prefix = re.sub(r"\[[^\]]+\]", "", prefix).strip()
+                parts = prefix.split()
+                if len(parts) >= 2:
+                    teacher_pre = parts[0]
+                    c_name = " ".join(parts[1:])
+                else:
+                    teacher_pre = ""
+                    c_name = prefix
+
+                suffix = line[code_match.end():].strip()
+                suffix = re.sub(r"\[[^\]]+\]", "", suffix).strip()
+                suffix_parts = suffix.split()
+                teacher_post = ""
+                loc = ""
+                if len(suffix_parts) >= 2:
+                    teacher_post = " ".join(suffix_parts[:-1])
+                    loc = suffix_parts[-1]
+                elif len(suffix_parts) == 1:
+                    loc = suffix_parts[0]
+
+                teacher = teacher_post or teacher_pre
+                session_item = {
+                    "weekday": weekday,
+                    "weeks": weeks,
+                    "parity": parity,
+                    "start_period": sp,
+                    "end_period": ep,
+                    "start_time": PERIOD_TIMES[sp][0],
+                    "end_time": PERIOD_TIMES[ep][1],
+                    "date_start": None,
+                    "date_end": None,
+                    "location": loc,
+                    "teacher": teacher,
+                    "raw_time": f"周{w_names[weekday]} 第{sp}-{ep}节",
+                }
+
+                c_key = c_code or c_name
+                if c_key not in grid_courses_by_key:
+                    grid_courses_by_key[c_key] = {
+                        "code": c_code,
+                        "name": c_name,
+                        "teachers": [teacher] if teacher else [],
+                        "locations": [loc] if loc else [],
+                        "sessions": [session_item],
+                    }
+                else:
+                    entry = grid_courses_by_key[c_key]
+                    if teacher and teacher not in entry["teachers"]:
+                        entry["teachers"].append(teacher)
+                    if loc and loc not in entry["locations"]:
+                        entry["locations"].append(loc)
+                    sig = (weekday, sp, ep, tuple(weeks))
+                    if not any((s["weekday"], s["start_period"], s["end_period"], tuple(s["weeks"])) == sig for s in entry["sessions"]):
+                        entry["sessions"].append(session_item)
+
+    return grid_course_identifiers, grid_courses_by_key
+
+
 def _parse_selected_courses_tables(tables):
-    list_courses = []
+    courses_by_key = {}
+    last_course_key = None
+
     for table_index, table in enumerate(tables):
         if not table:
             continue
@@ -215,18 +351,63 @@ def _parse_selected_courses_tables(tables):
             def cell(index):
                 return row[index].strip() if index is not None and index < len(row) else ""
             raw_time = cell(meeting)
+            c_code = cell(code)
+            c_name = cell(name)
+            c_teacher = cell(teacher)
             places = " · ".join(value for value in (cell(campus), cell(location)) if value)
+
+            # Handle continuation row (rowspan)
+            if not c_code and not c_name and last_course_key and raw_time:
+                c_key = last_course_key
+            elif c_code or c_name:
+                c_key = c_code or c_name
+            else:
+                continue
+
             sessions = parse_time_segments(raw_time, places)
             if not sessions:
                 continue
-            course_name = cell(name)
-            list_courses.append({
-                "id": f"{cell(code) or course_name}:{len(list_courses)}",
-                "code": cell(code), "name": course_name, "teacher": cell(teacher),
-                "raw_time": raw_time, "location": places, "sessions": sessions,
-            })
-        if list_courses:
+
+            if c_key not in courses_by_key:
+                courses_by_key[c_key] = {
+                    "id": f"{c_code or c_name}:{len(courses_by_key)}",
+                    "code": c_code,
+                    "name": c_name,
+                    "teacher": c_teacher,
+                    "raw_time": raw_time,
+                    "location": places,
+                    "sessions": sessions,
+                }
+                last_course_key = c_key
+            else:
+                existing = courses_by_key[c_key]
+                if not existing["code"] and c_code:
+                    existing["code"] = c_code
+                if not existing["name"] and c_name:
+                    existing["name"] = c_name
+                if c_teacher:
+                    teachers = [t.strip() for t in re.split(r"[,，、;；\s]+", existing["teacher"]) if t.strip()]
+                    for nt in re.split(r"[,，、;；\s]+", c_teacher):
+                        nt = nt.strip()
+                        if nt and nt not in teachers:
+                            teachers.append(nt)
+                    existing["teacher"] = "、".join(teachers)
+                if places:
+                    locs = [l.strip() for l in existing["location"].split(" · ") if l.strip()]
+                    if places not in locs:
+                        locs.append(places)
+                    existing["location"] = " · ".join(locs)
+                if raw_time and raw_time not in existing["raw_time"]:
+                    existing["raw_time"] = f"{existing['raw_time']}, {raw_time}" if existing["raw_time"] else raw_time
+                for s in sessions:
+                    sig = (s.get("weekday"), s.get("start_period"), s.get("end_period"), tuple(s.get("weeks") or []))
+                    if not any((es.get("weekday"), es.get("start_period"), es.get("end_period"), tuple(es.get("weeks") or [])) == sig for es in existing["sessions"]):
+                        existing["sessions"].append(s)
+
+        if courses_by_key:
             break
+
+    list_courses = list(courses_by_key.values())
 
     # Look for visual weekly timetable grid ('学生课表')
     grid_table = None
@@ -241,32 +422,22 @@ def _parse_selected_courses_tables(tables):
     if not grid_table:
         return list_courses
 
-    header = grid_table[0]
-    day_cols = {}
-    for col_idx, col_name in enumerate(header):
-        col_clean = re.sub(r"\s+", "", col_name)
-        for w_name, w_val in WEEKDAYS.items():
-            if w_name in col_clean:
-                day_cols[col_idx] = w_val
-                break
-
-    grid_course_identifiers = set()
-    for row in grid_table[1:]:
-        if not row:
-            continue
-
-        for col_idx in day_cols:
-            if col_idx >= len(row):
-                continue
-            cell_text = row[col_idx].strip()
-            if not cell_text:
-                continue
-
-            codes = re.findall(r"\(([A-Za-z0-9]{6,10})\)", cell_text)
-            for c_code in codes:
-                grid_course_identifiers.add(c_code)
+    grid_course_identifiers, grid_courses_by_key = _parse_grid_table(grid_table)
 
     if not grid_course_identifiers:
+        return list_courses
+
+    if not list_courses and grid_courses_by_key:
+        for idx, (k, g) in enumerate(grid_courses_by_key.items()):
+            list_courses.append({
+                "id": f"{g['code'] or g['name']}:{idx}",
+                "code": g["code"],
+                "name": g["name"],
+                "teacher": "、".join(g["teachers"]),
+                "location": " · ".join(g["locations"]),
+                "raw_time": "; ".join(s["raw_time"] for s in g["sessions"]),
+                "sessions": g["sessions"],
+            })
         return list_courses
 
     filtered_courses = []
@@ -274,13 +445,23 @@ def _parse_selected_courses_tables(tables):
         c_code = c.get("code", "")
         c_name = c.get("name", "")
 
-        matched_code = None
+        matched_key = None
         if c_code and c_code in grid_course_identifiers:
-            matched_code = c_code
+            matched_key = c_code
         elif any(ident in c_name or c_name in ident for ident in grid_course_identifiers):
-            matched_code = c_code
+            matched_key = c_code or c_name
 
-        if matched_code:
+        if matched_key:
+            grid_entry = grid_courses_by_key.get(matched_key) or grid_courses_by_key.get(c_code) or grid_courses_by_key.get(c_name)
+            if grid_entry and grid_entry.get("sessions"):
+                list_has_weeks = any(s.get("weeks") for s in c.get("sessions", []))
+                grid_has_weeks = any(s.get("weeks") for s in grid_entry["sessions"])
+                if not list_has_weeks and grid_has_weeks:
+                    c["sessions"] = grid_entry["sessions"]
+                    if grid_entry.get("teachers") and not c.get("teacher"):
+                        c["teacher"] = "、".join(grid_entry["teachers"])
+                    if grid_entry.get("locations") and not c.get("location"):
+                        c["location"] = " · ".join(grid_entry["locations"])
             filtered_courses.append(c)
 
     return filtered_courses if filtered_courses else list_courses

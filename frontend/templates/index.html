@@ -566,6 +566,25 @@
       return weekNum > 0 ? weekNum : null;
     }
 
+    function formatWeekRanges(weeks) {
+      if (!weeks || !weeks.length) return '';
+      const sorted = Array.from(new Set(weeks)).filter(n => typeof n === 'number' && !isNaN(n)).sort((a, b) => a - b);
+      if (!sorted.length) return '';
+      const ranges = [];
+      let start = sorted[0], prev = start;
+      for (let i = 1; i < sorted.length; i += 1) {
+        if (sorted[i] === prev + 1) {
+          prev = sorted[i];
+        } else {
+          ranges.push(start === prev ? `${start}` : `${start}-${prev}`);
+          start = sorted[i];
+          prev = start;
+        }
+      }
+      ranges.push(start === prev ? `${start}` : `${start}-${prev}`);
+      return `第${ranges.join(',')}周`;
+    }
+
     function navigateScheduleWeek(offsetDelta) {
       currentScheduleWeekOffset = offsetDelta === 0 ? 0 : currentScheduleWeekOffset + offsetDelta;
       renderScheduleManager(scheduleData || {courses: {}, items: {recurring: [], one_off: []}});
@@ -598,11 +617,13 @@
           let valid = true;
           if (session.date_start && session.date_end) {
             valid = session.date_start <= dateISO && dateISO <= session.date_end;
-          } else if (session.weeks?.length && weekNum) {
-            valid = session.weeks.includes(weekNum);
+          } else if (session.weeks?.length) {
+            valid = Boolean(weekNum && session.weeks.includes(weekNum));
+          } else if (semesterStart && !weekNum) {
+            valid = false;
           }
-          if (session.parity === 'odd' && weekNum && weekNum % 2 === 0) valid = false;
-          if (session.parity === 'even' && weekNum && weekNum % 2 !== 0) valid = false;
+          if (session.parity === 'odd' && (!weekNum || weekNum % 2 === 0)) valid = false;
+          if (session.parity === 'even' && (!weekNum || weekNum % 2 !== 0)) valid = false;
           if (!valid) return;
           events.push({
             uid: `course-${courseIndex}-${sessionIndex}`,
@@ -768,7 +789,12 @@
             const item = scheduleElement('div', 'schedule-course-manage-item');
             const info = scheduleElement('div', 'schedule-course-manage-info');
             const nameEl = scheduleElement('div', 'schedule-course-manage-name', course.name || '未命名课程');
-            const sessionTimes = (course.sessions || []).map(s => `${weekdayLabels[s.weekday]} ${s.start_time}-${s.end_time}`).join('；');
+            const sessionTimes = (course.sessions || []).map(s => {
+              const weekLabel = formatWeekRanges(s.weeks);
+              const loc = s.location && s.location !== course.location ? `(${s.location})` : '';
+              const timeStr = `${weekdayLabels[s.weekday]} ${s.start_time}-${s.end_time}`;
+              return [weekLabel, timeStr, loc].filter(Boolean).join(' ');
+            }).join('；');
             const metaParts = [course.teacher, sessionTimes, course.location].filter(Boolean);
             const metaEl = scheduleElement('div', 'schedule-course-manage-meta', metaParts.join(' · ') || '无时间信息');
             info.append(nameEl, metaEl);
@@ -930,13 +956,11 @@
       const weeksVal = document.getElementById('schedule-course-weeks');
       const session = event.session;
       let weeksText = '';
-      if (course.raw_time) {
-        weeksText = course.raw_time;
-      } else if (session?.weeks?.length) {
-        const minW = Math.min(...session.weeks);
-        const maxW = Math.max(...session.weeks);
+      if (session?.weeks?.length) {
         const parityText = session.parity === 'odd' ? '（单周）' : session.parity === 'even' ? '（双周）' : '';
-        weeksText = `第 ${minW}-${maxW} 周 ${parityText}`.trim();
+        weeksText = `${formatWeekRanges(session.weeks)} ${parityText}`.trim();
+      } else if (course.raw_time) {
+        weeksText = course.raw_time;
       } else if (session?.date_start && session?.date_end) {
         weeksText = `${session.date_start} 至 ${session.date_end}`;
       }
