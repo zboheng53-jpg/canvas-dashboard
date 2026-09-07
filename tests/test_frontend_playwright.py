@@ -497,7 +497,7 @@ def test_frontend_console_navigation_groups_features_without_overview_duplicates
     expect(page.locator(".sidebar-nav-group")).to_have_count(3)
     expect(page.locator(".sidebar-section-label")).to_have_text(["工作区", "计划", "管理"])
     expect(page.locator("[data-dashboard-view] .sidebar-label")).to_have_text(
-        ["今日总览", "长期项目", "日程与课表", "连接与同步", "日历订阅", "偏好设置"]
+        ["今日总览", "长期项目", "日程与课表", "连接与同步", "日历订阅", "Agent 接入", "偏好设置"]
     )
     expect(page.locator("#dashboard-view-overview .login-trigger")).to_have_count(0)
     expect(page.locator("#dashboard-view-overview .account-row")).to_have_count(0)
@@ -513,7 +513,7 @@ def test_frontend_console_navigation_groups_features_without_overview_duplicates
     expect(page.locator("#schedule-timetable-grid")).to_be_visible()
     expect(page.locator("#schedule-week-label")).to_be_visible()
 
-    for view_name in ("overview", "projects", "schedule", "connections", "calendar", "settings"):
+    for view_name in ("overview", "projects", "schedule", "connections", "calendar", "agent", "settings"):
         button = page.locator(f'[data-dashboard-view="{view_name}"]')
         button.click()
         expect(page.locator(f'[data-view-panel="{view_name}"]')).to_be_visible()
@@ -1416,3 +1416,36 @@ def test_account_deletion_confirmation_panel_stacks_on_mobile(live_app, browser)
     assert password_box is not None and confirmation_box is not None
     assert confirmation_box["y"] > password_box["y"] + password_box["height"]
     assert page.evaluate("document.documentElement.scrollWidth") <= 390
+
+
+def test_frontend_agent_integration_page(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "agentv2user")
+
+    # Navigate to Agent Integration view
+    page.locator('[data-dashboard-view="agent"]').click()
+    expect(page.locator("#dashboard-view-agent")).to_be_visible()
+    expect(page.locator("#agent-manager-card")).to_be_visible()
+    expect(page.locator("#agent-manager-title")).to_have_text("Agent 接入 (MCP & Skill)")
+
+    # Check token creation
+    token_input = page.locator("#agent-token-input")
+    expect(token_input).to_have_attribute("placeholder", "尚未生成 Agent Token")
+    expect(page.locator("#agent-token-copy")).to_be_disabled()
+    expect(page.locator("#agent-token-revoke")).to_be_disabled()
+
+    # Create token
+    page.locator("#agent-token-create").click()
+    expect(token_input).to_have_value(re.compile(r"^cda_.+"))
+    expect(page.locator("#agent-token-copy")).to_be_enabled()
+    expect(page.locator("#agent-token-revoke")).to_be_enabled()
+
+    # Verify MCP code block has the token
+    mcp_code = page.locator("#agent-mcp-config-code")
+    expect(mcp_code).to_contain_text("cda_")
+
+    # Revoke token (handle dialog)
+    page.on("dialog", lambda dialog: dialog.accept())
+    page.locator("#agent-token-revoke").click()
+    expect(page.locator("#agent-token-status")).to_contain_text("Token 已成功撤销")
+

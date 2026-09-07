@@ -579,6 +579,110 @@
 </section>
 {% endif %}
 
+<section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-agent" data-view-panel="agent">
+  <div class="card console-manager-card business-manager-card agent-manager-card" id="agent-manager-card">
+    <div class="console-manager-heading business-manager-heading">
+      <div>
+        <h1 id="agent-manager-title">Agent 接入 (MCP & Skill)</h1>
+        <p>让你的 AI 助手（Claude Desktop、Cursor、Cline、Windsurf、Claude Code 等）自主接入 Canvas Dashboard，查询课表与管理待办。</p>
+      </div>
+      <span class="ui-tag calendar-privacy-badge">安全授权</span>
+    </div>
+
+    <div class="ui-card settings-summary-grid settings-progressive-layout">
+      <!-- Token 管理卡片 -->
+      <section class="ui-card-section settings-item" aria-labelledby="agent-token-heading">
+        <div class="settings-section-heading">
+          <span class="ui-section-label manager-section-index">第一步 · 凭据</span>
+          <h2 class="ui-card__title" id="agent-token-heading">专属 Agent API Token</h2>
+        </div>
+        <div class="settings-section-content">
+          <p>Token 具有与你账户相同的操作权限（查询课表、读写待办），请妥善保管。重新生成或撤销会立即使旧 Token 失效。</p>
+          <div class="calendar-subscription-url">
+            <label class="ui-label settings-field-label" for="agent-token-input">当前 Token</label>
+            <input type="text" id="agent-token-input" readonly placeholder="尚未生成 Agent Token" class="ui-control">
+          </div>
+          <div class="calendar-subscription-actions agent-actions-row">
+            <button type="button" class="ui-button ui-button--primary console-stateful-button" id="agent-token-create" onclick="createAgentToken()">生成 Agent Token</button>
+            <button type="button" class="ui-button ui-button--secondary console-stateful-button" id="agent-token-copy" onclick="copyAgentToken()" disabled>复制 Token</button>
+            <button type="button" class="ui-button ui-button--danger console-stateful-button" id="agent-token-revoke" onclick="revokeAgentToken()" disabled>撤销 Token</button>
+          </div>
+          <p class="ui-feedback ui-feedback--info calendar-subscription-status" id="agent-token-status" role="status" aria-live="polite">生成 Token 后，即可下载配置包或在 Agent 中连接。</p>
+        </div>
+      </section>
+
+      <!-- MCP 接入卡片 -->
+      <section class="ui-card-section settings-item" aria-labelledby="agent-mcp-heading">
+        <div class="settings-section-heading">
+          <span class="ui-section-label manager-section-index">第二步 (推荐) · MCP</span>
+          <h2 class="ui-card__title" id="agent-mcp-heading">Model Context Protocol (MCP)</h2>
+        </div>
+        <div class="settings-section-content">
+          <p>适用于 <strong>Claude Desktop</strong>、<strong>Cursor</strong>、<strong>VS Code Cline</strong>、<strong>Windsurf</strong> 等支持 MCP 的 AI 工具。</p>
+          <p>基于标准 Python 3 标准库（零额外依赖），开箱即用，通过 stdio 进程向 Agent 提供 7 个原生工具。</p>
+
+          <div class="agent-download-row">
+            <a href="/api/agent/export/mcp-bundle.zip" download class="ui-button ui-button--primary">
+              <svg viewBox="0 0 24 24" aria-hidden="true" class="agent-button-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m4-5 5 5 5-5m-5 5V3"></path></svg>
+              下载 MCP 完整配置包 (.zip)
+            </a>
+            <a href="/api/agent/export/mcp-script" download class="ui-button ui-button--secondary">
+              下载独立脚本 (canvas_mcp.py)
+            </a>
+          </div>
+
+          <div class="agent-code-section">
+            <label class="ui-label settings-field-label">Claude Desktop / Cursor 配置代码（已填入当前服务地址）</label>
+            <pre class="ui-card agent-code-pre" id="agent-mcp-config-code"></pre>
+            <button type="button" class="ui-button ui-button--secondary console-stateful-button" id="agent-mcp-copy-config" onclick="copyAgentMcpConfig()">复制配置 JSON</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Agent Skill 接入卡片 -->
+      <section class="ui-card-section settings-item" aria-labelledby="agent-skill-heading">
+        <div class="settings-section-heading">
+          <span class="ui-section-label manager-section-index">第二步 (备选) · Skill</span>
+          <h2 class="ui-card__title" id="agent-skill-heading">Agent Skill 技能包</h2>
+        </div>
+        <div class="settings-section-content">
+          <p>适用于 <strong>Claude Code</strong>、<strong>Antigravity</strong>、自定义命令行 Agent 或基于 REST API 的 AI 智能体。</p>
+          <p>内含标准化 <code>SKILL.md</code> 技能指引与 Python API 调用客户端，解压放入 Agent 的 <code>.agents/skills</code> 目录即可自动识别。</p>
+          <div class="agent-skill-actions">
+            <a href="/api/agent/export/skill-bundle.zip" download class="ui-button ui-button--secondary">
+              <svg viewBox="0 0 24 24" aria-hidden="true" class="agent-button-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m4-5 5 5 5-5m-5 5V3"></path></svg>
+              下载 Agent Skill 包 (.zip)
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- 示例提问 -->
+      <details class="settings-disclosure settings-data-disclosure">
+        <summary><span><b>Agent 支持能力与提问示例</b><small>查看接入后你可以让 AI 做什么</small></span><i aria-hidden="true">⌄</i></summary>
+        <div class="settings-disclosure-content">
+          <p><strong>📅 课表与日程：</strong></p>
+          <ul>
+            <li>“我今天有什么课？分别在哪个教室？”</li>
+            <li>“明天下午有安排吗？”</li>
+            <li>“全学期一共选了多少门课？”</li>
+          </ul>
+          <p><strong>📋 待办与作业：</strong></p>
+          <ul>
+            <li>“看一下我各平台还有哪些没交的作业”</li>
+            <li>“帮我添加一个周五晚上 22:00 截止的数据库大作业”</li>
+            <li>“把高等数学作业标记为已完成”</li>
+          </ul>
+          <p><strong>🎯 长期项目：</strong></p>
+          <ul>
+            <li>“当前主项目是什么？下一步行动是什么？”</li>
+          </ul>
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
+
 <section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-settings" data-view-panel="settings">
   <div class="card console-manager-card business-manager-card settings-manager-card">
     <div class="console-manager-heading business-manager-heading">

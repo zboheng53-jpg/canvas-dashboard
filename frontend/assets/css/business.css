@@ -727,6 +727,45 @@
   gap: var(--space-3);
 }
 
+/* Agent integration */
+.agent-actions-row {
+  margin-top: var(--space-4);
+}
+
+.agent-download-row {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-4);
+}
+
+.agent-button-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: var(--space-2);
+}
+
+.agent-code-section {
+  margin-top: var(--space-5);
+}
+
+.agent-code-pre {
+  margin: var(--space-2) 0;
+  padding: var(--space-4);
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-subtle);
+  font-family: monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.agent-skill-actions {
+  margin-top: var(--space-4);
+}
+
 @media (max-width: 1100px) {
   .connections-layout,
   .calendar-subscription-layout {

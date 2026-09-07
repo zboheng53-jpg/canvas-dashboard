@@ -10,11 +10,15 @@ import time
 from datetime import datetime, timezone, timedelta, date
 from pathlib import Path
 
+import io
+import zipfile
+from functools import wraps
 import requests
 from flask import Flask, abort, jsonify, render_template, request, session, redirect
 
 import auth
 import apple_calendar
+import agent_auth
 import settings
 from platform_state import build_platform_todos_response
 from storage import JsonFileCorruptionError, locked_json_update, read_json_file, write_json_file
@@ -299,6 +303,8 @@ def _clear_json_file(path: Path) -> None:
 def _require_login():
     if request.endpoint in _LOGIN_EXEMPT_ENDPOINTS or request.endpoint is None:
         return
+    if request.path.startswith("/api/agent/v1/"):
+        return
     username = session.get("username")
     if not username:
         if request.path.startswith("/api/"):
@@ -342,6 +348,8 @@ def handle_json_file_corruption(error):
 @app.before_request
 def _protect_csrf():
     if request.method not in _CSRF_METHODS:
+        return
+    if request.path.startswith("/api/agent/v1/"):
         return
     expected = session.get(_CSRF_SESSION_KEY)
     supplied = request.headers.get(_CSRF_HEADER, "")
@@ -2192,6 +2200,500 @@ def _check_today_holiday(now):
         if begin <= today <= end:
             return True, h["name"]
     return False, ""
+
+
+# ---- Agent Integration (MCP & Agent Skills) ----
+
+def require_agent_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get("Authorization", "").strip()
+        if not auth_header.startswith("Bearer "):
+            return api_error("unauthorized", "缺少或无效的 Authorization Bearer 凭据", 401)
+        token = auth_header[7:].strip()
+        username = agent_auth.username_for_token(token)
+        if not username:
+            return api_error("unauthorized", "Agent API Token 无效或已撤销", 401)
+        request.agent_username = username
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route("/api/agent/token", methods=["GET"])
+def api_agent_token_info():
+    username = session["username"]
+    return jsonify({"ok": True, **agent_auth.get_token_info(username)})
+
+
+@app.route("/api/agent/token", methods=["POST"])
+def api_agent_token_create():
+    username = session["username"]
+    token = agent_auth.create_token(username)
+    return jsonify({"ok": True, "token": token, **agent_auth.get_token_info(username)})
+
+
+@app.route("/api/agent/token", methods=["DELETE"])
+def api_agent_token_revoke():
+    username = session["username"]
+    revoked = agent_auth.revoke_token(username)
+    return jsonify({"ok": True, "revoked": revoked, **agent_auth.get_token_info(username)})
+
+
+@app.route("/api/agent/export/mcp-script")
+def api_agent_export_mcp_script():
+    mcp_path = Path(__file__).parent / "agent_mcp.py"
+    if not mcp_path.exists():
+        abort(404)
+    content = mcp_path.read_text(encoding="utf-8")
+    response = app.response_class(content, mimetype="text/x-python; charset=utf-8")
+    response.headers["Content-Disposition"] = "attachment; filename=canvas_mcp.py"
+    return response
+
+
+@app.route("/api/agent/export/mcp-bundle.zip")
+def api_agent_export_mcp_bundle():
+    mcp_path = Path(__file__).parent / "agent_mcp.py"
+    if not mcp_path.exists():
+        abort(404)
+    mcp_code = mcp_path.read_text(encoding="utf-8")
+    base_url = request.host_url.rstrip("/")
+
+    claude_config = {
+        "mcpServers": {
+            "canvas-dashboard": {
+                "command": "python",
+                "args": ["canvas_mcp.py"],
+                "env": {
+                    "CANVAS_DASHBOARD_URL": base_url,
+                    "CANVAS_DASHBOARD_TOKEN": "YOUR_TOKEN_HERE",
+                },
+            }
+        }
+    }
+    cursor_config = {
+        "mcpServers": {
+            "canvas-dashboard": {
+                "command": "python canvas_mcp.py",
+                "env": {
+                    "CANVAS_DASHBOARD_URL": base_url,
+                    "CANVAS_DASHBOARD_TOKEN": "YOUR_TOKEN_HERE",
+                },
+            }
+        }
+    }
+    readme_content = f"""# Canvas Dashboard MCP 接入包
+
+此压缩包内含将 Canvas Dashboard 连接至 Claude Desktop、Cursor、Cline、Windsurf 等 AI 助手的完整配置与脚本。
+
+## 快速接入步骤（以 Claude Desktop 为例）
+
+1. 将 `canvas_mcp.py` 复制到一个固定路径（例如 `C:\\Users\\<用户名>\\canvas_mcp.py` 或 `~/canvas_mcp.py`）。
+2. 在 Canvas Dashboard 网页中生成你的专属 **Agent API Token**。
+3. 打开 Claude Desktop 配置文件 `claude_desktop_config.json`：
+   - Windows: `%APPDATA%\\Claude\\claude_desktop_config.json`
+   - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+4. 将 `claude_desktop_config.json` 中的配置合并，并将 `YOUR_TOKEN_HERE` 替换为你的真实 Token。
+5. 重启 Claude Desktop 即可开始使用！
+
+## 常用提问示例
+- “我今天有什么课？在哪个教室？”
+- “今天有什么即将截止的作业？”
+- “帮我添加一个明天晚上截止的数据库作业”
+- “把高数作业标记为已完成”
+"""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("canvas_mcp.py", mcp_code)
+        zf.writestr("claude_desktop_config.json", json.dumps(claude_config, indent=2, ensure_ascii=False))
+        zf.writestr("cursor_mcp.json", json.dumps(cursor_config, indent=2, ensure_ascii=False))
+        zf.writestr("README.md", readme_content)
+    buf.seek(0)
+    response = app.response_class(buf.getvalue(), mimetype="application/zip")
+    response.headers["Content-Disposition"] = "attachment; filename=canvas-dashboard-mcp.zip"
+    return response
+
+
+@app.route("/api/agent/export/skill-bundle.zip")
+def api_agent_export_skill_bundle():
+    base_url = request.host_url.rstrip("/")
+    skill_content = f"""---
+name: canvas-dashboard
+description: 管理用户的 Canvas Dashboard 学习与时间管理看板，查询课表日程、汇总待办与作业、标记完成及管理长期项目。
+---
+
+# Canvas Dashboard Agent Skill
+
+本技能让 AI Agent 能够通过标准 RESTful 接口安全接入用户的 Canvas Dashboard。
+
+## 环境变量配置
+
+调用接口前需准备以下配置：
+- 服务地址：`{base_url}`
+- 鉴权请求头：`Authorization: Bearer <CANVAS_DASHBOARD_TOKEN>`
+
+## 核心能力清单
+
+1. **查询今日日程与课表**
+   - 请求：`GET /api/agent/v1/schedule/today`
+   - 返回今日所有课程节次、教室地点、授课安排及今日到期事项。
+
+2. **查询指定日期日程**
+   - 请求：`GET /api/agent/v1/schedule/timetable?date=YYYY-MM-DD`
+
+3. **获取全学期课程表**
+   - 请求：`GET /api/agent/v1/schedule/timetable`
+
+4. **获取统一待办清单**
+   - 请求：`GET /api/agent/v1/todos?source=all&status=pending`
+   - 涵盖 Canvas、好课、智学盟、智慧树平台作业、长期项目任务与用户自定义待办。
+
+5. **新增待办事项**
+   - 请求：`POST /api/agent/v1/todos`
+   - JSON Body: `{{"text": "待办名称", "due_date": "YYYY-MM-DD"}}`
+
+6. **标记待办为已完成**
+   - 请求：`POST /api/agent/v1/todos/{{todo_id}}/complete`
+   - JSON Body: `{{"source": "custom"}}`（根据待办来源传入 custom、canvas、haoke、zhixuemeng、zhihuishu、project）
+
+7. **长期项目与 Next Action**
+   - 请求：`GET /api/agent/v1/projects`
+
+8. **平台同步状态**
+   - 请求：`GET /api/agent/v1/sync/status`
+"""
+    api_client_code = f"""# Canvas Dashboard Python Client
+import json
+import os
+import urllib.request
+
+class CanvasDashboard:
+    def __init__(self, base_url=None, token=None):
+        self.base_url = (base_url or os.environ.get("CANVAS_DASHBOARD_URL", "{base_url}")).rstrip("/")
+        self.token = token or os.environ.get("CANVAS_DASHBOARD_TOKEN", "")
+
+    def _req(self, path, method="GET", data=None):
+        url = f"{{self.base_url}}{{path}}"
+        body = json.dumps(data).encode("utf-8") if data is not None else None
+        headers = {{
+            "Authorization": f"Bearer {{self.token}}",
+            "Content-Type": "application/json"
+        }}
+        req = urllib.request.Request(url, data=body, headers=headers, method=method)
+        with urllib.request.urlopen(req) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+
+    def get_today_schedule(self):
+        return self._req("/api/agent/v1/schedule/today")
+
+    def get_todos(self, source="all", status="pending"):
+        return self._req(f"/api/agent/v1/todos?source={{source}}&status={{status}}")
+
+    def add_todo(self, text, due_date=None):
+        payload = {{"text": text}}
+        if due_date:
+            payload["due_date"] = due_date
+        return self._req("/api/agent/v1/todos", method="POST", data=payload)
+
+    def complete_todo(self, todo_id, source="custom"):
+        return self._req(f"/api/agent/v1/todos/{{todo_id}}/complete", method="POST", data={{"source": source}})
+
+    def get_projects(self):
+        return self._req("/api/agent/v1/projects")
+"""
+    readme_content = """# Canvas Dashboard Agent Skill
+
+将本目录解压后放入你的 Agent 技能目录（例如 `.agents/skills/canvas-dashboard/` 或 Claude Code 工作区），Agent 即可获得管理 Canvas Dashboard 的能力！
+"""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("SKILL.md", skill_content)
+        zf.writestr("canvas_api.py", api_client_code)
+        zf.writestr("README.md", readme_content)
+    buf.seek(0)
+    response = app.response_class(buf.getvalue(), mimetype="application/zip")
+    response.headers["Content-Disposition"] = "attachment; filename=canvas-dashboard-skill.zip"
+    return response
+
+
+# ---- External Agent REST API (Bearer Token Auth) ----
+
+def _aggregate_agent_todos(username: str, source: str = "all", status: str = "pending") -> list[dict]:
+    all_todos = []
+
+    # 1. Custom todos
+    for t in _load_todos(username):
+        all_todos.append({
+            "id": str(t.get("id")),
+            "title": t.get("text", ""),
+            "course": None,
+            "due_date": t.get("due_date"),
+            "source": "custom",
+            "done": bool(t.get("done")),
+            "labels": t.get("labels", []),
+            "url": None,
+        })
+
+    # 2. Platform items
+    def add_platform_items(platform_name: str, cache_file: str, state_loader):
+        cache_path = user_dir(username) / cache_file
+        if not cache_path.exists():
+            return
+        cached = read_json_file(cache_path, [] if platform_name != "zhixuemeng" else {})
+        items = cached.get("items", []) if isinstance(cached, dict) else (cached if isinstance(cached, list) else [])
+        state = state_loader(username)
+        completed_set = set(state.get("completed", []))
+        hidden_set = set(state.get("hidden", []))
+        deleted_set = set(state.get("deleted", []))
+        overrides = state.get("overrides", {})
+
+        for item in items:
+            item_id = item.get("id")
+            if item_id in hidden_set or item_id in deleted_set:
+                continue
+            override = overrides.get(str(item_id), {}) if isinstance(overrides, dict) else {}
+            title = override.get("title", item.get("title", ""))
+            due_ts = override.get("due_ts", item.get("due_ts"))
+            is_done = item_id in completed_set or bool(item.get("done"))
+            all_todos.append({
+                "id": str(item_id),
+                "title": title,
+                "course": item.get("course"),
+                "due_date": due_ts,
+                "source": platform_name,
+                "done": is_done,
+                "labels": [],
+                "url": item.get("url"),
+            })
+
+    add_platform_items("canvas", "canvas_cache.json", load_state)
+    add_platform_items("haoke", "haoke_cache.json", load_haoke_state)
+    add_platform_items("zhixuemeng", "zhixuemeng_cache.json", load_zxm_state)
+    add_platform_items("zhihuishu", "zhihuishu_cache.json", zhihuishu_store.load_state)
+
+    # 3. Project tasks
+    for item in project_store.todo_items(username):
+        all_todos.append({
+            "id": str(item["id"]),
+            "title": item["name"],
+            "course": item["project_name"],
+            "due_date": item.get("due_date"),
+            "source": "project",
+            "done": bool(item.get("done")),
+            "labels": [],
+            "url": None,
+        })
+
+    # Filtering
+    filtered = []
+    for item in all_todos:
+        if source != "all" and item["source"].lower() != source.lower():
+            continue
+        if status == "pending" and item["done"]:
+            continue
+        if status == "completed" and not item["done"]:
+            continue
+        filtered.append(item)
+
+    filtered.sort(key=lambda t: (
+        1 if t["done"] else 0,
+        0 if t.get("due_date") else 1,
+        t.get("due_date") or "9999-99-99",
+    ))
+    return filtered
+
+
+def _complete_agent_todo(username: str, todo_id: str, source: str = "custom") -> bool:
+    source = (source or "custom").lower()
+    if source == "custom":
+        try:
+            int_id = int(todo_id)
+        except ValueError:
+            int_id = None
+        found = {"value": False}
+        def update_todos(current):
+            for t in _normalize_todos(current):
+                if t["id"] == int_id or str(t["id"]) == str(todo_id):
+                    t["done"] = True
+                    t["completed_at"] = _todo_timestamp()
+                    t["updated_at"] = _todo_timestamp()
+                    found["value"] = True
+                    break
+            return current
+        locked_json_update(_todos_file(username), [], update_todos)
+        return found["value"]
+
+    elif source == "canvas":
+        update_state(username, "complete", todo_id)
+        return True
+    elif source == "haoke":
+        update_haoke_state(username, "complete", todo_id)
+        return True
+    elif source == "zhixuemeng":
+        update_zxm_state(username, "complete", todo_id)
+        return True
+    elif source == "zhihuishu":
+        zhihuishu_store.update_state(username, "complete", todo_id)
+        return True
+    elif source == "project":
+        project_state = project_store.load_state(username)
+        try:
+            target_id = int(todo_id)
+        except ValueError:
+            target_id = None
+        for p in project_state.get("projects", []):
+            for t in p.get("tasks", []):
+                if t.get("id") == target_id:
+                    project_store.update_task(username, p["id"], target_id, {"done": True})
+                    return True
+        return False
+    return False
+
+
+@app.route("/api/agent/v1/ping")
+@require_agent_auth
+def api_agent_ping():
+    return jsonify({
+        "ok": True,
+        "username": request.agent_username,
+        "server_time": datetime.now(CST).isoformat(),
+        "message": "Canvas Dashboard Agent API is active.",
+    })
+
+
+@app.route("/api/agent/v1/schedule/today")
+@require_agent_auth
+def api_agent_schedule_today():
+    username = request.agent_username
+    today = datetime.now(CST).date()
+    _, _, semester_start = get_term_info()
+    result = schedule_store.today_entries(username, today, semester_start)
+    for item in _calendar_items(username):
+        due_date = item.get("due_date")
+        due_at = _parse_calendar_due(item.get("due_ts")) if item.get("due_ts") else None
+        if due_date == today.isoformat() or (due_at and due_at.date() == today):
+            course_name = item.get("course") or ""
+            if due_at and due_at.strftime("%H:%M") != "00:00":
+                timed_entry = {
+                    "kind": "deadline",
+                    "title": item.get("title") or "Deadline",
+                    "location": course_name,
+                    "start_time": due_at.strftime("%H:%M"),
+                    "end_time": due_at.strftime("%H:%M"),
+                }
+                if course_name:
+                    timed_entry["course"] = course_name
+                result["timed"].append(timed_entry)
+            else:
+                deadline_entry = {"title": item.get("title") or "Deadline"}
+                if course_name:
+                    deadline_entry["course"] = course_name
+                result["deadlines"].append(deadline_entry)
+    result["timed"].sort(key=lambda item: (item["start_time"], item["title"]))
+    return jsonify({"ok": True, "date": today.isoformat(), **result})
+
+
+@app.route("/api/agent/v1/schedule/timetable")
+@require_agent_auth
+def api_agent_schedule_timetable():
+    username = request.agent_username
+    date_str = request.args.get("date", "").strip()
+    term, _, semester_start = get_term_info()
+    if date_str:
+        try:
+            target_date = date.fromisoformat(date_str)
+        except ValueError:
+            return api_error("invalid_date", "日期格式无效，请使用 YYYY-MM-DD", 400)
+        result = schedule_store.today_entries(username, target_date, semester_start)
+        return jsonify({"ok": True, "date": target_date.isoformat(), **result})
+    return jsonify({
+        "ok": True,
+        "term": term,
+        "semester_start": semester_start,
+        "courses": schedule_store.load_courses(username),
+        "items": schedule_store.load_items(username),
+    })
+
+
+@app.route("/api/agent/v1/todos", methods=["GET", "POST"])
+@require_agent_auth
+def api_agent_todos():
+    username = request.agent_username
+    if request.method == "POST":
+        data = read_json_request()
+        if data is None or not data.get("text"):
+            return api_error("invalid_request", "请提供待办事项内容 text", 400)
+        text = str(data["text"]).strip()
+        if not text:
+            return api_error("invalid_request", "待办事项内容不能为空", 400)
+        due_date = str(data.get("due_date", "")).strip() or None
+        if due_date:
+            try:
+                due_date = date.fromisoformat(due_date).isoformat()
+            except ValueError:
+                return api_error("invalid_due_date", "截止日期格式无效，请使用 YYYY-MM-DD", 400)
+        labels = data.get("labels", []) if isinstance(data.get("labels"), list) else []
+
+        created_item = {}
+        def add_todo(current):
+            current = _normalize_todos(current)
+            new_id = max((t["id"] for t in current), default=0) + 1
+            now = _todo_timestamp()
+            item = {
+                "id": new_id,
+                "text": text,
+                "done": False,
+                "created_at": now,
+                "updated_at": now,
+                "due_date": due_date,
+                "highlighted": False,
+                "labels": labels,
+                "subtasks": [],
+            }
+            current.append(item)
+            created_item.update(item)
+            return current
+
+        locked_json_update(_todos_file(username), [], add_todo)
+        return jsonify({"ok": True, "todo": created_item}), 201
+
+    source = request.args.get("source", "all")
+    status = request.args.get("status", "pending")
+    todos = _aggregate_agent_todos(username, source=source, status=status)
+    return jsonify({"ok": True, "todos": todos, "count": len(todos)})
+
+
+@app.route("/api/agent/v1/todos/<path:todo_id>/complete", methods=["POST"])
+@require_agent_auth
+def api_agent_todo_complete(todo_id):
+    username = request.agent_username
+    data = read_json_request() or {}
+    source = data.get("source") or request.args.get("source", "custom")
+    success = _complete_agent_todo(username, todo_id, source=source)
+    if not success:
+        return api_error("todo_not_found", "未找到指定待办或无法标记完成", 404)
+    return jsonify({"ok": True, "id": todo_id, "source": source, "completed": True})
+
+
+@app.route("/api/agent/v1/projects")
+@require_agent_auth
+def api_agent_projects():
+    username = request.agent_username
+    state = project_store.load_state(username)
+    return jsonify({
+        "ok": True,
+        "primary_project_id": state.get("primary_project_id"),
+        "projects": project_store.load_projects(username),
+    })
+
+
+@app.route("/api/agent/v1/sync/status")
+@require_agent_auth
+def api_agent_sync_status():
+    username = request.agent_username
+    return jsonify({
+        "ok": True,
+        "statuses": platform_sync.all_platform_sync_statuses(username),
+    })
 
 
 if __name__ == "__main__":

@@ -384,6 +384,11 @@
           selectConnectionPlatform(activeConnectionPlatform);
         }
       }
+      if (viewName === 'agent') {
+        if (typeof loadAgentSettings === 'function') {
+          loadPromise = loadAgentSettings();
+        }
+      }
       closeMobileMenu();
       return loadPromise;
     }
@@ -3498,6 +3503,7 @@
   <script src="{{ url_for('static', filename='js/features/todos.js') }}"></script>
   <script src="{{ url_for('static', filename='js/features/connections.js') }}"></script>
   <script src="{{ url_for('static', filename='js/features/schedule.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/features/agent.js') }}"></script>
   <script src="{{ url_for('static', filename='js/features/settings.js') }}"></script>
 </body>
 </html>
