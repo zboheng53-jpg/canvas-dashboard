@@ -13,6 +13,7 @@ Canvas Dashboard 是一个面向同济学生的 Flask Web 应用。它聚合 Can
 - **整理日程与课表**：通过同济统一身份认证导入当前课表，也可手动维护课程和日程项。
 - **推进长期项目**：记录项目、任务分组和下一步行动，避免重要但不紧急的事被日常作业淹没。
 - **订阅到 Apple 日历**：生成私有 iCalendar 地址，将有日期的未完成事项同步到日历。
+- **AI Agent 接入 (MCP & Skills)**：支持 Claude Desktop、Cursor、Cline、Claude Code、Antigravity 等 AI 助手通过专属安全 Token 直接接入控制台，自主查询课表日程、聚合待办、添加待办和管理项目。
 - **按账户隔离数据**：每位用户独立保存配置、待办、课表、项目和平台缓存。
 
 ## 本地运行
@@ -65,6 +66,10 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\dev.ps1
 ### 平台连接与缓存
 
 平台页面会说明各自的登录方式和缓存状态。断开连接只删除凭据并保留已有缓存；如需同时删除缓存和本地状态，请使用“清除平台数据”。缓存刷新遇到异常时，系统会尽量保留上一次成功结果，避免空数据覆盖原有信息。
+
+### AI Agent 接入 (MCP & Skills)
+
+在侧边栏【管理】中打开“Agent 接入”，可一键生成专属 Agent API Token。用户可下载零外部依赖的通用 MCP Server 脚本（`canvas_mcp.py`）与一键配置包，直接接入 Claude Desktop、Cursor、Cline 等工具；也可以下载 Agent Skill 包供终端 Agent（如 Claude Code、Antigravity）直接调用。Token 采用单向 SHA-256 哈希加密存储，随时可以独立撤销与重新生成。
 
 ## 数据与账户安全
 

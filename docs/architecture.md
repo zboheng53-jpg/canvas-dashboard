@@ -5,7 +5,7 @@ Canvas Dashboard is a single-process Flask/Waitress application that aggregates 
 ## Runtime Topology
 
 ```text
-Browser / Apple Calendar
+Browser / Apple Calendar / AI Agent (MCP / Skill / REST API)
         |
         v
 nginx :80/:443
@@ -14,6 +14,7 @@ nginx :80/:443
         |      +--> account/session and platform APIs
         |      +--> local JSON data under data/
         |      +--> private token-authenticated ICS feed
+        |      +--> Bearer token-authenticated /api/agent/v1/...
         |
         +--> token-gated noVNC login containers
                +--> persistent per-user 智慧树 profile
@@ -34,6 +35,8 @@ The Flask request path never launches a 智慧树 browser. Platform caches let t
 | `app.py` | Routes, authentication boundary, response aggregation, health check, and ICS item selection |
 | `auth.py`, `user_paths.py` | Site accounts, password hashes, persistent session key, and per-user paths |
 | `storage.py` | Locked JSON reads/updates, atomic replacement, and fail-closed corruption handling |
+| `agent_auth.py` | Cryptographic Agent Token lifecycle (high-entropy key generation, SHA-256 hashed storage, per-user isolation, constant-time validation, and instant revocation) |
+| `agent_mcp.py` | Zero-dependency MCP server implementing JSON-RPC 2.0 stdio over Python standard library with 7 core tools |
 | `canvas_auth.py` | Canvas iCalendar validation, fetch, parse, cache, and item state |
 | `haoke_client.py` | Encrypted credentials, cache-first assignment fetch, and guarded background refresh |
 | `zhixuemeng_client.py` | Token login, course selection, assignment fetch, cache, and logout cleanup |
@@ -46,6 +49,7 @@ The Flask request path never launches a 智慧树 browser. Platform caches let t
 | `project_store.py` | Atomic per-user long-term projects and weekly goals |
 | `frontend/templates/index.html` | Vanilla-JavaScript unified list, responsive dashboard shell, and all dashboard interactions |
 | `frontend/templates/dashboard/*.html`, `frontend/assets/css/dashboard-shell.css` | Isolated sidebar, live right-rail modules, management views, and shell layout styles |
+| `frontend/assets/js/features/agent.js` | Agent management frontend module (token generation, revocation, MCP configuration preview, and clipboard copying) |
 
 ## Accounts And Data Isolation
 
@@ -112,6 +116,24 @@ The private Apple Calendar feed includes:
 Completed parents suppress all their subtasks. Completed or undated subtasks are not exported. Only the SHA-256 hash of a subscription token is persisted, and nginx disables access logging for `/calendar/`.
 
 The dated external-platform-subtask proposal under `docs/superpowers/` is not implemented; imported platform assignments do not currently have locally editable subtasks.
+
+## AI Agent Integration (MCP and Skills)
+
+The Agent integration enables external AI assistants (such as Claude Desktop, Cursor, Cline, Claude Code, and Antigravity) to securely query and manipulate dashboard data on behalf of the user.
+
+### Security and Token Lifecycle
+
+- **Cryptographic Token**: Tokens are high-entropy strings prefixed with `cda_`.
+- **Hashed Storage**: `agent_auth.py` persists only the SHA-256 hash in `data/users/<username>/agent_token.json`. The raw token is displayed only once upon generation.
+- **Validation**: Incoming requests authenticate via HTTP header `Authorization: Bearer <cda_token>`. The hash is verified in constant time (`hmac.compare_digest`).
+- **Instant Revocation**: Users can revoke or regenerate their token at any time from the web console. Revocation immediately clears the token record, rejecting future agent requests.
+- **CSRF Exemption**: Agent API routes (`/api/agent/v1/...`) bypass browser cookie-session CSRF requirements, relying purely on Bearer token authentication.
+
+### MCP and Skills Protocols
+
+- **MCP Server (`agent_mcp.py`)**: A standalone, zero-dependency script written with the Python 3 standard library. It speaks JSON-RPC 2.0 over standard I/O (stdio) to interact with tools like Claude Desktop, Cursor, and Cline. It exposes tools for querying today's schedule, full semester timetables, aggregated multi-platform todos, adding and completing todos, inspecting long-term projects, and retrieving platform sync statuses.
+- **Agent Skill**: Standard `SKILL.md` packaging for agent platforms (e.g. Claude Code, Antigravity) with self-contained client scripts.
+- **Export Packaging**: The web endpoints `/api/agent/export/mcp` and `/api/agent/export/skill` generate ready-to-run `.zip` bundles containing the server/client scripts and user-specific configuration.
 
 ## Dashboard V2 Schedule And Projects
 
