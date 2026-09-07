@@ -1070,8 +1070,7 @@ def test_frontend_mobile_todo_layout_is_compact_and_tappable(live_app, browser, 
     register_dashboard_user(page, live_app, f"mobiletodo{width}")
 
     todo = page.locator(".todo-row").first
-    expect(todo).to_be_visible()
-    assert todo.evaluate("element => getComputedStyle(element).display") in ("grid", "flex")
+    expect(todo).to_have_css("display", re.compile(r"^(grid|flex)$"))
     assert page.evaluate("document.documentElement.scrollWidth") <= width
 
     todo_input_box = page.locator("#new-todo-input").bounding_box()
@@ -1129,8 +1128,7 @@ def test_frontend_mobile_todo_layout_is_compact_and_tappable(live_app, browser, 
     page.click("#mobile-menu-toggle")
     page.click('[data-dashboard-view="connections"]')
     login_cards = page.locator("#login-cards")
-    expect(login_cards).to_be_visible()
-    assert login_cards.evaluate("element => getComputedStyle(element).display") in ("grid", "flex")
+    expect(login_cards).to_have_css("display", re.compile(r"^(grid|flex)$"))
 
 
 def test_frontend_connections_workspace_uses_aligned_master_detail_layout(live_app, browser):
