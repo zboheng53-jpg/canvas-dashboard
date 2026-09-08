@@ -934,58 +934,157 @@ function overviewTaskRow(project, task, checkbox = false) {
     </div>`;
 }
 
+let cachedOverviewData = null;
+let overviewSelectedProjectId = null;
+
+function selectOverviewProject(projectId) {
+  overviewSelectedProjectId = projectId;
+  if (cachedOverviewData) {
+    renderProjectOverview(cachedOverviewData);
+  }
+}
+
+async function setMainProjectFromOverview(projectId) {
+  try {
+    await projectRequest(`/api/projects/${projectId}/set-main`, { method: "POST" });
+    await refreshProjectSurfaces();
+  } catch (error) {
+    setProjectStatus("设置主项目失败", true);
+  }
+}
+
 function renderProjectOverview(data) {
   const container = document.getElementById("project-overview-content");
   if (!container) return;
-  // 同步填侧栏 nav-count 与项目视图 tab 计数（与 renderProjectWorkspace 行为一致）
+  cachedOverviewData = data;
   const activeCount = Number(data.active_project_count || 0);
   document.querySelectorAll("#active-project-count").forEach((el) => { el.textContent = activeCount; });
-  // 右栏卡片副标题：设计稿为「N 个进行中」
   const railSub = document.getElementById("long-term-projects-sub");
   if (railSub) railSub.textContent = activeCount ? `${activeCount} 个进行中` : "暂无项目";
-  const project = data.main_project;
+
   if (!activeCount) {
     renderProjectOverviewState("暂无长期项目", "创建一个长期项目，开始组织接下来的行动。", "新建项目", "openProjectsView().then(() => openProjectModal())");
     return;
   }
-  if (!project) {
+
+  const activeProjects = (data.active_projects && data.active_projects.length)
+    ? data.active_projects
+    : (data.main_project ? [data.main_project] : []);
+
+  if (!activeProjects.length && !data.main_project) {
     renderProjectOverviewState("尚未设置主项目", "从进行中的项目里选择一个当前重点。", "选择主项目", "openProjectsView()");
     return;
   }
-  const otherCount = Math.max(0, activeCount - 1);
+
+  // 确保 overviewSelectedProjectId 有效
+  const mainProj = data.main_project || activeProjects.find((p) => p.is_main) || activeProjects[0];
+  if (overviewSelectedProjectId !== "all") {
+    const exists = activeProjects.some((p) => p.id === overviewSelectedProjectId);
+    if (!exists) {
+      overviewSelectedProjectId = mainProj ? mainProj.id : activeProjects[0]?.id;
+    }
+  }
+
+  // 顶部多项目切换胶囊 Tabs（当有项目时展示）
+  let tabsHtml = "";
+  if (activeProjects.length > 1) {
+    tabsHtml = `
+      <div class="proj-rail-tabs" role="tablist" aria-label="切换项目">
+        ${activeProjects.map((p) => {
+          const isActive = overviewSelectedProjectId === p.id;
+          const isMain = Boolean(p.is_main);
+          const label = p.project_category || p.name;
+          return `
+            <button type="button" class="ui-button proj-rail-tab${isActive ? " is-active" : ""}${isMain ? " is-main" : ""}" onclick="selectOverviewProject(${p.id})" role="tab" aria-selected="${isActive}" title="${pEscape(p.name)}">
+              ${isMain ? '<span class="proj-tab-star" aria-label="主项目">★</span>' : ""}${pEscape(label)}
+            </button>`;
+        }).join("")}
+        <button type="button" class="ui-button proj-rail-tab proj-rail-tab--all${overviewSelectedProjectId === "all" ? " is-active" : ""}" onclick="selectOverviewProject('all')" role="tab" aria-selected="${overviewSelectedProjectId === "all"}" title="总览所有进行中项目">
+          全部概览
+        </button>
+      </div>`;
+  }
+
+  // 视图 1：全部概览模式（一览所有进行中项目的 Next Action 与进度）
+  if (overviewSelectedProjectId === "all") {
+    container.innerHTML = `
+      ${tabsHtml}
+      <div class="proj-overview-all-list">
+        ${activeProjects.map((p) => {
+          const total = p.completed_count + p.pending_count;
+          const pct = total ? Math.min(100, Math.round((p.completed_count / total) * 100)) : 0;
+          return `
+            <div class="proj-overview-all-card${p.is_main ? " is-main" : ""}">
+              <div class="proj-overview-all-header">
+                <button type="button" class="ui-button ui-button--text proj-overview-all-title" onclick="openProjectsView(${p.id})">
+                  ${p.is_main ? '<span class="proj-badge-main">★ 主项目</span>' : ""}
+                  <strong>${pEscape(p.name)}</strong>
+                </button>
+                <span class="proj-overview-all-progress">${p.completed_count}/${total} (${pct}%)</span>
+              </div>
+              <div class="bar bar--compact"><i style="width:${pct}%"></i></div>
+              ${p.next_action ? `
+                <button type="button" class="biz-project-item__next biz-project-item__next--compact" onclick="openProjectsView(${p.id})" title="查看下一步详情">
+                  <b>下一步</b><span class="next-title">${pEscape(p.next_action.name)}</span>
+                  ${p.next_action.due_date ? `<span class="late">${pEscape(p.next_action.due_date)}</span>` : ""}
+                </button>` : `
+                <button type="button" class="biz-project-item__next is-empty biz-project-item__next--compact" onclick="openProjectsView(${p.id})">
+                  <b>下一步</b>未设置行动
+                </button>`}
+            </div>`;
+        }).join("")}
+      </div>`;
+    return;
+  }
+
+  // 视图 2：单项目深度查看模式
+  const project = activeProjects.find((p) => p.id === overviewSelectedProjectId) || mainProj;
+  if (!project) return;
+
   const total = project.completed_count + project.pending_count;
   const pct = total ? Math.min(100, Math.round((project.completed_count / total) * 100)) : 0;
   const dueText = projectDueText(project);
   const upcoming = project.upcoming_tasks || [];
-  // 设计稿 .proj 块：名称 + 剩余天数 / 进度条 / 副信息 / 下一步蓝卡 / 任务预览
+
   container.innerHTML = `
+    ${tabsHtml}
     <div class="proj">
       <div class="proj-top">
-        <button type="button" class="proj-name" onclick="openProjectsView(${project.id})" title="查看项目详情">${pEscape(project.name)}</button>
+        <div class="proj-title-group">
+          <button type="button" class="proj-name" onclick="openProjectsView(${project.id})" title="查看项目详情">${pEscape(project.name)}</button>
+          ${project.is_main
+            ? '<span class="proj-badge-main" title="当前核心主攻项目">★ 主项目</span>'
+            : `<button type="button" class="ui-button ui-button--text proj-set-main-btn" onclick="setMainProjectFromOverview(${project.id})" title="将此项目设为当前重点">设为主项目</button>`}
+        </div>
         ${dueText ? `<span class="proj-due${project.due_state === "overdue" ? " is-overdue" : ""}">${pEscape(dueText)}</span>` : ""}
       </div>
       <div class="bar"><i style="width:${pct}%"></i></div>
-      <div class="proj-sub">${project.completed_count} / ${total} 任务完成${project.objective ? ` · ${pEscape(project.objective)}` : ""}</div>
+      <div class="proj-sub">
+        <strong>${project.completed_count} / ${total}</strong> 任务完成 (${pct}%)
+        ${project.objective ? `<span class="proj-objective"> · ${pEscape(project.objective)}</span>` : ""}
+      </div>
       ${project.next_action ? `
         <button type="button" class="biz-project-item__next" onclick="openProjectsView(${project.id})" title="打开项目查看下一步">
-          <b>下一步</b>${pEscape(project.next_action.name)}
+          <b>下一步</b><span class="next-title">${pEscape(project.next_action.name)}</span>
           ${project.next_action.due_date ? `<span class="late">${pEscape(project.next_action.due_date)}</span>` : ""}
         </button>` : `
         <button type="button" class="biz-project-item__next is-empty" onclick="openProjectsView(${project.id})" title="选择下一步行动">
-          <b>下一步</b>未设置
+          <b>下一步</b>未设置行动
         </button>`}
       ${upcoming.length ? `
         <div class="proj-tasks">
           ${upcoming.map((task) => `
             <div class="pt${task.done ? " is-done" : ""}">
               <input type="checkbox" class="pt-check ui-checkbox" aria-label="完成${pEscape(task.name)}" onchange="completeOverviewTask(${project.id}, ${task.id}, this)" ${task.done ? "checked" : ""}>
-              <span class="t">${pEscape(task.name)}</span>
-              <span class="d">${pEscape(task.due_date || (task.done ? "已完成" : ""))}</span>
+              <div class="pt-body">
+                <span class="t">${pEscape(task.name)}</span>
+                ${task.due_date || task.group_name ? `<span class="d">${pEscape([task.group_name, task.due_date].filter(Boolean).join(" · "))}</span>` : ""}
+              </div>
             </div>`).join("")}
         </div>` : ""}
       <div class="proj-links">
         ${project.hidden_task_count ? `<button type="button" onclick="openProjectsView(${project.id})" class="ui-button ui-button--text">还有 ${project.hidden_task_count} 项 →</button>` : ""}
-        ${otherCount ? `<button type="button" onclick="openProjectsView()" class="ui-button ui-button--text">另外 ${otherCount} 个项目进行中 →</button>` : ""}
+        <button type="button" onclick="openProjectsView(${project.id})" class="ui-button ui-button--text">查看项目详情 →</button>
       </div>
     </div>`;
 }

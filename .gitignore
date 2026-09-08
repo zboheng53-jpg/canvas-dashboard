@@ -12,6 +12,7 @@ data/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.pytest_temp/
 .pytest-tmp-*/
 .pytest-sandbox/
 .codex-pytest-*/

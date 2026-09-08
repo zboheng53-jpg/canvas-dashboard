@@ -1315,12 +1315,12 @@
         const endMin = item.end_time ? toMinutes(item.end_time) : startMin;
         const isNow = nowMinutes >= startMin && nowMinutes <= endMin;
         const row = scheduleElement('div', `tl-item ${isNow ? 'now' : ''} agenda-${item.kind}`);
-        // 时间列：08:00 换行 09:35
+        // 时间列：起止时间独立行，首行与圆点标题中线平齐
         const time = scheduleElement('div', 'tl-time', '');
         if (item.end_time && item.end_time !== item.start_time) {
-          time.innerHTML = `${item.start_time}<br>${item.end_time}`;
+          time.innerHTML = `<span class="tl-time-start">${item.start_time}</span><span class="tl-time-end">${item.end_time}</span>`;
         } else {
-          time.textContent = item.start_time;
+          time.innerHTML = `<span class="tl-time-start">${item.start_time}</span>`;
         }
         row.append(time);
         // 中间圆点 + 连线
@@ -1331,15 +1331,17 @@
         // 右侧标题 + 子信息
         const body = scheduleElement('div', 'tl-body');
         const displayTitle = formatScheduleTitle(item.title);
-        const name = scheduleElement('div', 'tl-name', displayTitle);
-        name.title = item.course ? `${item.course} · ${item.title}` : item.title;
-        body.append(name);
-        const metaText = item.location || item.course;
-        if (metaText) body.append(scheduleElement('div', 'tl-sub', metaText));
+        const name = scheduleElement('div', 'tl-name');
         if (isNow) {
           const pill = scheduleElement('span', 'now-pill', '现在');
           name.append(pill);
         }
+        const textSpan = scheduleElement('span', 'tl-title-text', displayTitle);
+        name.append(textSpan);
+        name.title = item.course ? `${item.course} · ${item.title}` : item.title;
+        body.append(name);
+        const metaText = item.location || item.course;
+        if (metaText) body.append(scheduleElement('div', 'tl-sub', metaText));
         row.append(body);
         timeline.append(row);
       });
@@ -2046,14 +2048,19 @@
       });
 
       projectItems.forEach(item => {
+        const category = item.project_category || '项目';
         unified.push({
           id: `p${item.id}`,
           source: 'project',
           title: item.title,
           course: item.project_name,
+          category: category,
+          isNextAction: Boolean(item.is_next_action),
+          isMainProject: Boolean(item.is_main),
+          groupName: item.group_name || '',
           due_str: item.due_date || '',
           due_ts: item.due_date ? `${item.due_date}T23:59:59` : null,
-          type: '项目',
+          type: category,
           url: '',
           done: false,
           hidden: false,
@@ -2201,11 +2208,12 @@
         }
 
         const safeUrl = sanitizeExternalUrl(item.url);
+        const nextTagHtml = item.isNextAction ? '<span class="biz-todo__tag-next" title="此任务为当前项目的下一步行动">下一步</span>' : '';
         const titleHtml = safeUrl
-          ? `<a class="ui-list-item__title item-title" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</a>`
+          ? `${nextTagHtml}<a class="ui-list-item__title item-title" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</a>`
           : item.source === 'custom'
             ? `<span class="ui-list-item__title item-title item-title-plain editable-title" data-id="${item.rawId}" data-field="text">${escapeHtml(item.title)}</span>`
-            : `<span class="ui-list-item__title item-title item-title-plain">${escapeHtml(item.title)}</span>`;
+            : `${nextTagHtml}<span class="ui-list-item__title item-title item-title-plain">${escapeHtml(item.title)}</span>`;
 
         const dueHtml = item.source === 'custom'
           ? `<span class="ui-list-item__meta item-due editable-due" data-id="${item.rawId}" data-field="due_date">${item.due_str}</span>`
@@ -2241,25 +2249,29 @@
         // 副标题：课程名 · 类型 · 截止时间（与原 .item-course 合并到副标题）
         const metaParts = [];
         if (item.course) {
+          const mainStar = item.isMainProject ? '<span class="biz-todo__star-main" title="核心主项目">★ </span>' : '';
           metaParts.push(item.source === 'project'
-            ? `<button type="button" class="project-todo-link" onclick="openProjectsView(${item.projectId})">${escapeHtml(item.course)}</button>`
+            ? `<button type="button" class="project-todo-link${item.isMainProject ? ' is-main' : ''}" onclick="openProjectsView(${item.projectId})">${mainStar}${escapeHtml(item.course)}</button>`
             : escapeHtml(item.course));
         }
+        if (item.groupName) metaParts.push(escapeHtml(item.groupName));
         if (item.type && !item.course) metaParts.push(escapeHtml(item.type));
         if (!item.course && item.labels && item.labels.length) metaParts.push(escapeHtml(item.labels[0]));
-        const dueInMeta = item.due_str && !dueHtml.includes('item-due editable-due') && !dueHtml.includes('project-due-editable');
         const metaText = metaParts.join(' · ');
         const metaHtml = metaText ? `<div class="biz-todo__meta">${metaText}</div>` : '';
 
+        const projectNextClass = item.isNextAction ? ' is-project-next-action' : '';
+        const projectMainClass = item.isMainProject ? ' is-project-main' : '';
+
         const rowHtml = `
-          <div class="ui-list-item ui-list-item--interactive todo-row${uiListStateClass}${uiListMutedClass} ${urgencyClass} ${manualFlag ? 'manual-flagged' : ''} ${isDismissed ? 'dismissed' : ''} ${animAttr}">
+          <div class="ui-list-item ui-list-item--interactive todo-row${uiListStateClass}${uiListMutedClass}${projectNextClass}${projectMainClass} ${urgencyClass} ${manualFlag ? 'manual-flagged' : ''} ${isDismissed ? 'dismissed' : ''} ${animAttr}">
             <div class="biz-todo__body">
               <div class="biz-todo__title">${titleHtml}</div>
               ${metaHtml}
             </div>
             <div class="biz-todo__right">
-              <span class="item-source-badge" title="${item.disconnected ? '平台已断开；显示最后一次同步数据' : item.type}">
-                <span class="ui-badge ui-badge--source ui-source--${item.source} src-${item.source}">${item.type}</span>
+              <span class="item-source-badge" title="${item.course ? escapeHtml(item.course) : item.type}">
+                <span class="ui-badge ui-badge--source ui-source--${item.source} src-${item.source}">${escapeHtml(item.type)}</span>
                 ${item.disconnected ? '<span class="ui-status ui-status--warning">已断开</span>' : ''}
               </span>
               ${dueHtml}

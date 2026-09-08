@@ -587,47 +587,71 @@ def reorder_tasks(username, project_id, placements):
 def overview(username, today=None):
     state = load_state(username)
     active = [project for project in state["projects"] if project["status"] == "active"]
-    main = _find_project(state, state["main_project_id"]) if state["main_project_id"] is not None else None
+    main_id = state.get("main_project_id")
+
+    def build_project_entry(proj, limit=5):
+        value = _project_view(proj, today=today)
+        group_names = {group["id"]: group["name"] for group in value["groups"]}
+        pending = [task for task in value["tasks"] if not task["done"]]
+        next_action = next((task for task in pending if task["is_next_action"]), None)
+        remaining = [task for task in pending if next_action is None or task["id"] != next_action["id"]]
+
+        def upcoming_key(task):
+            due = task.get("due_date")
+            if due:
+                try:
+                    due_day = date.fromisoformat(due)
+                except ValueError:
+                    due_day = date.max
+                is_overdue = due_day < (today or date.today())
+                return (0 if is_overdue else 1, due_day, task["sort_order"], task["id"])
+            return (2, date.max, task["sort_order"], task["id"])
+
+        def task_view(task):
+            task = copy.deepcopy(task)
+            task["group_name"] = group_names.get(task["group_id"])
+            task["due_state"], task["due_days"] = _due_state(task.get("due_date"), today)
+            return task
+
+        upcoming = sorted(remaining, key=upcoming_key)
+        parts = [p.strip() for p in value["name"].split("|", 1)]
+        value["project_category"] = parts[0] if len(parts) > 1 and parts[0] else "项目"
+        value["is_main"] = (proj["id"] == main_id)
+        value["next_action"] = task_view(next_action) if next_action else None
+        value["upcoming_tasks"] = [task_view(task) for task in upcoming[:limit]]
+        value["hidden_task_count"] = max(0, len(upcoming) - limit)
+        value.pop("groups", None)
+        value.pop("tasks", None)
+        return value
+
+    active_projects = [build_project_entry(p, limit=2) for p in active]
+    main = _find_project(state, main_id) if main_id is not None else None
     if main is None:
-        return {"main_project": None, "active_project_count": len(active)}
-    value = _project_view(main, today=today)
-    group_names = {group["id"]: group["name"] for group in value["groups"]}
-    pending = [task for task in value["tasks"] if not task["done"]]
-    next_action = next((task for task in pending if task["is_next_action"]), None)
-    remaining = [task for task in pending if next_action is None or task["id"] != next_action["id"]]
+        main_entry = None
+    else:
+        main_entry = build_project_entry(main, limit=2)
+        main_entry["is_main"] = True
 
-    def upcoming_key(task):
-        due = task.get("due_date")
-        if due:
-            try:
-                due_day = date.fromisoformat(due)
-            except ValueError:
-                due_day = date.max
-            is_overdue = due_day < (today or date.today())
-            return (0 if is_overdue else 1, due_day, task["sort_order"], task["id"])
-        return (2, date.max, task["sort_order"], task["id"])
-
-    def task_view(task):
-        task = copy.deepcopy(task)
-        task["group_name"] = group_names.get(task["group_id"])
-        task["due_state"], task["due_days"] = _due_state(task.get("due_date"), today)
-        return task
-
-    upcoming = sorted(remaining, key=upcoming_key)
-    value["next_action"] = task_view(next_action) if next_action else None
-    value["upcoming_tasks"] = [task_view(task) for task in upcoming[:2]]
-    value["hidden_task_count"] = max(0, len(upcoming) - 2)
-    value.pop("groups", None)
-    value.pop("tasks", None)
-    return {"main_project": value, "active_project_count": len(active)}
+    return {
+        "main_project": main_entry,
+        "active_projects": active_projects,
+        "active_project_count": len(active),
+    }
 
 
 def todo_items(username):
     items = []
+    state = load_state(username)
+    main_id = state.get("main_project_id")
     for project in load_projects(username):
         if project["status"] != "active":
             continue
         project_name = project["name"]
+        is_main = (project["id"] == main_id)
+        parts = [p.strip() for p in project_name.split("|", 1)]
+        category = parts[0] if len(parts) > 1 and parts[0] else "项目"
+        group_names = {group["id"]: group["name"] for group in project.get("groups", [])}
+
         if project.get("due_date"):
             items.append({
                 "source": "Project",
@@ -638,6 +662,9 @@ def todo_items(username):
                 "title": f"完成项目：{project_name}",
                 "calendar_title": f"项目截止 · {project_name}",
                 "project_name": project_name,
+                "project_category": category,
+                "is_main": is_main,
+                "is_next_action": False,
                 "due_date": project["due_date"],
                 "done": False,
                 "flagged": bool(project.get("due_highlighted")),
@@ -655,7 +682,11 @@ def todo_items(username):
                 "title": task["name"],
                 "calendar_title": f"{task['name']} · {project_name}",
                 "project_name": project_name,
+                "project_category": category,
+                "is_main": is_main,
+                "is_next_action": bool(task.get("is_next_action")),
                 "group_id": task.get("group_id"),
+                "group_name": group_names.get(task.get("group_id")),
                 "due_date": task["due_date"],
                 "done": False,
                 "flagged": bool(task.get("highlighted")),
