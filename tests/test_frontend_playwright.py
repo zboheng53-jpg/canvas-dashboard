@@ -571,7 +571,7 @@ def test_frontend_source_filters_and_focus_views(live_app, browser):
     expect(page.locator('[data-todo-source="custom"]')).to_have_text("自定义 0")
     expect(page.locator("#todo-source-select option[value='all']")).to_have_text("全部 (1)")
     expect(page.locator("#todo-source-select option[value='canvas']")).to_have_text("Canvas (1)")
-    expect(page.locator(".todo-group-heading").first).to_contain_text("本周内")
+    expect(page.locator(".todo-group-heading").first).to_contain_text("更晚")
     page.fill("#new-todo-input", "Tag grouping task #automation")
     page.fill("#new-todo-due", "2026-07-16")
     page.click("#add-todo-form button")

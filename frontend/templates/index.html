@@ -1923,9 +1923,9 @@
     }
 
     function buildTodoGroups(items) {
-      // 设计稿分组：已逾期 / 今天 / 明天 / 本周内 / 无日期
-      const labels = { overdue: '已逾期', today: '今天', tomorrow: '明天', week: '本周内', nodate: '无日期' };
-      const groups = { overdue: [], today: [], tomorrow: [], week: [], nodate: [] };
+      // 设计稿分组：已逾期 / 今天 / 明天 / 本周内 / 更晚 / 无日期
+      const labels = { overdue: '已逾期', today: '今天', tomorrow: '明天', week: '本周内', later: '更晚', nodate: '无日期' };
+      const groups = { overdue: [], today: [], tomorrow: [], week: [], later: [], nodate: [] };
       const todayStr = window.customToday || new Date().toISOString().slice(0, 10);
       const today = new Date(todayStr + 'T00:00:00');
       const tomorrow = new Date(today.getTime() + 86400000);
@@ -1938,15 +1938,15 @@
         if (dueDate < today) { groups.overdue.push(item); return; }
         if (dueDate.getTime() === today.getTime()) { groups.today.push(item); return; }
         if (dueDate.getTime() === tomorrow.getTime()) { groups.tomorrow.push(item); return; }
-        if (dueDate < weekEnd) { groups.week.push(item); return; }
-        groups.week.push(item);
+        if (dueDate <= weekEnd) { groups.week.push(item); return; }
+        groups.later.push(item);
       });
       const sortGroup = (arr) => arr.sort((a, b) =>
         (b.manualHighlighted ? 1 : 0) - (a.manualHighlighted ? 1 : 0) ||
         dueKey(a).localeCompare(dueKey(b)) || a._stableIndex - b._stableIndex
       );
       Object.values(groups).forEach(sortGroup);
-      const order = ['overdue', 'today', 'tomorrow', 'week', 'nodate'];
+      const order = ['overdue', 'today', 'tomorrow', 'week', 'later', 'nodate'];
       return order
         .filter((k) => groups[k].length)
         .map((k) => ({ key: k, title: labels[k], items: groups[k] }));
@@ -2208,12 +2208,11 @@
         }
 
         const safeUrl = sanitizeExternalUrl(item.url);
-        const nextTagHtml = item.isNextAction ? '<span class="biz-todo__tag-next" title="此任务为当前项目的下一步行动">下一步</span>' : '';
         const titleHtml = safeUrl
-          ? `${nextTagHtml}<a class="ui-list-item__title item-title" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</a>`
+          ? `<a class="ui-list-item__title item-title" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</a>`
           : item.source === 'custom'
             ? `<span class="ui-list-item__title item-title item-title-plain editable-title" data-id="${item.rawId}" data-field="text">${escapeHtml(item.title)}</span>`
-            : `${nextTagHtml}<span class="ui-list-item__title item-title item-title-plain">${escapeHtml(item.title)}</span>`;
+            : `<span class="ui-list-item__title item-title item-title-plain">${escapeHtml(item.title)}</span>`;
 
         const dueHtml = item.source === 'custom'
           ? `<span class="ui-list-item__meta item-due editable-due" data-id="${item.rawId}" data-field="due_date">${item.due_str}</span>`
@@ -2260,11 +2259,10 @@
         const metaText = metaParts.join(' · ');
         const metaHtml = metaText ? `<div class="biz-todo__meta">${metaText}</div>` : '';
 
-        const projectNextClass = item.isNextAction ? ' is-project-next-action' : '';
         const projectMainClass = item.isMainProject ? ' is-project-main' : '';
 
         const rowHtml = `
-          <div class="ui-list-item ui-list-item--interactive todo-row${uiListStateClass}${uiListMutedClass}${projectNextClass}${projectMainClass} ${urgencyClass} ${manualFlag ? 'manual-flagged' : ''} ${isDismissed ? 'dismissed' : ''} ${animAttr}">
+          <div class="ui-list-item ui-list-item--interactive todo-row${uiListStateClass}${uiListMutedClass}${projectMainClass} ${urgencyClass} ${manualFlag ? 'manual-flagged' : ''} ${isDismissed ? 'dismissed' : ''} ${animAttr}">
             <div class="biz-todo__body">
               <div class="biz-todo__title">${titleHtml}</div>
               ${metaHtml}

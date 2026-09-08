@@ -976,39 +976,9 @@ function renderProjectOverview(data) {
     return;
   }
 
-  // 确保 overviewSelectedProjectId 有效
-  const mainProj = data.main_project || activeProjects.find((p) => p.is_main) || activeProjects[0];
-  if (overviewSelectedProjectId !== "all") {
-    const exists = activeProjects.some((p) => p.id === overviewSelectedProjectId);
-    if (!exists) {
-      overviewSelectedProjectId = mainProj ? mainProj.id : activeProjects[0]?.id;
-    }
-  }
-
-  // 顶部多项目切换胶囊 Tabs（当有项目时展示）
-  let tabsHtml = "";
-  if (activeProjects.length > 1) {
-    tabsHtml = `
-      <div class="proj-rail-tabs" role="tablist" aria-label="切换项目">
-        ${activeProjects.map((p) => {
-          const isActive = overviewSelectedProjectId === p.id;
-          const isMain = Boolean(p.is_main);
-          const label = p.project_category || p.name;
-          return `
-            <button type="button" class="ui-button proj-rail-tab${isActive ? " is-active" : ""}${isMain ? " is-main" : ""}" onclick="selectOverviewProject(${p.id})" role="tab" aria-selected="${isActive}" title="${pEscape(p.name)}">
-              ${isMain ? '<span class="proj-tab-star" aria-label="主项目">★</span>' : ""}${pEscape(label)}
-            </button>`;
-        }).join("")}
-        <button type="button" class="ui-button proj-rail-tab proj-rail-tab--all${overviewSelectedProjectId === "all" ? " is-active" : ""}" onclick="selectOverviewProject('all')" role="tab" aria-selected="${overviewSelectedProjectId === "all"}" title="总览所有进行中项目">
-          全部概览
-        </button>
-      </div>`;
-  }
-
-  // 视图 1：全部概览模式（一览所有进行中项目的 Next Action 与进度）
-  if (overviewSelectedProjectId === "all") {
-    container.innerHTML = `
-      ${tabsHtml}
+  // 全部概览模式：一览所有进行中项目的 Next Action 与进度
+  container.innerHTML = `
+    <div class="proj proj-overview-all">
       <div class="proj-overview-all-list">
         ${activeProjects.map((p) => {
           const total = p.completed_count + p.pending_count;
@@ -1033,43 +1003,9 @@ function renderProjectOverview(data) {
                 </button>`}
             </div>`;
         }).join("")}
-      </div>`;
-    return;
-  }
-
-  // 视图 2：单项目深度查看模式
-  const project = activeProjects.find((p) => p.id === overviewSelectedProjectId) || mainProj;
-  if (!project) return;
-
-  const total = project.completed_count + project.pending_count;
-  const pct = total ? Math.min(100, Math.round((project.completed_count / total) * 100)) : 0;
-  const dueText = projectDueText(project);
-
-  container.innerHTML = `
-    ${tabsHtml}
-    <div class="proj">
-      <div class="proj-top">
-        <div class="proj-title-group">
-          <button type="button" class="proj-name" onclick="openProjectsView(${project.id})" title="查看项目详情">${pEscape(project.name)}</button>
-          ${project.is_main ? '<span class="proj-badge-main" title="当前核心主攻项目">★ 主项目</span>' : ""}
-        </div>
-        ${dueText ? `<span class="proj-due${project.due_state === "overdue" ? " is-overdue" : ""}">${pEscape(dueText)}</span>` : ""}
       </div>
-      <div class="bar"><i style="width:${pct}%"></i></div>
-      <div class="proj-sub">
-        <strong>${project.completed_count} / ${total}</strong> 任务完成 (${pct}%)
-        ${project.objective ? `<span class="proj-objective"> · ${pEscape(project.objective)}</span>` : ""}
-      </div>
-      ${project.next_action ? `
-        <button type="button" class="biz-project-item__next" onclick="openProjectsView(${project.id})" title="打开项目查看下一步">
-          <b>下一步</b><span class="next-title">${pEscape(project.next_action.name)}</span>
-          ${project.next_action.due_date ? `<span class="late">${pEscape(project.next_action.due_date)}</span>` : ""}
-        </button>` : `
-        <button type="button" class="biz-project-item__next is-empty" onclick="openProjectsView(${project.id})" title="选择下一步行动">
-          <b>下一步</b>未设置行动
-        </button>`}
       <div class="proj-links">
-        <button type="button" onclick="openProjectsView(${project.id})" class="ui-button ui-button--text">查看项目详情 →</button>
+        <button type="button" onclick="openProjectsView()" class="ui-button ui-button--text">查看所有项目 →</button>
       </div>
     </div>`;
 }
