@@ -1200,9 +1200,42 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   border-radius: 8px;
   transition: all 0.15s ease;
 }
-.proj-overview-all-card.is-main {
+.proj-overview-all-card.is-main,
+.proj-overview-all-card.is-pinned {
   border-color: #bfdbfe;
   background: #f8faff;
+}
+.proj-pin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--ds-radius-sm, 4px);
+  color: var(--ds-ink-3, #7d8694);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.proj-pin-btn:hover {
+  color: var(--ds-accent, #2563eb);
+  background: var(--ds-accent-tint, #eff6ff);
+}
+.proj-pin-btn.is-pinned {
+  color: var(--ds-accent, #2563eb);
+  transform: rotate(-30deg);
+  opacity: 1;
+}
+.proj-pin-btn:not(.is-pinned) {
+  opacity: 0;
+}
+.proj-overview-all-card:hover .proj-pin-btn:not(.is-pinned) {
+  opacity: 0.45;
+}
+.proj-overview-all-card:hover .proj-pin-btn:not(.is-pinned):hover {
+  opacity: 1;
+  color: var(--ds-accent, #2563eb);
 }
 .proj-overview-all-header {
   display: flex;

@@ -314,7 +314,7 @@ function renderProjectList(containerId, values, history) {
         ondragstart="startProjectDrag(event, ${project.id})"
         ondragover="allowProjectDrop(event)"
         ondrop="dropProjectBefore(event, ${project.id})">
-        <span class="project-list-name">${pEscape(project.name)}${isMain ? '<em class="ui-tag">主项目</em>' : ""}</span>
+        <span class="project-list-name">${pEscape(project.name)}${isMain ? '<em class="ui-tag" title="已置顶" style="display:inline-flex;align-items:center;gap:2px"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>置顶</em>' : ""}</span>
         <small class="project-list-next-task">${pEscape(nextTaskText)}</small>
         <div class="project-list-progress-wrapper">
           <div class="project-list-progress-bar" style="width: ${progressPercent}%"></div>
@@ -423,11 +423,12 @@ function renderProjectDetail() {
             <span class="ui-status ui-status--${project.status === "active" ? "success" : project.status === "completed" ? "info" : "neutral"} project-tag-pill status-tag">${project.status === "active" ? "进行中" : project.status === "completed" ? "已完成" : "已归档"}</span>
             ${project.due_date ? `<span class="ui-tag project-tag-pill due-tag">截止 ${project.due_date}</span>` : ""}
             <span class="ui-count-pill project-tag-pill progress-tag"><b>${project.completed_count}</b> / ${project.completed_count + project.pending_count} 项完成</span>
-            ${project.id === mainProjectId ? '<span class="ui-tag is-selected project-tag-pill main-project-tag">主项目</span>' : ""}
+            ${project.id === mainProjectId ? '<span class="ui-tag is-selected project-tag-pill main-project-tag" style="display:inline-flex;align-items:center;gap:3px"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>已置顶</span>' : ""}
           </div>
         </div>
         <div class="project-detail-actions">
-          ${active && project.id !== mainProjectId ? `<button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="setMainProject(${project.id})">设为主项目</button>` : ""}
+          ${active && project.id !== mainProjectId ? `<button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="setMainProject(${project.id})"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="margin-right:3px;vertical-align:-1px"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>置顶项目</button>` : ""}
+          ${active && project.id === mainProjectId ? `<button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="unsetMainProject()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;vertical-align:-1px"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>取消置顶</button>` : ""}
           ${active ? `<button type="button" class="ui-button ui-button--primary project-button-primary" onclick="confirmCompleteProject(${project.id})">完成项目</button>` : `<button type="button" class="ui-button ui-button--primary project-button-primary" onclick="reopenProject(${project.id})">重新开启</button>`}
           <details class="project-more-menu">
             <summary aria-label="更多项目操作">•••</summary>
@@ -441,8 +442,8 @@ function renderProjectDetail() {
     </header>
     ${newlyCreatedProjectId === project.id ? `
       <div class="ui-feedback ui-feedback--success project-created-notice" role="status">
-        <span>项目已创建。是否设为当前主项目？</span>
-        <button type="button" onclick="setMainProject(${project.id})" class="ui-button ui-button--secondary">设为主项目</button>
+        <span>项目已创建。是否将其置顶？</span>
+        <button type="button" onclick="setMainProject(${project.id})" class="ui-button ui-button--secondary">置顶项目</button>
         <button type="button" onclick="dismissCreatedProjectNotice()" class="ui-button ui-button--secondary">暂不设置</button>
       </div>` : ""}
     ${allDone && active ? `
@@ -653,10 +654,35 @@ async function setMainProject(projectId) {
     await projectRequest(`/api/projects/${projectId}/set-main`, {method: "POST"});
     newlyCreatedProjectId = null;
     selectedProjectId = projectId;
-    setProjectStatus("主项目已更新");
+    setProjectStatus("项目已置顶");
     await refreshProjectSurfaces();
   } catch (error) {
     setProjectStatus(error.message, true);
+  }
+}
+
+async function unsetMainProject() {
+  try {
+    await projectRequest("/api/projects/unset-main", {method: "POST"});
+    mainProjectId = null;
+    newlyCreatedProjectId = null;
+    setProjectStatus("已取消置顶");
+    await refreshProjectSurfaces();
+  } catch (error) {
+    setProjectStatus(error.message, true);
+  }
+}
+
+async function togglePinProject(event, projectId) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  const isCurrentlyPinned = (mainProjectId === projectId);
+  if (isCurrentlyPinned) {
+    await unsetMainProject();
+  } else {
+    await setMainProject(projectId);
   }
 }
 
@@ -949,7 +975,7 @@ async function setMainProjectFromOverview(projectId) {
     await projectRequest(`/api/projects/${projectId}/set-main`, { method: "POST" });
     await refreshProjectSurfaces();
   } catch (error) {
-    setProjectStatus("设置主项目失败", true);
+    setProjectStatus("置顶项目失败", true);
   }
 }
 
@@ -972,22 +998,27 @@ function renderProjectOverview(data) {
     : (data.main_project ? [data.main_project] : []);
 
   if (!activeProjects.length && !data.main_project) {
-    renderProjectOverviewState("尚未设置主项目", "从进行中的项目里选择一个当前重点。", "选择主项目", "openProjectsView()");
+    renderProjectOverviewState("暂无长期项目", "创建一个长期项目，开始组织接下来的行动。", "新建项目", "openProjectsView().then(() => openProjectModal())");
     return;
   }
+
+  // 置顶排序：已置顶的项目排在最前
+  const sortedProjects = [...activeProjects].sort((a, b) => (b.is_main ? 1 : 0) - (a.is_main ? 1 : 0));
 
   // 全部概览模式：一览所有进行中项目的 Next Action 与进度
   container.innerHTML = `
     <div class="proj proj-overview-all">
       <div class="proj-overview-all-list">
-        ${activeProjects.map((p) => {
+        ${sortedProjects.map((p) => {
           const total = p.completed_count + p.pending_count;
           const pct = total ? Math.min(100, Math.round((p.completed_count / total) * 100)) : 0;
           return `
-            <div class="proj-overview-all-card${p.is_main ? " is-main" : ""}">
+            <div class="proj-overview-all-card${p.is_main ? " is-pinned" : ""}">
               <div class="proj-overview-all-header">
                 <button type="button" class="ui-button ui-button--text proj-overview-all-title" onclick="openProjectsView(${p.id})">
-                  ${p.is_main ? '<span class="proj-badge-main">★ 主项目</span>' : ""}
+                  <span role="button" tabindex="0" class="proj-pin-btn${p.is_main ? " is-pinned" : ""}" onclick="togglePinProject(event, ${p.id})" onkeydown="if(event.key==='Enter'||event.key===' ')togglePinProject(event, ${p.id})" title="${p.is_main ? "已置顶，点击取消置顶" : "置顶此项目"}" aria-label="${p.is_main ? "已置顶，点击取消置顶" : "置顶此项目"}">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                  </span>
                   <strong>${pEscape(p.name)}</strong>
                 </button>
                 <span class="proj-overview-all-progress">${p.completed_count}/${total} (${pct}%)</span>
@@ -1015,6 +1046,11 @@ async function loadProjectOverview() {
   if (container) container.setAttribute("aria-busy", "true");
   try {
     const data = await projectRequest("/api/projects/overview");
+    if (data.main_project) {
+      mainProjectId = data.main_project.id;
+    } else if (data.active_projects && !data.active_projects.some((p) => p.is_main)) {
+      mainProjectId = null;
+    }
     renderProjectOverview(data);
   } catch (error) {
     renderProjectOverviewState("长期项目加载失败", "请稍后重试。");

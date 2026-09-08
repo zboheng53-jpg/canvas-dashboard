@@ -1793,8 +1793,15 @@ def api_project(project_id):
 def api_project_set_main(project_id):
     main_project_id = project_store.set_main_project(session["username"], project_id)
     if main_project_id is None:
-        return api_error("project_not_active", "只能将进行中的项目设为主项目", 400)
+        return api_error("project_not_active", "只能将进行中的项目置顶", 400)
     return jsonify({"ok": True, "main_project_id": main_project_id})
+
+
+@app.route("/api/projects/unset-main", methods=["POST"])
+@app.route("/api/projects/<int:project_id>/unset-main", methods=["POST"])
+def api_project_unset_main(project_id=None):
+    project_store.unset_main_project(session["username"])
+    return jsonify({"ok": True, "main_project_id": None})
 
 
 def _project_status_response(project_id, operation):

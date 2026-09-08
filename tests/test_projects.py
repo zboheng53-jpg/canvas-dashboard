@@ -87,6 +87,21 @@ def test_main_project_is_unique_and_cleared_on_complete_or_archive(tmp_path, mon
     assert archived["main_project_id"] is None
 
 
+def test_unset_main_project_clears_pinned_project(tmp_path, monkeypatch):
+    client, headers = _client(tmp_path, monkeypatch)
+    first = _create_project(client, headers, "项目一")
+    _post(client, headers, f"/api/projects/{first['id']}/set-main")
+    overview = client.get("/api/projects/overview").get_json()
+    assert overview["main_project"]["id"] == first["id"]
+
+    unset_resp = _post(client, headers, "/api/projects/unset-main").get_json()
+    assert unset_resp["ok"] is True
+    assert unset_resp["main_project_id"] is None
+
+    overview_after = client.get("/api/projects/overview").get_json()
+    assert overview_after["main_project"] is None
+
+
 def test_groups_create_rename_reorder_and_nonempty_delete_moves_tasks(tmp_path, monkeypatch):
     client, headers = _client(tmp_path, monkeypatch)
     project = _create_project(client, headers)

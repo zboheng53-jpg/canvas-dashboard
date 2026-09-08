@@ -2248,9 +2248,8 @@
         // 副标题：课程名 · 类型 · 截止时间（与原 .item-course 合并到副标题）
         const metaParts = [];
         if (item.course) {
-          const mainStar = item.isMainProject ? '<span class="biz-todo__star-main" title="核心主项目">★ </span>' : '';
           metaParts.push(item.source === 'project'
-            ? `<button type="button" class="project-todo-link${item.isMainProject ? ' is-main' : ''}" onclick="openProjectsView(${item.projectId})">${mainStar}${escapeHtml(item.course)}</button>`
+            ? `<button type="button" class="project-todo-link" onclick="openProjectsView(${item.projectId})">${escapeHtml(item.course)}</button>`
             : escapeHtml(item.course));
         }
         if (item.groupName) metaParts.push(escapeHtml(item.groupName));

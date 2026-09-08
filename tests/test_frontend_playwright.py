@@ -933,8 +933,8 @@ def test_frontend_projects_create_without_automatic_main_and_preserve_failed_edi
     page.locator('#project-editor-form [type="submit"]').click()
     expect(page.locator("#project-manager-list")).to_contain_text("毕业设计")
     expect(page.locator("#project-detail")).to_contain_text("项目已创建")
-    expect(page.locator("#project-detail")).to_contain_text("设为主项目")
-    expect(page.locator("#project-manager-list")).not_to_contain_text("主项目")
+    expect(page.locator("#project-detail")).to_contain_text("置顶")
+    expect(page.locator("#project-manager-list")).not_to_contain_text("置顶")
 
     page.route(
         "**/api/projects/*",

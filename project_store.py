@@ -291,6 +291,15 @@ def set_main_project(username, project_id):
     return state["main_project_id"] if result.get("found") else None
 
 
+def unset_main_project(username):
+    def mutation(state, result):
+        state["main_project_id"] = None
+        result["found"] = True
+
+    state, result = _mutate(username, mutation)
+    return True
+
+
 def _set_project_status(username, project_id, status):
     def mutation(state, result):
         project = _find_project(state, project_id)
