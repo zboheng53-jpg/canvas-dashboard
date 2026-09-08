@@ -1044,7 +1044,6 @@ function renderProjectOverview(data) {
   const total = project.completed_count + project.pending_count;
   const pct = total ? Math.min(100, Math.round((project.completed_count / total) * 100)) : 0;
   const dueText = projectDueText(project);
-  const upcoming = project.upcoming_tasks || [];
 
   container.innerHTML = `
     ${tabsHtml}
@@ -1052,9 +1051,7 @@ function renderProjectOverview(data) {
       <div class="proj-top">
         <div class="proj-title-group">
           <button type="button" class="proj-name" onclick="openProjectsView(${project.id})" title="查看项目详情">${pEscape(project.name)}</button>
-          ${project.is_main
-            ? '<span class="proj-badge-main" title="当前核心主攻项目">★ 主项目</span>'
-            : `<button type="button" class="ui-button ui-button--text proj-set-main-btn" onclick="setMainProjectFromOverview(${project.id})" title="将此项目设为当前重点">设为主项目</button>`}
+          ${project.is_main ? '<span class="proj-badge-main" title="当前核心主攻项目">★ 主项目</span>' : ""}
         </div>
         ${dueText ? `<span class="proj-due${project.due_state === "overdue" ? " is-overdue" : ""}">${pEscape(dueText)}</span>` : ""}
       </div>
@@ -1071,19 +1068,7 @@ function renderProjectOverview(data) {
         <button type="button" class="biz-project-item__next is-empty" onclick="openProjectsView(${project.id})" title="选择下一步行动">
           <b>下一步</b>未设置行动
         </button>`}
-      ${upcoming.length ? `
-        <div class="proj-tasks">
-          ${upcoming.map((task) => `
-            <div class="pt${task.done ? " is-done" : ""}">
-              <input type="checkbox" class="pt-check ui-checkbox" aria-label="完成${pEscape(task.name)}" onchange="completeOverviewTask(${project.id}, ${task.id}, this)" ${task.done ? "checked" : ""}>
-              <div class="pt-body">
-                <span class="t">${pEscape(task.name)}</span>
-                ${task.due_date || task.group_name ? `<span class="d">${pEscape([task.group_name, task.due_date].filter(Boolean).join(" · "))}</span>` : ""}
-              </div>
-            </div>`).join("")}
-        </div>` : ""}
       <div class="proj-links">
-        ${project.hidden_task_count ? `<button type="button" onclick="openProjectsView(${project.id})" class="ui-button ui-button--text">还有 ${project.hidden_task_count} 项 →</button>` : ""}
         <button type="button" onclick="openProjectsView(${project.id})" class="ui-button ui-button--text">查看项目详情 →</button>
       </div>
     </div>`;

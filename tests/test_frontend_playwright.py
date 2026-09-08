@@ -985,9 +985,8 @@ def test_frontend_project_main_card_groups_tasks_and_todo_jump(live_app, browser
 
     expect(page.locator("#project-overview-content")).to_contain_text("Python 学习")
     expect(page.locator("#project-overview-content")).to_contain_text("完成 NumPy 数组练习")
-    # 设计稿右栏：最多展示 2 条近期任务，其余折叠为“还有 N 项”
-    expect(page.locator("#project-overview-content .proj-tasks .pt")).to_have_count(2)
-    expect(page.locator("#project-overview-content")).to_contain_text("还有 1 项")
+    # 总览页右栏只放纯粹概览，不展示展开的子任务打勾列表
+    expect(page.locator("#project-overview-content .proj-tasks")).to_have_count(0)
 
     page.select_option("#todo-source-select", "project")
     expect(page.locator("#todo-list .todo-row")).to_have_count(3)

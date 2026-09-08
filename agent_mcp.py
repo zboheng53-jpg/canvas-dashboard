@@ -79,13 +79,13 @@ TOOLS = [
     },
     {
         "name": "add_todo",
-        "description": "添加一条新的自定义待办事项",
+        "description": "添加一条新的自定义待办事项。注意：标题须遵循高信息密度动宾结构（8~18字，如'提交数模论文终稿'），严禁在标题中混入免责声明、规则解释或冗长背景说明",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "text": {
                     "type": "string",
-                    "description": "待办事项内容或作业标题",
+                    "description": "精炼的待办事项标题（动宾结构，8~18字以内，高信息密度，严禁冗长废话与背景说明）",
                 },
                 "due_date": {
                     "type": "string",
