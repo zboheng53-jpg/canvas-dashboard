@@ -61,8 +61,8 @@ def test_exported_preview_loads_project_and_schedule_mock_data(tmp_path: Path, b
         )
         overview_proj = page.locator("#project-overview-content .proj").first
         assert overview_proj.count() == 1
-        schedule_row = page.locator("#today-schedule-content .tl-item").first
-        assert schedule_row.locator(".tl-time").evaluate("element => getComputedStyle(element).fontSize") == "11.5px"
+        schedule_row = page.locator("#today-schedule-content .period-event").first
+        assert schedule_row.locator(".period-event-time").evaluate("element => getComputedStyle(element).fontSize") == "11px"
 
         page.get_by_role("button", name="长期项目").click()
         page.locator("#project-detail").get_by_text("自动化课程设计").wait_for()

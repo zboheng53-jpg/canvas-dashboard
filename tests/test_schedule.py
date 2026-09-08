@@ -497,7 +497,7 @@ def test_today_schedule_only_returns_busy_items_and_date_only_deadlines(tmp_path
     data = client.get("/api/schedule/today").get_json()
     assert [item["title"] for item in data["timed"]] == ["自动控制", "实验", "组会"]
     assert [item["location"] for item in data["timed"]] == ["北229", "电信楼", "图书馆"]
-    assert data["deadlines"] == [{"title": "周度复盘", "course": "Python学习"}, {"title": "实验报告"}]
+    assert [{key: item[key] for key in ("title", "course") if key in item} for item in data["deadlines"]] == [{"title": "周度复盘", "course": "Python学习"}, {"title": "实验报告"}]
 
 
 def test_delete_course_and_clear_courses(tmp_path, monkeypatch):

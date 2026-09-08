@@ -106,6 +106,7 @@ function openProjectModal(projectId = null) {
   form.project_id.value = project?.id || "";
   form.name.value = project?.name || "";
   form.objective.value = project?.objective || "";
+  form.materials.value = project?.materials || "";
   form.due_date.value = project?.due_date || "";
   document.getElementById("project-editor-title").textContent = project ? "编辑项目" : "新建项目";
   document.getElementById("project-editor-error").textContent = "";
@@ -142,6 +143,16 @@ function openProjectTaskModal(projectId, taskId = null, groupId = null, forceNex
   form.project_id.value = project.id;
   form.task_id.value = task?.id || "";
   form.name.value = task?.name || "";
+  form.details.value = task?.details || "";
+  form.show_in_todos.checked = task?.commitment === "obligation" || (task?.commitment === "legacy" && Boolean(task?.due_date));
+  form.dataset.originalCommitment = task?.commitment || "growth";
+  form.dataset.originalShowInTodos = String(form.show_in_todos.checked);
+  form.dataset.originalDueDate = task?.due_date || "";
+  form.planned_on.value = task?.planned_on || "";
+  form.estimate_minutes.value = task?.estimate_minutes || "";
+  form.dataset.updatedAt = task?.updated_at || "";
+  form.dataset.originalName = task?.name || "";
+  form.dataset.requestId = crypto.randomUUID();
   form.due_date.value = task?.due_date || "";
   form.is_next_action.checked = forceNext || Boolean(task?.is_next_action);
   populateProjectGroupOptions(form.group_id, project, task ? task.group_id : groupId);
@@ -208,7 +219,8 @@ function closeProjectConfirmModal(confirmed) {
 }
 
 async function refreshProjectSurfaces() {
-  await Promise.all([loadProjects(selectedProjectId), loadProjectOverview(), fetchProjectTodos()]);
+  await Promise.all([loadProjects(selectedProjectId), loadProjectOverview(), fetchProjectTodos(), loadTodaySchedule()]);
+  if (!document.getElementById("dashboard-view-schedule").classList.contains("hidden")) await loadScheduleManager();
 }
 
 function selectProjectIdFromContext(preferredId = null) {
@@ -471,7 +483,8 @@ function renderProjectDetail() {
         </div>` : ""}
     </div>
     <div class="project-groups" id="project-groups">
-      ${renderProjectGroups(project)}
+      ${project.materials ? `<details class="project-materials"><summary>项目资料与说明</summary><p>${pEscape(project.materials)}</p></details>` : ""}
+    ${renderProjectGroups(project)}
     </div>
   `;
 }
@@ -531,8 +544,8 @@ function renderProjectTask(project, task, active) {
       <input type="checkbox" ${task.done ? "checked" : ""} ${active ? "" : "disabled"}
         aria-label="${task.done ? "取消完成" : "完成"}${pEscape(task.name)}"
         onchange="toggleProjectTask(${project.id}, ${task.id}, this.checked)" class="ui-checkbox">
-      <button type="button" class="ui-button ui-button--text ui-button--start project-task-name-btn" onclick="openProjectTaskModal(${project.id}, ${task.id})">
-        <span class="ui-list-item__title">${pEscape(task.name)}</span>
+      <button type="button" class="ui-button ui-button--text ui-button--start project-task-name-btn" onclick="openActionDetail('project:${project.id}:${task.id}')">
+        <span class="ui-list-item__title">${pEscape(task.name)}</span>${task.planned_on || task.details ? `<small class="action-task-caption">${[task.planned_on ? `计划 ${pEscape(task.planned_on)}` : "", task.details ? "有详情" : ""].filter(Boolean).join(" · ")}</small>` : ""}
       </button>
       ${dateText ? `<span class="ui-list-item__meta project-task-date">${pEscape(dateText)}</span>` : ""}
       <div class="project-task-actions">
@@ -565,6 +578,7 @@ async function saveProjectEditor(event) {
   const payload = {
     name: form.name.value.trim(),
     objective: form.objective.value.trim(),
+    materials: form.materials.value.trim(),
     due_date: form.due_date.value || null,
   };
   submit.disabled = true;
@@ -596,10 +610,16 @@ async function saveProjectTaskEditor(event) {
   const taskId = Number(form.task_id.value) || null;
   const payload = {
     name: form.name.value.trim(),
+    details: form.details.value,
+    planned_on: form.planned_on.value || null,
+    estimate_minutes: form.estimate_minutes.value ? Number(form.estimate_minutes.value) : null,
+    ...(form.dataset.originalCommitment !== 'legacy' || String(form.show_in_todos.checked) !== form.dataset.originalShowInTodos || form.due_date.value !== form.dataset.originalDueDate ? {commitment: form.show_in_todos.checked ? 'obligation' : 'growth'} : {}),
+    ...(taskId ? {expected_updated_at: form.dataset.updatedAt} : {request_id: form.dataset.requestId}),
     group_id: form.group_id.value ? Number(form.group_id.value) : null,
     due_date: form.due_date.value || null,
     is_next_action: form.is_next_action.checked,
   };
+  if (taskId && payload.name === form.dataset.originalName) delete payload.name;
   submit.disabled = true;
   document.getElementById("project-task-error").textContent = "";
   try {
@@ -1011,27 +1031,27 @@ function renderProjectOverview(data) {
       <div class="proj-overview-all-list">
         ${sortedProjects.map((p) => {
           const total = p.completed_count + p.pending_count;
-          const pct = total ? Math.min(100, Math.round((p.completed_count / total) * 100)) : 0;
           return `
             <div class="proj-overview-all-card${p.is_main ? " is-pinned" : ""}">
               <div class="proj-overview-all-header">
-                <button type="button" class="ui-button ui-button--text proj-overview-all-title" onclick="openProjectsView(${p.id})">
+                <div class="proj-overview-all-title">
                   <span role="button" tabindex="0" class="proj-pin-btn${p.is_main ? " is-pinned" : ""}" onclick="togglePinProject(event, ${p.id})" onkeydown="if(event.key==='Enter'||event.key===' ')togglePinProject(event, ${p.id})" title="${p.is_main ? "已置顶，点击取消置顶" : "置顶此项目"}" aria-label="${p.is_main ? "已置顶，点击取消置顶" : "置顶此项目"}">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
                   </span>
-                  <strong>${pEscape(p.name)}</strong>
-                </button>
-                <span class="proj-overview-all-progress">${p.completed_count}/${total} (${pct}%)</span>
+                  <button type="button" class="ui-button ui-button--text action-project-name" onclick="openProjectsView(${p.id})"><strong>${pEscape(p.name)}</strong></button>
+                </div>
+
               </div>
-              <div class="bar bar--compact"><i style="width:${pct}%"></i></div>
+
               ${p.next_action ? `
-                <button type="button" class="biz-project-item__next biz-project-item__next--compact" onclick="openProjectsView(${p.id})" title="查看下一步详情">
+                <button type="button" class="biz-project-item__next biz-project-item__next--compact" onclick="openActionDetail('project:${p.id}:${p.next_action.id}')" title="查看下一步详情">
                   <b>下一步</b><span class="next-title">${pEscape(p.next_action.name)}</span>
-                  ${p.next_action.due_date ? `<span class="late">${pEscape(p.next_action.due_date)}</span>` : ""}
+
                 </button>` : `
                 <button type="button" class="biz-project-item__next is-empty biz-project-item__next--compact" onclick="openProjectsView(${p.id})">
                   <b>下一步</b>未设置行动
                 </button>`}
+              ${total ? `<div class="proj-overview-meta">${p.next_action?.planned_on ? `<span class="proj-next-plan">计划 ${pEscape(p.next_action.planned_on)}</span>` : ""}<span class="proj-overview-all-progress">完成 ${p.completed_count} / ${total}</span></div>` : ""}
             </div>`;
         }).join("")}
       </div>

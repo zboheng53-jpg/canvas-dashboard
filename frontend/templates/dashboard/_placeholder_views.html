@@ -55,6 +55,7 @@
       <input type="hidden" name="project_id">
       <label class="ui-field ui-label">项目名称<input name="name" required maxlength="100" autocomplete="off" class="ui-control"></label>
       <label class="ui-field ui-label">一句话目标<textarea name="objective" maxlength="240" rows="3" placeholder="这个项目最终希望达成什么？" class="ui-control"></textarea></label>
+      <label class="ui-field ui-label">项目资料与说明<textarea name="materials" rows="5" maxlength="20000" class="ui-control" placeholder="长期方法、参考材料和暂缓决定"></textarea></label>
       <label class="ui-field ui-label">项目截止日期（可选）<input name="due_date" type="date" class="ui-control"></label>
       <p class="ui-error project-modal-error" id="project-editor-error" role="alert"></p>
       <div class="project-modal-actions">
@@ -74,7 +75,10 @@
     <form id="project-task-form" class="project-modal-form">
       <input type="hidden" name="project_id">
       <input type="hidden" name="task_id">
-      <label class="ui-field ui-label">任务名称<input name="name" required maxlength="160" autocomplete="off" class="ui-control"></label>
+      <label class="ui-field ui-label">任务名称<input name="name" required maxlength="40" autocomplete="off" class="ui-control"></label>
+      <label class="ui-field ui-label">详细说明<textarea name="details" rows="5" maxlength="12000" class="ui-control" placeholder="步骤、材料与完成标准"></textarea></label>
+      <label class="action-todo-choice ui-checkbox-label"><input type="checkbox" name="show_in_todos" class="ui-checkbox">同时加入待办清单</label>
+      <div class="action-date-fields"><label class="ui-field ui-label">计划日期<input name="planned_on" type="date" class="ui-control"></label><label class="ui-field ui-label">预计分钟数<input name="estimate_minutes" type="number" min="1" max="1440" class="ui-control"></label></div>
       <label class="ui-field ui-label">所属分组<select name="group_id" class="ui-control"></select></label>
       <label class="ui-field ui-label">最晚截止日期（可选）<input name="due_date" type="date" class="ui-control"></label>
       <label class="ui-checkbox-label project-check-option"><input name="is_next_action" type="checkbox" class="ui-checkbox"> 设为下一步行动</label>
@@ -157,7 +161,7 @@
       <div class="schedule-legend">
         <span class="legend-item legend-course"><i class="legend-dot"></i>课表</span>
         <span class="legend-item legend-recurring"><i class="legend-dot"></i>每周重复</span>
-        <span class="legend-item legend-weekly"><i class="legend-dot"></i>单次事项</span>
+        <span class="legend-item legend-weekly"><i class="legend-dot"></i>单次事项</span><button type="button" class="ui-button ui-button--text" onclick="openActionSearch()">查找所有事项</button>
       </div>
     </div>
 
@@ -167,7 +171,7 @@
         <div class="schedule-grid schedule-grid-body" id="schedule-timetable-grid">
           <!-- Rendered dynamically by JS -->
         </div>
-        <button type="button" class="ui-button ui-button--secondary schedule-return-default hidden" id="schedule-return-default" onclick="scrollScheduleToDefault()">返回 08:00—17:00</button>
+
       </div>
     </div>
   </div>
@@ -181,11 +185,12 @@
       <button type="button" class="ui-icon-button schedule-modal-close" onclick="closeScheduleItemModal()" aria-label="关闭">×</button>
     </div>
     <form class="schedule-modal-form" id="schedule-modal-form">
-      <input type="hidden" name="id" id="schedule-form-id">
+      <p id="schedule-form-error" class="ui-error" role="alert"></p><input type="hidden" name="id" id="schedule-form-id"><input type="hidden" name="action_ref" id="schedule-form-action-ref"><p id="schedule-link-hint" class="muted"></p>
       <div class="form-group">
         <label for="schedule-form-title" class="ui-label">事项名称</label>
-        <input name="title" id="schedule-form-title" required maxlength="80" placeholder="例如：蓝桥杯讨论" class="ui-control">
+        <input name="title" id="schedule-form-title" required maxlength="40" placeholder="例如：蓝桥杯讨论" class="ui-control">
       </div>
+<label class="ui-field ui-label">详细说明<textarea name="details" id="schedule-form-details" maxlength="12000" rows="4" class="ui-control" placeholder="安排的具体内容、地点说明或材料"></textarea></label>
       <div class="form-row" id="field-recurring-weekday">
         <div class="form-group flex-1">
           <label for="schedule-form-weekday" class="ui-label">重复星期</label>
@@ -583,7 +588,7 @@
   <div class="card console-manager-card business-manager-card agent-manager-card" id="agent-manager-card">
     <div class="console-manager-heading business-manager-heading">
       <div>
-        <h1 id="agent-manager-title">Agent 接入 (MCP & Skill)</h1>
+        <h1 id="agent-manager-title">Agent 接入 (MCP & Skill)</h1><p>让 Agent 创建待办、推进项目并安排时间；短标题与详情分开保存。更新后请重新下载接入包。</p>
         <p>让你的 AI 助手（Claude Desktop、Cursor、Cline、Windsurf、Claude Code 等）自主接入 Canvas Dashboard，查询课表与管理待办。</p>
       </div>
       <span class="ui-tag calendar-privacy-badge">安全授权</span>

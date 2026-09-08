@@ -245,6 +245,8 @@ def test_frontend_todo_hover_keeps_content_and_actions_in_place(live_app, browse
     todo = page.locator("#todo-list .todo-row").first
     title = todo.locator(".item-title")
     dismiss_button = todo.locator(".item-desktop-actions .btn-dismiss")
+    expect(title).to_be_visible()
+    expect(dismiss_button).to_be_visible()
     title_before = title.bounding_box()
     dismiss_before = dismiss_button.bounding_box()
     assert title_before is not None
@@ -358,6 +360,19 @@ def test_frontend_desktop_todo_card_scrolls_without_outgrowing_sidebars(live_app
 
 def test_frontend_overview_rich_content_uses_internal_scroll_regions(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    page.add_init_script("""
+      (() => {
+        const RealDate = Date;
+        const fixedNow = new RealDate('2026-07-09T12:00:00+08:00').valueOf();
+        class FixedBrowserDate extends RealDate {
+          constructor(...args) { super(...(args.length ? args : [fixedNow])); }
+          static now() { return fixedNow; }
+        }
+        FixedBrowserDate.parse = RealDate.parse;
+        FixedBrowserDate.UTC = RealDate.UTC;
+        window.Date = FixedBrowserDate;
+      })();
+    """)
     register_dashboard_user(page, live_app, "richoverview")
 
     page.evaluate(
@@ -410,7 +425,7 @@ def test_frontend_overview_rich_content_uses_internal_scroll_regions(live_app, b
     expect(page.locator("#todo-list .todo-row").filter(has_text="设计验收待办")).to_have_count(10)
     expect(page.locator("#project-overview-content")).to_contain_text("毕业设计冲刺")
     expect(page.locator("#project-overview-content")).to_contain_text("项目任务 1")
-    expect(page.locator("#today-schedule-content .tl-item")).to_have_count(8)
+    expect(page.locator("#today-schedule-content .period-event--one_off")).to_have_count(8)
     expect(page.locator("#today-schedule-content")).to_contain_text("今日日程 8")
 
     page.locator("#today-schedule-card").get_by_role("button", name="添加日程").click()
@@ -732,21 +747,11 @@ def test_frontend_schedule_is_fixed_height_precise_and_editable(live_app, browse
             && Math.abs(boxes[2].height - 36) <= 2;
         }"""
     )
-    assert page.evaluate(
-        """() => {
-          const header = document.getElementById('schedule-grid-header');
-          const viewport = document.getElementById('schedule-scroll-viewport');
-          const headerCells = [...document.querySelectorAll('#schedule-grid-header .schedule-grid-header-cell')];
-          const bodyColumns = [
-            document.querySelector('.schedule-time-column'),
-            ...document.querySelectorAll('.schedule-day-column')
-          ];
-          return Math.abs(parseFloat(header.style.width) - viewport.clientWidth) < 0.5
-            && headerCells.every((cell, index) =>
-            Math.abs(cell.getBoundingClientRect().right - bodyColumns[index].getBoundingClientRect().right) < 0.5
-            );
-        }"""
-    )
+    page.wait_for_selector(".period-cell")
+    expect(page.locator("#schedule-timetable-grid.period-grid")).to_be_visible()
+    expect(page.locator("#schedule-timetable-grid .period-cell")).to_have_count(28)
+    expect(page.locator("#schedule-timetable-grid .period-label")).to_have_count(4)
+
     page.locator("#schedule-management-open").click()
     expect(page.locator("#schedule-management-modal")).to_be_visible()
     expect(page.locator("#schedule-refresh-button")).to_be_visible()
@@ -754,50 +759,23 @@ def test_frontend_schedule_is_fixed_height_precise_and_editable(live_app, browse
     expect(page.locator(".schedule-download-link")).to_be_visible()
     page.locator("#schedule-management-modal .schedule-modal-close").click()
     assert page.evaluate("document.documentElement.scrollHeight <= window.innerHeight + 2")
-    assert page.locator("#schedule-scroll-viewport").evaluate(
-        "element => element.scrollHeight > element.clientHeight"
-    )
-    visible_hours = page.locator("#schedule-scroll-viewport").evaluate(
-        """element => {
-          const hourHeight = Number(getComputedStyle(document.getElementById('schedule-timetable-grid')).getPropertyValue('--schedule-hour-height').replace('px', ''));
-          return element.clientHeight / hourHeight;
-        }"""
-    )
-    assert visible_hours >= 8.5 and visible_hours <= 10.5
-    assert page.locator("#schedule-scroll-viewport").evaluate(
-        "element => Math.abs(element.scrollTop - (8 * Number(getComputedStyle(document.getElementById('schedule-timetable-grid')).getPropertyValue('--schedule-hour-height').replace('px', '')) - 6)) < 2"
-    )
-    initial_grid_scroll = page.locator("#schedule-scroll-viewport").evaluate("element => element.scrollTop")
-    page.locator("#schedule-scroll-viewport").hover()
-    page.mouse.wheel(0, 600)
-    page.wait_for_function(
-        "initial => document.getElementById('schedule-scroll-viewport').scrollTop > initial + 100",
-        arg=initial_grid_scroll,
-    )
-    assert page.evaluate("window.scrollY") == 0
-    expect(page.locator("#schedule-return-default")).to_have_text("返回 08:00—17:00")
-    expect(page.locator(".schedule-now-line")).to_have_count(1)
 
-    wednesday = page.locator('.schedule-day-column[data-date="2026-07-22"]')
-    wednesday.locator(".schedule-time-slot").nth(39).click()
+    wednesday_evening = page.locator('.period-cell[data-date="2026-07-22"][data-period="eve"]')
+    wednesday_evening.locator(".period-add").click()
     expect(page.locator("#schedule-item-modal")).to_be_visible()
     expect(page.locator('#schedule-modal-form input[value="one-off"]')).to_be_checked()
     expect(page.locator('#schedule-modal-form [name="date"]')).to_have_value("2026-07-22")
-    expect(page.locator('#schedule-modal-form [name="start_time"]')).to_have_value("19:30")
-    expect(page.locator('#schedule-modal-form [name="end_time"]')).to_have_value("20:30")
+    expect(page.locator('#schedule-modal-form [name="start_time"]')).to_have_value("19:00")
     page.fill('#schedule-modal-form [name="title"]', "蓝桥杯讨论")
     page.fill('#schedule-modal-form [name="location"]', "图书馆")
     page.fill('#schedule-modal-form [name="start_time"]', "19:15")
     page.fill('#schedule-modal-form [name="end_time"]', "20:05")
     page.click('#schedule-modal-form .btn-submit')
 
-    card = page.locator('.schedule-card-oneoff').filter(has_text="蓝桥杯讨论")
+    card = page.locator('.period-event--one_off').filter(has_text="蓝桥杯讨论")
     expect(card).to_be_visible()
     expect(card).to_contain_text("图书馆")
-    assert card.evaluate("""(element) => {
-      const hourHeight = Number(getComputedStyle(document.getElementById('schedule-timetable-grid')).getPropertyValue('--schedule-hour-height').replace('px', ''));
-      return Math.abs(parseFloat(element.style.top) - 19.25 * hourHeight) < 1;
-    }""")
+    expect(card).to_contain_text("19:15–20:05")
     card.click()
     expect(page.locator("#schedule-modal-title")).to_have_text("编辑排程事项")
     expect(page.locator('#schedule-modal-form [name="location"]')).to_have_value("图书馆")
@@ -889,16 +867,24 @@ def test_imported_reference_timetable_renders_weeks_1_to_16(live_app, browser, m
         (4, "高等数学(B)下", "13:30 - 15:05"),
     }
     for week in range(1, 17):
-        page.evaluate("week => { currentScheduleWeekOffset = week - 1; renderScheduleManager(scheduleData); }", week)
+        page.evaluate("async week => { currentScheduleWeekOffset = week - 1; await renderScheduleManager(scheduleData); }", week)
+        page.wait_for_selector(".period-cell")
         actual = {
             tuple(item)
-            for item in page.locator(".schedule-day-column").evaluate_all("""columns => columns.flatMap(
-              (column, day) => Array.from(column.querySelectorAll('.schedule-block-course, .schedule-card-course')).map(card => [
-                day,
-                card.querySelector('.schedule-card-title, .schedule-block-title')?.textContent.trim() || card.querySelector('strong')?.textContent.trim(),
-                card.querySelector('.schedule-card-time, .schedule-block-time')?.textContent.trim() || card.querySelector('time')?.textContent.trim()
-              ])
-            )""")
+            for item in page.evaluate("""() => {
+              const dates = getWeekDates(currentScheduleWeekOffset).map(formatDateISO);
+              const events = [];
+              document.querySelectorAll('.period-cell').forEach(cell => {
+                const day = dates.indexOf(cell.dataset.date);
+                cell.querySelectorAll('.period-event--course').forEach(card => {
+                  const title = card.querySelector('.period-event-title')?.textContent.trim() || '';
+                  let time = card.querySelector('.period-event-time')?.textContent.trim() || '';
+                  time = time.replace('–', ' - ');
+                  events.push([day, title, time]);
+                });
+              });
+              return events;
+            }""")
         }
         expected = set(always)
         if week % 2:
@@ -972,9 +958,10 @@ def test_frontend_project_main_card_groups_tasks_and_todo_jump(live_app, browser
           name:'完成 NumPy 数组练习',
           group_id:group.id,
           due_date:'2026-07-10',
-          is_next_action:true
+          is_next_action:true,
+          commitment:'obligation'
         })).task;
-        await json(`/api/projects/${project.id}/tasks`, 'POST', {name:'复习 pandas', due_date:'2026-07-11'});
+        await json(`/api/projects/${project.id}/tasks`, 'POST', {name:'复习 pandas', due_date:'2026-07-11', commitment:'obligation'});
         await json(`/api/projects/${project.id}/tasks`, 'POST', {name:'无日期任务'});
         await json(`/api/projects/${project.id}/tasks`, 'POST', {name:'另一项无日期任务'});
         await json(`/api/projects/${project.id}/set-main`, 'POST');
@@ -1025,7 +1012,7 @@ def test_frontend_right_rail_distinguishes_loading_failures_from_empty_states(li
         ),
     )
     page.route(
-        "**/api/schedule/today",
+        "**/api/agenda*",
         lambda route: route.fulfill(
             status=503,
             content_type="application/json",
@@ -1036,7 +1023,7 @@ def test_frontend_right_rail_distinguishes_loading_failures_from_empty_states(li
     register_dashboard_user(page, live_app, "railerrorsv2")
 
     expect(page.locator("#project-overview-content")).to_contain_text("长期项目加载失败")
-    expect(page.locator("#today-schedule-content")).to_contain_text("今日日程加载失败")
+    expect(page.locator("#today-schedule-content")).to_contain_text("日程加载失败")
 
 
 @pytest.mark.parametrize("width", [375, 390, 768])

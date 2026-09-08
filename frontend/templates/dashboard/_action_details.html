@@ -1,0 +1,13 @@
+<dialog class="action-dialog" id="action-detail-dialog" aria-labelledby="action-detail-title">
+  <div class="action-dialog-head"><h2 id="action-detail-title">事项详情</h2><button type="button" class="ui-icon-button" aria-label="关闭事项详情" onclick="closeActionDetail()">×</button></div>
+  <div id="action-detail-body"></div>
+</dialog>
+<dialog class="action-dialog" id="period-entries-dialog" aria-labelledby="period-entries-title">
+  <div class="action-dialog-head"><h2 id="period-entries-title">时段事项</h2><button type="button" class="ui-icon-button" aria-label="关闭时段事项" onclick="this.closest('dialog').close()">×</button></div>
+  <div class="period-entries-list" id="period-entries-list"></div>
+</dialog>
+<dialog class="action-dialog" id="action-search-dialog" aria-labelledby="action-search-title">
+  <div class="action-dialog-head"><h2 id="action-search-title">查找所有事项</h2><button type="button" class="ui-icon-button" aria-label="关闭事项查找" onclick="this.closest('dialog').close()">×</button></div>
+  <input type="search" class="ui-control" id="action-search-input" aria-label="查找标题、详情或项目" placeholder="查找标题、详情或项目…">
+  <div class="action-search-list" id="action-search-list"></div>
+</dialog>

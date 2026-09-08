@@ -31,11 +31,11 @@ def _task(client, headers, project_id, name, **payload):
         client,
         headers,
         f"/api/projects/{project_id}/tasks",
-        {"name": name, **payload},
+        {"name": name, "commitment": "obligation" if payload.get("due_date") else "growth", **payload},
     ).get_json()["task"]
 
 
-def test_only_active_undone_dated_project_tasks_and_project_due_are_listed(tmp_path, monkeypatch):
+def test_only_active_undone_obligations_and_project_due_are_listed(tmp_path, monkeypatch):
     client, headers = _client(tmp_path, monkeypatch)
     project = _project(client, headers, due_date="2026-09-01")
     dated = _task(client, headers, project["id"], "有日期", due_date="2026-07-30")

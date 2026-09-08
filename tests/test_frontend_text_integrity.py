@@ -79,7 +79,9 @@ def test_todo_frontend_keeps_platform_sync_and_dynamic_content_boundaries():
     assert index_text.count("saveInlineEdit(id, 'multi', { text: taskText, labels });") == 1
     assert "function sanitizeExternalUrl(value)" in index_text
     assert "['https:', 'http:'].includes(url.protocol)" in index_text
-    assert 'rel="noopener noreferrer"' in index_text
+    workspace = (Path(__file__).parents[1] / "frontend/assets/js/features/workspace.js").read_text(encoding="utf-8")
+    assert "link.rel = 'noopener noreferrer'" in workspace
+    assert "sanitizeExternalUrl(a.url)" in workspace
 
     for text in (index_text, login_text):
         assert "function populateZhixuemengCourseSelect" in text

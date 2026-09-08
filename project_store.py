@@ -4,6 +4,7 @@ from datetime import date, datetime, timezone
 
 from storage import locked_json_update, read_json_file
 import user_paths
+from action_contract import check_version, fingerprint, replay
 
 
 VERSION = 2
@@ -57,7 +58,14 @@ def _normalize_task(task, fallback_id, fallback_order, valid_group_ids, legacy=F
         group_id = None
     return {
         "id": _int(task.get("id"), fallback_id),
-        "name": str(name or "未命名任务")[:160],
+        "name": str(name or "未命名任务"),
+        "original_name": task.get("original_name"),
+        "details": str(task.get("details") or ""),
+        "commitment": task.get("commitment") if task.get("commitment") in {"growth", "obligation"} else "legacy",
+        "planned_on": task.get("planned_on") or None,
+        "estimate_minutes": task.get("estimate_minutes"),
+        "request_id": task.get("request_id"),
+        "request_fingerprint": task.get("request_fingerprint"),
         "group_id": group_id,
         "due_date": task.get("due_date") or None,
         "done": done,
@@ -116,6 +124,8 @@ def _normalize_project(project, fallback_id, fallback_order):
         "id": _int(project.get("id"), fallback_id),
         "name": str(project.get("name") or "未命名项目")[:100],
         "objective": str(project.get("objective") or "")[:240],
+        "materials": str(project.get("materials") or ""),
+        "next_task_id": max(_int(project.get("next_task_id"), 1), _next_id(tasks)),
         "due_date": project.get("due_date") or None,
         "due_highlighted": bool(project.get("due_highlighted", False)),
         "status": status,
@@ -157,6 +167,7 @@ def _normalize_state(raw):
         "main_project_id": main_project_id,
         "last_viewed_project_id": last_viewed_project_id,
         "projects": projects,
+        "next_project_id": max(_int(raw.get("next_project_id"), 1), _next_id(projects)),
     }
 
 
@@ -242,9 +253,10 @@ def create_project(username, payload):
         now = _now()
         active_orders = [project["sort_order"] for project in state["projects"] if project["status"] == "active"]
         project = {
-            "id": _next_id(state["projects"]),
+            "id": state["next_project_id"],
             "name": payload["name"],
             "objective": payload.get("objective", ""),
+            "materials": payload.get("materials", ""),
             "due_date": payload.get("due_date"),
             "due_highlighted": False,
             "status": "active",
@@ -257,6 +269,7 @@ def create_project(username, payload):
             "tasks": [],
         }
         state["projects"].append(project)
+        state["next_project_id"] += 1
         result["project_id"] = project["id"]
 
     state, result = _mutate(username, mutation)
@@ -268,7 +281,8 @@ def update_project(username, project_id, changes):
         project = _find_project(state, project_id)
         if project is None:
             return
-        for field in ("name", "objective", "due_date", "due_highlighted"):
+        check_version(project, changes)
+        for field in ("name", "objective", "materials", "due_date", "due_highlighted"):
             if field in changes:
                 project[field] = changes[field]
         project["updated_at"] = _now()
@@ -461,14 +475,24 @@ def create_task(username, project_id, payload):
         project = _find_project(state, project_id)
         if project is None or project["status"] != "active":
             return
+        existing = replay(project["tasks"], payload)
+        if existing:
+            result["task_id"] = existing["id"]
+            return
         group_id = payload.get("group_id")
         if group_id is not None and _find_group(project, group_id) is None:
             result["invalid_group"] = True
             return
         now = _now()
         task = {
-            "id": _next_id(project["tasks"]),
+            "id": project["next_task_id"],
             "name": payload["name"],
+            "details": payload.get("details", ""),
+            "commitment": payload.get("commitment", "growth"),
+            "planned_on": payload.get("planned_on"),
+            "estimate_minutes": payload.get("estimate_minutes"),
+            "request_id": payload.get("request_id"),
+            "request_fingerprint": fingerprint(payload),
             "group_id": group_id,
             "due_date": payload.get("due_date"),
             "done": False,
@@ -486,6 +510,7 @@ def create_task(username, project_id, payload):
             for item in project["tasks"]:
                 item["is_next_action"] = False
         project["tasks"].append(task)
+        project["next_task_id"] += 1
         project["updated_at"] = now
         result["task_id"] = task["id"]
 
@@ -502,6 +527,11 @@ def update_task(username, project_id, task_id, changes):
         task = _find_task(project, task_id) if project else None
         if task is None:
             return
+        check_version(task, changes)
+        if "name" in changes and changes["name"] != task["name"] and len(task["name"]) > 40:
+            task.setdefault("original_name", task["name"])
+            if not task.get("original_name"):
+                task["original_name"] = task["name"]
         if changes.get("is_next_action") and task["done"]:
             result["invalid_next"] = True
             return
@@ -516,7 +546,7 @@ def update_task(username, project_id, task_id, changes):
                     (item["sort_order"] for item in project["tasks"] if item["id"] != task_id and item["group_id"] == group_id),
                     default=-1,
                 ) + 1
-        for field in ("name", "due_date", "highlighted"):
+        for field in ("name", "due_date", "highlighted", "details", "commitment", "planned_on", "estimate_minutes"):
             if field in changes:
                 task[field] = changes[field]
         if "done" in changes:
@@ -680,7 +710,9 @@ def todo_items(username):
                 "uid": f"project-due-{project['id']}@canvas-dashboard",
             })
         for task in project["tasks"]:
-            if task["done"] or not task.get("due_date"):
+            if task["done"] or task.get("commitment") == "growth":
+                continue
+            if task.get("commitment") == "legacy" and not task.get("due_date"):
                 continue
             items.append({
                 "source": "Project",
@@ -689,6 +721,11 @@ def todo_items(username):
                 "project_id": project["id"],
                 "task_id": task["id"],
                 "title": task["name"],
+                "details": task.get("details", ""),
+                "commitment": task.get("commitment", "legacy"),
+                "planned_on": task.get("planned_on"),
+                "estimate_minutes": task.get("estimate_minutes"),
+                "action_ref": f"project:{project['id']}:{task['id']}",
                 "calendar_title": f"{task['name']} · {project_name}",
                 "project_name": project_name,
                 "project_category": category,
@@ -702,3 +739,20 @@ def todo_items(username):
                 "uid": f"project-task-{project['id']}-{task['id']}@canvas-dashboard",
             })
     return items
+
+
+def calendar_items(username):
+    """Keep stable subscription UIDs when legacy dated practice becomes a growth plan."""
+    items = todo_items(username)
+    for project in load_projects(username):
+        if project["status"] != "active":
+            continue
+        for task in project["tasks"]:
+            day = task.get("due_date") or task.get("planned_on")
+            if task["done"] or task.get("commitment") != "growth" or not day:
+                continue
+            items.append({"id": f"task-{project['id']}-{task['id']}", "due_date": day,
+                          "project_name": project["name"],
+                          "calendar_title": f"{'' if task.get('due_date') else '计划 · '}{task['name']} · {project['name']}",
+                          "uid": f"project-task-{project['id']}-{task['id']}@canvas-dashboard"})
+    return [item for item in items if item.get("due_date")]

@@ -27,7 +27,9 @@ canvas-dashboard/
 ├── tongji_timetable.py            # 一网通办课表 CDP 抓取与解析
 ├── tongji_login_sessions.py       # 同济加强认证短时 noVNC 窗口
 ├── schedule_store.py              # 课程与日程项存储
-├── project_store.py                # 长期项目存储
+├── project_store.py               # 长期项目存储
+├── action_contract.py             # 事项字段校验、幂等与版本冲突
+├── workspace_agenda.py            # 统一事项引用与日期范围议程
 ├── canvas_auth.py                 # Canvas iCal 订阅抓取与解析
 ├── haoke_client.py                # 好课 API 客户端与缓存管理
 ├── zhixuemeng_client.py           # 智学盟客户端 (Token/课程/作业)
@@ -87,7 +89,13 @@ canvas-dashboard/
 - **长期项目 (`project_store.py`)**：
   - 存储位于 `data/users/<username>/projects.json` (v2)，采用锁 + 原子写。
   - 唯一主项目与 Next Action 原子维护，支持活动/完成/归档状态与重新开启。
-  - 有日期未完成任务及项目截止事项接入统一待办与 Apple 日历（导出稳定 UID `project-task-...` / `project-due-...`）。
+  - 新项目行动默认 `growth`，自定义待办默认 `obligation`；责任事项无日期也进入待办，成长行动不计入责任数量。既有未分类项目任务以 `legacy` 保留原有有日期才进入待办的行为，不能自动改写旧截止或批量迁移真实数据。
+  - 行动标题与 `details` 分离，`planned_on` 是计划日期，`due_date` 是真实截止，项目级资料放 `materials`。旧长标题允许保留；缩短时保留 `original_name`。
+  - Apple 日历使用独立投影，保留稳定 UID `project-task-...` / `project-due-...`；成长计划改分类后不因退出待办而丢失日历条目。
+- **统一事项与排程 (`action_contract.py`, `workspace_agenda.py`)**：
+  - `/api/actions` 和 `/api/agenda` 供网页及 Agent 共用；排程以 `action_ref` 引用原事项，标题与任务完成状态从原记录读取。取消安排不删除事项，单次完成不结束整个行动。
+  - 创建支持 `request_id` 幂等，更新支持 `expected_updated_at` 冲突检查；使用各存储层锁和原子写，不绕过账户隔离。重复安排的单次修改须原子跳过原日期并创建例外，保留本次完成记录。
+  - 今日总览保持现有左、中、右分区：右上长期项目、右下今日日程。右下今天优先，有空间时接续未来日期；周视图使用全天、上午、下午、晚上四段并保留精确时间；桌面四段固定同屏，溢出项在格内入口展开。界面不展示“责任／成长”标签，表单以“同时加入待办清单”控制显示范围。
 - **第三方平台特点**：
   - **Canvas**：解析 iCal feed，缓存于 `canvas_cache.json`。
   - **好课**：凭据加密存储，`/api/haoke/todos` 缓存优先，后台守护进程异步刷新。
@@ -96,6 +104,6 @@ canvas-dashboard/
   - **同济课表**：前端直接打开短时 noVNC 认证窗口；用户完成微信扫码或短信加强认证后，后端通过该窗口的 CDP 读取当前可见课表。只解析渲染中的表格并展开 `rowspan`/`colspan`，失败时保留上次成功缓存，认证结束或过期后删除临时 profile。
 - **Agent 接入与凭据 (`agent_auth.py`, `agent_mcp.py`)**：
   - 用户专属 Agent Token 采用独立高熵密钥生成（`cda_...`），在 `data/users/<username>/agent_token.json` 中仅存储 SHA-256 哈希，支持随时一键撤销与重置。
-  - `/api/agent/v1/...` 接口采用 `Authorization: Bearer <token>` 认证，免受 CSRF 限制，提供全平台课表日程、未完成待办、待办新增/标记完成、项目概览与同步状态查询。
+  - `/api/agent/v1/...` 接口采用 `Authorization: Bearer <token>` 认证，免受 CSRF 限制，提供统一事项与议程查询、待办和项目行动写入、关联排程、单次完成及项目资料更新等能力。写入规则由 `agent_mcp.py:WRITING_RULES` 与工具字段共同约束，下载包同步生成。
   - `agent_mcp.py` 基于纯 Python 3 标准库（零外部依赖）实现 JSON-RPC 2.0 stdio MCP 协议，支持直接与 Claude Desktop、Cursor、Cline 等集成。
 

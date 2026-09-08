@@ -189,6 +189,8 @@
     ></button>
   </div>
 
+  {% include "dashboard/_action_details.html" %}
+  <script src="{{ url_for('static', filename='js/features/workspace.js') }}"></script>
   <script>
 // ---- Dashboard V2 shell ----
     const dashboardShell = document.getElementById('dashboard-shell');
@@ -592,7 +594,7 @@
 
     function navigateScheduleWeek(offsetDelta) {
       currentScheduleWeekOffset = offsetDelta === 0 ? 0 : currentScheduleWeekOffset + offsetDelta;
-      renderScheduleManager(scheduleData || {courses: {}, items: {recurring: [], one_off: []}});
+      loadScheduleManager();
     }
 
     function scheduleEventGroups(events) {
@@ -833,93 +835,7 @@
       document.getElementById('schedule-week-label').textContent =
         `${monday.getMonth() + 1}月${monday.getDate()}日—${sunday.getMonth() + 1}月${sunday.getDate()}日${weekNum ? ` · 第 ${weekNum} 周` : ''}`;
 
-      header.replaceChildren(scheduleElement('div', 'schedule-grid-header-cell', '时间'));
-      weekDates.forEach((dateObj, dayIdx) => {
-        const isToday = formatDateISO(dateObj) === todayISO;
-        const cell = scheduleElement('div', `schedule-grid-header-cell${isToday ? ' is-today' : ''}`);
-        cell.append(document.createTextNode(weekdayLabels[dayIdx]), scheduleElement('small', '', `${dateObj.getMonth() + 1}/${dateObj.getDate()}`));
-        header.append(cell);
-      });
-
-      grid.replaceChildren();
-      const timeColumn = scheduleElement('div', 'schedule-time-column');
-      timeColumn.style.height = `${24 * scheduleHourHeight}px`;
-      for (let hour = 0; hour <= 24; hour += 1) {
-        const label = scheduleElement('span', 'schedule-time-label', `${String(hour).padStart(2, '0')}:00`);
-        label.style.top = `${hour * scheduleHourHeight}px`;
-        timeColumn.append(label);
-      }
-      grid.append(timeColumn);
-
-      weekDates.forEach((dateObj, dayIdx) => {
-        const dateISO = formatDateISO(dateObj);
-        const dayColumn = scheduleElement('div', `schedule-day-column${dateISO === todayISO ? ' is-today' : ''}`);
-        dayColumn.dataset.date = dateISO;
-        dayColumn.dataset.weekday = dayIdx;
-        dayColumn.style.height = `${24 * scheduleHourHeight}px`;
-        for (let halfHour = 0; halfHour < 48; halfHour += 1) {
-          const minute = halfHour * 30;
-          const slot = scheduleElement('button', `schedule-time-slot${halfHour % 2 === 0 ? ' is-hour' : ' is-half-hour'}`);
-          slot.type = 'button';
-          slot.style.height = `${scheduleHourHeight / 2}px`;
-          slot.title = `${weekdayLabels[dayIdx]} ${minutesToTime(minute)} - 点击添加事项`;
-          slot.addEventListener('click', () => openScheduleItemModal('one-off', null, {
-            date: dateISO,
-            weekday: dayIdx,
-            start_time: minutesToTime(minute),
-            end_time: minutesToTime(minute + 60)
-          }));
-          dayColumn.append(slot);
-        }
-
-        const events = collectScheduleEvents(data, courses, dateObj, dayIdx, semesterStart);
-        scheduleEventGroups(events).forEach((group) => {
-          const visibleEvents = group.events.slice(0, 2);
-          visibleEvents.forEach((event, lane) => {
-            const block = buildScheduleCard(event, dateISO, lane, visibleEvents.length);
-            block.classList.add('schedule-block', `schedule-block-${event.kind}`);
-            block.querySelector('.schedule-card-title')?.classList.add('ui-list-item__title');
-            block.querySelectorAll('.schedule-card-time, .schedule-card-loc, .schedule-card-summary')
-              .forEach((element) => element.classList.add('ui-list-item__meta'));
-            dayColumn.append(block);
-          });
-          if (group.events.length > 2) {
-            const more = scheduleElement('button', 'schedule-overlap-more', `+${group.events.length - 2} 项`);
-            more.type = 'button';
-            more.style.top = `${timeToMinutes(group.events[0].start_time) / 60 * scheduleHourHeight + 24}px`;
-            more.addEventListener('click', (clickEvent) => {
-              clickEvent.stopPropagation();
-              openScheduleOverlapPopover(group.events, dateISO, more);
-            });
-            dayColumn.append(more);
-          }
-        });
-
-        if (currentScheduleWeekOffset === 0 && dateISO === todayISO) {
-          const now = new Date();
-          const nowLine = scheduleElement('div', 'schedule-now-line');
-          nowLine.style.top = `${(now.getHours() * 60 + now.getMinutes()) / 60 * scheduleHourHeight}px`;
-          nowLine.dataset.time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-          dayColumn.append(nowLine);
-        }
-        grid.append(dayColumn);
-      });
-
-      const scrollbarWidth = Math.max(0, viewport.offsetWidth - viewport.clientWidth);
-      header.style.width = `${viewport.clientWidth}px`;
-      header.style.marginRight = `${scrollbarWidth}px`;
-      header.style.paddingRight = '0px';
-      if (!viewport.dataset.scheduleScrollBound) {
-        viewport.addEventListener('scroll', updateScheduleScrollAffordance, {passive: true});
-        viewport.dataset.scheduleScrollBound = 'true';
-      }
-      viewport.scrollTop = preservedScrollMinute === null
-        ? getScheduleDefaultScrollTop()
-        : preservedScrollMinute / 60 * scheduleHourHeight;
-      scheduleHasRendered = true;
-      updateScheduleScrollAffordance();
-      clearInterval(scheduleNowTimer);
-      scheduleNowTimer = setInterval(updateScheduleNowLine, 60000);
+      return renderPeriodSchedule(data);
     }
 
     function updateScheduleNowLine() {
@@ -1031,7 +947,7 @@
       const form = document.getElementById('schedule-modal-form');
       if (!modal || !form) return;
       form.reset();
-      scheduleEditingKind = item ? (item.date ? 'one-off' : 'recurring') : null;
+      scheduleEditingKind = item ? (defaultKind === 'recurring' || item.kind === 'recurring' ? 'recurring' : 'one-off') : null;
       scheduleEditingItem = item;
       scheduleEditingOccurrenceDate = presets.date || item?.date || formatDateISO(new Date());
       const kind = scheduleEditingKind || defaultKind || 'one-off';
@@ -1042,7 +958,11 @@
         radio.disabled = Boolean(item) && radio.value !== kind;
       }
       const startTime = item?.start_time || presets.start_time || defaultScheduleStartTime();
-      document.getElementById('schedule-form-title').value = item?.title || '';
+      document.getElementById('schedule-form-title').value = item?.title || presets.title || '';
+      document.getElementById('schedule-form-action-ref').value = item?.action_ref || presets.action_ref || '';
+      document.getElementById('schedule-form-title').readOnly = Boolean(item?.action_ref || presets.action_ref);
+      document.getElementById('schedule-form-details').value = item?.details || '';
+      document.getElementById('schedule-link-hint').textContent = item?.action_ref || presets.action_ref ? '已关联事项；这里调整时间，事项标题与完成状态保持同步。' : '可从事项详情选择“安排时间”，建立关联。';
       document.getElementById('schedule-form-start').value = startTime;
       document.getElementById('schedule-form-end').value = item?.end_time || presets.end_time || minutesToTime(timeToMinutes(startTime) + 60);
       document.getElementById('schedule-form-location').value = item?.location || '';
@@ -1052,10 +972,14 @@
       document.getElementById('schedule-form-repeat-start').value = item?.start_date || presets.date || formatDateISO(new Date());
       document.getElementById('schedule-form-repeat-end').value = item?.end_date || '';
       document.getElementById('schedule-edit-scope').classList.toggle('hidden', !(item && kind === 'recurring'));
+      const hasOccurrence = Boolean(presets.date);
+      form.elements.scope.value = hasOccurrence ? 'occurrence' : 'series';
+      form.querySelector('[name=scope][value=occurrence]').disabled = !hasOccurrence;
+      document.querySelector('#schedule-edit-scope legend').textContent = hasOccurrence ? `修改范围 · ${presets.date}` : '修改范围（从周排程选择某一天可仅调整本次）';
       document.getElementById('schedule-item-delete').classList.toggle('hidden', !item);
       toggleScheduleKindFields();
       modal.classList.remove('hidden');
-      document.getElementById('schedule-form-title').focus();
+      document.getElementById(item?.action_ref || presets.action_ref ? 'schedule-form-start' : 'schedule-form-title').focus();
     }
 
     function closeScheduleItemModal() {
@@ -1081,6 +1005,8 @@
       const kind = formData.get('kind');
       const payload = {
         title: formData.get('title'),
+        action_ref: formData.get('action_ref') || null,
+        details: formData.get('details'),
         start_time: formData.get('start_time'),
         end_time: formData.get('end_time'),
         location: formData.get('location')
@@ -1284,84 +1210,7 @@
     }
 
     function renderTodaySchedule(data) {
-      scheduleToday = data.date;
-      const container = document.getElementById('today-schedule-content');
-      if (!container) return;
-      container.setAttribute('aria-busy', 'false');
-      container.replaceChildren();
-      const scheduleSub = document.getElementById('today-schedule-sub');
-      if (scheduleSub) {
-        scheduleSub.textContent = data.timed.length ? `${data.timed.length} 节` : '无日程';
-      }
-      if (!data.timed.length && !data.deadlines.length) {
-        const empty = scheduleElement('div', 'ui-empty rail-empty-state');
-        const art = scheduleElement('span', 'ui-empty__art');
-        art.setAttribute('aria-hidden', 'true');
-        art.innerHTML = `<svg width="72" height="64" viewBox="0 0 72 64" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="36" cy="32" r="28" fill="#EFF6FF" opacity="0.9"/><rect x="20" y="16" width="32" height="34" rx="5" fill="#FFFFFF" stroke="#93C5FD" stroke-width="1.5" stroke-dasharray="3 3"/><path d="M20 23H52" stroke="#BFDBFE" stroke-width="1.5"/><line x1="28" y1="13" x2="28" y2="17" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round"/><line x1="44" y1="13" x2="44" y2="17" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round"/><circle cx="36" cy="35" r="7" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.5"/><path d="M36 31V35L39 37" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round"/><path d="M52 38L52.7 40.3L55 41L52.7 41.7L52 44L51.3 41.7L49 41L51.3 40.3L52 38Z" fill="#3B82F6"/></svg>`;
-        empty.append(art, scheduleElement('strong', '', '今天没有日程'), scheduleElement('p', '', '课程、固定事项和一次性事项会显示在这里'));
-        container.append(empty); return;
-      }
-      // 设计稿：时间线样式（时间两列 + 圆点 + now 蓝色高亮）
-      const timeline = scheduleElement('div', 'tl-timeline');
-      const now = new Date();
-      const nowMinutes = now.getHours() * 60 + now.getMinutes();
-      const toMinutes = (t) => {
-        if (!t) return 0;
-        const [h, m] = t.split(':').map(Number);
-        return h * 60 + m;
-      };
-      data.timed.forEach((item) => {
-        const startMin = toMinutes(item.start_time);
-        const endMin = item.end_time ? toMinutes(item.end_time) : startMin;
-        const isNow = nowMinutes >= startMin && nowMinutes <= endMin;
-        const row = scheduleElement('div', `tl-item ${isNow ? 'now' : ''} agenda-${item.kind}`);
-        // 时间列：起止时间独立行，首行与圆点标题中线平齐
-        const time = scheduleElement('div', 'tl-time', '');
-        if (item.end_time && item.end_time !== item.start_time) {
-          time.innerHTML = `<span class="tl-time-start">${item.start_time}</span><span class="tl-time-end">${item.end_time}</span>`;
-        } else {
-          time.innerHTML = `<span class="tl-time-start">${item.start_time}</span>`;
-        }
-        row.append(time);
-        // 中间圆点 + 连线
-        const rail = scheduleElement('div', 'tl-rail');
-        rail.append(scheduleElement('span', 'tl-dot'));
-        rail.append(scheduleElement('span', 'tl-line'));
-        row.append(rail);
-        // 右侧标题 + 子信息
-        const body = scheduleElement('div', 'tl-body');
-        const displayTitle = formatScheduleTitle(item.title);
-        const name = scheduleElement('div', 'tl-name');
-        if (isNow) {
-          const pill = scheduleElement('span', 'now-pill', '现在');
-          name.append(pill);
-        }
-        const textSpan = scheduleElement('span', 'tl-title-text', displayTitle);
-        name.append(textSpan);
-        name.title = item.course ? `${item.course} · ${item.title}` : item.title;
-        body.append(name);
-        const metaText = item.location || item.course;
-        if (metaText) body.append(scheduleElement('div', 'tl-sub', metaText));
-        row.append(body);
-        timeline.append(row);
-      });
-      if (data.deadlines.length) {
-        const group = scheduleElement('div', 'today-deadlines');
-        group.append(scheduleElement('span', '', '今日截止'));
-        data.deadlines.forEach((item) => {
-          const itemEl = scheduleElement('div', 'today-deadline-item');
-          const displayTitle = formatScheduleTitle(item.title);
-          const deadlineEl = scheduleElement('strong', '', `◆ ${displayTitle}`);
-          deadlineEl.title = item.course ? `${item.course} · ${item.title}` : item.title;
-          itemEl.append(deadlineEl);
-          if (item.course) {
-            itemEl.append(scheduleElement('small', 'today-deadline-course', item.course));
-          }
-          group.append(itemEl);
-        });
-        timeline.append(group);
-      }
-      container.append(timeline);
+      return loadForwardAgenda();
     }
 
     function renderTodayScheduleState(title, detail, isError = false) {
@@ -1378,18 +1227,7 @@
     }
 
     async function loadTodaySchedule() {
-      const container = document.getElementById('today-schedule-content');
-      if (container) container.setAttribute('aria-busy', 'true');
-      try {
-        const response = await fetch('/api/schedule/today');
-        const data = await response.json();
-        if (!response.ok || !data.ok) throw new Error(data.error || 'load failed');
-        renderTodaySchedule(data);
-      } catch (error) {
-        renderTodayScheduleState('今日日程加载失败', '请稍后重试', true);
-      } finally {
-        if (container) container.setAttribute('aria-busy', 'false');
-      }
+      return loadForwardAgenda();
     }
 
     const isDemoScheduleLoad = !window.__OPEN_DESIGN_PREVIEW__ && (window.location.protocol === 'file:' || window.location.hostname === '');
@@ -2084,7 +1922,7 @@
           course: '',
           labels: item.labels || [],
           due_str: item.due_date || '',
-          due_ts: item.due_date ? `${item.due_date}T00:00:00` : null,
+          due_ts: item.due_date ? `${item.due_date}T23:59:59+08:00` : null,
           type: '\u81ea\u5b9a\u4e49',
           url: '',
           done: item.done,
@@ -2208,12 +2046,11 @@
         }
 
         const safeUrl = sanitizeExternalUrl(item.url);
-        const titleHtml = safeUrl
-          ? `<a class="ui-list-item__title item-title" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</a>`
-          : item.source === 'custom'
-            ? `<span class="ui-list-item__title item-title item-title-plain editable-title" data-id="${item.rawId}" data-field="text">${escapeHtml(item.title)}</span>`
-            : `<span class="ui-list-item__title item-title item-title-plain">${escapeHtml(item.title)}</span>`;
-
+        const titleHtml = item.source === 'custom'
+          ? `<span class="ui-list-item__title item-title item-title-plain editable-title" data-id="${item.rawId}" data-field="text">${escapeHtml(item.title)}</span>`
+          : (item.source === 'project'
+            ? `<button type="button" class="ui-button ui-button--text ui-list-item__title item-title action-title-button" onclick="openActionDetail('${item.taskId === null ? 'project_due:' + item.projectId : 'project:' + item.projectId + ':' + item.taskId}')">${escapeHtml(item.title)}</button>`
+            : (safeUrl ? `<a class="ui-list-item__title item-title" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</a>` : `<span class="ui-list-item__title item-title item-title-plain">${escapeHtml(item.title)}</span>`));
         const dueHtml = item.source === 'custom'
           ? `<span class="ui-list-item__meta item-due editable-due" data-id="${item.rawId}" data-field="due_date">${item.due_str}</span>`
           : item.source === 'project'

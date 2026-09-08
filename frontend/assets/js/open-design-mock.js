@@ -55,6 +55,19 @@
     "/api/projects/todos": { ok: true, items: [projectTodo] },
     "/api/schedule": { ok: true, courses: { term: "2025-2026 学年春季学期", semester_start: "2026-02-23", updated_at: "2026-07-24T09:00:00", courses: [{ name: "自动控制原理", location: "中法中心 C405", sessions: [{ weekday: 4, start_time: "10:00", end_time: "11:35", location: "中法中心 C405", weeks: [] }] }] }, items: { recurring: [{ id: 1, title: "课题组周会", weekday: 4, start_time: "14:00", end_time: "15:00", location: "嘉定校区", enabled: true, skipped_dates: [] }], one_off: [] } },
     "/api/schedule/today": { ok: true, date: today, timed: [{ kind: "course", title: "自动控制原理", location: "中法中心 C405", start_time: "10:00", end_time: "11:35" }, { kind: "recurring", title: "课题组周会", location: "嘉定校区", start_time: "14:00", end_time: "15:00" }], deadlines: [{ title: "《自动控制原理》第七章课后练习提交", course: "自动控制原理" }] },
+    "/api/agenda": {
+      ok: true,
+      start: today,
+      end: "2026-08-07",
+      days: [
+        {
+          date: today,
+          timed: [{ kind: "course", title: "自动控制原理", location: "中法中心 C405", start_time: "10:00", end_time: "11:35" }, { kind: "recurring", title: "课题组周会", location: "嘉定校区", start_time: "14:00", end_time: "15:00" }],
+          deadlines: [{ title: "《自动控制原理》第七章课后练习提交", course: "自动控制原理", kind: "deadline" }],
+          planned: []
+        }
+      ]
+    },
   };
 
   const originalFetch = window.fetch.bind(window);

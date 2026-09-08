@@ -7,6 +7,7 @@ import pytest
 import app as dashboard_app
 import agent_auth
 import schedule_store
+import user_paths
 
 
 @pytest.fixture
@@ -15,6 +16,7 @@ def client_with_user(tmp_path, monkeypatch):
     user_dir.mkdir(parents=True)
     (user_dir / "custom_todos.json").write_text("[]", encoding="utf-8")
 
+    monkeypatch.setattr(user_paths, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard_app, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard_app, "user_dir", lambda username: user_dir)
     monkeypatch.setattr(agent_auth, "DATA_DIR", tmp_path)
@@ -142,5 +144,7 @@ def test_agent_export_bundles(client_with_user):
         assert "canvas_api.py" in namelist
         assert "README.md" in namelist
         skill_text = zf.read("SKILL.md").decode("utf-8")
-        assert "高信息密度" in skill_text
-        assert "动宾结构" in skill_text
+        assert "planned_on" in skill_text
+        assert "request_id" in skill_text
+        assert "growth" in skill_text
+        compile(zf.read("canvas_api.py"), "canvas_api.py", "exec")

@@ -28,12 +28,12 @@ def test_todo_items_include_category_next_action_and_main_flag(tmp_path, monkeyp
 
     client.post(
         f"/api/projects/{p1['id']}/tasks",
-        json={"name": "数模：确认分工与最小交付", "due_date": "2026-09-14", "is_next_action": True},
+        json={"name": "数模：确认分工与最小交付", "due_date": "2026-09-14", "is_next_action": True, "commitment": "obligation"},
         headers=headers,
     )
     client.post(
         f"/api/projects/{p1['id']}/tasks",
-        json={"name": "两周全局复盘", "due_date": "2026-09-27"},
+        json={"name": "两周全局复盘", "due_date": "2026-09-27", "commitment": "obligation"},
         headers=headers,
     )
 
@@ -41,7 +41,7 @@ def test_todo_items_include_category_next_action_and_main_flag(tmp_path, monkeyp
     p2 = res2.get_json()["project"]
     client.post(
         f"/api/projects/{p2['id']}/tasks",
-        json={"name": "完成一次完整六级诊断并记录分项错因", "due_date": "2026-09-19"},
+        json={"name": "完成一次完整六级诊断并记录分项错因", "due_date": "2026-09-19", "commitment": "obligation"},
         headers=headers,
     )
 

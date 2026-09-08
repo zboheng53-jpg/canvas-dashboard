@@ -33,8 +33,8 @@ def test_business_modules_compose_confirmed_base_components():
         "ui-list-item ui-list-item--interactive todo-row",
         "ui-card ui-card--subtle todo-subtask-panel",
         "ui-list-item todo-subtask-row",
-        "tl-item",
-        "schedule-block",
+        "renderPeriodSchedule(data)",
+        "loadForwardAgenda()",
     )
     for fragment in expected_dashboard_fragments:
         assert fragment in dashboard
