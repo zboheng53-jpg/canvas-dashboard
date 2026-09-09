@@ -25,6 +25,38 @@
     }
   }
 
+  function renderSkillPrompt(token = '', hasToken = false) {
+    const origin = getOrigin();
+    const promptElem = document.getElementById('agent-skill-prompt-code');
+    const updatePromptElem = document.getElementById('agent-skill-update-prompt-code');
+    const copyPromptBtn = document.getElementById('agent-skill-copy-prompt');
+
+    let tokenDisplay = '<YOUR_TOKEN>';
+    if (token) {
+      tokenDisplay = token;
+    } else if (hasToken) {
+      tokenDisplay = '<已激活的Token>';
+    }
+
+    if (promptElem) {
+      promptElem.textContent = `请安装 Canvas Dashboard Skill：${origin}/skill/README.md\n装完告诉我是否需要开启新会话。\n安装器支持时请追加：--server ${origin} --token ${tokenDisplay}`;
+    }
+
+    if (updatePromptElem) {
+      updatePromptElem.textContent = `请把我已安装的 Canvas Dashboard Skill 更新到最新版：${origin}/skill/README.md\n先告诉我它现在装在哪个目录、是否存在重复副本，再替换同一目录。\n更新后开启新会话，用“我今天有什么课？”验证。`;
+    }
+
+    if (copyPromptBtn) {
+      if (token) {
+        copyPromptBtn.textContent = '复制安装提示词';
+      } else if (hasToken) {
+        copyPromptBtn.textContent = '复制安装提示词 (需填入Token)';
+      } else {
+        copyPromptBtn.textContent = '请先生成 Token';
+      }
+    }
+  }
+
   function setAgentStatus(text, type = 'info') {
     const statusElem = document.getElementById('agent-token-status');
     if (!statusElem) return;
@@ -40,6 +72,7 @@
     if (!tokenInput || !createBtn) return;
 
     renderMcpConfig(tokenInput.value || 'YOUR_TOKEN_HERE');
+    renderSkillPrompt(tokenInput.value || '', tokenInput.placeholder.includes('已生成'));
 
     try {
       const data = await dashboardApi.requestJson('/api/agent/token');
@@ -50,6 +83,7 @@
         if (copyBtn) copyBtn.disabled = !tokenInput.value;
         if (revokeBtn) revokeBtn.disabled = false;
         createBtn.textContent = '重新生成 Token';
+        renderSkillPrompt(tokenInput.value || '', true);
         const dateStr = data.created_at ? new Date(data.created_at).toLocaleString() : '';
         setAgentStatus(`Agent Token 已激活${dateStr ? '（创建于 ' + dateStr + '）' : ''}。重新生成会使旧 Token 立即失效。`, 'success');
       } else {
@@ -58,6 +92,7 @@
         if (copyBtn) copyBtn.disabled = true;
         if (revokeBtn) revokeBtn.disabled = true;
         createBtn.textContent = '生成 Agent Token';
+        renderSkillPrompt('', false);
         setAgentStatus('尚未生成 Token。生成后可直接用于 MCP 客户端或 Agent Skill。', 'info');
       }
     } catch (err) {
@@ -90,6 +125,7 @@
       createBtn.textContent = '重新生成 Token';
 
       renderMcpConfig(data.token);
+      renderSkillPrompt(data.token, true);
       setAgentStatus('🎉 Token 已生成！请立即复制并妥善保管，离开本页面后出于安全将隐藏完整密钥。', 'success');
     } catch (err) {
       setAgentStatus('生成 Token 失败，请稍后重试。', 'danger');
@@ -121,6 +157,7 @@
       if (revokeBtn) revokeBtn.disabled = true;
       if (createBtn) createBtn.textContent = '生成 Agent Token';
       renderMcpConfig('YOUR_TOKEN_HERE');
+      renderSkillPrompt('', false);
       setAgentStatus('Token 已成功撤销，旧凭据已失效。', 'info');
     } catch (err) {
       setAgentStatus('撤销 Token 失败，请稍后重试。', 'danger');
@@ -141,6 +178,47 @@
       tokenInput.select();
       document.execCommand('copy');
       setAgentStatus('Token 已成功复制。', 'success');
+    }
+  };
+
+  window.copySkillPrompt = async function copySkillPrompt() {
+    const tokenInput = document.getElementById('agent-token-input');
+    const promptElem = document.getElementById('agent-skill-prompt-code');
+    if (!promptElem) return;
+
+    const hasActiveToken = tokenInput && (tokenInput.value || tokenInput.placeholder.includes('已生成'));
+    if (!hasActiveToken) {
+      setAgentStatus('请先在上方点击“生成 Agent Token”，即可自动填入专属安装提示词。', 'danger');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(promptElem.textContent);
+      if (tokenInput.value) {
+        setAgentStatus('🎉 安装提示词已成功复制到剪贴板！直接粘贴发给你的 AI Agent 即可自动安装。', 'success');
+      } else {
+        setAgentStatus('提示词已复制！若使用的是历史生成的 Token，请将 <已激活的Token> 替换为你保存的 Token，或在上方重新生成。', 'info');
+      }
+    } catch (err) {
+      const range = document.createRange();
+      range.selectNodeContents(promptElem);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      document.execCommand('copy');
+      setAgentStatus('🎉 安装提示词已成功复制！', 'success');
+    }
+  };
+
+  window.copySkillUpdatePrompt = async function copySkillUpdatePrompt() {
+    const updatePromptElem = document.getElementById('agent-skill-update-prompt-code');
+    if (!updatePromptElem) return;
+
+    try {
+      await navigator.clipboard.writeText(updatePromptElem.textContent);
+      setAgentStatus('🎉 更新提示词已成功复制到剪贴板！直接发送给已安装 Skill 的 Agent 即可。', 'success');
+    } catch (err) {
+      setAgentStatus('无法自动复制更新提示词，请手动框选复制。', 'danger');
     }
   };
 

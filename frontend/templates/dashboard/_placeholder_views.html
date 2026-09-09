@@ -616,15 +616,64 @@
         </div>
       </section>
 
-      <!-- MCP 接入卡片 -->
+      <!-- Agent Skill 接入卡片 (推荐 · 极简提示词) -->
+      <section class="ui-card-section settings-item" aria-labelledby="agent-skill-heading">
+        <div class="settings-section-heading">
+          <span class="ui-section-label manager-section-index">第二步 (推荐 · 极简) · Skill</span>
+          <h2 class="ui-card__title" id="agent-skill-heading">Agent Skill 极简接入</h2>
+        </div>
+        <div class="settings-section-content">
+          <p>适用于 <strong>Claude Code</strong>、<strong>Antigravity</strong>、<strong>Cursor</strong>、<strong>Windsurf</strong>、<strong>Codex</strong>、<strong>Gemini CLI</strong> 等支持 Skill 或命令执行的 AI 智能体。</p>
+          <p>无需手动下载或解压配置。复制下方提示词直接发送给你的 AI Agent，Agent 将自动阅读指南并就地安装：</p>
+
+          <div class="agent-code-section">
+            <label class="ui-label settings-field-label">安装提示词（已填入当前服务地址与 Token）</label>
+            <pre class="ui-card agent-code-pre" id="agent-skill-prompt-code"></pre>
+            <div class="calendar-subscription-actions agent-actions-row">
+              <button type="button" class="ui-button ui-button--primary console-stateful-button" id="agent-skill-copy-prompt" onclick="copySkillPrompt()">复制安装提示词</button>
+            </div>
+          </div>
+
+          <div class="agent-code-section">
+            <p><strong>三步快速上手：</strong></p>
+            <ol>
+              <li><strong>发送提示词</strong>：将上方提示词发给你的 Agent，Agent 将自动安装到 <code>~/.agents/skills/canvas-dashboard</code>。</li>
+              <li><strong>开启新会话</strong>：多数 Agent 仅在会话启动时扫描 Skill 目录，新开会话即可生效。</li>
+              <li><strong>提问验证</strong>：直接问“我今天有什么课？在哪个教室？”或“看一下我各平台还有哪些没交的作业”。</li>
+            </ol>
+          </div>
+
+          <!-- 更新与备用操作 -->
+          <details class="settings-disclosure settings-data-disclosure">
+            <summary><span><b>更新已安装的 Skill 或手动下载</b><small>查看更新提示词与完整包</small></span><i aria-hidden="true">⌄</i></summary>
+            <div class="settings-disclosure-content">
+              <div class="agent-code-section">
+                <label class="ui-label settings-field-label">更新提示词（将现有 Skill 升级到最新版）</label>
+                <pre class="ui-card agent-code-pre" id="agent-skill-update-prompt-code"></pre>
+                <div class="calendar-subscription-actions agent-actions-row">
+                  <button type="button" class="ui-button ui-button--secondary console-stateful-button" onclick="copySkillUpdatePrompt()">复制更新提示词</button>
+                </div>
+              </div>
+              <div class="agent-download-row">
+                <a href="/api/agent/export/skill-bundle.zip" download class="ui-button ui-button--secondary">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" class="agent-button-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m4-5 5 5 5-5m-5 5V3"></path></svg>
+                  手动下载完整 Skill 包 (.zip)
+                </a>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <!-- MCP 接入卡片 (协议接入) -->
       <section class="ui-card-section settings-item" aria-labelledby="agent-mcp-heading">
         <div class="settings-section-heading">
-          <span class="ui-section-label manager-section-index">第二步 (推荐) · MCP</span>
+          <span class="ui-section-label manager-section-index">第三步 (可选 · 协议) · MCP</span>
           <h2 class="ui-card__title" id="agent-mcp-heading">Model Context Protocol (MCP)</h2>
         </div>
         <div class="settings-section-content">
-          <p>适用于 <strong>Claude Desktop</strong>、<strong>Cursor</strong>、<strong>VS Code Cline</strong>、<strong>Windsurf</strong> 等支持 MCP 的 AI 工具。</p>
-          <p>基于标准 Python 3 标准库（零额外依赖），开箱即用，通过 stdio 进程向 Agent 提供 7 个原生工具。</p>
+          <p>适用于 <strong>Claude Desktop</strong>、<strong>Cursor</strong>、<strong>VS Code Cline</strong>、<strong>Windsurf</strong> 等支持 MCP 的桌面端客户端。</p>
+          <p>基于 Python 3 标准库（零额外依赖），开箱即用，通过 stdio 进程向 Agent 提供 7 个原生工具。</p>
 
           <div class="agent-download-row">
             <a href="/api/agent/export/mcp-bundle.zip" download class="ui-button ui-button--primary">
@@ -640,24 +689,6 @@
             <label class="ui-label settings-field-label">Claude Desktop / Cursor 配置代码（已填入当前服务地址）</label>
             <pre class="ui-card agent-code-pre" id="agent-mcp-config-code"></pre>
             <button type="button" class="ui-button ui-button--secondary console-stateful-button" id="agent-mcp-copy-config" onclick="copyAgentMcpConfig()">复制配置 JSON</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Agent Skill 接入卡片 -->
-      <section class="ui-card-section settings-item" aria-labelledby="agent-skill-heading">
-        <div class="settings-section-heading">
-          <span class="ui-section-label manager-section-index">第二步 (备选) · Skill</span>
-          <h2 class="ui-card__title" id="agent-skill-heading">Agent Skill 技能包</h2>
-        </div>
-        <div class="settings-section-content">
-          <p>适用于 <strong>Claude Code</strong>、<strong>Antigravity</strong>、自定义命令行 Agent 或基于 REST API 的 AI 智能体。</p>
-          <p>内含标准化 <code>SKILL.md</code> 技能指引与 Python API 调用客户端，解压放入 Agent 的 <code>.agents/skills</code> 目录即可自动识别。</p>
-          <div class="agent-skill-actions">
-            <a href="/api/agent/export/skill-bundle.zip" download class="ui-button ui-button--secondary">
-              <svg viewBox="0 0 24 24" aria-hidden="true" class="agent-button-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m4-5 5 5 5-5m-5 5V3"></path></svg>
-              下载 Agent Skill 包 (.zip)
-            </a>
           </div>
         </div>
       </section>
