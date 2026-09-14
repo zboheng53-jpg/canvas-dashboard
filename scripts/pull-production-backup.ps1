@@ -29,7 +29,7 @@ function Invoke-RemoteBackupCommand {
     param([string]$Command, [string]$Description)
 
     for ($attempt = 1; $attempt -le 3; $attempt++) {
-        & ssh @SshOptions $Remote $Command
+        & ssh -n @SshOptions $Remote $Command
         if ($LASTEXITCODE -eq 0) {
             return
         }
@@ -94,7 +94,7 @@ if ($CreateBackup) {
     Invoke-RemoteBackupCommand -Command "sudo install -d -m 0755 /etc/canvas-dashboard && sudo install -m 0644 /home/ubuntu/canvas-dashboard/incoming/backup-public.pem /etc/canvas-dashboard/backup-public.pem && sudo bash /home/ubuntu/canvas-dashboard/incoming/run-backup.sh" -Description "Production backup creation"
 }
 
-$LatestRemote = (& ssh @SshOptions $Remote "ls -1t /home/ubuntu/canvas-dashboard/backups/*.cdbak 2>/dev/null | head -1").Trim()
+$LatestRemote = (& ssh -n @SshOptions $Remote "ls -1t /home/ubuntu/canvas-dashboard/backups/*.cdbak 2>/dev/null | head -1").Trim()
 if ($LASTEXITCODE -ne 0 -or -not $LatestRemote) {
     throw "No production encrypted backup is available."
 }
