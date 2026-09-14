@@ -25,7 +25,7 @@ $TarFile = Join-Path $RepoRoot "$ReleaseName.tar.gz"
 function Invoke-DeploySsh {
     param([string]$Command, [string]$Description)
     for ($attempt = 1; $attempt -le 3; $attempt++) {
-        & ssh @SshOptions $Remote $Command
+        & ssh -n @SshOptions $Remote $Command
         if ($LASTEXITCODE -eq 0) { return }
         if ($attempt -lt 3) { Start-Sleep -Seconds (5 * $attempt) }
     }
