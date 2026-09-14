@@ -83,7 +83,7 @@
 @media (min-width: 961px) {
   .todo-row { padding-top: 8px !important; padding-bottom: 8px !important; }
   .todo-row .action-title-button { min-height: 0; height: auto; line-height: 1.4; }
-  .todo-group-heading { padding-top: 8px !important; padding-bottom: 6px !important; }
+  .todo-group-heading { padding-top: 4px !important; padding-bottom: 6px !important; }
   #dashboard-view-schedule .schedule-manager-heading { padding-top: 14px !important; padding-bottom: 14px !important; }
   #dashboard-view-schedule .schedule-grid-wrapper { display: flex; flex-direction: column; overflow: hidden; }
   #schedule-grid-header.period-grid { flex: 0 0 auto; }

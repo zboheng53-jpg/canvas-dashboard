@@ -575,20 +575,20 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
 
 /* 分组标签：serif 16px 600，贴近设计稿 .grouplabel */
 .todo-group {
-  margin-top: 20px !important;
-  padding-top: 14px !important;
+  margin-top: 0 !important;
+  padding-top: 12px !important;
   border-top: 1px solid var(--ds-line-soft, #eef0f3) !important;
 }
 .todo-group:first-child {
   margin-top: 0 !important;
-  padding-top: 4px !important;
+  padding-top: 2px !important;
   border-top: none !important;
 }
 .todo-group-heading {
   display: flex !important;
   align-items: baseline !important;
   gap: 8px !important;
-  padding: 8px 18px 6px !important;
+  padding: 4px 18px 6px !important;
   margin-bottom: 2px !important;
   border-bottom: none !important;
 }
