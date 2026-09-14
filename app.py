@@ -512,8 +512,24 @@ def _calendar_items(username):
                 "course": todo.get("text"),
             })
 
+    def is_eligible(platform, legacy_default):
+        if platform_sync.is_calendar_eligible(username, platform, legacy_default=legacy_default):
+            return True
+        status = platform_sync.get(username, platform)
+        if status.get("connection_state") == "disconnected":
+            return False
+        if platform == "canvas" and has_feed_url(username):
+            return True
+        if platform == "haoke" and has_haoke_credentials(username):
+            return True
+        if platform == "zhixuemeng" and has_zxm_token(username):
+            return True
+        if platform == "zhihuishu" and zhihuishu_store.has_cookies(username):
+            return True
+        return status.get("connection_state") == "connected"
+
     def add_cached(source, platform, cached_items, state, legacy_connected):
-        if not platform_sync.is_calendar_eligible(username, platform, legacy_default=legacy_connected):
+        if not is_eligible(platform, legacy_connected):
             return
         hidden = set(state.get("hidden", []))
         deleted = set(state.get("deleted", []))
@@ -524,13 +540,27 @@ def _calendar_items(username):
             override = overrides.get(str(item_id), {})
             due_ts = override.get("due_ts", item.get("due_ts"))
             due_at = _parse_calendar_due(due_ts)
-            if item_id in hidden or item_id in deleted or item_id in completed or item.get("done") or due_at is None or due_at < now:
+            due_date = item.get("due_date")
+            if item_id in hidden or item_id in deleted or item_id in completed or item.get("done"):
+                continue
+            if due_at is not None:
+                if due_at < now - timedelta(days=30):
+                    continue
+            elif due_date:
+                try:
+                    d = date.fromisoformat(str(due_date))
+                    if d < (now - timedelta(days=30)).date():
+                        continue
+                except ValueError:
+                    continue
+            else:
                 continue
             items.append({
                 "source": source,
                 "id": item_id,
                 "title": override.get("title", item.get("title")),
                 "due_ts": due_ts,
+                "due_date": due_date,
                 "course": item.get("course"),
                 "url": item.get("url"),
             })
@@ -550,6 +580,151 @@ def _calendar_items(username):
             "due_date": item["due_date"],
             "course": item["project_name"],
         })
+
+    courses_data = schedule_store.load_courses(username)
+    sem_start = courses_data.get("semester_start")
+    if not sem_start:
+        try:
+            _, _, sem_start = get_term_info()
+        except Exception:
+            sem_start = None
+
+    if sem_start and courses_data.get("courses"):
+        try:
+            sem_start_date = date.fromisoformat(sem_start)
+        except ValueError:
+            sem_start_date = None
+
+        if sem_start_date:
+            for c_idx, course in enumerate(courses_data["courses"]):
+                c_name = course.get("name") or "课程"
+                c_code = course.get("code") or course.get("id") or f"c{c_idx}"
+                c_teacher = course.get("teacher") or ""
+                for s_idx, session in enumerate(course.get("sessions") or []):
+                    weekday = session.get("weekday")
+                    start_time = session.get("start_time")
+                    end_time = session.get("end_time")
+                    if weekday is None or not start_time or not end_time:
+                        continue
+                    s_loc = session.get("location") or course.get("location") or ""
+                    weeks = session.get("weeks")
+                    parity = session.get("parity")
+                    date_start = session.get("date_start")
+                    date_end = session.get("date_end")
+
+                    if date_start and date_end:
+                        try:
+                            ds = date.fromisoformat(date_start)
+                            de = date.fromisoformat(date_end)
+                            curr = ds
+                            while curr <= de:
+                                if curr.weekday() == weekday:
+                                    day_iso = curr.isoformat()
+                                    uid = f"course-{c_code}-{s_idx}-{day_iso}@canvas-dashboard"
+                                    desc_lines = [f"课程: {c_name}"]
+                                    if s_loc:
+                                        desc_lines.append(f"地点: {s_loc}")
+                                    if c_teacher:
+                                        desc_lines.append(f"教师: {c_teacher}")
+                                    if c_code:
+                                        desc_lines.append(f"代码: {c_code}")
+                                    items.append({
+                                        "source": "Course",
+                                        "uid": uid,
+                                        "title": c_name,
+                                        "start_dt": f"{day_iso}T{start_time}:00",
+                                        "end_dt": f"{day_iso}T{end_time}:00",
+                                        "location": s_loc,
+                                        "course": c_name,
+                                        "description": "\n".join(desc_lines),
+                                    })
+                                curr += timedelta(days=1)
+                        except ValueError:
+                            pass
+                        continue
+
+                    target_weeks = weeks if (weeks and isinstance(weeks, list)) else list(range(1, 19))
+                    for w in target_weeks:
+                        if parity == "odd" and w % 2 == 0:
+                            continue
+                        if parity == "even" and w % 2 != 0:
+                            continue
+                        sess_date = sem_start_date + timedelta(weeks=w - 1, days=weekday)
+                        day_iso = sess_date.isoformat()
+                        uid = f"course-{c_code}-{s_idx}-{day_iso}@canvas-dashboard"
+                        desc_lines = [f"课程: {c_name}"]
+                        if s_loc:
+                            desc_lines.append(f"地点: {s_loc}")
+                        if c_teacher:
+                            desc_lines.append(f"教师: {c_teacher}")
+                        if c_code:
+                            desc_lines.append(f"代码: {c_code}")
+                        desc_lines.append(f"第 {w} 周")
+                        items.append({
+                            "source": "Course",
+                            "uid": uid,
+                            "title": c_name,
+                            "start_dt": f"{day_iso}T{start_time}:00",
+                            "end_dt": f"{day_iso}T{end_time}:00",
+                            "location": s_loc,
+                            "course": c_name,
+                            "description": "\n".join(desc_lines),
+                        })
+
+    sched_items = schedule_store.load_items(username)
+    for item in sched_items.get("one_off", []):
+        if item.get("occurrence_done"):
+            continue
+        i_date = item.get("date")
+        s_time = item.get("start_time")
+        e_time = item.get("end_time")
+        if not i_date or not s_time or not e_time:
+            continue
+        uid = f"schedule-oneoff-{item.get('id')}@canvas-dashboard"
+        items.append({
+            "source": "Schedule",
+            "uid": uid,
+            "title": item.get("title") or "排程事项",
+            "start_dt": f"{i_date}T{s_time}:00",
+            "end_dt": f"{i_date}T{e_time}:00",
+            "location": item.get("location") or "",
+            "description": item.get("details") or "",
+        })
+
+    for item in sched_items.get("recurring", []):
+        if not item.get("enabled", True):
+            continue
+        weekday = item.get("weekday")
+        s_time = item.get("start_time")
+        e_time = item.get("end_time")
+        if weekday is None or not s_time or not e_time:
+            continue
+        start_limit = item.get("start_date") or (now - timedelta(days=14)).date().isoformat()
+        end_limit = item.get("end_date") or (now + timedelta(days=120)).date().isoformat()
+        skipped = set(item.get("skipped_dates") or [])
+        completed = set(item.get("completed_dates") or [])
+        try:
+            curr_d = date.fromisoformat(start_limit)
+            end_d = date.fromisoformat(end_limit)
+            while curr_d.weekday() != weekday:
+                curr_d += timedelta(days=1)
+            while curr_d <= end_d:
+                day_iso = curr_d.isoformat()
+                if day_iso not in skipped and day_iso not in completed:
+                    uid = f"schedule-recurring-{item.get('id')}-{day_iso}@canvas-dashboard"
+                    items.append({
+                        "source": "Schedule",
+                        "uid": uid,
+                        "title": item.get("title") or "周期事项",
+                        "start_dt": f"{day_iso}T{s_time}:00",
+                        "end_dt": f"{day_iso}T{e_time}:00",
+                        "location": item.get("location") or "",
+                        "description": item.get("details") or "",
+                    })
+                curr_d += timedelta(weeks=1)
+        except ValueError:
+            pass
+
     return items
 
 

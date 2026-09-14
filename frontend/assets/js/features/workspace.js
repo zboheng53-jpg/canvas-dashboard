@@ -190,6 +190,8 @@ function agendaEventButton(event) {
   button.append(wNode('span', 'period-event-time', time), wNode('strong', 'period-event-title', event.title));
   const meta = [event.location, event.link_missing ? '原事项已移除' : '', event.occurrence_done ? '本次已完成' : ''].filter(Boolean).join(' · ');
   if (meta) button.append(wNode('small', '', meta));
+  const tooltip = [event.title, time, meta].filter(Boolean).join('\n');
+  button.title = tooltip;
   button.addEventListener('click', () => openAgendaEntry(event));
   return button;
 }
@@ -250,19 +252,26 @@ function fitPeriodCells() {
     const list = cell.querySelector('.period-cell-events');
     const more = cell.querySelector('.period-more');
     const events = [...list.querySelectorAll('.period-event')];
-    events.forEach(event => { event.hidden = false; });
-    more.hidden = true;
-    if (!desktop || !cell.clientHeight) return;
-    const gap = parseFloat(getComputedStyle(list).gap) || 0;
-    let used = 0, visible = 0;
-    for (const event of events) {
-      const height = event.getBoundingClientRect().height;
-      if (used + height > list.clientHeight + .5) break;
-      used += height + gap; visible++;
+    if (!desktop || !cell.clientHeight) {
+      more.hidden = true;
+      return;
     }
-    events.slice(visible).forEach(event => { event.hidden = true; });
-    const hidden = events.length - visible;
-    if (hidden) { more.textContent = visible ? `还有 ${hidden} 项` : `查看 ${hidden} 项`; more.hidden = false; }
+    const hasOverflow = list.scrollHeight > list.clientHeight + 1;
+    if (hasOverflow) {
+      const gap = parseFloat(getComputedStyle(list).gap) || 0;
+      let used = 0, visible = 0;
+      for (const event of events) {
+        const height = event.getBoundingClientRect().height;
+        if (used + height > list.clientHeight + .5) break;
+        used += height + gap; visible++;
+      }
+      const hidden = Math.max(1, events.length - visible);
+      more.textContent = `还有 ${hidden} 项`;
+      more.title = '可在此格内滚轮滑动查看，或点击查看全部';
+      more.hidden = false;
+    } else {
+      more.hidden = true;
+    }
   });
 }
 function openPeriodEntries(day, band, entries) {

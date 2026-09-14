@@ -5,6 +5,7 @@ import pytest
 import app as dashboard_app
 import apple_calendar
 import project_store
+import schedule_store
 import user_paths
 import zhihuishu_store
 
@@ -235,3 +236,85 @@ def test_calendar_subscription_is_unavailable_until_https_activation(calendar_cl
     assert created.status_code == 404
     with dashboard_app.app.test_client() as anonymous_client:
         assert anonymous_client.get("/calendar/not-a-token.ics").status_code == 404
+
+
+def test_calendar_subscription_includes_courses_and_schedule_items(calendar_client):
+    client, user_dir = calendar_client
+    schedule_store.save_courses(
+        "alice",
+        term="2026-2027学年 第一学期",
+        semester_start="2026-09-07",
+        courses=[
+            {
+                "name": "概率论与数理统计",
+                "code": "MATH101",
+                "teacher": "张老师",
+                "location": "四平路校区 · 北101",
+                "sessions": [
+                    {
+                        "weekday": 0,
+                        "start_time": "08:00",
+                        "end_time": "09:35",
+                        "location": "四平路校区 · 北101",
+                        "weeks": [1, 2],
+                    }
+                ],
+            }
+        ],
+        updated_at="2026-09-08T10:00:00+08:00",
+    )
+    schedule_store.create_item("alice", "one_off", {
+        "title": "晚间复盘",
+        "date": "2026-09-14",
+        "start_time": "19:00",
+        "end_time": "19:30",
+        "location": "自习室",
+    })
+
+    created = client.post("/api/apple-calendar/subscription", headers=client.csrf_headers)
+    assert created.status_code == 200
+    path = created.get_json()["path"]
+
+    with dashboard_app.app.test_client() as anonymous_client:
+        response = anonymous_client.get(path)
+
+    assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert "SUMMARY:概率论与数理统计" in body
+    assert "LOCATION:四平路校区 · 北101" in body
+    assert "DTSTART;TZID=Asia/Shanghai:20260907T080000" in body
+    assert "DTEND;TZID=Asia/Shanghai:20260907T093500" in body
+    assert "DTSTART;TZID=Asia/Shanghai:20260914T080000" in body
+    assert "DTEND;TZID=Asia/Shanghai:20260914T093500" in body
+    assert "SUMMARY:晚间复盘" in body
+    assert "LOCATION:自习室" in body
+    assert "DTSTART;TZID=Asia/Shanghai:20260914T190000" in body
+
+
+def test_calendar_subscription_includes_recent_assignments_and_midnight(calendar_client):
+    client, user_dir = calendar_client
+    now = dashboard_app.datetime.now(dashboard_app.CST)
+    today_iso = now.date().isoformat()
+    user_dir("alice").joinpath("canvas_cache.json").write_text(
+        json.dumps([
+            {"id": 101, "title": "今日零点截止作业", "due_ts": f"{today_iso}T00:00:00+08:00", "course": "自动控制"},
+            {"id": 102, "title": "两周前逾期作业", "due_ts": f"{(now - dashboard_app.timedelta(days=14)).isoformat()}", "course": "计算机网络"},
+            {"id": 103, "title": "两月前逾期过久作业", "due_ts": f"{(now - dashboard_app.timedelta(days=60)).isoformat()}", "course": "过旧课程"},
+        ]),
+        encoding="utf-8",
+    )
+    user_dir("alice").joinpath("canvas_state.json").write_text('{"hidden": [], "highlighted": [], "deleted": []}', encoding="utf-8")
+
+    created = client.post("/api/apple-calendar/subscription", headers=client.csrf_headers)
+    assert created.status_code == 200
+    path = created.get_json()["path"]
+
+    with dashboard_app.app.test_client() as anonymous_client:
+        response = anonymous_client.get(path)
+
+    assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert "今日零点截止作业" in body
+    assert "两周前逾期作业" in body
+    assert "两月前逾期过久作业" not in body
+
