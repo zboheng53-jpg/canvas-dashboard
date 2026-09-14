@@ -1143,6 +1143,34 @@ async function completeProjectTodo(projectId, taskId, kind) {
   }
 }
 
+async function deleteProjectTodo(projectId, taskId, kind) {
+  if (kind === "project_due") {
+    if (!projectById(projectId)) await loadProjects(projectId);
+    const project = projectById(projectId);
+    const name = project?.name || "该项目";
+    showProjectConfirm(
+      "清除截止日期",
+      `确定要清除“${name}”的项目截止日期吗？清除后此项将不再显示在待办列表中。`,
+      "清除截止日期",
+      async () => {
+        try {
+          await projectRequest(`/api/projects/${projectId}`, {
+            method: "PUT",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({due_date: null}),
+          });
+          await refreshProjectSurfaces();
+        } catch (error) {
+          setProjectStatus("清除项目截止日期失败", true);
+        }
+      }
+    );
+    return;
+  }
+  if (!projectById(projectId)) await loadProjects(projectId);
+  confirmDeleteProjectTask(projectId, taskId);
+}
+
 function startProjectTodoDueEdit(button) {
   const projectId = Number(button.dataset.projectId);
   const taskId = Number(button.dataset.taskId) || null;

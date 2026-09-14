@@ -979,7 +979,7 @@ def test_frontend_project_main_card_groups_tasks_and_todo_jump(live_app, browser
     expect(page.locator("#todo-list .todo-row")).to_have_count(3)
     project_task = page.locator("#todo-list .todo-row").filter(has_text="完成 NumPy 数组练习")
     expect(project_task).to_be_visible()
-    expect(project_task.locator(".btn-delete")).to_have_count(0)
+    expect(project_task.locator(".item-desktop-actions .btn-delete")).to_have_count(1)
     project_task.locator(".project-todo-link").click()
     expect(page.locator("#dashboard-view-projects")).to_be_visible()
     expect(page.locator("#project-detail")).to_contain_text("Python 学习")
