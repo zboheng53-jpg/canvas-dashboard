@@ -68,7 +68,25 @@ def _description(item: dict) -> str | None:
     return "\n".join(part for part in parts if part) or None
 
 
-def build_calendar(username: str, items: list[dict], now: datetime) -> str:
+SOURCE_CATEGORIES = {
+    "course": ("Course", "#2563EB"),
+    "canvas": ("Assignment", "#DC2626"),
+    "haoke": ("Assignment", "#DC2626"),
+    "zhixuemeng": ("Assignment", "#DC2626"),
+    "zhihuishu": ("Assignment", "#DC2626"),
+    "custom": ("Assignment", "#DC2626"),
+    "project": ("Project", "#EA580C"),
+    "schedule": ("Schedule", "#059669"),
+}
+
+
+def build_calendar(
+    username: str,
+    items: list[dict],
+    now: datetime,
+    cal_name: str | None = None,
+    cal_color: str | None = None,
+) -> str:
     del username
     now_utc = now.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     lines = [
@@ -77,6 +95,12 @@ def build_calendar(username: str, items: list[dict], now: datetime) -> str:
         "PRODID:-//Canvas Dashboard//Apple Calendar//EN",
         "CALSCALE:GREGORIAN",
     ]
+    resolved_calname = cal_name or "Canvas Dashboard"
+    lines.append(f"X-WR-CALNAME:{_escape_ics(resolved_calname)}")
+    lines.append(f"NAME:{_escape_ics(resolved_calname)}")
+    if cal_color:
+        lines.append(f"X-APPLE-CALENDAR-COLOR:{cal_color}")
+
     for item in items:
         if item.get("done"):
             continue
@@ -89,6 +113,13 @@ def build_calendar(username: str, items: list[dict], now: datetime) -> str:
             f"UID:{event_uid}",
             f"DTSTAMP:{now_utc}",
         ]
+        cat_info = SOURCE_CATEGORIES.get(source, ("Other", None))
+        item_category = item.get("category") or cat_info[0]
+        item_color = item.get("color") or cat_info[1]
+        if item_category:
+            event_lines.append(f"CATEGORIES:{_escape_ics(item_category)}")
+        if item_color:
+            event_lines.append(f"COLOR:{item_color}")
         start_dt = item.get("start_dt")
         end_dt = item.get("end_dt")
         due_ts = item.get("due_ts")

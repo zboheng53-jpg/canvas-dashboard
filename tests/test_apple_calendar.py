@@ -87,3 +87,32 @@ def test_calendar_uses_explicit_stable_uid_and_skips_one_invalid_item():
     assert "UID:project-due-7@canvas-dashboard" in calendar
     assert "SUMMARY:新任务名 · 新项目名" in calendar
     assert "非法日期" not in calendar
+
+
+def test_calendar_metadata_and_categories_in_ics():
+    cst = timezone(timedelta(hours=8))
+    calendar = apple_calendar.build_calendar(
+        "alice",
+        [
+            {"source": "Course", "id": 1, "title": "概率论", "start_dt": "2026-09-14T08:00:00+08:00", "end_dt": "2026-09-14T09:35:00+08:00"},
+            {"source": "Canvas", "id": 2, "title": "作业1", "due_ts": "2026-09-15T23:59:00+08:00"},
+            {"source": "Project", "id": 3, "title": "论文推进", "due_date": "2026-09-16"},
+            {"source": "Schedule", "id": 4, "title": "晚自习", "start_dt": "2026-09-14T19:00:00+08:00", "end_dt": "2026-09-14T21:00:00+08:00"},
+        ],
+        now=datetime(2026, 9, 14, 8, 0, tzinfo=cst),
+        cal_name="Canvas Dashboard · 课表",
+        cal_color="#2563EB",
+    )
+
+    assert "X-WR-CALNAME:Canvas Dashboard · 课表" in calendar
+    assert "NAME:Canvas Dashboard · 课表" in calendar
+    assert "X-APPLE-CALENDAR-COLOR:#2563EB" in calendar
+    assert "CATEGORIES:Course" in calendar
+    assert "COLOR:#2563EB" in calendar
+    assert "CATEGORIES:Assignment" in calendar
+    assert "COLOR:#DC2626" in calendar
+    assert "CATEGORIES:Project" in calendar
+    assert "COLOR:#EA580C" in calendar
+    assert "CATEGORIES:Schedule" in calendar
+    assert "COLOR:#059669" in calendar
+

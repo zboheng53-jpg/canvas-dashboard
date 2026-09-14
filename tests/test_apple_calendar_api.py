@@ -318,3 +318,114 @@ def test_calendar_subscription_includes_recent_assignments_and_midnight(calendar
     assert "两周前逾期作业" in body
     assert "两月前逾期过久作业" not in body
 
+
+def test_calendar_category_subscriptions_isolation(calendar_client):
+    client, user_dir = calendar_client
+    # 1. Add course
+    schedule_store.save_courses(
+        "alice",
+        term="2026-2027学年 第一学期",
+        semester_start="2026-09-07",
+        courses=[
+            {
+                "name": "高等数学",
+                "code": "MATH001",
+                "sessions": [
+                    {"weekday": 0, "start_time": "10:00", "end_time": "11:35", "weeks": [1]}
+                ],
+            }
+        ],
+        updated_at="2026-09-08T10:00:00+08:00",
+    )
+    # 2. Add assignment
+    user_dir("alice").joinpath("custom_todos.json").write_text(
+        json.dumps([{"id": 1, "text": "高数作业第一章", "due_date": "2026-09-14", "done": False}]),
+        encoding="utf-8",
+    )
+    # 3. Add project
+    project = project_store.create_project("alice", {"name": "考研复习"})
+    project_store.create_task("alice", project["id"], {"name": "背单词50个", "due_date": "2026-09-14"})
+    # 4. Add schedule item
+    schedule_store.create_item("alice", "one_off", {
+        "title": "图书馆打卡",
+        "date": "2026-09-14",
+        "start_time": "14:00",
+        "end_time": "16:00",
+    })
+
+    created = client.post("/api/apple-calendar/subscription", headers=client.csrf_headers)
+    assert created.status_code == 200
+    res_data = created.get_json()
+    assert res_data["ok"] is True
+    feeds = {f["id"]: f for f in res_data["feeds"]}
+    assert set(feeds.keys()) == {"courses", "assignments", "projects", "schedule", "all"}
+    token = res_data["token"]
+
+    with dashboard_app.app.test_client() as anonymous_client:
+        # Courses only
+        res = anonymous_client.get(f"/calendar/{token}/courses.ics")
+        assert res.status_code == 200
+        body = res.get_data(as_text=True)
+        assert "高等数学" in body
+        assert "X-WR-CALNAME:Canvas Dashboard · 课表" in body
+        assert "X-APPLE-CALENDAR-COLOR:#2563EB" in body
+        assert "高数作业第一章" not in body
+        assert "背单词50个" not in body
+        assert "图书馆打卡" not in body
+
+        # Query param ?category=courses should match
+        res_qp = anonymous_client.get(f"/calendar/{token}.ics?category=courses")
+        assert res_qp.status_code == 200
+        assert "高等数学" in res_qp.get_data(as_text=True)
+        assert "高数作业第一章" not in res_qp.get_data(as_text=True)
+
+        # Assignments only
+        res = anonymous_client.get(f"/calendar/{token}/assignments.ics")
+        assert res.status_code == 200
+        body = res.get_data(as_text=True)
+        assert "高数作业第一章" in body
+        assert "X-WR-CALNAME:Canvas Dashboard · 作业" in body
+        assert "X-APPLE-CALENDAR-COLOR:#DC2626" in body
+        assert "高等数学" not in body
+        assert "背单词50个" not in body
+        assert "图书馆打卡" not in body
+
+        # Projects only
+        res = anonymous_client.get(f"/calendar/{token}/projects.ics")
+        assert res.status_code == 200
+        body = res.get_data(as_text=True)
+        assert "背单词50个" in body
+        assert "X-WR-CALNAME:Canvas Dashboard · 计划" in body
+        assert "X-APPLE-CALENDAR-COLOR:#EA580C" in body
+        assert "高等数学" not in body
+        assert "高数作业第一章" not in body
+        assert "图书馆打卡" not in body
+
+        # Schedule only
+        res = anonymous_client.get(f"/calendar/{token}/schedule.ics")
+        assert res.status_code == 200
+        body = res.get_data(as_text=True)
+        assert "图书馆打卡" in body
+        assert "X-WR-CALNAME:Canvas Dashboard · 日程" in body
+        assert "X-APPLE-CALENDAR-COLOR:#059669" in body
+        assert "高等数学" not in body
+        assert "高数作业第一章" not in body
+        assert "背单词50个" not in body
+
+        # All-in-one
+        res = anonymous_client.get(f"/calendar/{token}.ics")
+        assert res.status_code == 200
+        body = res.get_data(as_text=True)
+        assert "高等数学" in body
+        assert "高数作业第一章" in body
+        assert "背单词50个" in body
+        assert "图书馆打卡" in body
+
+        # Invalid category
+        assert anonymous_client.get(f"/calendar/{token}/nonexistent.ics").status_code == 404
+        assert anonymous_client.get(f"/calendar/{token}.ics?category=nonexistent").status_code == 404
+
+        # Invalid token
+        assert anonymous_client.get("/calendar/wrong-token/courses.ics").status_code == 404
+
+

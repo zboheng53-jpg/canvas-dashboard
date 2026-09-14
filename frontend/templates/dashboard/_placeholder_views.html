@@ -563,21 +563,26 @@
 
       <section class="ui-card calendar-subscription-workspace" aria-labelledby="calendar-subscription-link-heading">
         <div class="calendar-subscription-copy">
-          <span class="ui-section-label manager-section-index">订阅链接</span>
-          <h2 class="ui-card__title" id="calendar-subscription-link-heading">当前私密地址</h2>
-          <p class="ui-card__copy">该地址等同于访问凭证。重新生成会立即使旧链接失效。</p>
-        </div>
-        <div class="calendar-subscription-url">
-          <label class="ui-label settings-field-label" for="calendar-subscription-url">私密订阅地址</label>
-          <input type="text" id="calendar-subscription-url" readonly aria-describedby="calendar-subscription-status" placeholder="尚未生成订阅链接" class="ui-control">
+          <span class="ui-section-label manager-section-index">订阅管理</span>
+          <h2 class="ui-card__title" id="calendar-subscription-link-heading">私密订阅与分类日历</h2>
+          <p class="ui-card__copy">在 Apple 日历中分别订阅各分类，即可呈现不同专属颜色并自由开关。</p>
         </div>
         <div class="calendar-subscription-actions">
           <button type="button" class="ui-button ui-button--primary calendar-panel-primary console-stateful-button" id="calendar-subscription-create" aria-busy="false" onclick="createCalendarSubscription()">生成订阅链接</button>
-          <button type="button" id="calendar-subscription-open" onclick="openCalendarSubscription()" disabled class="ui-button ui-button--secondary">在日历中打开</button>
-          <button type="button" class="ui-button ui-button--secondary console-stateful-button" id="calendar-subscription-copy" aria-busy="false" onclick="copyCalendarSubscription()" disabled>复制链接</button>
-          <button type="button" class="ui-button ui-button--danger calendar-panel-revoke console-stateful-button" id="calendar-subscription-revoke" aria-busy="false" onclick="revokeCalendarSubscription()" disabled>撤销链接</button>
+          <button type="button" id="calendar-subscription-open" onclick="openCalendarSubscription()" disabled class="ui-button ui-button--secondary">在日历中打开综合订阅</button>
+          <button type="button" class="ui-button ui-button--secondary console-stateful-button" id="calendar-subscription-copy" aria-busy="false" onclick="copyCalendarSubscription()" disabled>复制综合链接</button>
+          <button type="button" class="ui-button ui-button--danger calendar-panel-revoke console-stateful-button" id="calendar-subscription-revoke" aria-busy="false" onclick="revokeCalendarSubscription()" disabled>撤销所有链接</button>
         </div>
-        <p class="ui-feedback ui-feedback--info calendar-subscription-status" id="calendar-subscription-status" role="status" aria-live="polite">生成链接后，可直接添加到 Apple 日历。</p>
+        <p class="ui-feedback ui-feedback--info calendar-subscription-status" id="calendar-subscription-status" role="status" aria-live="polite">生成链接后，可直接将各分类添加到 Apple 日历以显示不同颜色。</p>
+
+        <div id="calendar-feeds-container" class="calendar-feeds-container hidden">
+          <!-- 动态分类日历列表 -->
+        </div>
+
+        <div class="calendar-subscription-url" id="calendar-subscription-url-wrap">
+          <label class="ui-label settings-field-label" for="calendar-subscription-url">全能综合订阅地址（包含全部日程）</label>
+          <input type="text" id="calendar-subscription-url" readonly aria-describedby="calendar-subscription-status" placeholder="尚未生成订阅链接" class="ui-control">
+        </div>
       </section>
     </div>
   </div>

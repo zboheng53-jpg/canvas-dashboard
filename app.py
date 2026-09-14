@@ -93,6 +93,7 @@ _LOGIN_EXEMPT_ENDPOINTS = {
     "api_auth_register",
     "api_auth_login",
     "calendar_subscription",
+    "calendar_category_subscription",
     "healthz",
     "site_password_reset_page",
     "api_auth_password_reset",
@@ -484,246 +485,302 @@ def _parse_calendar_due(value):
     return due_at.astimezone(CST)
 
 
-def _calendar_items(username):
+CALENDAR_CATEGORIES = {
+    "all": {
+        "id": "all",
+        "name": "Canvas Dashboard · 综合",
+        "color": "#4F46E5",
+        "description": "全部课程、作业待办、项目计划与日常排程",
+    },
+    "courses": {
+        "id": "courses",
+        "name": "Canvas Dashboard · 课表",
+        "color": "#2563EB",
+        "description": "仅包含学期课表节次与教室地点",
+    },
+    "assignments": {
+        "id": "assignments",
+        "name": "Canvas Dashboard · 作业",
+        "color": "#DC2626",
+        "description": "Canvas、好课、智学盟、智慧树作业与个人待办",
+    },
+    "projects": {
+        "id": "projects",
+        "name": "Canvas Dashboard · 计划",
+        "color": "#EA580C",
+        "description": "长期项目任务与行动推进计划",
+    },
+    "schedule": {
+        "id": "schedule",
+        "name": "Canvas Dashboard · 日程",
+        "color": "#059669",
+        "description": "单次与周期日常排程事项",
+    },
+}
+
+CATEGORY_ALIASES = {
+    "all": "all",
+    "course": "courses",
+    "courses": "courses",
+    "assignment": "assignments",
+    "assignments": "assignments",
+    "todo": "assignments",
+    "todos": "assignments",
+    "project": "projects",
+    "projects": "projects",
+    "plan": "projects",
+    "plans": "projects",
+    "schedule": "schedule",
+    "schedules": "schedule",
+}
+
+
+def _calendar_items(username, category=None):
     now = datetime.now(CST)
     items = []
+    cat_key = CATEGORY_ALIASES.get((category or "all").strip().lower(), "all")
 
-    for todo in _load_todos(username):
-        if todo.get("done"):
-            continue
-        if todo.get("due_date"):
-            items.append({
-                "source": "Custom",
-                "id": todo.get("id"),
-                "title": todo.get("text"),
-                "due_date": todo.get("due_date"),
-            })
-        for index, subtask in enumerate(todo.get("subtasks") or [], start=1):
-            if not isinstance(subtask, dict) or subtask.get("done") or not subtask.get("due_date"):
+    if cat_key in ("all", "assignments"):
+        for todo in _load_todos(username):
+            if todo.get("done"):
                 continue
-            subtask_id = subtask.get("id")
-            if subtask_id is None:
-                subtask_id = index
-            items.append({
-                "source": "Custom",
-                "id": f"{todo.get('id')}-subtask-{subtask_id}",
-                "title": subtask.get("text"),
-                "due_date": subtask.get("due_date"),
-                "course": todo.get("text"),
-            })
-
-    def is_eligible(platform, legacy_default):
-        if platform_sync.is_calendar_eligible(username, platform, legacy_default=legacy_default):
-            return True
-        status = platform_sync.get(username, platform)
-        if status.get("connection_state") == "disconnected":
-            return False
-        if platform == "canvas" and has_feed_url(username):
-            return True
-        if platform == "haoke" and has_haoke_credentials(username):
-            return True
-        if platform == "zhixuemeng" and has_zxm_token(username):
-            return True
-        if platform == "zhihuishu" and zhihuishu_store.has_cookies(username):
-            return True
-        return status.get("connection_state") == "connected"
-
-    def add_cached(source, platform, cached_items, state, legacy_connected):
-        if not is_eligible(platform, legacy_connected):
-            return
-        hidden = set(state.get("hidden", []))
-        deleted = set(state.get("deleted", []))
-        completed = set(state.get("completed", []))
-        overrides = state.get("overrides", {}) if isinstance(state.get("overrides", {}), dict) else {}
-        for item in cached_items:
-            item_id = item.get("id")
-            override = overrides.get(str(item_id), {})
-            due_ts = override.get("due_ts", item.get("due_ts"))
-            due_at = _parse_calendar_due(due_ts)
-            due_date = item.get("due_date")
-            if item_id in hidden or item_id in deleted or item_id in completed or item.get("done"):
-                continue
-            if due_at is not None:
-                if due_at < now - timedelta(days=30):
+            if todo.get("due_date"):
+                items.append({
+                    "source": "Custom",
+                    "id": todo.get("id"),
+                    "title": todo.get("text"),
+                    "due_date": todo.get("due_date"),
+                })
+            for index, subtask in enumerate(todo.get("subtasks") or [], start=1):
+                if not isinstance(subtask, dict) or subtask.get("done") or not subtask.get("due_date"):
                     continue
-            elif due_date:
-                try:
-                    d = date.fromisoformat(str(due_date))
-                    if d < (now - timedelta(days=30)).date():
-                        continue
-                except ValueError:
+                subtask_id = subtask.get("id")
+                if subtask_id is None:
+                    subtask_id = index
+                items.append({
+                    "source": "Custom",
+                    "id": f"{todo.get('id')}-subtask-{subtask_id}",
+                    "title": subtask.get("text"),
+                    "due_date": subtask.get("due_date"),
+                    "course": todo.get("text"),
+                })
+
+        def is_eligible(platform, legacy_default):
+            if platform_sync.is_calendar_eligible(username, platform, legacy_default=legacy_default):
+                return True
+            status = platform_sync.get(username, platform)
+            if status.get("connection_state") == "disconnected":
+                return False
+            if platform == "canvas" and has_feed_url(username):
+                return True
+            if platform == "haoke" and has_haoke_credentials(username):
+                return True
+            if platform == "zhixuemeng" and has_zxm_token(username):
+                return True
+            if platform == "zhihuishu" and zhihuishu_store.has_cookies(username):
+                return True
+            return status.get("connection_state") == "connected"
+
+        def add_cached(source, platform, cached_items, state, legacy_connected):
+            if not is_eligible(platform, legacy_connected):
+                return
+            hidden = set(state.get("hidden", []))
+            deleted = set(state.get("deleted", []))
+            completed = set(state.get("completed", []))
+            overrides = state.get("overrides", {}) if isinstance(state.get("overrides", {}), dict) else {}
+            for item in cached_items:
+                item_id = item.get("id")
+                override = overrides.get(str(item_id), {})
+                due_ts = override.get("due_ts", item.get("due_ts"))
+                due_at = _parse_calendar_due(due_ts)
+                due_date = item.get("due_date")
+                if item_id in hidden or item_id in deleted or item_id in completed or item.get("done"):
                     continue
-            else:
-                continue
+                if due_at is not None:
+                    if due_at < now - timedelta(days=30):
+                        continue
+                elif due_date:
+                    try:
+                        d = date.fromisoformat(str(due_date))
+                        if d < (now - timedelta(days=30)).date():
+                            continue
+                    except ValueError:
+                        continue
+                else:
+                    continue
+                items.append({
+                    "source": source,
+                    "id": item_id,
+                    "title": override.get("title", item.get("title")),
+                    "due_ts": due_ts,
+                    "due_date": due_date,
+                    "course": item.get("course"),
+                    "url": item.get("url"),
+                })
+
+        add_cached("Canvas", "canvas", read_json_file(user_dir(username) / "canvas_cache.json", []), load_state(username), True)
+        add_cached("Haoke", "haoke", read_json_file(user_dir(username) / "haoke_cache.json", []), load_haoke_state(username), True)
+        zxm_cache = read_json_file(user_dir(username) / "zhixuemeng_cache.json", {})
+        add_cached("Zhixuemeng", "zhixuemeng", zxm_cache.get("items", []) if isinstance(zxm_cache, dict) else [], load_zxm_state(username), True)
+        zhs_cache = zhihuishu_store.load_cache(username)
+        add_cached("Zhihuishu", "zhihuishu", zhs_cache["items"], zhihuishu_store.load_state(username), True)
+
+    if cat_key in ("all", "projects"):
+        for item in project_store.calendar_items(username):
             items.append({
-                "source": source,
-                "id": item_id,
-                "title": override.get("title", item.get("title")),
-                "due_ts": due_ts,
-                "due_date": due_date,
-                "course": item.get("course"),
-                "url": item.get("url"),
+                "source": "Project",
+                "id": item["id"],
+                "uid": item["uid"],
+                "title": item["calendar_title"],
+                "due_date": item["due_date"],
+                "course": item["project_name"],
             })
 
-    add_cached("Canvas", "canvas", read_json_file(user_dir(username) / "canvas_cache.json", []), load_state(username), True)
-    add_cached("Haoke", "haoke", read_json_file(user_dir(username) / "haoke_cache.json", []), load_haoke_state(username), True)
-    zxm_cache = read_json_file(user_dir(username) / "zhixuemeng_cache.json", {})
-    add_cached("Zhixuemeng", "zhixuemeng", zxm_cache.get("items", []) if isinstance(zxm_cache, dict) else [], load_zxm_state(username), True)
-    zhs_cache = zhihuishu_store.load_cache(username)
-    add_cached("Zhihuishu", "zhihuishu", zhs_cache["items"], zhihuishu_store.load_state(username), True)
-    for item in project_store.calendar_items(username):
-        items.append({
-            "source": "Project",
-            "id": item["id"],
-            "uid": item["uid"],
-            "title": item["calendar_title"],
-            "due_date": item["due_date"],
-            "course": item["project_name"],
-        })
+    if cat_key in ("all", "courses"):
+        courses_data = schedule_store.load_courses(username)
+        sem_start = courses_data.get("semester_start")
+        if not sem_start:
+            try:
+                _, _, sem_start = get_term_info()
+            except Exception:
+                sem_start = None
 
-    courses_data = schedule_store.load_courses(username)
-    sem_start = courses_data.get("semester_start")
-    if not sem_start:
-        try:
-            _, _, sem_start = get_term_info()
-        except Exception:
-            sem_start = None
+        if sem_start and courses_data.get("courses"):
+            try:
+                sem_start_date = date.fromisoformat(sem_start)
+            except ValueError:
+                sem_start_date = None
 
-    if sem_start and courses_data.get("courses"):
-        try:
-            sem_start_date = date.fromisoformat(sem_start)
-        except ValueError:
-            sem_start_date = None
-
-        if sem_start_date:
-            for c_idx, course in enumerate(courses_data["courses"]):
-                c_name = course.get("name") or "课程"
-                c_code = course.get("code") or course.get("id") or f"c{c_idx}"
-                c_teacher = course.get("teacher") or ""
-                for s_idx, session in enumerate(course.get("sessions") or []):
-                    weekday = session.get("weekday")
-                    start_time = session.get("start_time")
-                    end_time = session.get("end_time")
-                    if weekday is None or not start_time or not end_time:
-                        continue
-                    s_loc = session.get("location") or course.get("location") or ""
-                    weeks = session.get("weeks")
-                    parity = session.get("parity")
-                    date_start = session.get("date_start")
-                    date_end = session.get("date_end")
-
-                    if date_start and date_end:
-                        try:
-                            ds = date.fromisoformat(date_start)
-                            de = date.fromisoformat(date_end)
-                            curr = ds
-                            while curr <= de:
-                                if curr.weekday() == weekday:
-                                    day_iso = curr.isoformat()
-                                    uid = f"course-{c_code}-{s_idx}-{day_iso}@canvas-dashboard"
-                                    desc_lines = [f"课程: {c_name}"]
-                                    if s_loc:
-                                        desc_lines.append(f"地点: {s_loc}")
-                                    if c_teacher:
-                                        desc_lines.append(f"教师: {c_teacher}")
-                                    if c_code:
-                                        desc_lines.append(f"代码: {c_code}")
-                                    items.append({
-                                        "source": "Course",
-                                        "uid": uid,
-                                        "title": c_name,
-                                        "start_dt": f"{day_iso}T{start_time}:00",
-                                        "end_dt": f"{day_iso}T{end_time}:00",
-                                        "location": s_loc,
-                                        "course": c_name,
-                                        "description": "\n".join(desc_lines),
-                                    })
-                                curr += timedelta(days=1)
-                        except ValueError:
-                            pass
-                        continue
-
-                    target_weeks = weeks if (weeks and isinstance(weeks, list)) else list(range(1, 19))
-                    for w in target_weeks:
-                        if parity == "odd" and w % 2 == 0:
+            if sem_start_date:
+                for c_idx, course in enumerate(courses_data["courses"]):
+                    c_name = course.get("name") or "课程"
+                    c_code = course.get("code") or course.get("id") or f"c{c_idx}"
+                    c_teacher = course.get("teacher") or ""
+                    for s_idx, session in enumerate(course.get("sessions") or []):
+                        weekday = session.get("weekday")
+                        start_time = session.get("start_time")
+                        end_time = session.get("end_time")
+                        if weekday is None or not start_time or not end_time:
                             continue
-                        if parity == "even" and w % 2 != 0:
+                        s_loc = session.get("location") or course.get("location") or ""
+                        weeks = session.get("weeks")
+                        parity = session.get("parity")
+                        date_start = session.get("date_start")
+                        date_end = session.get("date_end")
+
+                        if date_start and date_end:
+                            try:
+                                ds = date.fromisoformat(date_start)
+                                de = date.fromisoformat(date_end)
+                                curr = ds
+                                while curr <= de:
+                                    if curr.weekday() == weekday:
+                                        day_iso = curr.isoformat()
+                                        uid = f"course-{c_code}-{s_idx}-{day_iso}@canvas-dashboard"
+                                        desc_lines = [f"课程: {c_name}"]
+                                        if s_loc:
+                                            desc_lines.append(f"地点: {s_loc}")
+                                        if c_teacher:
+                                            desc_lines.append(f"教师: {c_teacher}")
+                                        if c_code:
+                                            desc_lines.append(f"代码: {c_code}")
+                                        items.append({
+                                            "source": "Course",
+                                            "uid": uid,
+                                            "title": c_name,
+                                            "start_dt": f"{day_iso}T{start_time}:00",
+                                            "end_dt": f"{day_iso}T{end_time}:00",
+                                            "location": s_loc,
+                                            "course": c_name,
+                                            "description": "\n".join(desc_lines),
+                                        })
+                                    curr += timedelta(days=1)
+                            except ValueError:
+                                pass
                             continue
-                        sess_date = sem_start_date + timedelta(weeks=w - 1, days=weekday)
-                        day_iso = sess_date.isoformat()
-                        uid = f"course-{c_code}-{s_idx}-{day_iso}@canvas-dashboard"
-                        desc_lines = [f"课程: {c_name}"]
-                        if s_loc:
-                            desc_lines.append(f"地点: {s_loc}")
-                        if c_teacher:
-                            desc_lines.append(f"教师: {c_teacher}")
-                        if c_code:
-                            desc_lines.append(f"代码: {c_code}")
-                        desc_lines.append(f"第 {w} 周")
+
+                        target_weeks = weeks if (weeks and isinstance(weeks, list)) else list(range(1, 19))
+                        for w in target_weeks:
+                            if parity == "odd" and w % 2 == 0:
+                                continue
+                            if parity == "even" and w % 2 != 0:
+                                continue
+                            sess_date = sem_start_date + timedelta(weeks=w - 1, days=weekday)
+                            day_iso = sess_date.isoformat()
+                            uid = f"course-{c_code}-{s_idx}-{day_iso}@canvas-dashboard"
+                            desc_lines = [f"课程: {c_name}"]
+                            if s_loc:
+                                desc_lines.append(f"地点: {s_loc}")
+                            if c_teacher:
+                                desc_lines.append(f"教师: {c_teacher}")
+                            if c_code:
+                                desc_lines.append(f"代码: {c_code}")
+                            desc_lines.append(f"第 {w} 周")
+                            items.append({
+                                "source": "Course",
+                                "uid": uid,
+                                "title": c_name,
+                                "start_dt": f"{day_iso}T{start_time}:00",
+                                "end_dt": f"{day_iso}T{end_time}:00",
+                                "location": s_loc,
+                                "course": c_name,
+                                "description": "\n".join(desc_lines),
+                            })
+
+    if cat_key in ("all", "schedule"):
+        sched_items = schedule_store.load_items(username)
+        for item in sched_items.get("one_off", []):
+            if item.get("occurrence_done"):
+                continue
+            i_date = item.get("date")
+            s_time = item.get("start_time")
+            e_time = item.get("end_time")
+            if not i_date or not s_time or not e_time:
+                continue
+            uid = f"schedule-oneoff-{item.get('id')}@canvas-dashboard"
+            items.append({
+                "source": "Schedule",
+                "uid": uid,
+                "title": item.get("title") or "排程事项",
+                "start_dt": f"{i_date}T{s_time}:00",
+                "end_dt": f"{i_date}T{e_time}:00",
+                "location": item.get("location") or "",
+                "description": item.get("details") or "",
+            })
+
+        for item in sched_items.get("recurring", []):
+            if not item.get("enabled", True):
+                continue
+            weekday = item.get("weekday")
+            s_time = item.get("start_time")
+            e_time = item.get("end_time")
+            if weekday is None or not s_time or not e_time:
+                continue
+            start_limit = item.get("start_date") or (now - timedelta(days=14)).date().isoformat()
+            end_limit = item.get("end_date") or (now + timedelta(days=120)).date().isoformat()
+            skipped = set(item.get("skipped_dates") or [])
+            completed = set(item.get("completed_dates") or [])
+            try:
+                curr_d = date.fromisoformat(start_limit)
+                end_d = date.fromisoformat(end_limit)
+                while curr_d.weekday() != weekday:
+                    curr_d += timedelta(days=1)
+                while curr_d <= end_d:
+                    day_iso = curr_d.isoformat()
+                    if day_iso not in skipped and day_iso not in completed:
+                        uid = f"schedule-recurring-{item.get('id')}-{day_iso}@canvas-dashboard"
                         items.append({
-                            "source": "Course",
+                            "source": "Schedule",
                             "uid": uid,
-                            "title": c_name,
-                            "start_dt": f"{day_iso}T{start_time}:00",
-                            "end_dt": f"{day_iso}T{end_time}:00",
-                            "location": s_loc,
-                            "course": c_name,
-                            "description": "\n".join(desc_lines),
+                            "title": item.get("title") or "周期事项",
+                            "start_dt": f"{day_iso}T{s_time}:00",
+                            "end_dt": f"{day_iso}T{e_time}:00",
+                            "location": item.get("location") or "",
+                            "description": item.get("details") or "",
                         })
-
-    sched_items = schedule_store.load_items(username)
-    for item in sched_items.get("one_off", []):
-        if item.get("occurrence_done"):
-            continue
-        i_date = item.get("date")
-        s_time = item.get("start_time")
-        e_time = item.get("end_time")
-        if not i_date or not s_time or not e_time:
-            continue
-        uid = f"schedule-oneoff-{item.get('id')}@canvas-dashboard"
-        items.append({
-            "source": "Schedule",
-            "uid": uid,
-            "title": item.get("title") or "排程事项",
-            "start_dt": f"{i_date}T{s_time}:00",
-            "end_dt": f"{i_date}T{e_time}:00",
-            "location": item.get("location") or "",
-            "description": item.get("details") or "",
-        })
-
-    for item in sched_items.get("recurring", []):
-        if not item.get("enabled", True):
-            continue
-        weekday = item.get("weekday")
-        s_time = item.get("start_time")
-        e_time = item.get("end_time")
-        if weekday is None or not s_time or not e_time:
-            continue
-        start_limit = item.get("start_date") or (now - timedelta(days=14)).date().isoformat()
-        end_limit = item.get("end_date") or (now + timedelta(days=120)).date().isoformat()
-        skipped = set(item.get("skipped_dates") or [])
-        completed = set(item.get("completed_dates") or [])
-        try:
-            curr_d = date.fromisoformat(start_limit)
-            end_d = date.fromisoformat(end_limit)
-            while curr_d.weekday() != weekday:
-                curr_d += timedelta(days=1)
-            while curr_d <= end_d:
-                day_iso = curr_d.isoformat()
-                if day_iso not in skipped and day_iso not in completed:
-                    uid = f"schedule-recurring-{item.get('id')}-{day_iso}@canvas-dashboard"
-                    items.append({
-                        "source": "Schedule",
-                        "uid": uid,
-                        "title": item.get("title") or "周期事项",
-                        "start_dt": f"{day_iso}T{s_time}:00",
-                        "end_dt": f"{day_iso}T{e_time}:00",
-                        "location": item.get("location") or "",
-                        "description": item.get("details") or "",
-                    })
-                curr_d += timedelta(weeks=1)
-        except ValueError:
-            pass
+                    curr_d += timedelta(weeks=1)
+            except ValueError:
+                pass
 
     return items
 
@@ -810,7 +867,23 @@ def api_apple_calendar_subscription():
         return jsonify({"ok": apple_calendar.revoke_token(username)})
 
     token = apple_calendar.create_token(username)
-    return jsonify({"ok": True, "path": f"/calendar/{token}.ics"})
+    feeds = []
+    for cat_id in ("courses", "assignments", "projects", "schedule", "all"):
+        cat_meta = CALENDAR_CATEGORIES[cat_id]
+        path = f"/calendar/{token}.ics" if cat_id == "all" else f"/calendar/{token}/{cat_id}.ics"
+        feeds.append({
+            "id": cat_id,
+            "name": cat_meta["name"],
+            "color": cat_meta["color"],
+            "description": cat_meta["description"],
+            "path": path,
+        })
+    return jsonify({
+        "ok": True,
+        "token": token,
+        "path": f"/calendar/{token}.ics",
+        "feeds": feeds,
+    })
 
 
 @app.route("/calendar/<token>.ics")
@@ -821,8 +894,45 @@ def calendar_subscription(token):
     account = auth.account_metadata(username) if username else None
     if not username or (not app.testing and (not account or account.get("status") != "active")):
         return "Not Found", 404
+    raw_cat = request.args.get("category", "all").strip().lower()
+    cat_id = CATEGORY_ALIASES.get(raw_cat)
+    if not cat_id or cat_id not in CALENDAR_CATEGORIES:
+        return "Not Found", 404
+    cat_meta = CALENDAR_CATEGORIES[cat_id]
     response = app.response_class(
-        apple_calendar.build_calendar(username, _calendar_items(username), datetime.now(CST)),
+        apple_calendar.build_calendar(
+            username,
+            _calendar_items(username, category=cat_id),
+            datetime.now(CST),
+            cal_name=cat_meta["name"],
+            cal_color=cat_meta["color"],
+        ),
+        content_type="text/calendar; charset=utf-8",
+    )
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
+@app.route("/calendar/<token>/<category>.ics")
+def calendar_category_subscription(token, category):
+    if not settings.APPLE_CALENDAR_ENABLED:
+        abort(404)
+    username = apple_calendar.username_for_token(token)
+    account = auth.account_metadata(username) if username else None
+    if not username or (not app.testing and (not account or account.get("status") != "active")):
+        return "Not Found", 404
+    cat_id = CATEGORY_ALIASES.get((category or "").strip().lower())
+    if not cat_id or cat_id not in CALENDAR_CATEGORIES:
+        return "Not Found", 404
+    cat_meta = CALENDAR_CATEGORIES[cat_id]
+    response = app.response_class(
+        apple_calendar.build_calendar(
+            username,
+            _calendar_items(username, category=cat_id),
+            datetime.now(CST),
+            cal_name=cat_meta["name"],
+            cal_color=cat_meta["color"],
+        ),
         content_type="text/calendar; charset=utf-8",
     )
     response.headers["Cache-Control"] = "private, no-store"
