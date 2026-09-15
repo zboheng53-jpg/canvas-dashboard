@@ -1843,7 +1843,7 @@
       // 设计稿分组：已逾期 / 今天 / 明天 / 本周内 / 更晚 / 无日期 / 已完成
       const labels = { overdue: '已逾期', today: '今天', tomorrow: '明天', week: '本周内', later: '更晚', nodate: '无日期', completed: '已完成' };
       const groups = { overdue: [], today: [], tomorrow: [], week: [], later: [], nodate: [], completed: [] };
-      const todayStr = (typeof workspaceTodayISO === 'function' ? workspaceTodayISO() : null) || window.customToday || new Date().toISOString().slice(0, 10);
+      const todayStr = window.customToday || new Date().toISOString().slice(0, 10);
       const today = new Date(todayStr + 'T00:00:00');
       const tomorrow = new Date(today.getTime() + 86400000);
       const weekEnd = new Date(today.getTime() + 7 * 86400000);

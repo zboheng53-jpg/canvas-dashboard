@@ -1436,6 +1436,19 @@ def test_frontend_agent_integration_page(live_app, browser):
 
 def test_frontend_todo_completion_sinks_and_syncs_with_agenda(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    page.add_init_script("""
+      (() => {
+        const RealDate = Date;
+        const fixedNow = new RealDate('2026-07-09T12:00:00+08:00').valueOf();
+        class FixedBrowserDate extends RealDate {
+          constructor(...args) { super(...(args.length ? args : [fixedNow])); }
+          static now() { return fixedNow; }
+        }
+        FixedBrowserDate.parse = RealDate.parse;
+        FixedBrowserDate.UTC = RealDate.UTC;
+        window.Date = FixedBrowserDate;
+      })();
+    """)
     register_dashboard_user(page, live_app, "agendasink")
 
     today_str = page.evaluate("workspaceTodayISO()")
