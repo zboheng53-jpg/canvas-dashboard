@@ -1438,7 +1438,7 @@ def test_frontend_todo_completion_sinks_and_syncs_with_agenda(live_app, browser)
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "agendasink")
 
-    today_str = page.evaluate("window.customToday || new Date().toISOString().split('T')[0]")
+    today_str = page.evaluate("workspaceTodayISO()")
     page.fill("#new-todo-input", "今日必做测试")
     page.fill("#new-todo-due", today_str)
     page.click("#add-todo-form button")

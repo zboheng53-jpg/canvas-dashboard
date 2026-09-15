@@ -24,7 +24,6 @@ function workspaceWrite(url, data, method = 'PUT') {
   return workspaceRequest(url, {method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
 }
 function workspaceTodayISO() {
-  if (window.customToday) return window.customToday;
   return new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'}).format(new Date());
 }
 function workspaceDateLabel(day) {
