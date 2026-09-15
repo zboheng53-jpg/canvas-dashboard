@@ -1385,6 +1385,9 @@
       const s = String(now.getSeconds()).padStart(2, '0');
       document.getElementById('time').textContent = `${h}:${m}:${s}`;
       updateGreeting(now);
+      if (now.getSeconds() === 0 && typeof renderForwardAgenda === 'function' && typeof workspaceTodayData !== 'undefined' && workspaceTodayData) {
+        renderForwardAgenda();
+      }
     }
 
     setInterval(() => { initClock(); }, 10 * 60 * 1000);
@@ -1837,16 +1840,16 @@
     }
 
     function buildTodoGroups(items) {
-      // 设计稿分组：已逾期 / 今天 / 明天 / 本周内 / 更晚 / 无日期
-      const labels = { overdue: '已逾期', today: '今天', tomorrow: '明天', week: '本周内', later: '更晚', nodate: '无日期' };
-      const groups = { overdue: [], today: [], tomorrow: [], week: [], later: [], nodate: [] };
+      // 设计稿分组：已逾期 / 今天 / 明天 / 本周内 / 更晚 / 无日期 / 已完成
+      const labels = { overdue: '已逾期', today: '今天', tomorrow: '明天', week: '本周内', later: '更晚', nodate: '无日期', completed: '已完成' };
+      const groups = { overdue: [], today: [], tomorrow: [], week: [], later: [], nodate: [], completed: [] };
       const todayStr = window.customToday || new Date().toISOString().slice(0, 10);
       const today = new Date(todayStr + 'T00:00:00');
       const tomorrow = new Date(today.getTime() + 86400000);
       const weekEnd = new Date(today.getTime() + 7 * 86400000);
       const dueKey = (item) => item.due_ts || '9999-12-31T23:59:59';
       items.forEach((item) => {
-        if (item.done) { groups.today.push(item); return; }
+        if (item.done) { groups.completed.push(item); return; }
         if (!item.due_ts) { groups.nodate.push(item); return; }
         const dueDate = new Date(item.due_ts.slice(0, 10) + 'T00:00:00');
         if (dueDate < today) { groups.overdue.push(item); return; }
@@ -1856,11 +1859,12 @@
         groups.later.push(item);
       });
       const sortGroup = (arr) => arr.sort((a, b) =>
+        (a.done ? 1 : 0) - (b.done ? 1 : 0) ||
         (b.manualHighlighted ? 1 : 0) - (a.manualHighlighted ? 1 : 0) ||
         dueKey(a).localeCompare(dueKey(b)) || a._stableIndex - b._stableIndex
       );
       Object.values(groups).forEach(sortGroup);
-      const order = ['overdue', 'today', 'tomorrow', 'week', 'later', 'nodate'];
+      const order = ['overdue', 'today', 'tomorrow', 'week', 'later', 'nodate', 'completed'];
       return order
         .filter((k) => groups[k].length)
         .map((k) => ({ key: k, title: labels[k], items: groups[k] }));
@@ -2210,7 +2214,7 @@
       };
 
       container.innerHTML = buildTodoGroups(filteredItems).map((group) => `
-        <section class="todo-group ${group.key === 'overdue' ? 'is-overdue' : ''}">
+        <section class="todo-group ${group.key === 'overdue' ? 'is-overdue' : ''} ${group.key === 'completed' ? 'is-completed' : ''}">
           <div class="todo-group-heading">
             <h3 class="ui-card__title">${escapeHtml(group.title)}</h3>
             <span class="ui-count-pill">${group.items.length}</span>
@@ -2294,6 +2298,7 @@
       const item = (collections[platform] || []).find((entry) => String(entry.id) === String(id));
       if (item) item.done = !done;
       renderUnifiedList();
+      if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
     }
 
     function renderSubtaskPanel(todoId, subtasks) {
@@ -2734,7 +2739,8 @@
         input.value = '';
         dueInput.value = '';
         setNewTodoDueDefault(window.customToday || new Date().toISOString().split('T')[0]);
-        fetchCustomTodos();
+        await fetchCustomTodos();
+        if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
       } else {
         const err = await resp.json().catch(() => ({}));
         alert('add failed: ' + (err.error || 'unknown error'));
@@ -2747,7 +2753,8 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ done: !done }),
       });
-      fetchCustomTodos();
+      await fetchCustomTodos();
+      if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
     }
 
     async function toggleCustomHighlight(id, current) {

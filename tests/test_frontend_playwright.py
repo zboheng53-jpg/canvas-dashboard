@@ -1433,3 +1433,48 @@ def test_frontend_agent_integration_page(live_app, browser):
     page.locator("#agent-token-revoke").click()
     expect(page.locator("#agent-token-status")).to_contain_text("Token 已成功撤销")
 
+
+def test_frontend_todo_completion_sinks_and_syncs_with_agenda(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "agendasink")
+
+    today_str = page.evaluate("window.customToday || new Date().toISOString().split('T')[0]")
+    page.fill("#new-todo-input", "今日必做测试")
+    page.fill("#new-todo-due", today_str)
+    page.click("#add-todo-form button")
+
+    today_group = page.locator(".todo-group").filter(has_text="今天")
+    expect(today_group).to_be_visible()
+    expect(today_group.locator(".todo-row").filter(has_text="今日必做测试")).to_be_visible()
+
+    schedule_item = page.locator("#today-schedule-content .period-event").filter(has_text="今日必做测试")
+    expect(schedule_item).to_be_visible()
+    expect(schedule_item).not_to_have_class(re.compile(r"\bis-done\b"))
+
+    todo_row = page.locator(".todo-row").filter(has_text="今日必做测试")
+    todo_row.locator(".item-desktop-actions .btn-dismiss").click()
+
+    completed_group = page.locator(".todo-group.is-completed")
+    expect(completed_group).to_be_visible()
+    expect(completed_group.locator(".ui-card__title")).to_have_text("已完成")
+    expect(completed_group.locator(".todo-row").filter(has_text="今日必做测试")).to_be_visible()
+    expect(page.locator(".todo-group").filter(has_text="今天")).to_have_count(0)
+
+    expect(schedule_item).to_have_class(re.compile(r"\bis-done\b"))
+
+    # Test that courses past their end_time are marked is-done, while future courses are not
+    course_classes = page.evaluate("""() => {
+      const pastCourse = {kind: 'course', date: workspaceTodayISO(), start_time: '00:01', end_time: '00:02', title: '已结束课程'};
+      const futureCourse = {kind: 'course', date: workspaceTodayISO(), start_time: '23:58', end_time: '23:59', title: '未开始课程'};
+      const pastBtn = agendaEventButton(pastCourse);
+      const futureBtn = agendaEventButton(futureCourse);
+      return {
+        pastDone: pastBtn.classList.contains('is-done'),
+        futureDone: futureBtn.classList.contains('is-done')
+      };
+    }""")
+    assert course_classes["pastDone"] is True
+    assert course_classes["futureDone"] is False
+
+
+

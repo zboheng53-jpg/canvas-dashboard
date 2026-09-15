@@ -610,6 +610,10 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
 .todo-group.is-overdue .todo-group-heading h3.ui-card__title { color: var(--ds-danger, #d64545) !important; }
 .todo-group.is-overdue .todo-group-heading .ui-count-pill { color: var(--ds-danger, #d64545) !important; opacity: .7; }
 
+/* 已完成组：标题与计数器低调柔和 */
+.todo-group.is-completed .todo-group-heading h3.ui-card__title { color: var(--ds-ink-3, #7d8694) !important; font-weight: 500 !important; }
+.todo-group.is-completed .todo-group-heading .ui-count-pill { color: var(--ds-ink-3, #7d8694) !important; opacity: .7; }
+
 /* 待办项分隔线：统一使用 hairline 细线，并覆盖自定义待办包裹层 */
 .todo-group-items > .ui-list-item,
 .todo-group-items > .todo-row-wrap > .ui-list-item {

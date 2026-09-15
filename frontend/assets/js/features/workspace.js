@@ -24,6 +24,7 @@ function workspaceWrite(url, data, method = 'PUT') {
   return workspaceRequest(url, {method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
 }
 function workspaceTodayISO() {
+  if (window.customToday) return window.customToday;
   return new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'}).format(new Date());
 }
 function workspaceDateLabel(day) {
@@ -183,8 +184,19 @@ function openAgendaEntry(event) {
   openScheduleItemModal(event.kind.replace('_', '-'), event, {date: event.date});
 }
 
+function isCoursePast(event) {
+  if (event.kind !== 'course') return false;
+  const today = workspaceTodayISO();
+  if (event.date < today) return true;
+  if (event.date > today) return false;
+  if (!event.end_time) return false;
+  const currentTime = new Intl.DateTimeFormat('en-GB', {timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit'}).format(new Date());
+  return currentTime >= event.end_time;
+}
+
 function agendaEventButton(event) {
-  const button = wNode('button', `period-event period-event--${event.kind} ${event.done || event.occurrence_done ? 'is-done' : ''}`);
+  const isDone = Boolean(event.done || event.occurrence_done || isCoursePast(event));
+  const button = wNode('button', `period-event period-event--${event.kind} ${isDone ? 'is-done' : ''}`);
   button.type = 'button';
   const time = event.kind === 'deadline' ? `${event.deadline_time || '全天'} 截止` : event.kind === 'planned' ? '计划推进 · 未定时间' : `${event.start_time}–${event.end_time}`;
   button.append(wNode('span', 'period-event-time', time), wNode('strong', 'period-event-title', event.title));

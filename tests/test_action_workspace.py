@@ -185,4 +185,6 @@ def test_platform_deadline_uses_shanghai_day_and_preserves_cache(workspace):
     assert day["deadlines"][0]["action_ref"] == "canvas:42"
     assert c.put("/api/actions/canvas:42", headers=h, json={"done": True}).status_code == 200
     assert c.get("/api/actions/canvas:42").get_json()["action"]["done"] is True
+    day_after = c.get("/api/agenda?start=2026-09-15&end=2026-09-15").get_json()["days"][0]
+    assert day_after["deadlines"][0]["done"] is True
     assert cache.read_bytes() == before

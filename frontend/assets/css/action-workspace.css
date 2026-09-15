@@ -57,8 +57,12 @@
 .period-event--deadline { border-left-color: #c66450; }
 .period-event--planned { border-left-color: #6c8a75; }
 .period-event--recurring { border-left-color: #9b7eae; }
-.period-event.is-done { opacity: .6; }
-.period-event.is-done .period-event-title { text-decoration: line-through; }
+.period-event.is-done { opacity: .55; }
+.period-event.is-done .period-event-title {
+  color: var(--ds-ink-3, #7d8694);
+  text-decoration: line-through;
+  text-decoration-color: #c3cad4;
+}
 .period-add { border: 1px dashed var(--ds-line); background: transparent; border-radius: 6px; color: var(--ds-ink-3); padding: 3px; cursor: pointer; margin-top: auto; }
 .period-add:hover { color: var(--ds-accent); background: var(--ds-accent-soft); }
 .period-empty { color: var(--ds-ink-3); text-align: center; padding: 8px; font-size: 12px; }

@@ -31,7 +31,7 @@ def build(username, start, end, semester_start, actions):
         day_refs = {event.get("action_ref") for event in timed}
         deadlines, planned = [], []
         for action in actions:
-            if action["done"] or not action.get("active", True):
+            if not action.get("active", True):
                 continue
             if action.get("due_date") == day_iso:
                 deadlines.append({**action, "action_ref": action["ref"], "kind": "deadline", "date": day_iso})
