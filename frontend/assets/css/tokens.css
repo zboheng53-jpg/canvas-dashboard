@@ -291,4 +291,7 @@
   --radius-card: 12px;
   --radius-btn: 8px;
   --blur-strength: blur(16px) saturate(135%);
+
+  --mobile-bottom-bar-height: 56px;
+  --mobile-safe-bottom: env(safe-area-inset-bottom, 12px);
 }

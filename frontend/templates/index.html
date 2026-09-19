@@ -94,6 +94,15 @@
       </div>
     </div>
 
+    <!-- 移动端平台同步关注横幅 (Mobile Platform Attention Banner) -->
+    <div class="mobile-attention-banner hidden" id="mobile-attention-banner" onclick="switchDashboardView('connections')" role="button" tabindex="0">
+      <div class="mobile-attention-banner-left">
+        <span class="mobile-attention-badge">!</span>
+        <span id="mobile-attention-text">需要处理平台同步配置</span>
+      </div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+
     <!-- Main Content -->
     <main>
       <section class="column main-column">
@@ -187,6 +196,41 @@
       aria-label="关闭菜单"
       onclick="closeMobileMenu()"
     ></button>
+
+    <!-- 移动端底部导航栏 (Mobile Bottom Navigation Bar / TabBar Dock) -->
+    <nav class="mobile-bottom-nav" id="mobile-bottom-nav" aria-label="移动端主导航">
+      <button type="button" class="mobile-nav-item is-active" data-mobile-tab="overview" onclick="switchDashboardView('overview')">
+        <div class="mobile-nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <span class="mobile-nav-label">今日总览</span>
+      </button>
+      <button type="button" class="mobile-nav-item" data-mobile-tab="projects" onclick="switchDashboardView('projects')">
+        <div class="mobile-nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        </div>
+        <span class="mobile-nav-label">长期项目</span>
+      </button>
+      <button type="button" class="mobile-nav-item" data-mobile-tab="schedule" onclick="switchDashboardView('schedule')">
+        <div class="mobile-nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <span class="mobile-nav-label">周课表</span>
+      </button>
+      <button type="button" class="mobile-nav-item" data-mobile-tab="connections" onclick="switchDashboardView('connections')">
+        <div class="mobile-nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          <span class="mobile-nav-badge hidden" id="mobile-connections-badge" aria-label="需要配置">0</span>
+        </div>
+        <span class="mobile-nav-label">同步连接</span>
+      </button>
+      <button type="button" class="mobile-nav-item" data-mobile-tab="settings" onclick="switchDashboardView('settings')">
+        <div class="mobile-nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </div>
+        <span class="mobile-nav-label">设置接入</span>
+      </button>
+    </nav>
   </div>
 
   {% include "dashboard/_action_details.html" %}
@@ -471,7 +515,17 @@
           clearAgentTokenPlaintext();
         }
       }
+      document.querySelectorAll('.mobile-nav-item').forEach((tab) => {
+        const isActive = tab.dataset.mobileTab === viewName;
+        tab.classList.toggle('is-active', isActive);
+        if (isActive) {
+          tab.setAttribute('aria-current', 'page');
+        } else {
+          tab.removeAttribute('aria-current');
+        }
+      });
       closeMobileMenu();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return loadPromise;
     }
 
@@ -1511,9 +1565,32 @@
         detailBadge.textContent = text;
         applyStatusSemantic(detailBadge, semantic);
       }
+      const attentionElements = document.querySelectorAll('#login-cards .login-card-status.attention');
+      const attentionCount = attentionElements.length;
       const attentionDot = document.getElementById('connections-attention');
       if (attentionDot) {
-        attentionDot.classList.toggle('hidden', !document.querySelector('#login-cards .login-card-status.attention'));
+        attentionDot.classList.toggle('hidden', attentionCount === 0);
+      }
+      const mobileBadge = document.getElementById('mobile-connections-badge');
+      if (mobileBadge) {
+        mobileBadge.textContent = attentionCount;
+        mobileBadge.classList.toggle('hidden', attentionCount === 0);
+      }
+      const mobileAttentionBanner = document.getElementById('mobile-attention-banner');
+      const mobileAttentionText = document.getElementById('mobile-attention-text');
+      if (mobileAttentionBanner) {
+        if (attentionCount > 0) {
+          const names = Array.from(attentionElements).map(item => {
+            const card = item.closest('.login-card');
+            return card ? card.querySelector('.login-card-title')?.textContent?.trim() : '';
+          }).filter(Boolean);
+          if (mobileAttentionText) {
+            mobileAttentionText.textContent = `${attentionCount} 个平台需要处理配置${names.length ? ' (' + names.slice(0, 2).join('、') + ')' : ''}`;
+          }
+          mobileAttentionBanner.classList.remove('hidden');
+        } else {
+          mobileAttentionBanner.classList.add('hidden');
+        }
       }
     }
 

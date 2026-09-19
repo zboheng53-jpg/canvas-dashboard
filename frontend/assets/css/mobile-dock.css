@@ -1,0 +1,812 @@
+/*
+ * mobile-dock.css - Mobile Navigation Dock, Top Header & Responsive Layout
+ *
+ * Implements the mobile UI/UX design draft from Open Design (mobile-canvas-dashboard-2.html).
+ * Activated on mobile screens (max-width: 768px). Desktop layout is 100% preserved.
+ */
+
+/* ─── Desktop Fallback (Hide mobile-only elements on desktop) ──────── */
+.mobile-bottom-nav,
+.mobile-attention-banner,
+.mobile-hero-next-card {
+  display: none;
+}
+
+/* ─── Mobile Viewport (max-width: 768px) ───────────────────────────── */
+@media (max-width: 768px) {
+  /* ─── Global Mobile Container & Spacing ──────────────────────────── */
+  body {
+    background: var(--page);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #dashboard-shell {
+    max-width: 100%;
+    padding: 0 12px calc(var(--mobile-bottom-bar-height) + var(--mobile-safe-bottom) + 24px) !important;
+    overflow-x: hidden;
+  }
+
+  /* Hide old mobile hamburger header, replaced by bottom dock + glassmorphic context header */
+  .mobile-shell-bar {
+    display: none !important;
+  }
+
+  /* Academic sidebar stays hidden on mobile */
+  .academic-sidebar {
+    display: none !important;
+  }
+  .sidebar-scrim {
+    display: none !important;
+  }
+
+  .dashboard-grid {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .workspace-stack {
+    width: 100% !important;
+    gap: 12px !important;
+  }
+
+  .workspace-main {
+    width: 100% !important;
+    min-height: auto !important;
+    height: auto !important;
+  }
+
+  /* ─── Sleek Sticky Glassmorphic Top Header ───────────────────────── */
+  .workspace-main .context-card {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 40 !important;
+    margin: 0 -12px 12px -12px !important;
+    padding: 8px 12px !important;
+    background: color-mix(in srgb, var(--surface) 90%, transparent) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: none !important;
+    border-bottom: 1px solid var(--line) !important;
+    border-radius: 0 !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03) !important;
+  }
+
+  .enter-top-bar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    row-gap: 6px !important;
+    column-gap: 8px !important;
+    align-items: center !important;
+    padding: 0 !important;
+  }
+
+  /* Row 1: Campus Switcher (left) + Weather Badge (right) */
+  .enter-top-bar .opt1-col.left {
+    grid-column: 1 / -1 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+
+  .weather-campus-switch {
+    display: inline-flex !important;
+    background: var(--page) !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 9999px !important;
+    padding: 2px !important;
+    gap: 2px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .weather-campus-separator {
+    display: none !important;
+  }
+
+  .weather-campus-option {
+    border: none !important;
+    background: transparent !important;
+    padding: 3px 8px !important;
+    border-radius: 9999px !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    color: var(--ink-3) !important;
+    cursor: pointer !important;
+    line-height: 1.2 !important;
+    transition: all 0.15s ease !important;
+    min-height: 24px !important;
+    height: auto !important;
+  }
+
+  .weather-campus-option.is-active {
+    background: var(--surface) !important;
+    color: var(--ink) !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+  }
+
+  .opt1-temp-row {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    font-size: 12px !important;
+    color: var(--ink) !important;
+    background: var(--surface) !important;
+    padding: 3px 6px 3px 8px !important;
+    border-radius: 9999px 0 0 9999px !important;
+    border: 1px solid var(--line) !important;
+    border-right: none !important;
+    margin-left: auto !important;
+  }
+
+  .weather-icn-opt1 {
+    font-size: 13px !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .weather-temp {
+    font-weight: 600 !important;
+    color: var(--ink) !important;
+    font-family: var(--font-number) !important;
+  }
+
+  .opt1-weather-detail {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 3px !important;
+    font-size: 11px !important;
+    color: var(--ink-3) !important;
+    background: var(--surface) !important;
+    padding: 3px 8px 3px 2px !important;
+    border-radius: 0 9999px 9999px 0 !important;
+    border: 1px solid var(--line) !important;
+    border-left: none !important;
+    white-space: nowrap !important;
+  }
+
+  /* Row 2: Term info (left) + Monospace Clock (right) */
+  .enter-top-bar .opt1-col.right {
+    grid-column: 1 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+  }
+
+  .opt1-week-pill {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    background: var(--accent-soft) !important;
+    color: var(--accent) !important;
+    padding: 1px 6px !important;
+    border-radius: 4px !important;
+    font-family: var(--font-mono) !important;
+    flex-shrink: 0 !important;
+  }
+
+  .opt1-term {
+    font-size: 11px !important;
+    color: var(--ink-3) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .enter-top-bar .opt1-col.center {
+    grid-column: 2 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    position: static !important;
+    flex-shrink: 0 !important;
+  }
+
+  .opt1-time {
+    font-family: var(--font-mono) !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    color: var(--ink) !important;
+    letter-spacing: -0.02em !important;
+    white-space: nowrap !important;
+  }
+
+  .opt1-date {
+    display: none !important;
+  }
+
+  /* ─── Compact 3-Column KPI Grid ──────────────────────────────────── */
+  #dashboard-kpis {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+    margin-bottom: 12px !important;
+  }
+
+  #dashboard-kpis .kpi {
+    background: var(--surface) !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 12px !important;
+    padding: 10px 6px !important;
+    text-align: center !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+    min-height: auto !important;
+  }
+
+  #dashboard-kpis .k-label {
+    font-size: 11px !important;
+    color: var(--ink-3) !important;
+    margin-bottom: 2px !important;
+    white-space: nowrap !important;
+  }
+
+  #dashboard-kpis .k-value {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    font-family: var(--font-mono) !important;
+    color: var(--ink) !important;
+    line-height: 1.2 !important;
+  }
+
+  #dashboard-kpis .k-hint {
+    font-size: 10px !important;
+    color: var(--green) !important;
+    margin-top: 2px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  #dashboard-kpis .k-hint.warn {
+    color: var(--amber) !important;
+  }
+
+  /* ─── Platform Attention Banner ──────────────────────────────────── */
+  .mobile-attention-banner {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    background: var(--amber-soft) !important;
+    border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent) !important;
+    border-radius: 12px !important;
+    padding: 9px 12px !important;
+    margin-bottom: 12px !important;
+    cursor: pointer !important;
+    transition: background 0.15s ease !important;
+  }
+
+  .mobile-attention-banner.hidden {
+    display: none !important;
+  }
+
+  .mobile-attention-banner-left {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    color: var(--ink) !important;
+  }
+
+  .mobile-attention-badge {
+    width: 18px !important;
+    height: 18px !important;
+    background: var(--amber) !important;
+    color: #fff !important;
+    border-radius: 9999px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 11px !important;
+    font-weight: bold !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* ─── Todo List & Input Bar ──────────────────────────────────────── */
+  .enter-main-card {
+    border-radius: 14px !important;
+    padding: 12px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .add-todo-form {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .add-todo-form .todo-title-input {
+    flex: 1 !important;
+    min-width: 0 !important;
+    height: 38px !important;
+    font-size: 13px !important;
+    border-radius: 8px !important;
+  }
+
+  .add-todo-form .date-input {
+    width: 105px !important;
+    flex-shrink: 0 !important;
+    height: 38px !important;
+    font-size: 11px !important;
+    padding: 0 4px !important;
+    border-radius: 8px !important;
+  }
+
+  .add-todo-form button {
+    height: 38px !important;
+    padding: 0 12px !important;
+    border-radius: 8px !important;
+    flex-shrink: 0 !important;
+    font-weight: 600 !important;
+  }
+
+  /* Filter Chips Scroll Strip */
+  .todo-source-filters {
+    display: flex !important;
+    gap: 6px !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    padding-bottom: 4px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .todo-source-filters::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .todo-source-filters .f-chip {
+    flex-shrink: 0 !important;
+    padding: 3px 10px !important;
+    border-radius: 9999px !important;
+    font-size: 11px !important;
+    min-height: 26px !important;
+    margin-right: 0 !important;
+  }
+
+  /* Todo List Items */
+  .todo-list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+  }
+
+  .todo-item {
+    padding: 8px 10px !important;
+    border-radius: 10px !important;
+  }
+
+  /* ─── Long-Term Projects Mobile Layout ───────────────────────────── */
+  .project-manager-card {
+    border-radius: 14px !important;
+    padding: 12px !important;
+  }
+
+  .project-manager-heading {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .project-manager-heading h1 {
+    font-size: 18px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .project-manager-heading p {
+    display: none !important;
+  }
+
+  .project-header-actions {
+    display: flex !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+
+  .project-header-actions .ui-button {
+    flex: 1 !important;
+    height: 34px !important;
+    font-size: 12px !important;
+    padding: 0 8px !important;
+    justify-content: center !important;
+    border-radius: 8px !important;
+  }
+
+  .project-tabs {
+    display: flex !important;
+    gap: 6px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .project-tab-btn {
+    flex: 1 !important;
+    border-radius: 9999px !important;
+    font-size: 11px !important;
+    padding: 4px 6px !important;
+    text-align: center !important;
+  }
+
+  .project-manager-layout {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  /* Hero Next Action Card */
+  .project-next-action-card {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    border: 1.5px solid var(--accent) !important;
+    border-left: 1.5px solid var(--accent) !important;
+    border-radius: 12px !important;
+    padding: 12px !important;
+    background: var(--surface) !important;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08) !important;
+    margin-top: 10px !important;
+  }
+
+  .project-next-action-left {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+  }
+
+  .project-next-action-label {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: var(--accent) !important;
+    background: var(--accent-soft) !important;
+    border-radius: 4px !important;
+    padding: 2px 6px !important;
+  }
+
+  .project-next-action-text {
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    color: var(--ink) !important;
+    line-height: 1.4 !important;
+  }
+
+  .project-next-action-card .ui-button {
+    width: 100% !important;
+    height: 36px !important;
+    margin-left: 0 !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    justify-content: center !important;
+    border-radius: 8px !important;
+  }
+
+  /* ─── Weekly Schedule Mobile Layout ──────────────────────────────── */
+  .schedule-manager-card {
+    border-radius: 14px !important;
+    padding: 12px !important;
+  }
+
+  .schedule-manager-heading {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .schedule-manager-heading h1 {
+    font-size: 18px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .schedule-meta-line {
+    display: none !important;
+  }
+
+  .schedule-header-actions {
+    display: flex !important;
+    gap: 6px !important;
+    width: 100% !important;
+    flex-wrap: wrap !important;
+  }
+
+  .schedule-header-actions .ui-button {
+    flex: 1 1 auto !important;
+    height: 34px !important;
+    font-size: 12px !important;
+    padding: 0 8px !important;
+    justify-content: center !important;
+    border-radius: 8px !important;
+  }
+
+  .schedule-toolbar {
+    margin-bottom: 10px !important;
+  }
+
+  .schedule-week-nav {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    gap: 4px !important;
+  }
+
+  .schedule-week-nav .schedule-nav-btn {
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+    border-radius: 6px !important;
+    min-height: 28px !important;
+  }
+
+  .schedule-week-label {
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    color: var(--ink) !important;
+  }
+
+  .schedule-legend {
+    display: none !important;
+  }
+
+  /* 7-Day Header Strip on mobile */
+  .schedule-grid-header.period-grid {
+    display: flex !important;
+    gap: 6px !important;
+    overflow-x: auto !important;
+    padding: 4px 0 8px !important;
+    scrollbar-width: none !important;
+    border: none !important;
+  }
+
+  .schedule-grid-header.period-grid::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .schedule-grid-header.period-grid .period-label {
+    display: none !important;
+  }
+
+  .period-day {
+    flex: 1 !important;
+    min-width: 42px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    padding: 6px 2px !important;
+    border-radius: 10px !important;
+    border: 1px solid var(--line) !important;
+    background: var(--surface) !important;
+    color: var(--ink) !important;
+    cursor: pointer !important;
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+    transition: all 0.15s ease !important;
+  }
+
+  .period-day.is-today {
+    border-color: var(--accent) !important;
+  }
+
+  .period-day[aria-pressed="true"] {
+    background: var(--ink) !important;
+    color: #fff !important;
+    border-color: var(--ink) !important;
+  }
+
+  /* Timetable grid cells on mobile: show selected day's stream */
+  .schedule-timetable-grid.period-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  .schedule-timetable-grid.period-grid .period-label {
+    display: none !important;
+  }
+
+  .schedule-timetable-grid.period-grid .period-cell[data-selected="false"] {
+    display: none !important;
+  }
+
+  .schedule-timetable-grid.period-grid .period-cell[data-selected="true"] {
+    display: block !important;
+    background: var(--surface) !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 12px !important;
+    padding: 10px 12px !important;
+    min-height: auto !important;
+  }
+
+  .schedule-timetable-grid.period-grid .period-cell[data-selected="true"]::before {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-2);
+    margin-bottom: 8px;
+  }
+
+  .schedule-timetable-grid.period-grid .period-cell[data-period="all"][data-selected="true"]::before {
+    content: "全天事项";
+  }
+
+  .schedule-timetable-grid.period-grid .period-cell[data-period="am"][data-selected="true"]::before {
+    content: "上午时段";
+  }
+
+  .schedule-timetable-grid.period-grid .period-cell[data-period="pm"][data-selected="true"]::before {
+    content: "下午时段";
+  }
+
+  .schedule-timetable-grid.period-grid .period-cell[data-period="eve"][data-selected="true"]::before {
+    content: "晚上时段";
+  }
+
+  .schedule-timetable-grid.period-grid .period-cell[data-selected="true"] .period-event {
+    padding: 10px 12px !important;
+    border-radius: 10px !important;
+    margin-bottom: 8px !important;
+    gap: 4px !important;
+  }
+
+  .schedule-timetable-grid.period-grid .period-cell[data-selected="true"] .period-event-title {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    white-space: normal !important;
+    -webkit-line-clamp: 2 !important;
+  }
+
+  /* ─── Platform Connections Mobile Layout ─────────────────────────── */
+  .connections-manager-card {
+    border-radius: 14px !important;
+    padding: 12px !important;
+  }
+
+  .connections-layout {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .connection-platform-list {
+    display: flex !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    gap: 6px !important;
+    padding-bottom: 4px !important;
+    scrollbar-width: none !important;
+  }
+
+  .connection-platform-list::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .connection-platform-item {
+    flex: 1 0 76px !important;
+    min-width: 76px !important;
+    padding: 8px 4px !important;
+    text-align: center !important;
+    border-radius: 10px !important;
+  }
+
+  .connections-detail-panel {
+    border-radius: 12px !important;
+    padding: 12px !important;
+  }
+
+  /* ─── Settings / Agent / Calendar Mobile Layout ──────────────────── */
+  .settings-summary-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .settings-summary-card {
+    border-radius: 12px !important;
+    padding: 12px !important;
+  }
+
+  .calendar-subscription-workspace {
+    border-radius: 14px !important;
+    padding: 14px !important;
+  }
+
+  /* ─── Bottom Navigation Bar (Dock) ───────────────────────────────── */
+  .mobile-bottom-nav {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: calc(var(--mobile-bottom-bar-height) + var(--mobile-safe-bottom)) !important;
+    background: color-mix(in srgb, var(--surface) 94%, transparent) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-top: 1px solid var(--line) !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-around !important;
+    padding-top: 5px !important;
+    padding-bottom: var(--mobile-safe-bottom) !important;
+    z-index: 100 !important;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04) !important;
+  }
+
+  .mobile-nav-item {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+    color: var(--ink-3) !important;
+    width: 62px !important;
+    height: 44px !important;
+    position: relative !important;
+    transition: color 0.15s ease !important;
+    border-radius: 8px !important;
+  }
+
+  .mobile-nav-item:active {
+    background: color-mix(in srgb, var(--ink) 4%, transparent) !important;
+  }
+
+  .mobile-nav-item.is-active {
+    color: var(--accent) !important;
+  }
+
+  .mobile-nav-icon {
+    width: 22px !important;
+    height: 22px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative !important;
+  }
+
+  .mobile-nav-icon svg {
+    width: 20px !important;
+    height: 20px !important;
+    stroke-width: 2 !important;
+  }
+
+  .mobile-nav-label {
+    font-size: 10px !important;
+    font-weight: 500 !important;
+    font-family: var(--font-sans) !important;
+    line-height: 1 !important;
+  }
+
+  .mobile-nav-item.is-active .mobile-nav-label {
+    font-weight: 600 !important;
+    color: var(--accent) !important;
+  }
+
+  .mobile-nav-badge {
+    position: absolute !important;
+    top: -2px !important;
+    right: -4px !important;
+    background: var(--danger) !important;
+    color: #fff !important;
+    font-size: 9px !important;
+    font-weight: 700 !important;
+    min-width: 14px !important;
+    height: 14px !important;
+    padding: 0 3px !important;
+    border-radius: 9999px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+  }
+
+  .mobile-nav-badge.hidden {
+    display: none !important;
+  }
+}
