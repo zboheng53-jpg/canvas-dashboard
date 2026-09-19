@@ -18,7 +18,7 @@ FETCH_INTERVAL_SECONDS = settings.ZHIHUISHU_FETCH_INTERVAL_SECONDS
 MAX_FAILURE_DELAY_SECONDS = settings.ZHIHUISHU_MAX_FAILURE_DELAY_SECONDS
 FETCH_TIMEOUT_SECONDS = settings.ZHIHUISHU_FETCH_TIMEOUT_SECONDS
 
-LOCK_FILE = Path(__file__).parent / "data" / "zhihuishu_worker.lock"
+LOCK_FILE = zhihuishu_store.DATA_DIR / "zhihuishu_worker.lock"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [zhihuishu-worker] %(levelname)s: %(message)s")
 logger = logging.getLogger("zhihuishu_worker")

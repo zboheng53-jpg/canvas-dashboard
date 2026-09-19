@@ -6,7 +6,7 @@ import settings
 from platform_state import PlatformStateStore
 from storage import read_json_file, write_json_file
 
-DATA_DIR = Path(__file__).parent / "data"
+from user_paths import DATA_DIR
 
 STATUS_DEFAULT = {
     "session": "not_logged_in",

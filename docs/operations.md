@@ -12,9 +12,9 @@ Run deployments from the repository root on Windows:
 
 The deploy script:
 
-1. runs `scripts/test.ps1` and Python compilation;
+1. verifies clean `main` against the live remote `origin/main`, records the commit, and runs `scripts/test.ps1 -Suite all` plus Python compilation;
 2. creates, downloads, verifies, and restores an encrypted backup in an isolated recovery drill;
-3. packages only production runtime and deployment files, excluding local docs, tests, Windows helpers, `.git`, `.venv`, `data/`, caches, and agent directories;
+3. rechecks the unchanged clean, pushed commit after tests/backup, archives that fixed commit (release name includes its first 12 characters), and packages only production runtime and deployment files, excluding local docs, tests, Windows helpers, `.git`, `.venv`, `data/`, caches, and agent directories;
 4. uploads an immutable release through SSH with the pinned `deploy/known_hosts`;
 5. atomically activates `releases/<release-name>`;
 6. installs systemd and nginx configuration;

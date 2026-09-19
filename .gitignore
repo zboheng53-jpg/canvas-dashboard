@@ -59,3 +59,6 @@ drafts/*
 
 # Generated static page for importing the real Flask/Jinja dashboard into Open Design.
 frontend/open-design-preview/
+
+test-results/
+release-*.tar.gz

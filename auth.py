@@ -17,7 +17,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from storage import locked_json_update, load_or_create_bytes, read_json_file, write_json_file
 
-DATA_DIR = Path(__file__).parent / "data"
+from user_paths import DATA_DIR
 USERS_FILE = DATA_DIR / "users.json"
 SECRET_KEY_FILE = DATA_DIR / ".flask_secret_key"
 # Deliberately excluded from encrypted account-content backups.  It is merged

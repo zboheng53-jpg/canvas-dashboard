@@ -85,8 +85,7 @@ def test_export_component_lab_preview_uses_relative_assets(tmp_path: Path):
     assert restored_testing is False
 
 
-def test_component_lab_modal_and_candidate_selection_work_in_static_preview(tmp_path: Path):
-    playwright_api = pytest.importorskip("playwright.sync_api")
+def test_component_lab_modal_and_candidate_selection_work_in_static_preview(tmp_path: Path, browser):
     preview_root = tmp_path / "frontend"
     assets_source = Path(__file__).parents[1] / "frontend" / "assets"
     import shutil
@@ -94,34 +93,32 @@ def test_component_lab_modal_and_candidate_selection_work_in_static_preview(tmp_
     shutil.copytree(assets_source, preview_root / "assets")
     output = export_component_lab_preview(preview_root / "open-design-preview" / "component-lab.html")
 
-    with playwright_api.sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 1440, "height": 1000})
-        browser_errors = []
-        page.on("pageerror", lambda error: browser_errors.append(str(error)))
-        try:
-            page.goto(output.as_uri())
-            assert page.get_by_label("候选 A：静默描边").is_checked()
-            assert page.locator('[data-candidate="action-a"]').get_attribute("data-selected") == "true"
-            assert page.locator('[data-candidate="action-a"] .candidate-control').count() == 4
-            assert page.locator('[data-candidate="action-b"] .candidate-control').count() == 4
-            assert page.locator('[data-candidate="action-c"] .candidate-control').count() == 4
-            assert "Noto Serif SC" in page.locator(".lab-section-heading h2").first.evaluate(
-                "element => getComputedStyle(element).fontFamily"
-            )
-            assert "Noto Serif SC" in page.locator(".lab-specimen-heading h3").first.evaluate(
-                "element => getComputedStyle(element).fontFamily"
-            )
-            assert page.evaluate("document.documentElement.scrollWidth") == 1440
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    browser_errors = []
+    page.on("pageerror", lambda error: browser_errors.append(str(error)))
+    try:
+        page.goto(output.as_uri())
+        assert page.get_by_label("候选 A：静默描边").is_checked()
+        assert page.locator('[data-candidate="action-a"]').get_attribute("data-selected") == "true"
+        assert page.locator('[data-candidate="action-a"] .candidate-control').count() == 4
+        assert page.locator('[data-candidate="action-b"] .candidate-control').count() == 4
+        assert page.locator('[data-candidate="action-c"] .candidate-control').count() == 4
+        assert "Noto Serif SC" in page.locator(".lab-section-heading h2").first.evaluate(
+            "element => getComputedStyle(element).fontFamily"
+        )
+        assert "Noto Serif SC" in page.locator(".lab-specimen-heading h3").first.evaluate(
+            "element => getComputedStyle(element).fontFamily"
+        )
+        assert page.evaluate("document.documentElement.scrollWidth") == 1440
 
-            page.get_by_role("button", name="打开弹窗示例").click()
-            dialog = page.get_by_role("dialog", name="新建学习任务")
-            assert dialog.is_visible()
-            page.keyboard.press("Escape")
-            assert dialog.is_hidden()
+        page.get_by_role("button", name="打开弹窗示例").click()
+        dialog = page.get_by_role("dialog", name="新建学习任务")
+        assert dialog.is_visible()
+        page.keyboard.press("Escape")
+        assert dialog.is_hidden()
 
-            page.get_by_label("候选 B：低饱和实体").check()
-            assert page.locator('[data-candidate="action-b"]').get_attribute("data-selected") == "true"
-            assert not browser_errors
-        finally:
-            browser.close()
+        page.get_by_label("候选 B：低饱和实体").check()
+        assert page.locator('[data-candidate="action-b"]').get_attribute("data-selected") == "true"
+        assert not browser_errors
+    finally:
+        page.close()

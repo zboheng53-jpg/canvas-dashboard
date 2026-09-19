@@ -7,10 +7,11 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 import settings
+from user_paths import DATA_DIR
 
 os.chdir(Path(__file__).parent)
 
-LOG_FILE = Path("data") / "server.log"
+LOG_FILE = DATA_DIR / "server.log"
 LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 
@@ -49,7 +50,7 @@ def main():
     PORT = settings.APP_PORT
 
     try:
-        Path("data").mkdir(parents=True, exist_ok=True)
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
     except Exception:
         logger.exception("Failed to initialize data directory")
         sys.exit(1)

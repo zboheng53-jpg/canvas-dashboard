@@ -1,7 +1,9 @@
 """Per-user data directory resolution, shared by all platform client modules."""
+import os
 from pathlib import Path
 
-DATA_DIR = Path(__file__).parent / "data"
+# Set before importing the application. Tests and previews use disposable roots.
+DATA_DIR = Path(os.environ.get("CANVAS_DASHBOARD_DATA_DIR") or Path(__file__).parent / "data").resolve()
 
 
 def user_dir(username: str) -> Path:

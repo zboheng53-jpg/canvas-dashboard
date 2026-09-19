@@ -17,6 +17,7 @@ BUTTON_EXCEPTIONS = {
     "f-chip",
     "icon-btn",
     "login-card",
+    "mobile-nav-item",
     "proj-name",
     "project-todo-link",
     "project-browser-item",

@@ -1,7 +1,10 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$HostName = "",
-    [int]$Port = 0
+    [int]$Port = 0,
+    [switch]$Preview,
+    [ValidateSet("normal", "empty", "dense")]
+    [string]$Scenario = "normal"
 )
 
 $ErrorActionPreference = "Stop"
@@ -33,7 +36,16 @@ try {
         $env:CANVAS_DASHBOARD_PORT = [string]$Port
     }
 
-    & $Python app.py
+    if ($Preview) {
+        if ($HostName -ne "" -and $HostName -ne "127.0.0.1") {
+            throw "Acceptance previews bind only to 127.0.0.1."
+        }
+        $PreviewPort = if ($Port -gt 0) { $Port } else { 5000 }
+        & $Python scripts/preview_action_workspace.py --scenario $Scenario --port $PreviewPort
+    } else {
+        if ($PSBoundParameters.ContainsKey("Scenario")) { throw "-Scenario requires -Preview." }
+        & $Python app.py
+    }
     exit $LASTEXITCODE
 }
 finally {

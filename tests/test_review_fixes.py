@@ -31,8 +31,8 @@ def test_env(tmp_path, monkeypatch):
     base.mkdir(parents=True, exist_ok=True)
     for module in [dashboard, agent_auth, auth, canvas_auth, platform_sync, project_store, schedule_store, storage, user_paths]:
         for k, v in list(vars(module).items()):
-            if isinstance(v, Path) and "data" in str(v):
-                monkeypatch.setattr(module, k, base / v.name if v.name != "data" else base)
+            if isinstance(v, Path) and ("data" in str(v).lower() or k.endswith("_DIR") or k.endswith("_FILE") or k == "DATA_DIR"):
+                monkeypatch.setattr(module, k, base / v.name if v.name != "data" and k != "DATA_DIR" else base)
     monkeypatch.setattr(user_paths, "DATA_DIR", base)
     dashboard.app.config.update(TESTING=True)
     auth.register("alice", "ReviewPass123!")

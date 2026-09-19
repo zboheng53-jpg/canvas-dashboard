@@ -2,6 +2,8 @@
 
 ## Current
 
+- `development.md`: development, isolated acceptance scenarios, test suites, failure evidence, release source checks and feature entry points.
+
 - `../README.md`: project entry point and local quick start.
 - `architecture.md`: runtime architecture, data boundaries, refresh flows, and release layout.
 - `operations.md`: production deployment, rollback, services, health, TLS, and incident commands.

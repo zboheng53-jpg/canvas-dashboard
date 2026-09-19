@@ -46,3 +46,7 @@ Open Design 不会执行 Flask 或 Jinja，因此不要直接导入 `templates/i
 Cascade Layer 的固定顺序为 `legacy → tokens → foundation → components → patterns → pages → utilities`。新样式不得直接增加到三份 legacy 文件；已迁移控件的视觉规则不得回到业务类或 `patterns.css`。
 
 可执行约束见 `DESIGN_SYSTEM.md`；现状审计与迁移映射分别见 `STATUS_COMPONENT_AUDIT.md`、`STATUS_COMPONENT_MIGRATION.md`。
+
+## 本地交互验收
+
+使用真实 Flask API 与隔离示例数据：在项目根目录运行 `scripts/dev.ps1 -Preview -Scenario normal`，访问 http://127.0.0.1:5000/preview-login。空状态用 `empty`，密集内容用 `dense`。测试分层、失败截图与 trace 说明见 [开发流程](../docs/development.md)。静态预览不能代替此交互验收。

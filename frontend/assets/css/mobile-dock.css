@@ -21,54 +21,16 @@
   }
 
   #dashboard-shell {
-    max-width: 100%;
-    padding: 0 12px calc(var(--mobile-bottom-bar-height) + var(--mobile-safe-bottom) + 24px) !important;
-    overflow-x: hidden;
+    padding-bottom: calc(var(--mobile-bottom-bar-height) + var(--mobile-safe-bottom) + 24px) !important;
   }
 
-  /* Hide old mobile hamburger header, replaced by bottom dock + glassmorphic context header */
-  .mobile-shell-bar {
-    display: none !important;
-  }
-
-  /* Academic sidebar stays hidden on mobile */
-  .academic-sidebar {
-    display: none !important;
-  }
-  .sidebar-scrim {
-    display: none !important;
-  }
-
-  .dashboard-grid {
-    display: block !important;
-    width: 100% !important;
-  }
-
-  .workspace-stack {
-    width: 100% !important;
-    gap: 12px !important;
-  }
-
-  .workspace-main {
-    width: 100% !important;
-    min-height: auto !important;
-    height: auto !important;
-  }
-
-  /* ─── Sleek Sticky Glassmorphic Top Header ───────────────────────── */
+  /* ─── Compact Mobile Context Header ─────────────────────────────── */
   .workspace-main .context-card {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 40 !important;
-    margin: 0 -12px 12px -12px !important;
-    padding: 8px 12px !important;
-    background: color-mix(in srgb, var(--surface) 90%, transparent) !important;
-    backdrop-filter: blur(20px) !important;
-    -webkit-backdrop-filter: blur(20px) !important;
-    border: none !important;
-    border-bottom: 1px solid var(--line) !important;
-    border-radius: 0 !important;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03) !important;
+    margin-bottom: 12px !important;
+    padding: 12px 14px !important;
+    background: var(--surface) !important;
+    border: 1px solid var(--line) !important;
+    border-radius: var(--radius-card) !important;
   }
 
   .enter-top-bar {

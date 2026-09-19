@@ -84,6 +84,16 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\dev.ps1
 
 ## 开发与测试
 
+完整工作流、场景选择、测试分层、失败证据和功能定位见 [开发、验收与发布](docs/development.md)。
+
+```powershell
+.\scripts\dev.ps1 -Preview -Scenario dense
+.\scripts\test.ps1 -Suite quick
+.\scripts\test.ps1 -Suite acceptance
+```
+
+独立预览默认访问 <http://127.0.0.1:5000/preview-login>；示例数据不会写入原有 `data/`。
+
 运行完整测试：
 
 ```powershell

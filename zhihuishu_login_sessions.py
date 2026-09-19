@@ -14,7 +14,7 @@ from pathlib import Path
 import settings
 from storage import read_json_file, write_json_file
 
-DATA_DIR = Path(__file__).parent / "data"
+from user_paths import DATA_DIR
 
 SESSION_TTL_SECONDS = settings.ZHIHUISHU_LOGIN_SESSION_TTL_SECONDS
 PORT_START = settings.ZHIHUISHU_LOGIN_PORT_START

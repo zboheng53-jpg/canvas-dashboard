@@ -1,5 +1,4 @@
 """Dense desktop weeks must keep every time band visible and every item reachable."""
-from datetime import datetime
 
 import pytest
 from playwright.sync_api import expect
@@ -15,7 +14,7 @@ def test_dense_week_fits_and_overflow_opens_same_action(live_app, browser, width
     page = browser.new_page(viewport={"width": width, "height": height})
     try:
         username = register_dashboard_user(page, live_app, "dense")
-        day = datetime.now(dashboard.CST).date().isoformat()
+        day = dashboard.datetime.now(dashboard.CST).date().isoformat()
         project = project_store.create_project(username, {"name": "英语练习"})
         for i in range(12):
             project_store.create_task(username, project["id"], {

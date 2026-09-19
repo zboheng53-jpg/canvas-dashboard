@@ -4,8 +4,13 @@ import json
 import app as dashboard_app
 
 
-def test_calendar_inference_july_18_is_week_20():
+def test_calendar_inference_july_18_is_week_20(tmp_path, monkeypatch):
     """Verify that 2026-07-18 is calculated as 2025-2026学年 第二学期 Week 20."""
+    # This historical term must not depend on the developer's real data/ config.
+    config = tmp_path / "term_config.json"
+    config.write_text(json.dumps({"semesters": [{"term_label": "2025-2026学年 第二学期",
+                                               "start_date": "2026-03-02", "weeks": 22}]}), encoding="utf-8")
+    monkeypatch.setattr(dashboard_app, "_TERM_CONFIG_FILE", config)
     target_dt = dt.datetime(2026, 7, 18, 12, 0, tzinfo=dashboard_app.CST)
     term_label, week_num, semester_start = dashboard_app.get_term_info(target_dt)
 

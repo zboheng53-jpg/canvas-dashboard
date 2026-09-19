@@ -1,114 +1,14 @@
 import json
 import os
 import re
-import threading
-from datetime import datetime
 
 import pytest
-from werkzeug.serving import make_server
 
 import app as dashboard_app
 import tongji_timetable
-import user_paths
 
 playwright_api = pytest.importorskip("playwright.sync_api")
 expect = playwright_api.expect
-sync_playwright = playwright_api.sync_playwright
-
-
-class FixedDateTime(datetime):
-    @classmethod
-    def now(cls, tz=None):
-        value = cls(2026, 7, 9, 12, 0, tzinfo=dashboard_app.CST)
-        return value.astimezone(tz) if tz else value.replace(tzinfo=None)
-
-
-@pytest.fixture
-def live_app(tmp_path, monkeypatch):
-    user_root = tmp_path / "users"
-
-    def resolve_user_dir(username):
-        path = user_root / username
-        path.mkdir(parents=True, exist_ok=True)
-        return path
-
-    monkeypatch.setattr(dashboard_app, "DATA_DIR", tmp_path)
-    monkeypatch.setattr(dashboard_app, "user_dir", resolve_user_dir)
-    monkeypatch.setattr(dashboard_app.auth, "DATA_DIR", tmp_path)
-    monkeypatch.setattr(dashboard_app.auth, "USERS_FILE", tmp_path / "users.json")
-    monkeypatch.setattr(dashboard_app.auth, "SECRET_KEY_FILE", tmp_path / ".flask_secret_key")
-    monkeypatch.setattr(user_paths, "DATA_DIR", tmp_path)
-    monkeypatch.setattr(dashboard_app, "datetime", FixedDateTime)
-    if hasattr(dashboard_app, "_rate_limit_buckets"):
-        dashboard_app._rate_limit_buckets.clear()
-
-    class WeatherResponse:
-        def json(self):
-            return {
-                "current": {
-                    "temperature_2m": 26,
-                    "relative_humidity_2m": 55,
-                    "weather_code": 0,
-                    "wind_speed_10m": 8,
-                }
-            }
-
-    monkeypatch.setattr(dashboard_app.requests, "get", lambda *args, **kwargs: WeatherResponse())
-    monkeypatch.setattr(
-        dashboard_app,
-        "fetch_canvas_planner",
-        lambda username: {
-            "ok": True,
-            "data": [
-                {
-                    "id": 101,
-                    "title": "Canvas seeded",
-                    "course": "Canvas",
-                    "due_str": "07-10",
-                    "due_ts": "2099-07-10T00:00:00+08:00",
-                    "type": "Canvas",
-                    "url": "",
-                }
-            ],
-            "cached": False,
-        },
-    )
-    monkeypatch.setattr(dashboard_app, "load_state", lambda username: {"hidden": [], "highlighted": [], "deleted": []})
-    monkeypatch.setattr(dashboard_app, "save_state", lambda username, state: None)
-    monkeypatch.setattr(dashboard_app, "fetch_haoke_todos", lambda username: {"ok": True, "data": [], "cached": False})
-    monkeypatch.setattr(dashboard_app, "load_haoke_state", lambda username: {"hidden": [], "highlighted": [], "deleted": []})
-    monkeypatch.setattr(dashboard_app, "save_haoke_state", lambda username, state: None)
-    monkeypatch.setattr(dashboard_app, "fetch_zxm_assignments", lambda username, course_code=None: {"ok": True, "items": [], "cached": False})
-    monkeypatch.setattr(dashboard_app, "load_zxm_state", lambda username: {"hidden": [], "highlighted": [], "deleted": []})
-    monkeypatch.setattr(dashboard_app, "save_zxm_state", lambda username, state: None)
-    monkeypatch.setattr(dashboard_app, "get_selected_course", lambda username: None)
-    monkeypatch.setattr(dashboard_app.zhihuishu_store, "load_status", lambda username: {"session": "ok"})
-    monkeypatch.setattr(dashboard_app.zhihuishu_store, "load_state", lambda username: {"hidden": [], "highlighted": [], "deleted": []})
-    monkeypatch.setattr(
-        dashboard_app.zhihuishu_store,
-        "load_cache",
-        lambda username: {"items": [], "stale": False, "fetched_at": None},
-    )
-    monkeypatch.setattr(dashboard_app.zhihuishu_login_sessions, "load_session", lambda username: None)
-    dashboard_app.app.config.update(TESTING=True)
-    server = make_server("127.0.0.1", 0, dashboard_app.app, threaded=True)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        yield f"http://127.0.0.1:{server.server_port}"
-    finally:
-        server.shutdown()
-        thread.join(timeout=5)
-
-
-@pytest.fixture
-def browser():
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=True)
-        try:
-            yield browser
-        finally:
-            browser.close()
 
 
 def register_dashboard_user(page, live_app, username):
@@ -360,19 +260,6 @@ def test_frontend_desktop_todo_card_scrolls_without_outgrowing_sidebars(live_app
 
 def test_frontend_overview_rich_content_uses_internal_scroll_regions(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
-    page.add_init_script("""
-      (() => {
-        const RealDate = Date;
-        const fixedNow = new RealDate('2026-07-09T12:00:00+08:00').valueOf();
-        class FixedBrowserDate extends RealDate {
-          constructor(...args) { super(...(args.length ? args : [fixedNow])); }
-          static now() { return fixedNow; }
-        }
-        FixedBrowserDate.parse = RealDate.parse;
-        FixedBrowserDate.UTC = RealDate.UTC;
-        window.Date = FixedBrowserDate;
-      })();
-    """)
     register_dashboard_user(page, live_app, "richoverview")
 
     page.evaluate(
@@ -683,19 +570,6 @@ def test_frontend_v2_mobile_menu_placeholders_and_stacked_modules(live_app, brow
 
 def test_frontend_schedule_management_renders_today_busy_item(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
-    page.add_init_script("""
-      (() => {
-        const RealDate = Date;
-        const fixedNow = new RealDate('2026-07-09T12:00:00+08:00').valueOf();
-        class FixedBrowserDate extends RealDate {
-          constructor(...args) { super(...(args.length ? args : [fixedNow])); }
-          static now() { return fixedNow; }
-        }
-        FixedBrowserDate.parse = RealDate.parse;
-        FixedBrowserDate.UTC = RealDate.UTC;
-        window.Date = FixedBrowserDate;
-      })();
-    """)
     register_dashboard_user(page, live_app, "schedulev2")
     page.locator('[data-dashboard-view="schedule"]').click()
     expect(page.locator("#dashboard-view-schedule")).to_be_visible()
@@ -713,21 +587,9 @@ def test_frontend_schedule_management_renders_today_busy_item(live_app, browser)
     expect(page.locator("#today-schedule-content")).to_contain_text("实验室值班")
 
 
+@pytest.mark.now("2026-07-23T17:26:00+08:00")
 def test_frontend_schedule_is_fixed_height_precise_and_editable(live_app, browser):
     page = browser.new_page(viewport={"width": 2048, "height": 1110})
-    page.add_init_script("""
-      (() => {
-        const RealDate = Date;
-        const fixedNow = new RealDate('2026-07-23T17:26:00+08:00').valueOf();
-        class FixedBrowserDate extends RealDate {
-          constructor(...args) { super(...(args.length ? args : [fixedNow])); }
-          static now() { return fixedNow; }
-        }
-        FixedBrowserDate.parse = RealDate.parse;
-        FixedBrowserDate.UTC = RealDate.UTC;
-        window.Date = FixedBrowserDate;
-      })();
-    """)
     register_dashboard_user(page, live_app, "scheduleworkspace")
     page.locator('[data-dashboard-view="schedule"]').click()
 
@@ -798,6 +660,7 @@ def test_frontend_schedule_uses_one_academic_week_for_all_seven_days(live_app, b
     context.close()
 
 
+@pytest.mark.now("2026-03-02T12:00:00+08:00")
 def test_imported_reference_timetable_renders_weeks_1_to_16(live_app, browser, monkeypatch):
     reference = [
         ("高级语言程序设计实验", "CST160202", "星期三 5-6节 [7-16],星期三 5-6节 [1-6]"),
@@ -824,19 +687,6 @@ def test_imported_reference_timetable_renders_weeks_1_to_16(live_app, browser, m
     monkeypatch.setattr(dashboard_app, "get_term_info", lambda *_: ("2025-2026学年 第二学期", 1, "2026-03-02"))
 
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
-    page.add_init_script("""
-      (() => {
-        const RealDate = Date;
-        const fixedNow = new RealDate('2026-03-02T12:00:00+08:00').valueOf();
-        class FixedBrowserDate extends RealDate {
-          constructor(...args) { super(...(args.length ? args : [fixedNow])); }
-          static now() { return fixedNow; }
-        }
-        FixedBrowserDate.parse = RealDate.parse;
-        FixedBrowserDate.UTC = RealDate.UTC;
-        window.Date = FixedBrowserDate;
-      })();
-    """)
     register_dashboard_user(page, live_app, "referenceweeks")
     result = page.evaluate("""async () => {
       const response = await fetch('/api/schedule/refresh', {
@@ -1005,7 +855,8 @@ def test_frontend_project_main_card_groups_tasks_and_todo_jump(live_app, browser
 def test_frontend_projects_narrow_screen_has_no_horizontal_overflow(live_app, browser, width):
     page = browser.new_page(viewport={"width": width, "height": 844})
     register_dashboard_user(page, live_app, f"projectmobile{width}")
-    page.get_by_role("button", name="新建项目").last.click()
+    # Wait for the async overview action; the header icon only opens the workspace.
+    page.locator("#project-overview-content").get_by_role("button", name="新建项目", exact=True).click()
     page.fill('#project-editor-form [name="name"]', "窄屏长期项目")
     page.locator('#project-editor-form [type="submit"]').click()
     expect(page.locator("#dashboard-view-projects")).to_be_visible()
@@ -1447,19 +1298,6 @@ def test_frontend_agent_integration_page(live_app, browser):
 
 def test_frontend_todo_completion_sinks_and_syncs_with_agenda(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
-    page.add_init_script("""
-      (() => {
-        const RealDate = Date;
-        const fixedNow = new RealDate('2026-07-09T12:00:00+08:00').valueOf();
-        class FixedBrowserDate extends RealDate {
-          constructor(...args) { super(...(args.length ? args : [fixedNow])); }
-          static now() { return fixedNow; }
-        }
-        FixedBrowserDate.parse = RealDate.parse;
-        FixedBrowserDate.UTC = RealDate.UTC;
-        window.Date = FixedBrowserDate;
-      })();
-    """)
     register_dashboard_user(page, live_app, "agendasink")
 
     today_str = page.evaluate("workspaceTodayISO()")

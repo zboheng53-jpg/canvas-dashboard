@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$SkipPreDeployBackup
 )
 
@@ -19,8 +19,6 @@ $SshOptions = @(
     "-o", "HostKeyAlgorithms=ssh-ed25519",
     "-o", "UserKnownHostsFile=$KnownHosts"
 )
-$ReleaseName = "release-" + [DateTime]::UtcNow.ToString("yyyyMMddTHHmmssZ")
-$TarFile = Join-Path $RepoRoot "$ReleaseName.tar.gz"
 
 function Invoke-DeploySsh {
     param([string]$Command, [string]$Description)
@@ -44,8 +42,15 @@ function Send-DeployArchive {
 
 Write-Host "Starting verified release deployment..." -ForegroundColor Cyan
 
+$ReleaseCommit = & .\.venv\Scripts\python.exe .\scripts\check_release.py
+if ($LASTEXITCODE -ne 0) { throw "Release source check failed. Deployment aborted." }
+$ReleaseCommit = $ReleaseCommit.Trim()
+$ReleaseName = "release-" + [DateTime]::UtcNow.ToString("yyyyMMddTHHmmssZ") + "-" + $ReleaseCommit.Substring(0, 12)
+$TarFile = Join-Path $RepoRoot "$ReleaseName.tar.gz"
+Write-Host "Verified pushed main commit: $ReleaseCommit"
+
 Write-Host "Running local regression and compilation gates..." -ForegroundColor Yellow
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1 -Suite all
 if ($LASTEXITCODE -ne 0) { throw "Local tests failed. Deployment aborted." }
 $PythonFiles = @(& git ls-files -- "*.py")
 if ($LASTEXITCODE -ne 0 -or $PythonFiles.Count -eq 0) { throw "Failed to enumerate tracked Python files." }
@@ -58,9 +63,13 @@ if (-not $SkipPreDeployBackup) {
     if ($LASTEXITCODE -ne 0) { throw "Pre-deployment backup or recovery drill failed." }
 }
 
+# Recheck after tests/backup: reject edits or a moved local/remote main.
+& .\.venv\Scripts\python.exe .\scripts\check_release.py --expected $ReleaseCommit
+if ($LASTEXITCODE -ne 0) { throw "Release source changed after validation. Deployment aborted." }
+
 Write-Host "Packaging immutable release $ReleaseName..." -ForegroundColor Yellow
 try {
-    & git archive --format=tar.gz --output=$TarFile HEAD
+    & git archive --format=tar.gz --output=$TarFile $ReleaseCommit
     if ($LASTEXITCODE -ne 0) { throw "Failed to create release archive." }
 
     Invoke-DeploySsh -Command "mkdir -p $RemoteRoot/incoming $RemoteRoot/releases" -Description "Remote release directory preparation"
@@ -76,4 +85,4 @@ finally {
     Remove-Item -LiteralPath $TarFile -ErrorAction SilentlyContinue
 }
 
-Write-Host "Deployment completed: $ReleaseName" -ForegroundColor Green
+Write-Host "Deployment completed: $ReleaseName (commit $ReleaseCommit)" -ForegroundColor Green

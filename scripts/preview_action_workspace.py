@@ -1,5 +1,7 @@
 """Run the real application on localhost with isolated, disposable acceptance data."""
 import sys
+import os
+import json
 import argparse
 import tempfile
 from datetime import datetime, timedelta, timezone
@@ -8,39 +10,46 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import auth
-import user_paths
-
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--data-dir", type=Path, help="Reuse an existing isolated acceptance directory")
+parser.add_argument("--scenario", choices=("normal", "empty", "dense"), default="normal")
+parser.add_argument("--port", type=int, default=5000)
+parser.add_argument("--check", action="store_true", help="Validate the seeded scenario without serving")
 args = parser.parse_args()
+if not 1 <= args.port <= 65535:
+    parser.error("Port must be between 1 and 65535")
 if args.data_dir:
     PREVIEW_DATA = args.data_dir.resolve(strict=True)
     if PREVIEW_DATA.parent != Path(tempfile.gettempdir()).resolve() or not PREVIEW_DATA.name.startswith("canvas-workspace-preview-"):
         parser.error("Only an existing canvas-workspace-preview-* temporary directory can be reused")
 else:
     PREVIEW_DATA = Path(tempfile.mkdtemp(prefix="canvas-workspace-preview-"))
+# Select the root before importing any module that derives credential/cache paths.
+os.environ["CANVAS_DASHBOARD_DATA_DIR"] = str(PREVIEW_DATA)
+import auth
+import user_paths
+
 seed_preview = not (PREVIEW_DATA / "users.json").exists()
-auth.DATA_DIR = user_paths.DATA_DIR = PREVIEW_DATA
-auth.USERS_FILE = PREVIEW_DATA / "users.json"
-auth.SECRET_KEY_FILE = PREVIEW_DATA / ".flask_secret_key"
-auth.DELETION_LEDGER_FILE = PREVIEW_DATA / ".account_deletion_ledger.json"
-auth.ADMIN_AUDIT_FILE = PREVIEW_DATA / "account_admin_audit.json"
+metadata = PREVIEW_DATA / "preview.json"
+if not seed_preview:
+    if not metadata.exists() or json.loads(metadata.read_text(encoding="utf-8"))["scenario"] != args.scenario:
+        parser.error("Existing data belongs to a different/legacy scenario. Start a fresh preview.")
 
 import app as dashboard
 import project_store
 import schedule_store
 from flask import redirect, session, jsonify
 
-dashboard.DATA_DIR = PREVIEW_DATA
-dashboard._TERM_CONFIG_FILE = PREVIEW_DATA / "term_config.json"
-dashboard._HOLIDAY_CACHE_FILE = PREVIEW_DATA / "holiday_cache.json"
 dashboard.app.config["SESSION_COOKIE_SECURE"] = False
 dashboard.app.jinja_env.auto_reload = True
 # Deliberate fixture values: this preview does not fetch live weather.
 dashboard.app.view_functions["api_weather"] = lambda: jsonify(ok=True, temperature=26.3, humidity=62, weather_desc="晴间多云（示例）", weather_emoji="☀️", weather_code=2)
+# The acceptance preview never uses the local authenticated CDP holiday browser.
+dashboard._get_holidays = lambda: []
 if seed_preview:
     auth.register("preview", "local-preview-only-2026")
+    metadata.write_text(json.dumps({"scenario": args.scenario}), encoding="utf-8")
+if seed_preview and args.scenario != "empty":
     today = datetime.now(timezone(timedelta(hours=8))).date()
     day = lambda offset: (today + timedelta(days=offset)).isoformat()
 
@@ -58,6 +67,19 @@ if seed_preview:
     schedule_store.create_item("preview", "one_off", {"title": listening["name"], "action_ref": f"project:{english['id']}:{listening['id']}", "date": day(1), "start_time": "19:00", "end_time": "19:25", "location": ""})
     schedule_store.create_item("preview", "recurring", {"title": "每周英语练习", "action_ref": f"project:{english['id']}:{listening['id']}", "weekday": (today.weekday()+3)%7, "start_date": day(0), "end_date": day(20), "start_time": "19:00", "end_time": "19:25", "enabled": True})
     schedule_store.save_courses("preview", "本地验收 · 示例课表", day(-today.weekday()), [{"name": "自动控制原理（示例）", "teacher": "示例教师", "sessions": [{"weekday": today.weekday(), "weeks": [], "start_time": "09:50", "end_time": "11:25", "location": "北楼 229"}]}], datetime.now(timezone.utc).isoformat())
+
+    if args.scenario == "dense":
+        for index in range(30):
+            dashboard._create_custom_action("preview", {
+                "text": f"密集验收 {index + 1}：核对自动控制实验报告与课程资料中的长标题展示",
+                "due_date": day(index % 7 - 2), "request_id": f"dense-{index}",
+            })
+        for index in range(12):
+            project_store.create_task("preview", english["id"], {
+                "name": f"听力练习与错题复盘 {index + 1}", "planned_on": day(0),
+                "details": "展开后应完整显示执行说明，保存后状态保持一致。",
+            })
+
 
 dashboard._LOGIN_EXEMPT_ENDPOINTS.add("workspace_preview_login")
 
@@ -82,4 +104,13 @@ def label_preview(response):
 
 if __name__ == "__main__":
     print(f"Isolated acceptance data: {PREVIEW_DATA}", flush=True)
-    dashboard.app.run(host="127.0.0.1", port=5000, debug=False, threaded=True)
+    print(f"Scenario: {args.scenario}; open http://127.0.0.1:{args.port}/preview-login", flush=True)
+    if args.check:
+        with dashboard.app.test_client() as client:
+            response = client.get("/preview-login", follow_redirects=True)
+            assert response.status_code == 200
+            assert client.get("/api/actions").status_code == 200
+            assert client.get("/healthz").status_code == 200
+        print("Preview check passed", flush=True)
+        sys.exit(0)
+    dashboard.app.run(host="127.0.0.1", port=args.port, debug=False, threaded=True)

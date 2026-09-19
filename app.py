@@ -22,7 +22,7 @@ import agent_auth
 import settings
 from platform_state import build_platform_todos_response
 from storage import JsonFileCorruptionError, locked_json_update, read_json_file, write_json_file
-from user_paths import user_dir
+from user_paths import DATA_DIR, user_dir
 from canvas_auth import fetch_canvas_planner, has_feed_url, save_feed_url, remove_feed_url, load_state, update_state, update_override as update_canvas_override, save_state
 from haoke_client import (
     fetch_haoke_todos, has_credentials as has_haoke_credentials,
@@ -86,7 +86,6 @@ def _get_external_base_url() -> str:
         url = "https://" + url[len("http://"):]
     return url
 
-DATA_DIR = Path(__file__).parent / "data"
 CST = timezone(timedelta(hours=8))
 
 @app.errorhandler(ActionValidationError)

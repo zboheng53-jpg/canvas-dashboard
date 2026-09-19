@@ -4,14 +4,22 @@ Flask webapp for aggregating unfinished assignments and exams from Canvas, 好�
 
 `AGENTS.md` is the canonical project rule file. `CLAUDE.md` must point to the same content; prefer a symbolic link, and use a hard link on Windows when symbolic-link privilege is unavailable.
 
-## 核心交互规则
+## 开发流程与验收
 
-1. **本地效果验收**：在本地开发环境（http://127.0.0.1:5000/）完成修改与测试后，请用户进行效果验收。
-2. **合并、推送与部署**：验收完成后，将分支修改合并到 `main` 分支，确认 `git push origin main` 成功后，再部署到服务器上。
+日常流程与功能定位统一见 `docs/development.md`；生产操作见 `docs/operations.md`。按以下顺序推进：
+
+1. **复现与范围**：从需求整理当前现象、预期行为与验收步骤；先看工作区状态和相关入口，保留用户已有修改。使用 `codex/` 功能分支，小任务不强制新建计划文件。
+2. **实现与反馈**：优先运行能复现问题的相关测试；快速反馈用 `scripts/test.ps1 -Suite quick`。新增浏览器测试复用 `tests/conftest.py` 的 `live_app`、`browser` 和统一日期，不复制服务器、账户隔离或 Date 初始化。
+3. **本地效果验收**：UI/交互优先用 `scripts/dev.ps1 -Preview -Scenario normal`（另有 `empty`、`dense` 场景），默认地址 http://127.0.0.1:5000/preview-login。完成受影响检查（跨模块改动运行 `-Suite acceptance`）后，提供地址、操作步骤、预期结果与限制，请用户验收；已经明确验收的相同结果不重复询问。
+4. **合并、推送与部署**：验收完成后合并到 `main`，确认 `git push origin main` 成功，再运行既有部署脚本。脚本要求干净工作区且提交等于实时远端 main，跑完整测试并打包固定提交；不得跳过来源检查。合并或修订改变结果时复验受影响部分。
+5. **交付与同步**：说明实际修改、验证结果和仍影响使用的限制；行为约定变化时同步负责该约定的当前文档。截图生成不等于视觉验收，测试收集不等于通过。
+
+测试证据在忽略的 `test-results/` 中按次保存提交、工作区状态、退出码、JUnit 和日志；浏览器失败时尽力保存截图和 trace。检查通过后不重复无关测试；最终发布仍执行完整回归、备份和健康检查。
 
 ## 开发原则与数据安全
 
 - **小步修改**：根据需求做最小化精准修改，避免重构无关代码或无意义的大面积格式化。
+- **环境隔离**：`CANVAS_DASHBOARD_DATA_DIR` 必须在导入应用前设置；默认仍为项目 `data/`。测试与验收预览使用临时目录，不复制真实数据或凭据。真实平台登录/同步另行在对应环境验证。
 - **数据保护**：`data/` 目录、平台凭据、缓存及生产配置属于敏感数据，未经明确授权不得随意覆盖、删除或迁移。
 - **实事求是**：明确汇报命令与测试结果，若命令无法执行须说明具体原因。
 - **核心语言**：Python 后端为主，前端为 Vanilla JS + Fetch API，保持代码直接简洁。
@@ -56,12 +64,18 @@ canvas-dashboard/
   .\.venv\Scripts\python.exe -m pip install -r requirements.txt pytest
   # 前台开发与诊断：
   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\dev.ps1
+  # 独立示例数据验收（normal / empty / dense）：
+  .\scripts\dev.ps1 -Preview -Scenario normal
   # 常驻本地服务：
   .\.venv\Scripts\python.exe serve.py
   ```
 - **自动化测试**：
   ```powershell
   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1
+  # 快速反馈 / 验收回归 / 仅列出用例：
+  .\scripts\test.ps1 -Suite quick
+  .\scripts\test.ps1 -Suite acceptance
+  .\scripts\test.ps1 -Suite acceptance -List
   # 单独运行特定测试：
   .\.venv\Scripts\python.exe -m pytest tests\test_p0_safety.py -q
   .\.venv\Scripts\python.exe -m pytest tests\test_design_system_lint.py -q
