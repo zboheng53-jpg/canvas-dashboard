@@ -27,10 +27,13 @@ def create_token(username: str) -> str:
     """Generate a new high-entropy Agent API token for the user, store its hash, and return the raw token."""
     raw_token = f"{TOKEN_PREFIX}{secrets.token_urlsafe(32)}"
     now_iso = datetime.now(CST).isoformat()
+    account = auth.account_metadata(username)
+    account_id = account.get("account_id") if account else None
 
     def replace_token(_data):
         return {
             "token_hash": _token_hash(raw_token),
+            "account_id": account_id,
             "created_at": now_iso,
             "last_used_at": None,
         }
@@ -47,6 +50,7 @@ def revoke_token(username: str) -> bool:
     def remove_token(data):
         if data.pop("token_hash", None):
             revoked["value"] = True
+        data.pop("account_id", None)
         data["created_at"] = None
         data["last_used_at"] = None
         return data
@@ -80,6 +84,7 @@ def username_for_token(token: str) -> str | None:
 
     computed_hash = _token_hash(token)
     matched_user = None
+    matched_account_id = None
 
     for user_path in users_dir.iterdir():
         if not user_path.is_dir():
@@ -87,17 +92,29 @@ def username_for_token(token: str) -> str | None:
         token_path = user_path / "agent_token.json"
         if not token_path.exists():
             continue
-        stored = read_json_file(token_path, {}).get("token_hash")
+        try:
+            stored_data = read_json_file(token_path, {})
+        except Exception:
+            # Corrupt single-user token file must not break other users
+            continue
+        if not isinstance(stored_data, dict):
+            continue
+        stored = stored_data.get("token_hash")
         if stored and hmac.compare_digest(stored, computed_hash):
             matched_user = user_path.name
+            matched_account_id = stored_data.get("account_id")
             break
 
     if not matched_user:
         return None
 
-    # Check account active status
+    # Check account existence and active status
     account = auth.account_metadata(matched_user)
-    if account and account.get("status") != "active":
+    if not account or account.get("status") != "active":
+        return None
+
+    # Verify immutable account_id if bound
+    if matched_account_id and account.get("account_id") != matched_account_id:
         return None
 
     # Touch last_used_at safely

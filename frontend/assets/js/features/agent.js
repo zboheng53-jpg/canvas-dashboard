@@ -57,12 +57,28 @@
     }
   }
 
+  let hasExistingToken = false;
+
   function setAgentStatus(text, type = 'info') {
     const statusElem = document.getElementById('agent-token-status');
     if (!statusElem) return;
     statusElem.textContent = text;
     statusElem.className = `ui-feedback ui-feedback--${type} calendar-subscription-status`;
   }
+
+  window.clearAgentTokenPlaintext = function clearAgentTokenPlaintext() {
+    const tokenInput = document.getElementById('agent-token-input');
+    if (tokenInput && tokenInput.value) {
+      tokenInput.value = '';
+      if (hasExistingToken) {
+        tokenInput.placeholder = '•••••••••••••••••••••••••••••••• (已生成)';
+      }
+      const copyBtn = document.getElementById('agent-token-copy');
+      if (copyBtn) copyBtn.disabled = true;
+      renderMcpConfig('YOUR_TOKEN_HERE');
+      renderSkillPrompt('', hasExistingToken);
+    }
+  };
 
   window.loadAgentSettings = async function loadAgentSettings() {
     const tokenInput = document.getElementById('agent-token-input');
@@ -72,11 +88,12 @@
     if (!tokenInput || !createBtn) return;
 
     renderMcpConfig(tokenInput.value || 'YOUR_TOKEN_HERE');
-    renderSkillPrompt(tokenInput.value || '', tokenInput.placeholder.includes('已生成'));
+    renderSkillPrompt(tokenInput.value || '', hasExistingToken || tokenInput.placeholder.includes('已生成'));
 
     try {
       const data = await dashboardApi.requestJson('/api/agent/token');
       if (data.has_token) {
+        hasExistingToken = true;
         if (!tokenInput.value) {
           tokenInput.placeholder = '•••••••••••••••••••••••••••••••• (已生成)';
         }
@@ -87,6 +104,7 @@
         const dateStr = data.created_at ? new Date(data.created_at).toLocaleString() : '';
         setAgentStatus(`Agent Token 已激活${dateStr ? '（创建于 ' + dateStr + '）' : ''}。重新生成会使旧 Token 立即失效。`, 'success');
       } else {
+        hasExistingToken = false;
         tokenInput.value = '';
         tokenInput.placeholder = '尚未生成 Agent Token';
         if (copyBtn) copyBtn.disabled = true;
@@ -107,7 +125,7 @@
     const revokeBtn = document.getElementById('agent-token-revoke');
     if (!tokenInput || !createBtn) return;
 
-    if (tokenInput.placeholder.includes('已生成') && !confirm('重新生成将使旧 Token 立即失效，外部正在运行的 Agent 需要更新配置。是否继续？')) {
+    if (hasExistingToken && !confirm('重新生成将使旧 Token 立即失效，外部正在运行的 Agent 需要更新配置。是否继续？')) {
       return;
     }
 
@@ -119,7 +137,9 @@
       const data = await dashboardApi.requestJson('/api/agent/token', { method: 'POST' });
       if (!data.token) throw new Error('token missing');
 
+      hasExistingToken = true;
       tokenInput.value = data.token;
+      tokenInput.placeholder = '•••••••••••••••••••••••••••••••• (已生成)';
       if (copyBtn) copyBtn.disabled = false;
       if (revokeBtn) revokeBtn.disabled = false;
       createBtn.textContent = '重新生成 Token';
@@ -151,6 +171,7 @@
 
     try {
       await dashboardApi.requestJson('/api/agent/token', { method: 'DELETE' });
+      hasExistingToken = false;
       tokenInput.value = '';
       tokenInput.placeholder = '尚未生成 Agent Token';
       if (copyBtn) copyBtn.disabled = true;

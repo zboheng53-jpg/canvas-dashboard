@@ -65,13 +65,26 @@ app.secret_key = auth.get_secret_key()
 app.permanent_session_lifetime = auth.SESSION_LIFETIME
 app.config["MAX_CONTENT_LENGTH"] = settings.MAX_CONTENT_LENGTH_BYTES
 app.config["TEMPLATES_AUTO_RELOAD"] = True
-app.jinja_env.auto_reload = True
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=settings.COOKIE_SECURE,
     SESSION_REFRESH_EACH_REQUEST=False,
 )
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+
+def _get_external_base_url() -> str:
+    """Derive external-facing base URL taking reverse proxy headers into account."""
+    proto = request.headers.get("X-Forwarded-Proto", "").strip().lower()
+    host = request.headers.get("X-Forwarded-Host", "").strip() or request.headers.get("Host", "").strip()
+    if proto and host:
+        return f"{proto}://{host}".rstrip("/")
+    url = request.host_url.rstrip("/")
+    if proto == "https" and url.startswith("http://"):
+        url = "https://" + url[len("http://"):]
+    return url
 
 DATA_DIR = Path(__file__).parent / "data"
 CST = timezone(timedelta(hours=8))
@@ -963,6 +976,15 @@ def api_auth_register():
         return invalid_request_response()
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
+    # Rate limit by IP to prevent creating unlimited accounts by rotating usernames
+    client_ip = _request_ip()
+    skip_ip_limit = app.config.get("TESTING") and client_ip in ("127.0.0.1", "::1", "localhost")
+    if not skip_ip_limit:
+        allowed_ip, retry_after_ip = _check_rate_limit(
+            "auth-register-ip", client_ip, REGISTER_RATE_LIMIT_ATTEMPTS, REGISTER_RATE_LIMIT_SECONDS
+        )
+        if not allowed_ip:
+            return _rate_limited_response(retry_after_ip)
     allowed, retry_after = _check_rate_limit(
         "auth-register", username, REGISTER_RATE_LIMIT_ATTEMPTS, REGISTER_RATE_LIMIT_SECONDS
     )
@@ -2535,7 +2557,7 @@ def api_agent_export_mcp_bundle():
     if not mcp_path.exists():
         abort(404)
     mcp_code = mcp_path.read_text(encoding="utf-8")
-    base_url = request.host_url.rstrip("/")
+    base_url = _get_external_base_url()
 
     claude_config = {
         "mcpServers": {
@@ -2552,7 +2574,8 @@ def api_agent_export_mcp_bundle():
     cursor_config = {
         "mcpServers": {
             "canvas-dashboard": {
-                "command": "python canvas_mcp.py",
+                "command": "python",
+                "args": ["canvas_mcp.py"],
                 "env": {
                     "CANVAS_DASHBOARD_URL": base_url,
                     "CANVAS_DASHBOARD_TOKEN": "YOUR_TOKEN_HERE",
@@ -2567,12 +2590,14 @@ def api_agent_export_mcp_bundle():
 ## 快速接入步骤（以 Claude Desktop 为例）
 
 1. 将 `canvas_mcp.py` 复制到一个固定路径（例如 `C:\\Users\\<用户名>\\canvas_mcp.py` 或 `~/canvas_mcp.py`）。
+   - 注意：若客户端未在解压目录下运行，请将 `claude_desktop_config.json` 或 `cursor_mcp.json` 中 `args` 里的 `canvas_mcp.py` 改为上述绝对路径。
 2. 在 Canvas Dashboard 网页中生成你的专属 **Agent API Token**。
-3. 打开 Claude Desktop 配置文件 `claude_desktop_config.json`：
-   - Windows: `%APPDATA%\\Claude\\claude_desktop_config.json`
-   - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-4. 将 `claude_desktop_config.json` 中的配置合并，并将 `YOUR_TOKEN_HERE` 替换为你的真实 Token。
-5. 重启 Claude Desktop 即可开始使用！
+3. 打开客户端配置文件：
+   - Claude Desktop (Windows): `%APPDATA%\\Claude\\claude_desktop_config.json`
+   - Claude Desktop (macOS): `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - Cursor: 项目或全局 `.cursor/mcp.json`
+4. 合并配置并将 `YOUR_TOKEN_HERE` 替换为你的真实 Token。
+5. 重启客户端即可开始使用！
 
 ## 常用提问示例
 - “我今天有什么课？在哪个教室？”
@@ -2604,7 +2629,7 @@ def api_skill_readme():
     if not readme_path.exists():
         abort(404)
     content = readme_path.read_text(encoding="utf-8")
-    base_url = request.host_url.rstrip("/")
+    base_url = _get_external_base_url()
     rendered = content.replace("{{ base_url }}", base_url)
     return app.response_class(rendered, mimetype="text/markdown; charset=utf-8")
 
@@ -2633,7 +2658,7 @@ def api_skill_file(filename):
 
 @app.route("/api/agent/export/skill-bundle.zip")
 def api_agent_export_skill_bundle():
-    base_url = request.host_url.rstrip("/")
+    base_url = _get_external_base_url()
     skill_file = SKILL_DIR / "SKILL.md"
     api_file = SKILL_DIR / "canvas_api.py"
     readme_file = SKILL_DIR / "README.md"
@@ -2689,7 +2714,24 @@ def _custom_action_ref(todo):
     return f"custom:{todo['id']}:{token}"
 
 
+def _next_todo_id(username: str, current: list[dict]) -> int:
+    meta_path = user_dir(username) / "custom_todos_meta.json"
+    meta = read_json_file(meta_path, {})
+    current_max = max(
+        (t.get("id", 0) for t in current if isinstance(t.get("id"), int) and not isinstance(t.get("id"), bool)),
+        default=0,
+    )
+    stored_next = meta.get("next_id", 0) if isinstance(meta.get("next_id"), int) else 0
+    next_id = max(current_max + 1, stored_next)
+    write_json_file(meta_path, {"next_id": next_id + 1})
+    return next_id
+
+
 def _create_custom_action(username, data):
+    if data and "request_id" not in data:
+        header_key = request.headers.get("Idempotency-Key") if request else None
+        if header_key and header_key.strip():
+            data = dict(data, request_id=header_key.strip())
     fields = action_fields(data)
     if fields.get("commitment", "obligation") != "obligation":
         raise ActionValidationError("成长练习请使用项目行动工具；待办用于必须履行的责任")
@@ -2704,7 +2746,7 @@ def _create_custom_action(username, data):
             created.update(existing)
             return current
         now = _todo_timestamp()
-        todo = {"id": max((t["id"] for t in current), default=0) + 1,
+        todo = {"id": _next_todo_id(username, current),
                 "done": False, "created_at": now, "updated_at": now,
                 "due_date": None, "planned_on": None, "details": "", "commitment": "obligation",
                 "highlighted": False, "subtasks": [], **payload,
@@ -2742,7 +2784,7 @@ def _workspace_actions(username):
             actions.append({**task, **common, "ref": f"project:{project['id']}:{task['id']}",
                             "source": "project", "task_id": task["id"], "title": task["name"], "editable": active})
     for todo in _aggregate_agent_todos(username, status="all"):
-        if todo["source"] in {"custom", "project"}:
+        if todo["source"] in {"custom", "custom_subtask", "project"}:
             continue
         due = _parse_calendar_due(todo.get("due_date"))
         actions.append({**todo, "ref": f"{todo['source']}:{todo['id']}", "commitment": "obligation",
@@ -2988,6 +3030,7 @@ def _aggregate_agent_todos(username: str, source: str = "all", status: str = "pe
 
     # 1. Custom todos
     for t in _load_todos(username):
+        parent_done = bool(t.get("done"))
         all_todos.append({
             "id": str(t.get("id")),
             "title": t.get("text", ""),
@@ -2998,10 +3041,29 @@ def _aggregate_agent_todos(username: str, source: str = "all", status: str = "pe
             "course": None,
             "due_date": t.get("due_date"),
             "source": "custom",
-            "done": bool(t.get("done")),
+            "done": parent_done,
             "labels": t.get("labels", []),
             "url": None,
         })
+        for index, subtask in enumerate(t.get("subtasks") or [], 1):
+            if isinstance(subtask, dict):
+                sub_id = subtask.get("id", index)
+                all_todos.append({
+                    "id": f"{t.get('id')}:{sub_id}",
+                    "title": subtask.get("text", ""),
+                    "ref": f"{_custom_action_ref(t)}:subtask:{sub_id}",
+                    "parent_ref": _custom_action_ref(t),
+                    "parent_id": str(t.get("id")),
+                    "course": t.get("text", ""),
+                    "details": "",
+                    "planned_on": subtask.get("planned_on"),
+                    "commitment": "obligation",
+                    "due_date": subtask.get("due_date"),
+                    "source": "custom_subtask",
+                    "done": bool(parent_done or subtask.get("done")),
+                    "labels": [],
+                    "url": None,
+                })
 
     # 2. Platform items
     def add_platform_items(platform_name: str, cache_file: str, state_loader):
@@ -3058,9 +3120,15 @@ def _aggregate_agent_todos(username: str, source: str = "all", status: str = "pe
 
     # Filtering
     filtered = []
+    source_lower = source.lower() if source else "all"
     for item in all_todos:
-        if source != "all" and item["source"].lower() != source.lower():
-            continue
+        item_source = item["source"].lower()
+        if source_lower != "all":
+            if source_lower == "custom":
+                if item_source not in ("custom", "custom_subtask"):
+                    continue
+            elif item_source != source_lower:
+                continue
         if status == "pending" and item["done"]:
             continue
         if status == "completed" and not item["done"]:
@@ -3075,39 +3143,82 @@ def _aggregate_agent_todos(username: str, source: str = "all", status: str = "pe
     return filtered
 
 
+def _platform_item_exists(username: str, platform_name: str, cache_file: str, item_id: str) -> bool:
+    cache_path = user_dir(username) / cache_file
+    if not cache_path.exists():
+        return False
+    cached = read_json_file(cache_path, [] if platform_name != "zhixuemeng" else {})
+    items = cached.get("items", []) if isinstance(cached, dict) else (cached if isinstance(cached, list) else [])
+    str_id = str(item_id)
+    return any(str(item.get("id")) == str_id for item in items if isinstance(item, dict))
+
+
 def _complete_agent_todo(username: str, todo_id: str, source: str = "custom") -> bool:
     source = (source or "custom").lower()
-    if source == "custom":
-        try:
-            int_id = int(todo_id)
-        except ValueError:
-            int_id = None
+    if source in ("custom", "custom_subtask"):
+        parent_id = None
+        sub_id = None
+        int_id = None
+        if ":" in str(todo_id):
+            parts = str(todo_id).split(":", 1)
+            try:
+                parent_id = int(parts[0])
+                sub_id = int(parts[1])
+            except ValueError:
+                pass
+        else:
+            try:
+                int_id = int(todo_id)
+            except ValueError:
+                int_id = None
+
         found = {"value": False}
         def update_todos(current):
             for t in _normalize_todos(current):
-                if t["id"] == int_id or str(t["id"]) == str(todo_id):
-                    t["done"] = True
-                    t["completed_at"] = _todo_timestamp()
-                    t["updated_at"] = _todo_timestamp()
-                    found["value"] = True
-                    break
+                if sub_id is not None:
+                    if t["id"] == parent_id:
+                        for s in t.get("subtasks") or []:
+                            if s.get("id") == sub_id or str(s.get("id")) == str(sub_id):
+                                s["done"] = True
+                                t["updated_at"] = _todo_timestamp()
+                                found["value"] = True
+                                break
+                else:
+                    if t["id"] == int_id or str(t["id"]) == str(todo_id):
+                        t["done"] = True
+                        t["completed_at"] = _todo_timestamp()
+                        t["updated_at"] = _todo_timestamp()
+                        found["value"] = True
+                        break
             return current
         locked_json_update(_todos_file(username), [], update_todos)
         return found["value"]
 
     elif source == "canvas":
+        if not _platform_item_exists(username, "canvas", "canvas_cache.json", todo_id):
+            return False
         update_state(username, "complete", todo_id)
         return True
     elif source == "haoke":
+        if not _platform_item_exists(username, "haoke", "haoke_cache.json", todo_id):
+            return False
         update_haoke_state(username, "complete", todo_id)
         return True
     elif source == "zhixuemeng":
+        if not _platform_item_exists(username, "zhixuemeng", "zhixuemeng_cache.json", todo_id):
+            return False
         update_zxm_state(username, "complete", todo_id)
         return True
     elif source == "zhihuishu":
+        if not _platform_item_exists(username, "zhihuishu", "zhihuishu_cache.json", todo_id):
+            return False
         zhihuishu_store.update_state(username, "complete", todo_id)
         return True
     elif source == "project":
+        due_match = re.fullmatch(r"due-(\d+)", str(todo_id))
+        if due_match:
+            project_id = int(due_match[1])
+            return project_store.complete_project(username, project_id) is not None
         match = re.fullmatch(r"task-(\d+)-(\d+)", str(todo_id))
         if not match:
             return False
@@ -3171,7 +3282,13 @@ def api_agent_todos():
     source = request.args.get("source", "all")
     status = request.args.get("status", "pending")
     todos = _aggregate_agent_todos(username, source=source, status=status)
-    return jsonify({"ok": True, "todos": todos, "count": len(todos)})
+    sync_meta = platform_sync.load(username).get("platforms", {})
+    return jsonify({
+        "ok": True,
+        "todos": todos,
+        "count": len(todos),
+        "sync_status": sync_meta,
+    })
 
 
 @app.route("/api/agent/v1/todos/<path:todo_id>/complete", methods=["POST"])
@@ -3179,7 +3296,14 @@ def api_agent_todos():
 def api_agent_todo_complete(todo_id):
     username = request.agent_username
     data = read_json_request() or {}
-    source = data.get("source") or request.args.get("source", "custom")
+    source = data.get("source") or request.args.get("source")
+    if not source:
+        if str(todo_id).startswith("task-") or str(todo_id).startswith("due-"):
+            source = "project"
+        elif ":" in str(todo_id):
+            source = "custom_subtask"
+        else:
+            source = "custom"
     success = _complete_agent_todo(username, todo_id, source=source)
     if not success:
         return api_error("todo_not_found", "未找到指定待办或无法标记完成", 404)
@@ -3196,6 +3320,7 @@ def api_agent_projects():
         "primary_project_id": state.get("main_project_id"),
         "main_project_id": state.get("main_project_id"),
         "projects": project_store.load_projects(username),
+        "overview": project_store.overview(username),
     })
 
 

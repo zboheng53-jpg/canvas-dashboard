@@ -466,6 +466,10 @@
         if (typeof loadAgentSettings === 'function') {
           loadPromise = loadAgentSettings();
         }
+      } else {
+        if (typeof clearAgentTokenPlaintext === 'function') {
+          clearAgentTokenPlaintext();
+        }
       }
       closeMobileMenu();
       return loadPromise;

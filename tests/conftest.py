@@ -33,6 +33,9 @@ def live_app(tmp_path, monkeypatch):
     monkeypatch.setattr(dashboard_app.auth, "SECRET_KEY_FILE", tmp_path / ".flask_secret_key")
     monkeypatch.setattr(user_paths, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard_app, "datetime", FixedDateTime)
+    monkeypatch.setitem(dashboard_app.app.config, "TESTING", True)
+    if hasattr(dashboard_app, "_rate_limit_buckets"):
+        dashboard_app._rate_limit_buckets.clear()
 
     server = make_server("127.0.0.1", 0, dashboard_app.app)
     thread = threading.Thread(target=server.serve_forever)

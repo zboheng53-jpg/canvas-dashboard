@@ -206,8 +206,8 @@ def _parse_ical(raw):
 
         if not due_dt:
             continue  # no due date
-        if due_dt < today:
-            continue  # expired
+        if due_dt < today - timedelta(days=30):
+            continue  # expired beyond 30-day retention window
         due_ts = due_dt
         if due_dt.hour == 0 and due_dt.minute == 0:
             due_str = due_dt.strftime("%m-%d")

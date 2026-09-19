@@ -198,16 +198,41 @@ for _definition in TOOLS:
         _definition["inputSchema"]["required"] = ["text", "request_id"]
 
 
+class _SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        m = req.get_method()
+        if code in (301, 302, 303, 307, 308) and m in ("GET", "HEAD"):
+            new_req = super().redirect_request(req, fp, code, msg, headers, newurl)
+            if new_req:
+                new_parsed = urllib.parse.urlparse(newurl)
+                old_parsed = urllib.parse.urlparse(req.full_url)
+                if new_parsed.netloc != old_parsed.netloc:
+                    new_req.headers.pop("Authorization", None)
+                    new_req.unredirected_hdrs.pop("Authorization", None)
+                if new_parsed.scheme == "http" and new_parsed.hostname not in ("localhost", "127.0.0.1", "::1"):
+                    raise ValueError(f"禁止重定向到非回环明文 HTTP 地址: {newurl}")
+            return new_req
+        return None
+
+
 class CanvasDashboardClient:
     def __init__(self, base_url: str, token: str):
         self.base_url = (base_url or "").rstrip("/")
         self.token = (token or "").strip()
+        self.opener = urllib.request.build_opener(_SafeRedirectHandler)
 
     def request(self, endpoint: str, method: str = "GET", data: dict | None = None) -> dict:
         if not self.base_url:
             raise ValueError("Canvas Dashboard URL 未配置，请设置 CANVAS_DASHBOARD_URL 或通过 --url 传入。")
         if not self.token:
             raise ValueError("Canvas Dashboard Token 未配置，请在网页中生成 Token，并设置 CANVAS_DASHBOARD_TOKEN 或通过 --token 传入。")
+
+        parsed = urllib.parse.urlparse(self.base_url)
+        is_loopback = parsed.hostname in ("localhost", "127.0.0.1", "::1")
+        if parsed.scheme == "http" and not is_loopback:
+            raise ValueError(
+                f"安全限制：非本地回环地址 ({self.base_url}) 禁止通过明文 HTTP 传输 Token，必须使用 HTTPS 地址。"
+            )
 
         url = f"{self.base_url}{endpoint}"
         body = json.dumps(data).encode("utf-8") if data is not None else None
@@ -221,14 +246,14 @@ class CanvasDashboardClient:
 
         req = urllib.request.Request(url, data=body, headers=headers, method=method)
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with self.opener.open(req, timeout=15) as resp:
                 resp_text = resp.read().decode("utf-8")
                 return json.loads(resp_text)
         except urllib.error.HTTPError as exc:
             try:
                 error_body = exc.read().decode("utf-8")
-                parsed = json.loads(error_body)
-                err_msg = parsed.get("error") or parsed.get("message") or error_body
+                parsed_body = json.loads(error_body)
+                err_msg = parsed_body.get("error") or parsed_body.get("message") or error_body
             except Exception:
                 err_msg = str(exc)
             raise RuntimeError(f"API 请求失败 [{exc.code}]: {err_msg}")
@@ -344,17 +369,40 @@ def handle_tool_call(client: CanvasDashboardClient, name: str, args: dict[str, A
 
     elif name == "get_projects":
         res = client.request("/api/agent/v1/projects")
-        return json.dumps(res, ensure_ascii=False)
+        if not res.get("ok"):
+            return f"获取项目失败: {res.get('error')}"
+        overview = res.get("overview") or {}
+        main_proj = overview.get("main_project")
+        active_projs = overview.get("active_projects", [])
+        total_count = overview.get("active_project_count", len(active_projs))
+        lines = [f"### 🎯 长期项目概览 (共 {total_count} 个活动项目):"]
+        if main_proj:
+            next_action = main_proj.get("next_action")
+            next_desc = f" ➡️ 下一步行动 (Next Action): {next_action['name']}" if next_action else " (暂无下一步行动)"
+            lines.append(f"⭐ **主项目**: {main_proj['name']}{next_desc}")
+        for p in active_projs:
+            if main_proj and p.get("id") == main_proj.get("id"):
+                continue
+            next_action = p.get("next_action")
+            next_desc = f" ➡️ Next Action: {next_action['name']}" if next_action else ""
+            due = f" (截止: {p['due_date']})" if p.get("due_date") else ""
+            lines.append(f"- **{p['name']}**{due}{next_desc}")
+        if not active_projs and not main_proj:
+            lines.append("暂无进行中的活动项目。")
+        return "\n".join(lines)
+
     elif name == "get_sync_status":
         res = client.request("/api/agent/v1/sync/status")
         if not res.get("ok"):
             return f"获取同步状态失败: {res.get('error')}"
         statuses = res.get("statuses", {})
-        lines = ["### 🔄 平台同步状态:"]
+        lines = ["### 🔄 平台同步与数据状态:"]
         for platform, info in statuses.items():
-            state = info.get("connection_state", "unknown")
-            last_sync = info.get("last_sync_at") or "从未"
-            lines.append(f"- **{platform}**: 状态={state}, 上次同步={last_sync}")
+            conn_state = info.get("connection_state", "unconfigured")
+            data_state = info.get("data_state", "unavailable")
+            last_success = info.get("last_success_at") or "从未"
+            err = f" (⚠️ {info.get('error_message')})" if info.get("error_message") else ""
+            lines.append(f"- **{platform}**: 连接状态={conn_state}, 数据新鲜度={data_state}, 上次成功同步={last_success}{err}")
         return "\n".join(lines)
 
     return f"未知工具: {name}"
@@ -362,6 +410,11 @@ def handle_tool_call(client: CanvasDashboardClient, name: str, args: dict[str, A
 
 def run_stdio_server(client: CanvasDashboardClient):
     """Run standard JSON-RPC 2.0 stdio server for MCP."""
+    if hasattr(sys.stdin, "reconfigure"):
+        sys.stdin.reconfigure(encoding="utf-8")
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
     while True:
         line = sys.stdin.readline()
         if not line:
@@ -374,9 +427,14 @@ def run_stdio_server(client: CanvasDashboardClient):
         except Exception:
             continue
 
+        if not isinstance(req, dict):
+            continue
+
         req_id = req.get("id")
         method = req.get("method")
-        params = req.get("params", {})
+        params = req.get("params") or {}
+        if not isinstance(params, dict):
+            params = {}
 
         if method == "initialize":
             resp = {
@@ -420,6 +478,22 @@ def run_stdio_server(client: CanvasDashboardClient):
         elif method == "tools/call":
             tool_name = params.get("name")
             tool_args = params.get("arguments", {})
+            if not isinstance(tool_args, dict):
+                tool_args = {}
+            if not any(t["name"] == tool_name for t in TOOLS):
+                resp = {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "result": {
+                        "content": [
+                            {"type": "text", "text": f"未知工具: {tool_name}"}
+                        ],
+                        "isError": True,
+                    },
+                }
+                sys.stdout.write(json.dumps(resp, ensure_ascii=False) + "\n")
+                sys.stdout.flush()
+                continue
             try:
                 content_text = handle_tool_call(client, tool_name, tool_args)
                 resp = {
