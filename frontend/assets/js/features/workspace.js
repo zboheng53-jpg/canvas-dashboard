@@ -73,13 +73,13 @@ function renderActionDetail() {
   body.innerHTML = `<p class="action-detail-meta">${meta.map(wEscape).join(' · ')}</p>
     ${a.commitment === 'legacy' ? '<p class="action-legacy-hint">这条旧事项保留了原日期。编辑时可调整是否加入待办，以及计划日期和真实截止。</p>' : ''}
     <div class="action-detail-text">${wEscape(a.details || '暂无详细说明')}</div>
-    ${a.original_name ? `<details class="action-original"><summary>原始标题</summary><p>${wEscape(a.original_name)}</p></details>` : ''}
+    ${a.original_name ? `<details class="action-original"><summary><svg class="project-disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg><span>原始标题</span></summary><p>${wEscape(a.original_name)}</p></details>` : ''}
     <div class="action-detail-buttons" id="action-primary-buttons"></div>
     <section class="action-linked-section"><h3>时间安排</h3><div id="action-linked-list"></div></section>
     <p id="action-detail-error" class="ui-error" role="alert"></p>`;
   const buttons = document.getElementById('action-primary-buttons');
-  const button = (label, fn, primary = false) => {
-    const b = wNode('button', `ui-button ui-button--${primary ? 'primary' : 'secondary'}`, label);
+  const button = (label, fn, primary = false, danger = false) => {
+    const b = wNode('button', `ui-button ui-button--${danger ? 'danger is-danger' : primary ? 'primary' : 'secondary'}`, label);
     b.type = 'button'; b.addEventListener('click', fn); buttons.append(b); return b;
   };
   if (a.editable) button('编辑事项', renderActionEditor);
@@ -88,6 +88,14 @@ function renderActionDetail() {
     button('完成事项', () => saveActionCompletion(true), true);
   } else if (a.done && a.editable) button('重新开启事项', () => saveActionCompletion(false));
   if (a.project_id) button('进入项目', () => { closeActionDetail(); openProjectsView(a.project_id); });
+  if (a.editable && a.source === 'project' && a.project_id && a.task_id) {
+    button('删除事项', () => {
+      closeActionDetail();
+      if (typeof confirmDeleteProjectTask === 'function') {
+        confirmDeleteProjectTask(a.project_id, a.task_id);
+      }
+    }, false, true);
+  }
   if (a.parent_ref) button('查看所属待办', () => openActionDetail(a.parent_ref));
   if (a.url) {
     const url = sanitizeExternalUrl(a.url);

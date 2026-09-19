@@ -989,6 +989,17 @@ def test_frontend_project_main_card_groups_tasks_and_todo_jump(live_app, browser
     expect(page.locator("#project-detail .project-completed-tasks")).to_contain_text("已完成 1 项")
     expect(page.locator("#project-detail .project-completed-tasks")).not_to_have_attribute("open", "")
 
+    # 点击展开已完成项，验证清空按钮及内部任务
+    page.locator("#project-detail .project-completed-tasks summary").click()
+    expect(page.locator("#project-detail .project-completed-tasks")).to_have_attribute("open", "")
+    expect(page.locator("#project-detail .project-completed-clear-btn")).to_be_visible()
+
+    # 打开编辑弹窗验证删除按钮可见
+    page.locator(f'#project-detail .project-completed-tasks .project-task-item[data-task-id="{seeded["taskId"]}"] .project-task-action-btn[title="编辑"]').click()
+    expect(page.locator("#project-task-modal")).to_be_visible()
+    expect(page.locator("#project-task-delete-btn")).to_be_visible()
+    page.locator('#project-task-modal .project-modal-close').click()
+
 
 @pytest.mark.parametrize("width", [375, 390, 768])
 def test_frontend_projects_narrow_screen_has_no_horizontal_overflow(live_app, browser, width):

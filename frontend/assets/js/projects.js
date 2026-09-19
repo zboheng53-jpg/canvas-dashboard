@@ -158,10 +158,28 @@ function openProjectTaskModal(projectId, taskId = null, groupId = null, forceNex
   populateProjectGroupOptions(form.group_id, project, task ? task.group_id : groupId);
   document.getElementById("project-task-title").textContent = task ? "编辑任务" : (forceNext ? "添加下一步行动" : "添加任务");
   document.getElementById("project-task-error").textContent = "";
+  const deleteBtn = document.getElementById("project-task-delete-btn");
+  if (deleteBtn) {
+    if (task) {
+      deleteBtn.classList.remove("hidden");
+      deleteBtn.onclick = () => {
+        closeProjectTaskModal();
+        confirmDeleteProjectTask(project.id, task.id);
+      };
+    } else {
+      deleteBtn.classList.add("hidden");
+      deleteBtn.onclick = null;
+    }
+  }
   openTrackedModal("project-task-modal", "[name=name]");
 }
 
 function closeProjectTaskModal() {
+  const deleteBtn = document.getElementById("project-task-delete-btn");
+  if (deleteBtn) {
+    deleteBtn.classList.add("hidden");
+    deleteBtn.onclick = null;
+  }
   closeTrackedModal("project-task-modal");
 }
 
@@ -483,7 +501,7 @@ function renderProjectDetail() {
         </div>` : ""}
     </div>
     <div class="project-groups" id="project-groups">
-      ${project.materials ? `<details class="project-materials"><summary>项目资料与说明</summary><p>${pEscape(project.materials)}</p></details>` : ""}
+      ${project.materials ? `<details class="project-materials"><summary><svg class="project-disclosure-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg><span>项目资料与说明</span></summary><p>${pEscape(project.materials)}</p></details>` : ""}
     ${renderProjectGroups(project)}
     </div>
   `;
@@ -524,7 +542,13 @@ function renderProjectGroup(project, group) {
       </div>
       ${completed.length ? `
         <details class="project-completed-tasks">
-          <summary>已完成 ${completed.length} 项</summary>
+          <summary>
+            <span class="project-completed-summary-main">
+              <svg class="project-disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              <span>已完成 ${completed.length} 项</span>
+            </span>
+            ${active ? `<button type="button" class="ui-button ui-button--text ui-button--danger project-completed-clear-btn" onclick="event.preventDefault(); event.stopPropagation(); confirmClearCompletedTasks(${project.id}, ${groupId === null ? "null" : groupId})" title="清空该分组所有已完成任务">清空已完成</button>` : ""}
+          </summary>
           <div class="project-task-list">${completed.map((task) => renderProjectTask(project, task, active)).join("")}</div>
         </details>` : ""}
     </section>
@@ -786,6 +810,32 @@ function confirmDeleteProjectTask(projectId, taskId) {
       try {
         await projectRequest(`/api/projects/${projectId}/tasks/${taskId}`, {method: "DELETE"});
         await refreshProjectSurfaces();
+        if (typeof refreshWorkspaceSurfaces === "function") await refreshWorkspaceSurfaces();
+      } catch (error) {
+        setProjectStatus(error.message, true);
+      }
+    },
+  );
+}
+
+function confirmClearCompletedTasks(projectId, groupId) {
+  const project = projectById(projectId);
+  if (!project) return;
+  const tasks = project.tasks.filter((t) => t.group_id === groupId && t.done);
+  if (!tasks.length) return;
+  const groupName = groupId === null ? "未分组" : (project.groups.find((g) => g.id === groupId)?.name || "当前分组");
+  showProjectConfirm(
+    "清空已完成任务",
+    `确定要删除“${groupName}”中的全部 ${tasks.length} 项已完成任务吗？此操作不可恢复。`,
+    "清空已完成",
+    async () => {
+      try {
+        for (const task of tasks) {
+          await projectRequest(`/api/projects/${projectId}/tasks/${task.id}`, {method: "DELETE"});
+        }
+        await refreshProjectSurfaces();
+        if (typeof refreshWorkspaceSurfaces === "function") await refreshWorkspaceSurfaces();
+        setProjectStatus(`已清空 ${tasks.length} 项已完成任务`);
       } catch (error) {
         setProjectStatus(error.message, true);
       }
