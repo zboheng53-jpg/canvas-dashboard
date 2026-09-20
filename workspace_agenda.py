@@ -15,7 +15,9 @@ def build(username, start, end, semester_start, actions):
         day = start + timedelta(days=offset)
         day_iso = day.isoformat()
         result = schedule_store.today_entries(username, day, semester_start, courses, items)
-        timed = result["timed"]
+        timed = [event for event in result["timed"] if not (
+            (event.get("action_ref") or "").startswith(("project:", "project_due:")) and
+            not by_ref.get(event["action_ref"], {}).get("active", False))]
         for event in timed:
             event["date"] = day_iso
             ref = event.get("action_ref")
@@ -46,3 +48,33 @@ def build(username, start, end, semester_start, actions):
     return {"start": start.isoformat(), "end": end.isoformat(), "days": days,
             "unscheduled": unscheduled, "term": courses.get("term", ""),
             "updated_at": courses.get("updated_at")}
+
+
+def focus(actions, agenda, day, schedules):
+    """Project focus, derived from the same actions and occurrences as the agenda."""
+    today, previous, candidates, overdue = [], [], [], []
+    target = day.isoformat()
+    events = agenda["days"][0]["timed"]
+    future_refs = {item.get("action_ref") for item in schedules.get("one_off", [])
+                   if (item.get("date") or "") > target and not item.get("occurrence_done")}
+    future_refs.update(item.get("action_ref") for item in schedules.get("recurring", [])
+                       if item.get("enabled", True) and (item.get("start_date") or "") > target)
+    future_refs.update(e.get("action_ref") for d in agenda["days"][1:] for e in d["timed"] if not e.get("occurrence_done"))
+    for action in actions:
+        if action["source"] != "project" or action["done"] or not action.get("active", True):
+            continue
+        occurrences = [e for e in events if e.get("action_ref") == action["ref"]]
+        pending_occurrences = [e for e in occurrences if not e.get("occurrence_done")]
+        item = {**action, "occurrences": occurrences}
+        due, planned = action.get("due_date"), action.get("planned_on")
+        if due and due < target:
+            overdue.append(item)
+        if pending_occurrences or due == target or (planned == target and not occurrences):
+            today.append(item)
+        elif planned and planned < target and not occurrences:
+            previous.append(item)
+        elif action.get("is_next_action") and not occurrences and not (planned and planned > target) and action["ref"] not in future_refs:
+            candidates.append(item)
+    key = lambda a: (a.get("due_date") or "9999", a.get("project_id", 0), a["ref"])
+    return {"date": target, "today": sorted(today, key=key), "previous": sorted(previous, key=key),
+            "candidates": sorted(candidates, key=key), "overdue": sorted(overdue, key=key)}

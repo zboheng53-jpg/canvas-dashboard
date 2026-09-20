@@ -106,6 +106,10 @@
     <!-- Main Content -->
     <main>
       <section class="column main-column">
+        <section class="ui-card project-focus-card" aria-labelledby="project-focus-title">
+          <header class="project-focus-heading"><h2 id="project-focus-title">今日行动</h2><span>从今天的一步开始</span></header>
+          <div id="project-focus-content" aria-live="polite">正在加载今日行动…</div>
+        </section>
         <!-- Unified Main Card -->
         <section class="card listcard enter-main-card">
           <div class="card-head section-header">
@@ -2397,7 +2401,7 @@
       const dueOverdueEl = document.getElementById('stat-due-overdue');
 
       if (pendingCountEl) pendingCountEl.textContent = pending;
-      if (pendingDiffEl) pendingDiffEl.textContent = pending > 0 ? `${pending} 项待处理` : '全部完成';
+      if (pendingDiffEl) pendingDiffEl.textContent = pending > 0 ? `${pending} 项待处理` : '待办已清空';
       if (dueCountEl) dueCountEl.textContent = due48h;
       if (dueOverdueEl) {
         dueOverdueEl.textContent = overdue > 0 ? `含 ${overdue} 项已逾期` : '无逾期事项';

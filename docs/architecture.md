@@ -138,9 +138,9 @@ The Agent integration enables external AI assistants (such as Claude Desktop, Cu
 
 ## Dashboard V2 Schedule And Projects
 
-Dashboard V2 keeps the original unified todo and platform flows in the central column. The independent right-rail modules read per-user data through:
+Dashboard V2 keeps unified todos in the central column, with a derived project focus panel above them (`/api/actions/focus`, also available under `/api/agent/v1`). The independent right-rail modules read per-user data through:
 
-- `/api/projects` and `/api/projects/overview` for active/archived projects and weekly goals;
+- `/api/projects` and `/api/projects/overview` for active, paused (`archived`), and completed projects with one current next action;
 - `/api/schedule`, `/api/schedule/refresh`, and `/api/schedule/today` for courses, recurring items, one-off items, and today's deadlines.
 
 `project_store.py` writes `projects.json`; `schedule_store.py` writes `course_schedule.json` and `schedule_items.json`. All three files live under `data/users/<username>/`, use the shared locked/atomic JSON helpers, and fail closed on corruption. Mutating routes remain behind the site session and global CSRF boundary.
@@ -168,3 +168,5 @@ Production state is split deliberately:
 Each release links to the shared `data/` and `.venv/`. Activation atomically switches `current`, installs systemd/nginx configuration, restarts services, and runs local plus HTTPS health checks. A failed activation restores the previous release automatically. After a successful activation, the installer keeps the newest five releases and always protects the active and recorded rollback targets.
 
 Operational commands and rollback procedure are in `docs/operations.md`.
+
+Project and task deletion is recoverable (`deleted_at`) within the same locked project store. Trash APIs expose retained records; restoration preserves IDs and history without restoring pin/next-action selections. Moving a task into materials appends its original content and recycles it atomically. Agenda and calendar projections suppress inactive/deleted project references without deleting schedule history.

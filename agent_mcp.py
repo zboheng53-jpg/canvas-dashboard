@@ -27,11 +27,14 @@ WRITING_RULES = """先查询已有事项和项目，再复用稳定 ref；事项
 责任 obligation 是作业、报名、提交和明确承诺；成长 growth 是练习和个人提升，写入项目行动，不能塞进责任待办。
 标题采用动宾结构，建议 8–20 字，最多 40 字；步骤、材料、完成标准写入 details，项目长期背景和暂缓决定写入 materials。
 planned_on 是准备做的日期，due_date 是真实截止，两者独立；未知日期留空，不推测截止或完成状态。
-为已有事项安排时间，schedule_action 传入 action_ref，不复制另一条同名事项。重复练习使用 recurring 和起止日期。
+为已有事项安排时间，schedule_action 传入 action_ref，不复制另一条同名事项。只有用户明确给出重复节奏时才使用 recurring 和起止日期。
 每次新建使用稳定 request_id；网络不确定时以原参数和原 request_id 重试。内容不同不得重用请求标识。
 修改前读取详情并传 expected_updated_at；冲突时重新读取，不覆盖用户的新修改。
 complete_schedule_occurrence 只完成一次安排，update_action 的 done 才完成整个事项；取消排程不删除事项。
-默认具体安排近期行动，远期保留目标；按用户明确要求扩展。整理旧数据先列出逐项变更，保留原文，不猜测相似事项的关联。
+长期项目默认只落一条当前可执行的下一步；已有可用下一步时复用或修改，完成后允许暂时没有下一步，不自动续写任务链。用户明确要求多步、真实截止和已经承诺的交付不受此默认数量影响。
+长期方向、训练方法和条件启动事项写入 materials。默认不创建复盘、检查计划、年度总结等管理性任务；用户明确要求时才创建。
+不从长期目标推导每日任务、固定工时、计划日期或截止日期。先读取项目和今日行动，判断已有下一步，再最少量写入，最后回读核对；普通写入不增加反复确认。
+整理旧数据先列出逐项变更，保留原文，不猜测相似事项的关联。delete 是可恢复删除；转为资料使用原子操作，不能先删任务再写资料。
 服务端返回错误时按字段提示修正，不截断文字，不编造已写入结果。完成后简短说明新增、复用和安排数量。"""
 
 ACTION_PROPERTIES = {
@@ -171,7 +174,7 @@ TOOLS.extend([
     _tool("update_action", "只提交要修改的字段；done 完成整个事项，使用读取到的版本。",
           {"ref": {"type": "string"}, "title": {"type": "string", "maxLength": 40}, **ACTION_PROPERTIES,
            "done": {"type": "boolean"}, "is_next_action": {"type": "boolean"}, "expected_updated_at": {"type": "string"}}, ["ref", "expected_updated_at"]),
-    _tool("schedule_action", "为事项安排时间，传 action_ref 复用记录；独立约定才填写 title。每周练习使用 recurring。",
+    _tool("schedule_action", "为事项安排时间，传 action_ref 复用记录；独立约定才填写 title。仅在用户明确重复节奏后使用 recurring。",
           {"kind": {"type": "string", "enum": ["one-off", "recurring"]}, "action_ref": {"type": "string"},
            "title": {"type": "string", "maxLength": 40}, "details": ACTION_PROPERTIES["details"],
            "date": {"type": "string"}, "weekday": {"type": "integer", "minimum": 0, "maximum": 6},
@@ -184,6 +187,15 @@ TOOLS.extend([
           {"kind": {"type": "string", "enum": ["one-off", "recurring"]}, "item_id": {"type": "integer"}, "date": {"type": "string"}, "done": {"type": "boolean"}}, ["kind", "item_id", "date", "done"]),
     _tool("update_project_materials", "保存项目级资料、策略与暂缓决定；读取现有资料后合并保存，不能变成勾选任务。",
           {"project_id": {"type": "integer"}, "materials": {"type": "string", "maxLength": 20000}, "expected_updated_at": {"type": "string"}}, ["project_id", "materials", "expected_updated_at"]),
+])
+TOOLS.extend([
+    _tool("get_project_focus", "读取今日项目行动、此前未推进、可选下一步及真实逾期。规划前读取。", {}),
+    _tool("get_project_trash", "读取可恢复的项目与任务及其版本，不将这些记录当作当前行动。", {}),
+    _tool("manage_project_record", "将项目或任务移入回收站、恢复，或将任务原子转为资料。恢复不会设置下一步；不支持永久清空。",
+          {"project_id": {"type": "integer"}, "task_id": {"type": "integer"},
+           "operation": {"type": "string", "enum": ["delete", "restore", "to-materials"]},
+           "expected_updated_at": {"type": "string"}, "expected_project_updated_at": {"type": "string", "description": "转为资料时必须提供项目版本"}},
+          ["project_id", "operation", "expected_updated_at"]),
 ])
 _schedule_properties = next(t["inputSchema"]["properties"] for t in TOOLS if t["name"] == "schedule_action")
 TOOLS.append(_tool("update_schedule", "调整已有排程，只传修改字段；使用查询到的排程 updated_at。重复排程修改整个系列。",
@@ -263,6 +275,19 @@ class CanvasDashboardClient:
 
 def handle_tool_call(client: CanvasDashboardClient, name: str, args: dict[str, Any]) -> str:
     payload = dict(args)
+    if name in {"get_project_focus", "get_project_trash"}:
+        endpoint = "/api/agent/v1/actions/focus" if name == "get_project_focus" else "/api/agent/v1/projects/trash"
+        return json.dumps(client.request(endpoint), ensure_ascii=False)
+    if name == "manage_project_record":
+        operation = payload.pop("operation")
+        if operation not in {"delete", "restore", "to-materials"}:
+            raise ValueError("未知项目操作")
+        endpoint = f"/api/agent/v1/projects/{int(payload.pop('project_id'))}"
+        if "task_id" in payload:
+            endpoint += f"/tasks/{int(payload.pop('task_id'))}"
+        elif operation == "to-materials":
+            raise ValueError("转为资料需要 task_id")
+        return json.dumps(client.request(endpoint + "/" + operation, method="POST", data=payload), ensure_ascii=False)
     if name in {"find_actions", "get_action", "get_agenda", "add_project_task", "update_action", "schedule_action", "update_schedule", "cancel_schedule", "complete_schedule_occurrence", "update_project_materials"}:
         method = "GET"
         if name == "find_actions":
@@ -368,28 +393,8 @@ def handle_tool_call(client: CanvasDashboardClient, name: str, args: dict[str, A
         return f"✅ 已成功将待办 (ID: {todo_id}, 来源: {source}) 标记为已完成。"
 
     elif name == "get_projects":
-        res = client.request("/api/agent/v1/projects")
-        if not res.get("ok"):
-            return f"获取项目失败: {res.get('error')}"
-        overview = res.get("overview") or {}
-        main_proj = overview.get("main_project")
-        active_projs = overview.get("active_projects", [])
-        total_count = overview.get("active_project_count", len(active_projs))
-        lines = [f"### 🎯 长期项目概览 (共 {total_count} 个活动项目):"]
-        if main_proj:
-            next_action = main_proj.get("next_action")
-            next_desc = f" ➡️ 下一步行动 (Next Action): {next_action['name']}" if next_action else " (暂无下一步行动)"
-            lines.append(f"⭐ **主项目**: {main_proj['name']}{next_desc}")
-        for p in active_projs:
-            if main_proj and p.get("id") == main_proj.get("id"):
-                continue
-            next_action = p.get("next_action")
-            next_desc = f" ➡️ Next Action: {next_action['name']}" if next_action else ""
-            due = f" (截止: {p['due_date']})" if p.get("due_date") else ""
-            lines.append(f"- **{p['name']}**{due}{next_desc}")
-        if not active_projs and not main_proj:
-            lines.append("暂无进行中的活动项目。")
-        return "\n".join(lines)
+        # Full records are required to reuse tasks, merge materials and check versions.
+        return json.dumps(client.request("/api/agent/v1/projects"), ensure_ascii=False)
 
     elif name == "get_sync_status":
         res = client.request("/api/agent/v1/sync/status")

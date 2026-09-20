@@ -68,6 +68,16 @@ if seed_preview and args.scenario != "empty":
     schedule_store.create_item("preview", "recurring", {"title": "每周英语练习", "action_ref": f"project:{english['id']}:{listening['id']}", "weekday": (today.weekday()+3)%7, "start_date": day(0), "end_date": day(20), "start_time": "19:00", "end_time": "19:25", "enabled": True})
     schedule_store.save_courses("preview", "本地验收 · 示例课表", day(-today.weekday()), [{"name": "自动控制原理（示例）", "teacher": "示例教师", "sessions": [{"weekday": today.weekday(), "weeks": [], "start_time": "09:50", "end_time": "11:25", "location": "北楼 229"}]}], datetime.now(timezone.utc).isoformat())
 
+    # Focus/history examples use only isolated synthetic data.
+    project_store.update_task("preview", english["id"], listening["id"], {"planned_on": day(0)})
+    current = project_store.load_projects("preview")
+    research = next(p for p in current if p["name"].startswith("科研"))
+    project_store.create_task("preview", research["id"], {"name": "整理一个想问导师的问题", "is_next_action": True})
+    project_store.create_task("preview", gym["id"], {"name": "确认下次训练地点", "planned_on": day(-1)})
+    group = project_store.create_group("preview", research["id"], "首次沟通")
+    finished = project_store.create_task("preview", research["id"], {"name": "记录首次交流要点", "group_id": group["id"]})
+    project_store.update_task("preview", research["id"], finished["id"], {"done": True})
+
     if args.scenario == "dense":
         for index in range(30):
             dashboard._create_custom_action("preview", {

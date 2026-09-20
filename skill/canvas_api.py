@@ -120,6 +120,20 @@ class CanvasDashboard:
     def update_action(self, ref: str, **changes) -> dict:
         return self._req(f"/api/agent/v1/actions/{urllib.parse.quote(ref, safe='')}", method="PUT", data=changes)
 
+    def get_project_focus(self) -> dict:
+        return self._req("/api/agent/v1/actions/focus")
+
+    def get_project_trash(self) -> dict:
+        return self._req("/api/agent/v1/projects/trash")
+
+    def manage_project_record(self, project_id, operation, task_id=None, **fields) -> dict:
+        if operation not in ("delete", "restore", "to-materials") or (operation == "to-materials" and task_id is None):
+            raise ValueError("Invalid project operation")
+        path = f"/api/agent/v1/projects/{int(project_id)}"
+        if task_id is not None:
+            path += f"/tasks/{int(task_id)}"
+        return self._req(path + "/" + operation, method="POST", data=fields)
+
     def get_projects(self) -> dict:
         return self._req("/api/agent/v1/projects")
 
@@ -137,6 +151,9 @@ def main():
     parser.add_argument("--server", help="Canvas Dashboard base URL")
     parser.add_argument("--token", help="Canvas Dashboard Agent Token")
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    subparsers.add_parser("focus", help="Get today project focus and optional next actions")
+    subparsers.add_parser("trash", help="Read recoverable project records")
 
     # today
     subparsers.add_parser("today", help="Get today's schedule and due items")
@@ -181,7 +198,11 @@ def main():
     client = CanvasDashboard(base_url=args.server, token=args.token)
 
     try:
-        if args.command == "today":
+        if args.command == "focus":
+            result = client.get_project_focus()
+        elif args.command == "trash":
+            result = client.get_project_trash()
+        elif args.command == "today":
             result = client.get_today_schedule()
         elif args.command == "schedule":
             result = client.get_schedule_for_date(args.date)

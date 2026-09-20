@@ -839,7 +839,8 @@ def test_frontend_project_main_card_groups_tasks_and_todo_jump(live_app, browser
     expect(page.locator("#project-detail .project-completed-tasks")).to_contain_text("已完成 1 项")
     expect(page.locator("#project-detail .project-completed-tasks")).not_to_have_attribute("open", "")
 
-    # 点击展开已完成项，验证清空按钮及内部任务
+    # 完成步骤默认沉底，先展开步骤历史，再展开其中的任务。
+    page.locator("#project-detail .project-finished-groups > summary").click()
     page.locator("#project-detail .project-completed-tasks summary").click()
     expect(page.locator("#project-detail .project-completed-tasks")).to_have_attribute("open", "")
     expect(page.locator("#project-detail .project-completed-clear-btn")).to_be_visible()

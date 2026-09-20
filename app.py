@@ -754,6 +754,15 @@ def _calendar_items(username, category=None):
 
     if cat_key in ("all", "schedule"):
         sched_items = schedule_store.load_items(username)
+        linked_actions = {a["ref"]: a for a in _workspace_actions(username)}
+        for kind in ("one_off", "recurring"):
+            visible = []
+            for item in sched_items.get(kind, []):
+                action = linked_actions.get(item.get("action_ref"))
+                if (item.get("action_ref") or "").startswith(("project:", "project_due:")) and (not action or not action.get("active") or action.get("done")):
+                    continue
+                visible.append({**item, **({"title": action["title"], "details": action.get("details", "")} if action else {})})
+            sched_items[kind] = visible
         for item in sched_items.get("one_off", []):
             if item.get("occurrence_done"):
                 continue
@@ -2215,8 +2224,10 @@ def api_project_todos():
     return jsonify({"ok": True, "items": items, "count": len(items)})
 
 
-@app.route("/api/projects/<int:project_id>", methods=["PUT"])
+@app.route("/api/projects/<int:project_id>", methods=["PUT", "DELETE"])
 def api_project(project_id):
+    if request.method == "DELETE":
+        return _manage_project_record(session["username"], project_id, "delete")
     payload = _project_payload(read_json_request(), partial=True)
     if payload is None or not payload:
         return invalid_request_response()
@@ -2345,7 +2356,7 @@ def api_project_task_create(project_id):
 @app.route("/api/projects/<int:project_id>/tasks/<int:task_id>", methods=["PUT", "DELETE"])
 def api_project_task(project_id, task_id):
     if request.method == "DELETE":
-        if not project_store.delete_task(session["username"], project_id, task_id):
+        if not project_store.delete_task(session["username"], project_id, task_id, read_json_request() or {}):
             return api_error("task_not_found", "任务不存在", 404)
         return jsonify({"ok": True})
     payload = _project_task_payload(read_json_request(), partial=True)
@@ -2915,17 +2926,20 @@ def _workspace_actions(username):
                                 "parent_ref": _custom_action_ref(todo), "title": subtask.get("text", ""), "course": todo.get("text", ""),
                                 "source": "custom_subtask", "commitment": "obligation", "active": not todo.get("done"),
                                 "done": bool(todo.get("done") or subtask.get("done")), "editable": False})
-    for project in project_store.load_projects(username):
-        active = project["status"] == "active"
+    for project in project_store.load_projects(username, include_deleted=True):
+        active = project["status"] == "active" and not project.get("deleted_at")
         common = {"project_id": project["id"], "project_name": project["name"], "active": active}
         if project.get("due_date"):
-            actions.append({**common, "ref": f"project_due:{project['id']}", "source": "project_due",
+            actions.append({**common, "ref": f"project_due:{project['id']}", "source": "project_due", "deleted_at": project.get("deleted_at"),
                             "title": f"完成项目：{project['name']}", "details": project.get("objective", ""),
                             "due_date": project["due_date"], "commitment": "obligation", "done": not active,
                             "editable": False})
         for task in project["tasks"]:
             actions.append({**task, **common, "ref": f"project:{project['id']}:{task['id']}",
-                            "source": "project", "task_id": task["id"], "title": task["name"], "editable": active})
+                            "source": "project", "task_id": task["id"], "title": task["name"],
+                            "deleted_at": task.get("deleted_at") or project.get("deleted_at"),
+                            "active": active and not task.get("deleted_at"),
+                            "editable": active and not task.get("deleted_at")})
     for todo in _aggregate_agent_todos(username, status="all"):
         if todo["source"] in {"custom", "custom_subtask", "project"}:
             continue
@@ -2938,7 +2952,7 @@ def _workspace_actions(username):
 
 
 def _get_workspace_action(username, ref):
-    return next((action for action in _workspace_actions(username) if action["ref"] == ref), None)
+    return next((action for action in _workspace_actions(username) if action["ref"] == ref and not action.get("deleted_at")), None)
 
 
 def _workspace_agenda(username, start, end):
@@ -3037,7 +3051,7 @@ def api_agent_agenda():
 
 def _workspace_actions_response(username):
     query = request.args.get("q", "").strip().casefold()
-    actions = _workspace_actions(username)
+    actions = [a for a in _workspace_actions(username) if not a.get("deleted_at")]
     if request.args.get("status", "pending") != "all":
         actions = [a for a in actions if not a["done"] and a.get("active", True)]
     if query:
@@ -3457,6 +3471,85 @@ def api_agent_todo_complete(todo_id):
     if not success:
         return api_error("todo_not_found", "未找到指定待办或无法标记完成", 404)
     return jsonify({"ok": True, "id": todo_id, "source": source, "completed": True})
+
+
+def _manage_project_record(username, project_id, operation, task_id=None):
+    data = read_json_request() or {}
+    changes = action_fields(data)
+    if operation == "to-materials":
+        version = data.get("expected_project_updated_at")
+        if not isinstance(version, str) or not version.strip():
+            raise ActionValidationError("转为资料前请读取项目版本 expected_project_updated_at")
+        changes["expected_project_updated_at"] = version
+    project = project_store.manage_record(username, project_id, operation, changes, task_id)
+    if project is None:
+        return api_error("project_record_not_found", "记录不存在；请先恢复所属项目", 404)
+    return jsonify({"ok": True, "project": project})
+
+
+@app.route("/api/projects/<int:project_id>/restore", methods=["POST"])
+def api_project_restore(project_id):
+    return _manage_project_record(session["username"], project_id, "restore")
+
+
+@app.route("/api/projects/<int:project_id>/tasks/<int:task_id>/<operation>", methods=["POST"])
+def api_project_task_manage(project_id, task_id, operation):
+    if operation not in {"restore", "to-materials"}:
+        abort(404)
+    return _manage_project_record(session["username"], project_id, operation, task_id)
+
+
+def _project_trash(username):
+    projects = project_store.load_projects(username, include_deleted=True)
+    return jsonify({"ok": True, "projects": [p for p in projects if p.get("deleted_at")],
+                    "tasks": [{**t, "project_id": p["id"], "project_name": p["name"]}
+                              for p in projects if not p.get("deleted_at")
+                              for t in p["tasks"] if t.get("deleted_at")]})
+
+
+@app.route("/api/projects/trash")
+def api_project_trash():
+    return _project_trash(session["username"])
+
+
+@app.route("/api/agent/v1/projects/trash")
+@require_agent_auth
+def api_agent_project_trash():
+    return _project_trash(request.agent_username)
+
+
+@app.route("/api/agent/v1/projects/<int:project_id>/<operation>", methods=["POST"])
+@require_agent_auth
+def api_agent_project_manage(project_id, operation):
+    if operation not in {"delete", "restore"}:
+        abort(404)
+    return _manage_project_record(request.agent_username, project_id, operation)
+
+
+@app.route("/api/agent/v1/projects/<int:project_id>/tasks/<int:task_id>/<operation>", methods=["POST"])
+@require_agent_auth
+def api_agent_project_task_manage(project_id, task_id, operation):
+    if operation not in {"delete", "restore", "to-materials"}:
+        abort(404)
+    return _manage_project_record(request.agent_username, project_id, operation, task_id)
+
+
+def _project_focus(username):
+    today = datetime.now(CST).date()
+    actions = _workspace_actions(username)
+    agenda = _workspace_agenda(username, today, today + timedelta(days=13))
+    return jsonify({"ok": True, **workspace_agenda.focus(actions, agenda, today, schedule_store.load_items(username))})
+
+
+@app.route("/api/actions/focus")
+def api_project_focus():
+    return _project_focus(session["username"])
+
+
+@app.route("/api/agent/v1/actions/focus")
+@require_agent_auth
+def api_agent_project_focus():
+    return _project_focus(request.agent_username)
 
 
 @app.route("/api/agent/v1/projects")

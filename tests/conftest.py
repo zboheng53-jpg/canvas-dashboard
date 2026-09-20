@@ -47,7 +47,7 @@ def pytest_addoption(parser):
 def pytest_collection_modifyitems(config, items):
     suite = config.getoption("--suite")
     safety = {"test_p0_safety.py", "test_security_auth.py", "test_action_workspace.py",
-              "test_account_lifecycle.py", "test_concurrent_writes.py", "test_scripts.py",
+              "test_account_lifecycle.py", "test_project_focus.py", "test_concurrent_writes.py", "test_scripts.py",
               "test_development_workflow.py", "test_deploy_configs.py",
               "test_control_components.py", "test_design_system_lint.py", "test_css_architecture.py",
               "test_frontend_text_integrity.py", "test_dashboard_localization.py",

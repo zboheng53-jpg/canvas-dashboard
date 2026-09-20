@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 
 from storage import locked_json_update, read_json_file
 import user_paths
-from action_contract import check_version, fingerprint, replay
+from action_contract import ActionValidationError, check_version, fingerprint, replay
 
 
 VERSION = 2
@@ -60,6 +60,8 @@ def _normalize_task(task, fallback_id, fallback_order, valid_group_ids, legacy=F
         "id": _int(task.get("id"), fallback_id),
         "name": str(name or "未命名任务"),
         "original_name": task.get("original_name"),
+        "deleted_at": task.get("deleted_at"),
+        "materials_saved_at": task.get("materials_saved_at"),
         "details": str(task.get("details") or ""),
         "commitment": task.get("commitment") if task.get("commitment") in {"growth", "obligation"} else "legacy",
         "planned_on": task.get("planned_on") or None,
@@ -70,7 +72,7 @@ def _normalize_task(task, fallback_id, fallback_order, valid_group_ids, legacy=F
         "due_date": task.get("due_date") or None,
         "done": done,
         "highlighted": bool(task.get("highlighted", False)),
-        "is_next_action": bool(task.get("is_next_action", False)) and not done,
+        "is_next_action": bool(task.get("is_next_action", False)) and not done and not task.get("deleted_at"),
         "sort_order": _int(task.get("sort_order"), fallback_order),
         "created_at": task.get("created_at") or now,
         "updated_at": task.get("updated_at") or task.get("created_at") or now,
@@ -125,6 +127,7 @@ def _normalize_project(project, fallback_id, fallback_order):
         "name": str(project.get("name") or "未命名项目")[:100],
         "objective": str(project.get("objective") or "")[:240],
         "materials": str(project.get("materials") or ""),
+        "deleted_at": project.get("deleted_at"),
         "next_task_id": max(_int(project.get("next_task_id"), 1), _next_id(tasks)),
         "due_date": project.get("due_date") or None,
         "due_highlighted": bool(project.get("due_highlighted", False)),
@@ -154,8 +157,8 @@ def _normalize_state(raw):
             project["id"] = max(used_ids, default=0) + 1
         used_ids.add(project["id"])
         projects.append(project)
-    active_ids = {project["id"] for project in projects if project["status"] == "active"}
-    all_ids = {project["id"] for project in projects}
+    active_ids = {project["id"] for project in projects if project["status"] == "active" and not project.get("deleted_at")}
+    all_ids = {project["id"] for project in projects if not project.get("deleted_at")}
     main_project_id = raw.get("main_project_id")
     if main_project_id not in active_ids:
         main_project_id = None
@@ -195,8 +198,10 @@ def _due_state(due_date, today=None):
     return "upcoming", delta
 
 
-def _project_view(project, today=None):
+def _project_view(project, today=None, include_deleted=False):
     value = copy.deepcopy(project)
+    if not include_deleted:
+        value["tasks"] = [task for task in value["tasks"] if not task.get("deleted_at")]
     value["groups"].sort(key=lambda group: (group["sort_order"], group["id"]))
     value["tasks"].sort(key=lambda task: (task["sort_order"], task["id"]))
     value["completed_count"] = sum(1 for task in value["tasks"] if task["done"])
@@ -219,9 +224,10 @@ def _ordered_projects(state):
     )
 
 
-def load_projects(username):
+def load_projects(username, include_deleted=False):
     state = load_state(username)
-    return [_project_view(project) for project in _ordered_projects(state)]
+    return [_project_view(project, include_deleted=include_deleted) for project in _ordered_projects(state)
+            if include_deleted or not project.get("deleted_at")]
 
 
 def _mutate(username, mutator):
@@ -236,16 +242,18 @@ def _mutate(username, mutator):
     return state, result
 
 
-def _find_project(state, project_id):
-    return next((project for project in state["projects"] if project["id"] == project_id), None)
+def _find_project(state, project_id, include_deleted=False):
+    return next((project for project in state["projects"] if project["id"] == project_id
+                 and (include_deleted or not project.get("deleted_at"))), None)
 
 
 def _find_group(project, group_id):
     return next((group for group in project["groups"] if group["id"] == group_id), None)
 
 
-def _find_task(project, task_id):
-    return next((task for task in project["tasks"] if task["id"] == task_id), None)
+def _find_task(project, task_id, include_deleted=False):
+    return next((task for task in project["tasks"] if task["id"] == task_id
+                 and (include_deleted or not task.get("deleted_at"))), None)
 
 
 def create_project(username, payload):
@@ -358,7 +366,7 @@ def reopen_project(username, project_id):
 
 def reorder_projects(username, project_ids):
     def mutation(state, result):
-        active = [project for project in state["projects"] if project["status"] == "active"]
+        active = [project for project in state["projects"] if project["status"] == "active" and not project.get("deleted_at")]
         if len(project_ids) != len(set(project_ids)) or {project["id"] for project in active} != set(project_ids):
             return
         by_id = {project["id"]: project for project in active}
@@ -516,7 +524,7 @@ def create_task(username, project_id, payload):
 
     state, result = _mutate(username, mutation)
     project = _find_project(state, project_id)
-    return copy.deepcopy(_find_task(project, result["task_id"])) if result.get("task_id") else None
+    return copy.deepcopy(_find_task(project, result["task_id"], include_deleted=True)) if result.get("task_id") else None
 
 
 def update_task(username, project_id, task_id, changes):
@@ -572,20 +580,65 @@ def set_next_task(username, project_id, task_id):
     return update_task(username, project_id, task_id, {"is_next_action": True})
 
 
-def delete_task(username, project_id, task_id):
+def manage_record(username, project_id, operation, changes=None, task_id=None):
+    """Recycle, restore, or preserve a task as materials in one locked update."""
+    changes = changes or {}
+    if operation not in {"delete", "restore", "to-materials"}:
+        raise ActionValidationError("未知项目操作")
     def mutation(state, result):
-        project = _find_project(state, project_id)
-        if project is None or project["status"] != "active":
+        project = _find_project(state, project_id, include_deleted=True)
+        if project is None or (task_id is not None and project.get("deleted_at")):
             return
-        task = _find_task(project, task_id) if project else None
-        if task is None:
+        record = _find_task(project, task_id, include_deleted=True) if task_id is not None else project
+        if record is None:
             return
-        project["tasks"] = [item for item in project["tasks"] if item["id"] != task_id]
-        project["updated_at"] = _now()
+        if operation == "to-materials" and record.get("deleted_at") and not record.get("materials_saved_at"):
+            raise ActionValidationError("任务已在回收站，请先恢复再转为资料")
+        # Repeating an already applied deletion/restore is harmless.
+        if (operation == "restore") == (not bool(record.get("deleted_at"))):
+            result["found"] = True
+            return
+        check_version(record, changes)
+        if operation == "to-materials":
+            if task_id is None:
+                raise ActionValidationError("请选择要转为资料的任务")
+            check_version(project, {"expected_updated_at": changes.get("expected_project_updated_at")})
+            ref = f"project:{project_id}:{task_id}"
+            text = f"\n\n### {record['name']}\n来源：{ref}\n{record.get('details') or ''}"
+            if record.get("original_name"):
+                text += f"\n原标题：{record['original_name']}"
+            for key, label in (("planned_on", "原计划日期"), ("due_date", "原截止日期")):
+                if record.get(key):
+                    text += f"\n{label}：{record[key]}"
+            materials = (project.get("materials", "") + text).strip()
+            if len(materials) > 20000:
+                raise ActionValidationError("资料超过 20000 字；请先整理资料，原任务未改变")
+            project["materials"] = materials
+            record["materials_saved_at"] = _now()
+        now = _now()
+        record["deleted_at"] = None if operation == "restore" else now
+        record["updated_at"] = now
+        project["updated_at"] = now
+        if task_id is not None:
+            record["is_next_action"] = False
+        elif operation != "restore":
+            if state["main_project_id"] == project_id:
+                state["main_project_id"] = None
+            if state["last_viewed_project_id"] == project_id:
+                state["last_viewed_project_id"] = None
+            for task in project["tasks"]:
+                if task["is_next_action"]:
+                    task["is_next_action"] = False
+                    task["updated_at"] = now
         result["found"] = True
 
-    _, result = _mutate(username, mutation)
-    return bool(result.get("found"))
+    state, result = _mutate(username, mutation)
+    project = _find_project(state, project_id, include_deleted=True)
+    return _project_view(project, include_deleted=True) if result.get("found") else None
+
+
+def delete_task(username, project_id, task_id, changes=None):
+    return bool(manage_record(username, project_id, "delete", changes, task_id))
 
 
 def reorder_tasks(username, project_id, placements):
@@ -594,7 +647,7 @@ def reorder_tasks(username, project_id, placements):
         if project is None or project["status"] != "active":
             return
         ids = [placement.get("id") for placement in placements if isinstance(placement, dict)]
-        if len(ids) != len(set(ids)) or {task["id"] for task in project["tasks"]} != set(ids):
+        if len(ids) != len(set(ids)) or {task["id"] for task in project["tasks"] if not task.get("deleted_at")} != set(ids):
             return
         valid_groups = {group["id"] for group in project["groups"]}
         if any(
@@ -614,18 +667,18 @@ def reorder_tasks(username, project_id, placements):
             task["sort_order"] = order
             task["updated_at"] = _now()
             ordered.append(task)
-        project["tasks"] = ordered
+        project["tasks"] = ordered + [task for task in project["tasks"] if task.get("deleted_at")]
         project["updated_at"] = _now()
         result["valid"] = True
 
     state, result = _mutate(username, mutation)
     project = _find_project(state, project_id)
-    return copy.deepcopy(project["tasks"]) if result.get("valid") else None
+    return _project_view(project)["tasks"] if result.get("valid") else None
 
 
 def overview(username, today=None):
     state = load_state(username)
-    active = [project for project in state["projects"] if project["status"] == "active"]
+    active = [project for project in state["projects"] if project["status"] == "active" and not project.get("deleted_at")]
     main_id = state.get("main_project_id")
 
     def build_project_entry(proj, limit=5):

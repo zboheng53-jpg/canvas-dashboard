@@ -306,6 +306,7 @@ function openPeriodEntries(day, band, entries) {
 }
 
 async function loadForwardAgenda() {
+  loadProjectFocus();
   const requestId = ++workspaceTodayRequest;
   const start = workspaceTodayISO();
   const end = new Date(`${start}T12:00:00+08:00`); end.setUTCDate(end.getUTCDate() + 13);
@@ -372,3 +373,77 @@ document.addEventListener('DOMContentLoaded', () => {
     }).observe(container);
   }
 });
+
+
+let projectFocusRequest = 0;
+async function loadProjectFocus() {
+  const container = document.getElementById('project-focus-content');
+  if (!container) return;
+  const seq = ++projectFocusRequest;
+  try {
+    const data = await workspaceRequest('/api/actions/focus');
+    if (seq !== projectFocusRequest) return;
+    container.replaceChildren();
+    const mutate = async (a, changes) => {
+      try {
+        await workspaceWrite(`/api/actions/${encodeURIComponent(a.ref)}`, {...changes, expected_updated_at: a.updated_at});
+        await refreshWorkspaceSurfaces();
+      } catch (error) { alert(error.message); await loadProjectFocus(); }
+    };
+    const row = (a, mode) => {
+      const el = wNode('article', 'project-focus-row');
+      const title = wNode('button', 'ui-button ui-button--text project-focus-name', a.title);
+      title.type = 'button'; title.onclick = () => openActionDetail(a.ref);
+      el.append(title, wNode('small', 'project-focus-meta', [a.project_name,
+        a.due_date ? `${a.due_date < data.date ? '已逾期 · ' : ''}截止 ${a.due_date}` : '',
+        a.planned_on ? `计划 ${a.planned_on}` : ''].filter(Boolean).join(' · ')));
+      const controls = wNode('div', 'project-focus-controls');
+      const button = (label, fn) => { const b = wNode('button', 'ui-button ui-button--text', label); b.type = 'button'; b.onclick = fn; controls.append(b); return b; };
+      if (mode !== 'today') button('今天做', () => mutate(a, {planned_on: data.date}));
+      const dateLabel = wNode('label', 'project-focus-date', '改期');
+      const input = wNode('input', 'ui-control'); input.type = 'date'; input.value = a.planned_on || '';
+      input.setAttribute('aria-label', `修改 ${a.title} 的计划日期`);
+      input.onchange = () => mutate(a, {planned_on: input.value || null});
+      dateLabel.append(input);
+      const editor = wNode('details', 'project-focus-editor');
+      editor.append(wNode('summary', '', '改期'), dateLabel);
+      if (a.planned_on) editor.append(button('取消计划日期', () => mutate(a, {planned_on: null})));
+      if (mode !== 'candidate') controls.append(editor);
+      const occurrences = a.occurrences || [];
+      if (mode === 'today' && !occurrences.some(e => e.kind === 'recurring')) button('完成行动', () => mutate(a, {done: true}));
+      else if (mode === 'today') button('行动详情', () => openActionDetail(a.ref));
+      el.append(controls);
+      if (occurrences.length) {
+        const list = wNode('details', 'project-focus-occurrences');
+        list.append(wNode('summary', '', `今天 ${occurrences.length} 次安排 · ${occurrences.map(e => e.start_time).join('、')}`));
+        for (const e of occurrences) {
+          const b = wNode('button', 'ui-button ui-button--text', `${e.start_time}–${e.end_time} · ${e.occurrence_done ? '本次已完成（可撤销）' : '完成本次'}`);
+          b.type = 'button'; b.onclick = async () => {
+            try {
+              await workspaceWrite(`/api/schedule/${e.kind.replace('_','-')}/${e.id}/occurrence`, {date: data.date, done: !e.occurrence_done});
+              await refreshWorkspaceSurfaces();
+            } catch (error) { alert(error.message); }
+          };
+          list.append(b);
+        }
+        el.append(list);
+      }
+      return el;
+    };
+    const current = wNode('div', 'project-focus-today');
+    data.today.forEach(a => current.append(row(a, 'today')));
+    if (!data.today.length) current.append(wNode('p', 'muted', '今天尚未安排项目行动，可以从下一步中选一件。'));
+    container.append(current);
+    const extra = (label, items, mode, collapsed) => {
+      if (!items.length) return;
+      const section = wNode(collapsed ? 'details' : 'section', 'project-focus-section');
+      section.append(wNode(collapsed ? 'summary' : 'h3', '', `${label} · ${items.length}`));
+      items.forEach(a => section.append(row(a, mode))); container.append(section);
+    };
+    extra('真实截止已逾期', data.overdue.filter(a => !data.today.some(t => t.ref === a.ref)), 'overdue', true);
+    extra('此前未推进', data.previous, 'previous', true);
+    extra('可选下一步 · 尚未排入今天', data.candidates, 'candidate', false);
+  } catch (error) {
+    if (seq === projectFocusRequest) container.textContent = `今日行动加载失败：${error.message}`;
+  }
+}

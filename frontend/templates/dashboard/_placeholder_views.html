@@ -16,7 +16,8 @@
         <div class="project-tabs" role="tablist">
           <button type="button" class="ui-button ui-button--choice project-tab-btn active" data-tab="active" onclick="switchProjectTab('active')">进行中 <span id="active-project-count">0</span></button>
           <button type="button" class="ui-button ui-button--choice project-tab-btn" data-tab="completed" onclick="switchProjectTab('completed')">已完成 <span id="completed-project-count">0</span></button>
-          <button type="button" class="ui-button ui-button--choice project-tab-btn" data-tab="archived" onclick="switchProjectTab('archived')">已归档 <span id="archived-project-count">0</span></button>
+          <button type="button" class="ui-button ui-button--choice project-tab-btn" data-tab="archived" onclick="switchProjectTab('archived')">暂放 <span id="archived-project-count">0</span></button>
+          <button type="button" class="ui-button ui-button--choice project-tab-btn" data-tab="trash" onclick="switchProjectTab('trash')">回收站</button>
         </div>
         <div id="project-manager-list" class="project-manager-list" aria-live="polite" aria-busy="false">
           <div class="ui-empty ui-empty--compact project-list-empty"><strong>还没有进行中的项目</strong></div>

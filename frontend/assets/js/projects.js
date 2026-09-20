@@ -33,6 +33,7 @@ function setProjectStatus(message, error = false) {
 }
 
 async function projectRequest(url, options = {}) {
+  if (options.body) options.headers = {"Content-Type": "application/json", ...options.headers};
   const response = await fetch(url, options);
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.ok) {
@@ -262,6 +263,9 @@ async function loadProjects(preferredId = null) {
     mainProjectId = data.main_project_id;
     lastViewedProjectId = data.last_viewed_project_id;
     selectedProjectId = selectProjectIdFromContext(preferredId);
+    if (preferredId && projectById(preferredId)) {
+      document.querySelectorAll('.project-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === projectById(preferredId).status));
+    }
     renderProjectWorkspace();
     setProjectStatus("");
     return true;
@@ -291,6 +295,9 @@ function renderProjectWorkspace() {
 
   const activeTabBtn = document.querySelector('.project-tab-btn.active');
   const activeTab = activeTabBtn ? activeTabBtn.dataset.tab : 'active';
+  if (activeTab === 'trash') { renderProjectTrash(); return; }
+  const visible = projectRecords.filter(p => p.status === activeTab);
+  if (!visible.some(p => p.id === selectedProjectId)) selectedProjectId = visible[0]?.id || null;
 
   if (activeTab === 'active') {
     renderProjectList("project-manager-list", active, false);
@@ -327,7 +334,7 @@ function renderProjectList(containerId, values, history) {
     const historyDate = project.status === "completed"
       ? `完成于 ${projectTimestamp(project.completed_at)}`
       : project.status === "archived"
-        ? `归档于 ${projectTimestamp(project.archived_at)}`
+        ? `暂放于 ${projectTimestamp(project.archived_at)}`
         : projectDueText(project);
 
     const totalTasks = project.completed_count + project.pending_count;
@@ -346,9 +353,7 @@ function renderProjectList(containerId, values, history) {
         ondrop="dropProjectBefore(event, ${project.id})">
         <span class="project-list-name">${pEscape(project.name)}${isMain ? '<em class="ui-tag" title="已置顶" style="display:inline-flex;align-items:center;gap:2px"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>置顶</em>' : ""}</span>
         <small class="project-list-next-task">${pEscape(nextTaskText)}</small>
-        <div class="project-list-progress-wrapper">
-          <div class="project-list-progress-bar" style="width: ${progressPercent}%"></div>
-        </div>
+
       </button>
     `;
   }).join("");
@@ -356,6 +361,8 @@ function renderProjectList(containerId, values, history) {
 
 function selectProject(projectId) {
   selectedProjectId = Number(projectId);
+  const selected = projectById(projectId);
+  if (selected) document.querySelectorAll('.project-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === selected.status));
   const url = new URL(window.location.href);
   url.searchParams.set("project", selectedProjectId);
   history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
@@ -411,14 +418,14 @@ function renderProjectDetail() {
   const active = project.status === "active";
   const allDone = project.tasks.length > 0 && project.pending_count === 0;
 
-  const statusLabel = project.status === "active" ? "进行中的项目" : project.status === "completed" ? "已完成的项目" : "已归档的项目";
+  const statusLabel = project.status === "active" ? "进行中的项目" : project.status === "completed" ? "已完成的项目" : "暂放的项目";
 
   // Find incomplete next action task
   const activeTasks = project.tasks.filter(t => !t.done);
   const nextActionTask = activeTasks.find(t => t.is_next_action);
 
   let nextActionHtml = "";
-  if (nextActionTask) {
+  if (nextActionTask && active) {
     nextActionHtml = `
       <div class="project-next-action-card">
         <div class="project-next-action-left">
@@ -450,9 +457,9 @@ function renderProjectDetail() {
           </div>
           <p class="project-objective">${pEscape(project.objective || "尚未填写一句话目标")}</p>
           <div class="project-tags-row">
-            <span class="ui-status ui-status--${project.status === "active" ? "success" : project.status === "completed" ? "info" : "neutral"} project-tag-pill status-tag">${project.status === "active" ? "进行中" : project.status === "completed" ? "已完成" : "已归档"}</span>
+            <span class="ui-status ui-status--${project.status === "active" ? "success" : project.status === "completed" ? "info" : "neutral"} project-tag-pill status-tag">${project.status === "active" ? "进行中" : project.status === "completed" ? "已完成" : "暂放"}</span>
             ${project.due_date ? `<span class="ui-tag project-tag-pill due-tag">截止 ${project.due_date}</span>` : ""}
-            <span class="ui-count-pill project-tag-pill progress-tag"><b>${project.completed_count}</b> / ${project.completed_count + project.pending_count} 项完成</span>
+
             ${project.id === mainProjectId ? '<span class="ui-tag is-selected project-tag-pill main-project-tag" style="display:inline-flex;align-items:center;gap:3px"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>已置顶</span>' : ""}
           </div>
         </div>
@@ -463,8 +470,9 @@ function renderProjectDetail() {
           <details class="project-more-menu">
             <summary aria-label="更多项目操作">•••</summary>
             <div>
+              <button type="button" class="ui-button ui-button--danger" onclick="deleteProjectRecoverably(${project.id})">删除项目</button>
               <button type="button" onclick="openProjectModal(${project.id})" class="ui-button ui-button--secondary"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="project-menu-icon"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> 编辑项目信息</button>
-              ${active ? `<button type="button" class="ui-button ui-button--danger is-danger" onclick="confirmArchiveProject(${project.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="project-menu-icon"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg> 归档项目</button>` : ""}
+              ${active ? `<button type="button" class="ui-button ui-button--danger is-danger" onclick="confirmArchiveProject(${project.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="project-menu-icon"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg> 暂放项目</button>` : ""}
             </div>
           </details>
         </div>
@@ -509,12 +517,15 @@ function renderProjectDetail() {
 
 function renderProjectGroups(project) {
   const groups = [...project.groups].sort((a, b) => a.sort_order - b.sort_order);
-  const sections = groups.map((group) => renderProjectGroup(project, group));
-  sections.push(renderProjectGroup(project, null));
-  return sections.join("").replaceAll(
-    'class="project-group-card"',
-    'class="ui-card ui-card--subtle project-task-group"',
-  );
+  const current = [], finished = [];
+  for (const group of [...groups, null]) {
+    const tasks = project.tasks.filter(t => t.group_id === (group?.id ?? null));
+    if (!group && !tasks.length) continue;
+    const html = renderProjectGroup(project, group);
+    (tasks.length && tasks.every(t => t.done) ? finished : current).push(html);
+  }
+  if (finished.length) current.push(`<details class="project-finished-groups"><summary>已完成步骤 · ${finished.length}</summary>${finished.join('')}</details>`);
+  return current.join('').replaceAll('class="project-group-card"', 'class="ui-card ui-card--subtle project-task-group"');
 }
 
 function renderProjectGroup(project, group) {
@@ -538,7 +549,7 @@ function renderProjectGroup(project, group) {
         ${active ? `<button type="button" class="ui-button ui-button--primary project-group-add-task-btn" onclick="openProjectTaskModal(${project.id}, null, ${groupId === null ? "null" : groupId})">＋ 添加任务</button>` : ""}
       </header>
       <div class="project-task-list">
-        ${pending.length ? pending.map((task) => renderProjectTask(project, task, active)).join("") : '<div class="ui-empty ui-empty--compact project-task-empty"><strong>暂无未完成任务</strong></div>'}
+        ${pending.length ? pending.map((task) => renderProjectTask(project, task, active)).join("") : ''}
       </div>
       ${completed.length ? `
         <details class="project-completed-tasks">
@@ -547,7 +558,7 @@ function renderProjectGroup(project, group) {
               <svg class="project-disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
               <span>已完成 ${completed.length} 项</span>
             </span>
-            ${active ? `<button type="button" class="ui-button ui-button--danger project-completed-clear-btn" onclick="event.preventDefault(); event.stopPropagation(); confirmClearCompletedTasks(${project.id}, ${groupId === null ? "null" : groupId})" title="清空该分组所有已完成任务">清空已完成</button>` : ""}
+            ${active ? `<button type="button" class="ui-button ui-button--danger project-completed-clear-btn" onclick="event.preventDefault(); event.stopPropagation(); confirmClearCompletedTasks(${project.id}, ${groupId === null ? "null" : groupId})" title="清空该分组所有已完成任务">移入回收站</button>` : ""}
           </summary>
           <div class="project-task-list">${completed.map((task) => renderProjectTask(project, task, active)).join("")}</div>
         </details>` : ""}
@@ -581,6 +592,7 @@ function renderProjectTask(project, task, active) {
           <button type="button" class="ui-icon-button project-task-action-btn${task.is_next_action ? " is-active-next" : ""}" title="设为下一步" aria-pressed="${task.is_next_action ? "true" : "false"}" onclick="chooseProjectNextTask(${project.id}, ${task.id})">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
           </button>` : ""}
+        ${active && !task.done ? `<button type="button" class="ui-button ui-button--text" onclick="moveTaskToMaterials(${project.id}, ${task.id})">转为资料</button>` : ''}
         <button type="button" class="ui-icon-button ui-icon-button--danger project-task-action-btn is-danger" title="删除任务" onclick="confirmDeleteProjectTask(${project.id}, ${task.id})">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
         </button>
@@ -750,9 +762,9 @@ function confirmArchiveProject(projectId) {
   const project = projectById(projectId);
   if (!project) return;
   showProjectConfirm(
-    "归档项目",
-    `归档表示放弃或搁置，不等于完成。“${project.name}”的任务状态会保留，但项目会从总览、待办和日历移除。`,
-    "归档项目",
+    "暂放项目",
+    `暂放表示现在不推进，以后可以继续；完成表示目标已经达成。“${project.name}”的任务状态会保留，但项目会从总览、待办和日历移除。`,
+    "暂放项目",
     async () => {
       try {
         await projectRequest(`/api/projects/${projectId}/archive`, {method: "POST"});
@@ -804,11 +816,11 @@ function confirmDeleteProjectTask(projectId, taskId) {
   if (!task) return;
   showProjectConfirm(
     "删除任务",
-    `“${task.name}”将被永久删除，且会从项目统计、统一待办和 Apple 日历中移除。此操作不可恢复。`,
-    "永久删除",
+    `“${task.name}”将移入回收站，并从当前行动和日历中移除。可以随时恢复。`,
+    "移入回收站",
     async () => {
       try {
-        await projectRequest(`/api/projects/${projectId}/tasks/${taskId}`, {method: "DELETE"});
+        await projectRequest(`/api/projects/${projectId}/tasks/${taskId}`, {method: "DELETE", body: JSON.stringify({expected_updated_at: task.updated_at})});
         await refreshProjectSurfaces();
         if (typeof refreshWorkspaceSurfaces === "function") await refreshWorkspaceSurfaces();
       } catch (error) {
@@ -825,13 +837,13 @@ function confirmClearCompletedTasks(projectId, groupId) {
   if (!tasks.length) return;
   const groupName = groupId === null ? "未分组" : (project.groups.find((g) => g.id === groupId)?.name || "当前分组");
   showProjectConfirm(
-    "清空已完成任务",
-    `确定要删除“${groupName}”中的全部 ${tasks.length} 项已完成任务吗？此操作不可恢复。`,
-    "清空已完成",
+    "移入回收站任务",
+    `确定要删除“${groupName}”中的全部 ${tasks.length} 项已完成任务吗？可在回收站恢复。`,
+    "移入回收站",
     async () => {
       try {
         for (const task of tasks) {
-          await projectRequest(`/api/projects/${projectId}/tasks/${task.id}`, {method: "DELETE"});
+          await projectRequest(`/api/projects/${projectId}/tasks/${task.id}`, {method: "DELETE", body: JSON.stringify({expected_updated_at: task.updated_at})});
         }
         await refreshProjectSurfaces();
         if (typeof refreshWorkspaceSurfaces === "function") await refreshWorkspaceSurfaces();
@@ -1101,7 +1113,7 @@ function renderProjectOverview(data) {
                 <button type="button" class="biz-project-item__next is-empty biz-project-item__next--compact" onclick="openProjectsView(${p.id})">
                   <b>下一步</b>未设置行动
                 </button>`}
-              ${total ? `<div class="proj-overview-meta">${p.next_action?.planned_on ? `<span class="proj-next-plan">计划 ${pEscape(p.next_action.planned_on)}</span>` : ""}<span class="proj-overview-all-progress">完成 ${p.completed_count} / ${total}</span></div>` : ""}
+              ${total ? `<div class="proj-overview-meta">${p.next_action?.planned_on ? `<span class="proj-next-plan">计划 ${pEscape(p.next_action.planned_on)}</span>` : ""}</div>` : ""}
             </div>`;
         }).join("")}
       </div>
@@ -1306,4 +1318,55 @@ document.addEventListener("keydown", (event) => {
 if (!(window.location.protocol === 'file:' || window.location.hostname === '') || window.__OPEN_DESIGN_PREVIEW__) {
   loadProjectOverview();
   fetchProjectTodos();
+}
+
+
+async function deleteProjectRecoverably(projectId) {
+  const p = projectById(projectId);
+  if (!p) return;
+  showProjectConfirm('删除项目', `“${p.name}”将连同任务移入回收站，可随时恢复。`, '移入回收站', async () => {
+    try {
+      await projectRequest(`/api/projects/${projectId}`, {method:'DELETE', body:JSON.stringify({expected_updated_at:p.updated_at})});
+      selectedProjectId = null;
+      await refreshProjectSurfaces();
+    } catch (error) { setProjectStatus(error.message, true); }
+  });
+}
+async function moveTaskToMaterials(projectId, taskId) {
+  const p = projectById(projectId), t = p?.tasks.find(t => t.id === taskId);
+  if (!t) return;
+  try {
+    await projectRequest(`/api/projects/${projectId}/tasks/${taskId}/to-materials`, {method:'POST', body:JSON.stringify({expected_updated_at:t.updated_at, expected_project_updated_at:p.updated_at})});
+    await refreshProjectSurfaces();
+  } catch (error) { setProjectStatus(error.message, true); }
+}
+let projectTrashRequest = 0;
+async function renderProjectTrash() {
+  const seq = ++projectTrashRequest;
+  const list = document.getElementById('project-manager-list'), detail = document.getElementById('project-detail');
+  list.innerHTML = '<p class="muted">删除的项目与任务都可以恢复。</p>';
+  detail.innerHTML = '<p class="muted">正在加载回收站…</p>';
+  try {
+    const data = await projectRequest('/api/projects/trash');
+    if (seq !== projectTrashRequest || document.querySelector('.project-tab-btn.active')?.dataset.tab !== 'trash') return;
+    detail.innerHTML = '<h2>回收站</h2>';
+    for (const [items, task] of [[data.projects, false], [data.tasks, true]]) for (const item of items) {
+      const row = document.createElement('article'); row.className = 'project-trash-row';
+      const name = document.createElement('strong'); name.textContent = task ? `${item.project_name} · ${item.name}` : item.name;
+      const content = document.createElement('details'), summary = document.createElement('summary'), body = document.createElement('p');
+      summary.textContent = '查看保留内容'; body.className = 'project-trash-content';
+      body.textContent = task ? item.details : [item.objective, item.materials, ...item.tasks.map(t => `${t.done ? '已完成' : '未完成'} · ${t.name}\n${t.details || ''}`)].filter(Boolean).join('\n\n');
+      content.append(summary, body);
+      const restore = document.createElement('button'); restore.type = 'button'; restore.className = 'ui-button ui-button--secondary'; restore.textContent = task ? '恢复任务' : '恢复项目';
+      restore.onclick = async () => {
+        try {
+          const path = task ? `/api/projects/${item.project_id}/tasks/${item.id}/restore` : `/api/projects/${item.id}/restore`;
+          await projectRequest(path, {method:'POST',body:JSON.stringify({expected_updated_at:item.updated_at})});
+          await loadProjects(); await loadProjectOverview(); await fetchProjectTodos(); await loadTodaySchedule();
+        } catch (error) { setProjectStatus(error.message, true); }
+      };
+      row.append(name, restore, content); detail.append(row);
+    }
+    if (!data.projects.length && !data.tasks.length) detail.innerHTML += '<p class="muted">回收站为空。</p>';
+  } catch (error) { if (seq === projectTrashRequest) detail.textContent = error.message; }
 }
