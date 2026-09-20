@@ -408,7 +408,7 @@ def test_frontend_console_navigation_groups_features_without_overview_duplicates
     page.locator('[data-dashboard-view="connections"]').click()
     expect(page.locator("#dashboard-view-connections")).to_be_visible()
     expect(page.locator("#dashboard-view-connections #login-cards")).to_be_visible()
-    expect(page.locator("#dashboard-view-connections .connection-platform-item")).to_have_count(4)
+    expect(page.locator("#dashboard-view-connections .connection-platform-item")).to_have_count(5)
 
     page.locator('[data-dashboard-view="schedule"]').click()
     expect(page.locator("#dashboard-view-schedule")).to_be_visible()
@@ -466,7 +466,7 @@ def test_frontend_source_filters_and_focus_views(live_app, browser):
     register_dashboard_user(page, live_app, "groupingv2")
 
     source_filters = page.locator("[data-todo-source]")
-    expect(source_filters).to_have_count(7)
+    expect(source_filters).to_have_count(8)
     expect(page.locator('[data-todo-source="all"]')).to_have_text("全部 1")
     expect(page.locator('[data-todo-source="canvas"]')).to_have_text("Canvas 1")
     expect(page.locator('[data-todo-source="project"]')).to_contain_text("项目 0")
@@ -1004,9 +1004,9 @@ def test_frontend_connections_workspace_uses_aligned_master_detail_layout(live_a
     assert abs((list_box["y"] + list_box["height"]) - (detail_box["y"] + detail_box["height"])) < 1
 
     cards = page.locator("#login-cards .connection-platform-item")
-    expect(cards).to_have_count(4)
+    expect(cards).to_have_count(5)
     assert page.locator("#login-cards .connection-platform-action").count() == 0
-    for index in range(4):
+    for index in range(5):
         card = cards.nth(index)
         assert card.evaluate("element => getComputedStyle(element).display") == "flex"
         title_box = card.locator(".connection-platform-title").bounding_box()
@@ -1030,7 +1030,7 @@ def test_frontend_connection_actions_stay_with_the_selected_platform(live_app, b
     register_dashboard_user(page, live_app, "connectionactions")
     page.locator('[data-dashboard-view="connections"]').click()
 
-    for platform in ("canvas", "haoke", "zhixuemeng", "zhihuishu"):
+    for platform in ("canvas", "haoke", "zhixuemeng", "zhihuishu", "ketangpai"):
         page.locator(f'#login-cards [data-platform="{platform}"]').click()
         selected_detail = page.locator(f"#detail-{platform}")
         selected_actions = selected_detail.locator(
