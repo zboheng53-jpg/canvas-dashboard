@@ -104,6 +104,8 @@ def _normalize_project(project, fallback_id, fallback_order):
         if not isinstance(raw_task, dict):
             continue
         task = _normalize_task(raw_task, index + 1, index, used_group_ids, legacy=legacy)
+        if task.get("deleted_at"):
+            continue
         if task["id"] in used_task_ids:
             task["id"] = max(used_task_ids, default=0) + 1
         used_task_ids.add(task["id"])
@@ -153,6 +155,8 @@ def _normalize_state(raw):
         if not isinstance(raw_project, dict):
             continue
         project = _normalize_project(raw_project, index + 1, index)
+        if project.get("deleted_at"):
+            continue
         if project["id"] in used_ids:
             project["id"] = max(used_ids, default=0) + 1
         used_ids.add(project["id"])
@@ -581,7 +585,7 @@ def set_next_task(username, project_id, task_id):
 
 
 def manage_record(username, project_id, operation, changes=None, task_id=None):
-    """Recycle, restore, or preserve a task as materials in one locked update."""
+    """Delete (permanently) or preserve a task as materials in one locked update."""
     changes = changes or {}
     if operation not in {"delete", "restore", "to-materials"}:
         raise ActionValidationError("未知项目操作")
@@ -592,13 +596,8 @@ def manage_record(username, project_id, operation, changes=None, task_id=None):
         record = _find_task(project, task_id, include_deleted=True) if task_id is not None else project
         if record is None:
             return
-        if operation == "to-materials" and record.get("deleted_at") and not record.get("materials_saved_at"):
-            raise ActionValidationError("任务已在回收站，请先恢复再转为资料")
-        # Repeating an already applied deletion/restore is harmless.
-        if (operation == "restore") == (not bool(record.get("deleted_at"))):
-            result["found"] = True
-            return
         check_version(record, changes)
+        now = _now()
         if operation == "to-materials":
             if task_id is None:
                 raise ActionValidationError("请选择要转为资料的任务")
@@ -614,27 +613,39 @@ def manage_record(username, project_id, operation, changes=None, task_id=None):
             if len(materials) > 20000:
                 raise ActionValidationError("资料超过 20000 字；请先整理资料，原任务未改变")
             project["materials"] = materials
-            record["materials_saved_at"] = _now()
-        now = _now()
-        record["deleted_at"] = None if operation == "restore" else now
-        record["updated_at"] = now
-        project["updated_at"] = now
-        if task_id is not None:
-            record["is_next_action"] = False
-        elif operation != "restore":
-            if state["main_project_id"] == project_id:
-                state["main_project_id"] = None
-            if state["last_viewed_project_id"] == project_id:
-                state["last_viewed_project_id"] = None
-            for task in project["tasks"]:
-                if task["is_next_action"]:
-                    task["is_next_action"] = False
-                    task["updated_at"] = now
-        result["found"] = True
+            project["tasks"] = [t for t in project["tasks"] if t["id"] != task_id]
+            project["updated_at"] = now
+            result["found"] = True
+            result["view"] = _project_view(project)
+            return
+
+        if operation == "delete":
+            if task_id is not None:
+                project["tasks"] = [t for t in project["tasks"] if t["id"] != task_id]
+                project["updated_at"] = now
+                result["found"] = True
+                result["view"] = _project_view(project)
+            else:
+                deleted_view = _project_view(project)
+                state["projects"] = [p for p in state["projects"] if p["id"] != project_id]
+                if state.get("main_project_id") == project_id:
+                    state["main_project_id"] = None
+                if state.get("last_viewed_project_id") == project_id:
+                    state["last_viewed_project_id"] = None
+                state["updated_at"] = now
+                result["found"] = True
+                result["view"] = deleted_view
+            return
+
+        if operation == "restore":
+            result["found"] = True
+            result["view"] = _project_view(project)
+            return
 
     state, result = _mutate(username, mutation)
-    project = _find_project(state, project_id, include_deleted=True)
-    return _project_view(project, include_deleted=True) if result.get("found") else None
+    if not result.get("found"):
+        return None
+    return result.get("view")
 
 
 def delete_task(username, project_id, task_id, changes=None):

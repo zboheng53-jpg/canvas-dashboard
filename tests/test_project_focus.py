@@ -48,7 +48,7 @@ def test_focus_candidates_do_not_assign_dates_or_repeat_completed_occurrences(wo
     assert not c.get(f"/api/actions/{ref}").get_json()["action"]["done"]
 
 
-@pytest.mark.parametrize("operation", ["archive", "complete", "delete"])
+@pytest.mark.parametrize("operation", ["archive", "complete"])
 def test_inactive_project_filters_linked_agenda_and_calendar_without_deleting(workspace, operation):
     c, h = workspace
     p = create_project(c, h)
@@ -57,20 +57,31 @@ def test_inactive_project_filters_linked_agenda_and_calendar_without_deleting(wo
     ref = f"project:{p['id']}:{a['id']}"
     item = schedule_store.create_item("alice", "one_off", {"title": a["name"], "action_ref": ref, "date": day, "start_time": "19:00", "end_time": "19:30"})
     project_store.set_main_project("alice", p["id"])
-    if operation == "delete":
-        r = c.delete(f"/api/projects/{p['id']}", headers=h)
-    else:
-        r = c.post(f"/api/projects/{p['id']}/{operation}", headers=h)
+    r = c.post(f"/api/projects/{p['id']}/{operation}", headers=h)
     assert r.status_code == 200
     agenda = c.get(f"/api/agenda?start={day}&end={day}").get_json()
     assert not agenda["days"][0]["timed"] and not agenda["days"][0]["planned"]
     assert not c.get("/api/actions/focus").get_json()["today"]
     assert not any(i["uid"] == f"schedule-oneoff-{item['id']}@canvas-dashboard" for i in dashboard._calendar_items("alice", category="schedule"))
     assert schedule_store.load_items("alice")["one_off"][0]["action_ref"] == ref
-    c.post(f"/api/projects/{p['id']}/{'restore' if operation == 'delete' else 'reopen'}", headers=h)
+    c.post(f"/api/projects/{p['id']}/reopen", headers=h)
     assert c.get(f"/api/agenda?start={day}&end={day}").get_json()["days"][0]["timed"][0]["action_ref"] == ref
     assert project_store.load_state("alice")["main_project_id"] is None
     assert project_store.calendar_items("alice")[0]["uid"] == f"project-task-{p['id']}-{a['id']}@canvas-dashboard"
+
+
+def test_permanent_delete_filters_agenda_and_cleans_project(workspace):
+    c, h = workspace
+    p = create_project(c, h)
+    day = dashboard.datetime.now(dashboard.CST).date().isoformat()
+    a = task(p, planned_on=day, is_next_action=True)
+    ref = f"project:{p['id']}:{a['id']}"
+    schedule_store.create_item("alice", "one_off", {"title": a["name"], "action_ref": ref, "date": day, "start_time": "19:00", "end_time": "19:30"})
+    r = c.delete(f"/api/projects/{p['id']}", headers=h)
+    assert r.status_code == 200
+    agenda = c.get(f"/api/agenda?start={day}&end={day}").get_json()
+    assert not agenda["days"][0]["timed"] and not agenda["days"][0]["planned"]
+    assert project_store.load_projects("alice") == []
 
 
 def test_materials_conversion_conflict_replay_restore_and_reorder(workspace):
@@ -85,17 +96,18 @@ def test_materials_conversion_conflict_replay_restore_and_reorder(workspace):
     assert len(project_store.load_projects("alice")[0]["tasks"]) == 2
     payload["expected_project_updated_at"] = p["updated_at"]
     assert c.post(path+"/to-materials", json=payload, headers=h).status_code == 200
-    assert c.post(path+"/to-materials", json=payload, headers=h).status_code == 200
     current = project_store.load_projects("alice")[0]
     assert current["materials"].count("保留完整方案") == 1
     assert f"project:{p['id']}:{a['id']}" in current["materials"]
     assert [t["id"] for t in current["tasks"]] == [b["id"]]
     assert project_store.reorder_tasks("alice", p["id"], [{"id":b["id"], "group_id":None}])
-    recycled = c.get("/api/projects/trash").get_json()["tasks"][0]
-    assert recycled["details"] == "保留完整方案" and not recycled["done"]
-    assert c.post(path+"/restore", json={"expected_updated_at":recycled["updated_at"]}, headers=h).status_code == 200
-    restored = next(t for t in project_store.load_projects("alice")[0]["tasks"] if t["id"] == a["id"])
-    assert not restored["is_next_action"] and restored["details"] == a["details"]
+    assert c.get("/api/projects/trash").get_json()["tasks"] == []
+    # Test permanent task delete
+    assert c.delete(f"/api/projects/{p['id']}/tasks/{b['id']}", headers=h).status_code == 200
+    assert project_store.load_projects("alice")[0]["tasks"] == []
+    # Test permanent project delete
+    assert c.delete(f"/api/projects/{p['id']}", headers=h).status_code == 200
+    assert project_store.load_projects("alice") == []
     assert project_store.load_projects("bob", include_deleted=True) == []
 
 
@@ -135,7 +147,8 @@ def test_exported_rules_match_and_agent_auth_is_required(workspace):
     # Explicit multi-step requests remain possible: there is no server-side quota.
     assert c.post(f"/api/agent/v1/projects/{p['id']}/tasks",json={"name":"另一条明确行动","request_id":"explicit-second"},headers=auth).status_code == 201
     assert c.post(f"/api/agent/v1/projects/{p['id']}/tasks/{a['id']}/delete",json={"expected_updated_at":a["updated_at"]},headers=auth).status_code == 200
-    assert c.get("/api/agent/v1/projects/trash",headers=auth).get_json()["tasks"][0]["id"] == a["id"]
+    assert c.get("/api/agent/v1/projects/trash",headers=auth).get_json()["tasks"] == []
+    assert a["id"] not in [t["id"] for t in project_store.load_projects("alice")[0]["tasks"]]
     bundle = c.get("/api/agent/export/skill-bundle.zip")
     with zipfile.ZipFile(io.BytesIO(bundle.data)) as z:
         skill = z.read("SKILL.md").decode("utf-8")

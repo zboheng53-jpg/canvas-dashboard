@@ -88,11 +88,11 @@
 
 ## 长期项目的当前交互
 
-中央今日行动通过 `/api/actions/focus`（Agent 对应 `/api/agent/v1/actions/focus`）读取，不另存任务。返回 `today`、`previous`、`candidates`、`overdue` 和上海日期；今天按 action ref 去重，occurrences 保留每次安排。过去计划不自动滚入今天；真实逾期单列。可选下一步须由用户点击“今天做”才写计划日期。
+项目今日行动通过 `/api/actions/focus`（Agent 对应 `/api/agent/v1/actions/focus`）读取，不另存任务。返回 `today`、`previous`、`candidates`、`overdue` 和上海日期；网页将 today 与 overdue 按原事项引用去重并入原待办清单，复用普通待办行、日期分组、来源筛选及完成／删除按钮；不再另设今日行动卡片或特殊分区。计划日期不冒充截止日期，具体安排时间保留在行内说明。两边操作同一项目任务，删除即永久删除；单次完成仍在排程详情中操作。previous 与 candidates 保留供 Agent 查询；网页在长期项目内查看，不自动滚入今天。
 
-完成的步骤分组沉底折叠，项目主界面不再用任务总数显示进度。暂放对应既有 `archived`，完成对应 `completed`，删除通过 `deleted_at` 进入回收站，状态与完成历史保持不变。`/api/projects/trash` 返回被删项目和未删项目中的被删任务；恢复项目不恢复置顶或下一步，被删任务需单独恢复。
+完成的步骤分组沉底折叠，项目主界面不再用任务总数显示进度。界面区分进行中、已完成与暂放（对应既有 `archived`），不设回收站，项目与任务删除后永久消失不可找回。转资料在同一次项目锁内原子追加并物理移除原任务。
 
-网页 DELETE 项目/任务为可恢复删除，POST `restore` 恢复。Agent 使用项目/任务路径下的 POST `delete`、`restore`；任务还支持 `to-materials`。新写入携带 `expected_updated_at`，转资料同时校验 `expected_project_updated_at`，资料超长或冲突不会删除原任务。项目暂放、完成或删除后，关联排程从议程与日历投影退出，底层安排和原引用保留。
+网页 DELETE 项目/任务为永久删除。Agent 使用项目/任务路径下的 POST `delete`；任务还支持 `to-materials`。新写入携带 `expected_updated_at`，转资料同时校验 `expected_project_updated_at`，资料超长或冲突不会删除原任务。项目暂放、完成或删除后，关联排程从议程与日历投影退出，底层安排和原引用保留。
 
 Agent 默认每项目只落实当前一步，先读取项目完整内容和 focus，再复用或最少量写入，最后回读；用户明确要求可扩展，服务端不设行动数量上限。代码更新不自动更新外部 Agent 本机的 Skill/MCP 脚本，用户需通过既有更新入口更新并重启会话。
 

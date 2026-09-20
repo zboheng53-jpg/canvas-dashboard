@@ -65,10 +65,10 @@ complete_schedule_occurrence 只完成一次安排，update_action 的 done 才�
 ## 项目整理接口
 
 - `GET /api/agent/v1/actions/focus`：今日行动、此前未推进、可选下一步与真实逾期。
-- `GET /api/agent/v1/projects/trash`：可恢复的项目、任务全文和版本。
-- `POST /api/agent/v1/projects/<project_id>/delete` 或 `/restore`：项目删除、恢复。
-- `POST /api/agent/v1/projects/<project_id>/tasks/<task_id>/delete`、`/restore`、`/to-materials`：任务整理。
-- 上述写入提交所读记录的 `expected_updated_at`；转资料还需 `expected_project_updated_at`。资料与原任务保留在同一原子操作中。
+- `GET /api/agent/v1/projects/trash`：项目记录（保留兼容，返回空列表）。
+- `POST /api/agent/v1/projects/<project_id>/delete`：项目永久删除。
+- `POST /api/agent/v1/projects/<project_id>/tasks/<task_id>/delete`、`/to-materials`：任务永久删除、转为资料。
+- 上述写入提交所读记录的 `expected_updated_at`；转资料还需 `expected_project_updated_at`。资料保存与原任务移除在同一原子操作中。
 - `PUT /api/agent/v1/projects/<project_id>`：合并更新资料，提交 `materials` 和 `expected_updated_at`。
 - `GET/PUT /api/agent/v1/actions/<ref>`：读写行动；`PUT` 只发修改字段与所读版本。
 

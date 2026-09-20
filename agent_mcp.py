@@ -190,8 +190,8 @@ TOOLS.extend([
 ])
 TOOLS.extend([
     _tool("get_project_focus", "读取今日项目行动、此前未推进、可选下一步及真实逾期。规划前读取。", {}),
-    _tool("get_project_trash", "读取可恢复的项目与任务及其版本，不将这些记录当作当前行动。", {}),
-    _tool("manage_project_record", "将项目或任务移入回收站、恢复，或将任务原子转为资料。恢复不会设置下一步；不支持永久清空。",
+    _tool("get_project_trash", "读取项目记录（保留兼容），不将这些记录当作当前行动。", {}),
+    _tool("manage_project_record", "删除项目或任务（永久删除），或将任务原子转为资料。",
           {"project_id": {"type": "integer"}, "task_id": {"type": "integer"},
            "operation": {"type": "string", "enum": ["delete", "restore", "to-materials"]},
            "expected_updated_at": {"type": "string"}, "expected_project_updated_at": {"type": "string", "description": "转为资料时必须提供项目版本"}},

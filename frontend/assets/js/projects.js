@@ -294,8 +294,7 @@ function renderProjectWorkspace() {
   if (archivedCountEl) archivedCountEl.textContent = archived.length;
 
   const activeTabBtn = document.querySelector('.project-tab-btn.active');
-  const activeTab = activeTabBtn ? activeTabBtn.dataset.tab : 'active';
-  if (activeTab === 'trash') { renderProjectTrash(); return; }
+  const activeTab = (activeTabBtn && ['active', 'completed', 'archived'].includes(activeTabBtn.dataset.tab)) ? activeTabBtn.dataset.tab : 'active';
   const visible = projectRecords.filter(p => p.status === activeTab);
   if (!visible.some(p => p.id === selectedProjectId)) selectedProjectId = visible[0]?.id || null;
 
@@ -558,7 +557,7 @@ function renderProjectGroup(project, group) {
               <svg class="project-disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
               <span>已完成 ${completed.length} 项</span>
             </span>
-            ${active ? `<button type="button" class="ui-button ui-button--danger project-completed-clear-btn" onclick="event.preventDefault(); event.stopPropagation(); confirmClearCompletedTasks(${project.id}, ${groupId === null ? "null" : groupId})" title="清空该分组所有已完成任务">移入回收站</button>` : ""}
+            ${active ? `<button type="button" class="ui-button ui-button--danger project-completed-clear-btn" onclick="event.preventDefault(); event.stopPropagation(); confirmClearCompletedTasks(${project.id}, ${groupId === null ? "null" : groupId})" title="清空该分组所有已完成任务">清空已完成</button>` : ""}
           </summary>
           <div class="project-task-list">${completed.map((task) => renderProjectTask(project, task, active)).join("")}</div>
         </details>` : ""}
@@ -816,11 +815,12 @@ function confirmDeleteProjectTask(projectId, taskId) {
   if (!task) return;
   showProjectConfirm(
     "删除任务",
-    `“${task.name}”将移入回收站，并从当前行动和日历中移除。可以随时恢复。`,
-    "移入回收站",
+    `确定要永久删除“${task.name}”吗？此操作不可撤销，删除后将彻底消失。`,
+    "永久删除",
     async () => {
       try {
         await projectRequest(`/api/projects/${projectId}/tasks/${taskId}`, {method: "DELETE", body: JSON.stringify({expected_updated_at: task.updated_at})});
+        setProjectStatus("任务已永久删除");
         await refreshProjectSurfaces();
         if (typeof refreshWorkspaceSurfaces === "function") await refreshWorkspaceSurfaces();
       } catch (error) {
@@ -837,9 +837,9 @@ function confirmClearCompletedTasks(projectId, groupId) {
   if (!tasks.length) return;
   const groupName = groupId === null ? "未分组" : (project.groups.find((g) => g.id === groupId)?.name || "当前分组");
   showProjectConfirm(
-    "移入回收站任务",
-    `确定要删除“${groupName}”中的全部 ${tasks.length} 项已完成任务吗？可在回收站恢复。`,
-    "移入回收站",
+    "清空已完成任务",
+    `确定要永久删除“${groupName}”中的全部 ${tasks.length} 项已完成任务吗？此操作不可撤销。`,
+    "永久删除",
     async () => {
       try {
         for (const task of tasks) {
@@ -847,7 +847,7 @@ function confirmClearCompletedTasks(projectId, groupId) {
         }
         await refreshProjectSurfaces();
         if (typeof refreshWorkspaceSurfaces === "function") await refreshWorkspaceSurfaces();
-        setProjectStatus(`已清空 ${tasks.length} 项已完成任务`);
+        setProjectStatus(`已永久删除 ${tasks.length} 项已完成任务`);
       } catch (error) {
         setProjectStatus(error.message, true);
       }
@@ -1157,11 +1157,33 @@ async function completeOverviewTask(projectId, taskId, checkbox) {
   }
 }
 
+let projectTodosRequest = 0;
 async function fetchProjectTodos() {
+  const requestId = ++projectTodosRequest;
   try {
-    const data = await projectRequest("/api/projects/todos");
-    projectItems = data.items || [];
+    const [data, focus] = await Promise.all([
+      projectRequest("/api/projects/todos"), projectRequest("/api/actions/focus"),
+    ]);
+    if (requestId !== projectTodosRequest) return;
+    const byId = new Map((data.items || []).map(item => [item.id, item]));
+    const todayRefs = new Set(focus.today.map(action => action.ref));
+    for (const action of [...focus.overdue, ...focus.today]) {
+      const id = `task-${action.project_id}-${action.task_id}`;
+      byId.set(id, {...byId.get(id), id, kind: 'project_task',
+        project_id: action.project_id, task_id: action.task_id,
+        title: action.title, project_name: action.project_name,
+        due_date: action.due_date, planned_on: action.planned_on,
+        is_next_action: action.is_next_action, flagged: action.highlighted,
+        is_today: todayRefs.has(action.ref), occurrences: action.occurrences,
+      });
+    }
+    const nextItems = [...byId.values()];
+    // Schedule refreshes also fetch project actions. Keep an open row/menu intact
+    // when the underlying project entries have not changed.
+    if (JSON.stringify(nextItems) === JSON.stringify(projectItems)) return;
+    projectItems = nextItems;
   } catch (error) {
+    if (requestId !== projectTodosRequest) return;
     projectItems = [];
     console.error("Failed to fetch project todos:", error);
   }
@@ -1237,19 +1259,18 @@ function startProjectTodoDueEdit(button) {
   const projectId = Number(button.dataset.projectId);
   const taskId = Number(button.dataset.taskId) || null;
   const kind = button.dataset.projectKind;
+  const field = button.dataset.dateField === 'planned_on' ? 'planned_on' : 'due_date';
   const input = document.createElement("input");
   input.type = "date";
   input.className = "inline-edit-date-input";
-  input.value = button.textContent.trim();
+  input.value = button.dataset.dateValue ?? button.textContent.trim();
   const original = input.value;
   let saved = false;
   const finish = async (commit) => {
     if (saved) return;
     saved = true;
-    if (!commit || input.value === original) {
-      renderUnifiedList();
-      return;
-    }
+    input.replaceWith(button);
+    if (!commit || input.value === original) return;
     const url = kind === "project_due"
       ? `/api/projects/${projectId}`
       : `/api/projects/${projectId}/tasks/${taskId}`;
@@ -1257,11 +1278,11 @@ function startProjectTodoDueEdit(button) {
       await projectRequest(url, {
         method: "PUT",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({due_date: input.value || null}),
+        body: JSON.stringify({[field]: input.value || null}),
       });
       await refreshProjectSurfaces();
     } catch (error) {
-      setProjectStatus("截止日期同步失败，已恢复原日期", true);
+      setProjectStatus("日期同步失败，已恢复原日期", true);
       await fetchProjectTodos();
     }
   };
@@ -1324,10 +1345,11 @@ if (!(window.location.protocol === 'file:' || window.location.hostname === '') |
 async function deleteProjectRecoverably(projectId) {
   const p = projectById(projectId);
   if (!p) return;
-  showProjectConfirm('删除项目', `“${p.name}”将连同任务移入回收站，可随时恢复。`, '移入回收站', async () => {
+  showProjectConfirm('删除项目', `确定要永久删除“${p.name}”吗？此操作不可撤销，该项目及其所有任务将彻底消失。`, '永久删除', async () => {
     try {
       await projectRequest(`/api/projects/${projectId}`, {method:'DELETE', body:JSON.stringify({expected_updated_at:p.updated_at})});
       selectedProjectId = null;
+      setProjectStatus("项目已永久删除");
       await refreshProjectSurfaces();
     } catch (error) { setProjectStatus(error.message, true); }
   });
@@ -1340,33 +1362,7 @@ async function moveTaskToMaterials(projectId, taskId) {
     await refreshProjectSurfaces();
   } catch (error) { setProjectStatus(error.message, true); }
 }
-let projectTrashRequest = 0;
 async function renderProjectTrash() {
-  const seq = ++projectTrashRequest;
-  const list = document.getElementById('project-manager-list'), detail = document.getElementById('project-detail');
-  list.innerHTML = '<p class="muted">删除的项目与任务都可以恢复。</p>';
-  detail.innerHTML = '<p class="muted">正在加载回收站…</p>';
-  try {
-    const data = await projectRequest('/api/projects/trash');
-    if (seq !== projectTrashRequest || document.querySelector('.project-tab-btn.active')?.dataset.tab !== 'trash') return;
-    detail.innerHTML = '<h2>回收站</h2>';
-    for (const [items, task] of [[data.projects, false], [data.tasks, true]]) for (const item of items) {
-      const row = document.createElement('article'); row.className = 'project-trash-row';
-      const name = document.createElement('strong'); name.textContent = task ? `${item.project_name} · ${item.name}` : item.name;
-      const content = document.createElement('details'), summary = document.createElement('summary'), body = document.createElement('p');
-      summary.textContent = '查看保留内容'; body.className = 'project-trash-content';
-      body.textContent = task ? item.details : [item.objective, item.materials, ...item.tasks.map(t => `${t.done ? '已完成' : '未完成'} · ${t.name}\n${t.details || ''}`)].filter(Boolean).join('\n\n');
-      content.append(summary, body);
-      const restore = document.createElement('button'); restore.type = 'button'; restore.className = 'ui-button ui-button--secondary'; restore.textContent = task ? '恢复任务' : '恢复项目';
-      restore.onclick = async () => {
-        try {
-          const path = task ? `/api/projects/${item.project_id}/tasks/${item.id}/restore` : `/api/projects/${item.id}/restore`;
-          await projectRequest(path, {method:'POST',body:JSON.stringify({expected_updated_at:item.updated_at})});
-          await loadProjects(); await loadProjectOverview(); await fetchProjectTodos(); await loadTodaySchedule();
-        } catch (error) { setProjectStatus(error.message, true); }
-      };
-      row.append(name, restore, content); detail.append(row);
-    }
-    if (!data.projects.length && !data.tasks.length) detail.innerHTML += '<p class="muted">回收站为空。</p>';
-  } catch (error) { if (seq === projectTrashRequest) detail.textContent = error.message; }
+  const detail = document.getElementById('project-detail');
+  if (detail) detail.innerHTML = '<p class="muted">项目与任务删除后为永久删除，不设回收站。</p>';
 }

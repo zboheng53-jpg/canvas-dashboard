@@ -169,4 +169,4 @@ Each release links to the shared `data/` and `.venv/`. Activation atomically swi
 
 Operational commands and rollback procedure are in `docs/operations.md`.
 
-Project and task deletion is recoverable (`deleted_at`) within the same locked project store. Trash APIs expose retained records; restoration preserves IDs and history without restoring pin/next-action selections. Moving a task into materials appends its original content and recycles it atomically. Agenda and calendar projections suppress inactive/deleted project references without deleting schedule history.
+Project and task deletion is permanent within the same locked project store, with no recycle bin. Moving a task into materials appends its original content and removes the task atomically. Agenda and calendar projections suppress inactive/deleted project references without deleting schedule history.

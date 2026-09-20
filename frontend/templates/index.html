@@ -106,10 +106,6 @@
     <!-- Main Content -->
     <main>
       <section class="column main-column">
-        <section class="ui-card project-focus-card" aria-labelledby="project-focus-title">
-          <header class="project-focus-heading"><h2 id="project-focus-title">今日行动</h2><span>从今天的一步开始</span></header>
-          <div id="project-focus-content" aria-live="polite">正在加载今日行动…</div>
-        </section>
         <!-- Unified Main Card -->
         <section class="card listcard enter-main-card">
           <div class="card-head section-header">
@@ -1944,6 +1940,7 @@
       const dueKey = (item) => item.due_ts || '9999-12-31T23:59:59';
       items.forEach((item) => {
         if (item.done) { groups.completed.push(item); return; }
+        if (item.isTodayAction && (!item.due_ts || item.due_ts.slice(0, 10) >= todayStr)) { groups.today.push(item); return; }
         if (!item.due_ts) { groups.nodate.push(item); return; }
         const dueDate = new Date(item.due_ts.slice(0, 10) + 'T00:00:00');
         if (dueDate < today) { groups.overdue.push(item); return; }
@@ -2104,6 +2101,9 @@
           projectId: item.project_id,
           taskId: item.task_id,
           projectKind: item.kind,
+          isTodayAction: Boolean(item.is_today),
+          plannedOn: item.planned_on || '',
+          occurrences: item.occurrences || [],
         });
       });
 
@@ -2137,6 +2137,14 @@
 
       renderTodoSourceFilters(unified);
       updateStatsBar(unified);
+      // 侧栏 nav-count 数字：今日总览的未完成待办数；长期项目的进行中数（从 #active-project-count 读）
+      const overviewCount = unified.filter((it) => !it.done && !it.hidden).length;
+      const overviewEl = document.querySelector('[data-nav-count="overview"]');
+      if (overviewEl) {
+        if (overviewCount > 0) { overviewEl.textContent = overviewCount; overviewEl.hidden = false; }
+        else { overviewEl.textContent = ''; overviewEl.hidden = true; }
+      }
+
       const filteredItems = todoSourceFilter === 'all'
         ? unified
         : unified.filter((item) => item.source === todoSourceFilter);
@@ -2257,7 +2265,7 @@
         const dueHtml = item.source === 'custom'
           ? `<span class="ui-list-item__meta item-due editable-due" data-id="${item.rawId}" data-field="due_date">${item.due_str}</span>`
           : item.source === 'project'
-            ? `<button class="ui-button ui-button--text ui-list-item__meta item-due project-due-editable" onclick="startProjectTodoDueEdit(this)" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" aria-label="修改截止日期">${item.due_str}</button>`
+            ? `<button class="ui-button ui-button--text ui-list-item__meta item-due project-due-editable" onclick="startProjectTodoDueEdit(this)" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" data-date-field="${!item.due_str && item.isTodayAction ? 'planned_on' : 'due_date'}" data-date-value="${item.due_str || item.plannedOn}" aria-label="${!item.due_str && item.isTodayAction ? '修改计划日期' : '修改截止日期'}">${item.due_str || (item.plannedOn ? '计划 ' + item.plannedOn : '')}</button>`
           : `<span class="ui-list-item__meta item-due">${item.due_str}</span>`;
 
         // courseHtml 改为整合进副标题，详见下方 rowHtml 重构
@@ -2293,6 +2301,8 @@
             : escapeHtml(item.course));
         }
         if (item.groupName) metaParts.push(escapeHtml(item.groupName));
+        if (item.plannedOn && item.due_str) metaParts.push(`计划 ${escapeHtml(item.plannedOn)}`);
+        if (item.occurrences?.length) metaParts.push(item.occurrences.map(e => `${escapeHtml(e.start_time)}–${escapeHtml(e.end_time)}`).join('、'));
         if (item.type && !item.course) metaParts.push(escapeHtml(item.type));
         if (!item.course && item.labels && item.labels.length) metaParts.push(escapeHtml(item.labels[0]));
         const metaText = metaParts.join(' · ');
@@ -2349,13 +2359,6 @@
 
       if (doAnimate) firstItemRender = false;
 
-      // 侧栏 nav-count 数字：今日总览的未完成待办数；长期项目的进行中数（从 #active-project-count 读）
-      const overviewCount = unified.filter((it) => !it.done && !it.hidden).length;
-      const overviewEl = document.querySelector('[data-nav-count="overview"]');
-      if (overviewEl) {
-        if (overviewCount > 0) { overviewEl.textContent = overviewCount; overviewEl.hidden = false; }
-        else { overviewEl.textContent = ''; overviewEl.hidden = true; }
-      }
       const projectsEl = document.querySelector('[data-nav-count="projects"]');
       const activeProjectsEl = document.getElementById('active-project-count');
       if (projectsEl && activeProjectsEl) {

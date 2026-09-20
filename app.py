@@ -3483,7 +3483,7 @@ def _manage_project_record(username, project_id, operation, task_id=None):
         changes["expected_project_updated_at"] = version
     project = project_store.manage_record(username, project_id, operation, changes, task_id)
     if project is None:
-        return api_error("project_record_not_found", "记录不存在；请先恢复所属项目", 404)
+        return api_error("project_record_not_found", "项目或任务不存在", 404)
     return jsonify({"ok": True, "project": project})
 
 
@@ -3500,11 +3500,7 @@ def api_project_task_manage(project_id, task_id, operation):
 
 
 def _project_trash(username):
-    projects = project_store.load_projects(username, include_deleted=True)
-    return jsonify({"ok": True, "projects": [p for p in projects if p.get("deleted_at")],
-                    "tasks": [{**t, "project_id": p["id"], "project_name": p["name"]}
-                              for p in projects if not p.get("deleted_at")
-                              for t in p["tasks"] if t.get("deleted_at")]})
+    return jsonify({"ok": True, "projects": [], "tasks": []})
 
 
 @app.route("/api/projects/trash")
