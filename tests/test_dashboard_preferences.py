@@ -23,6 +23,7 @@ def test_dashboard_source_preferences_default_persist_and_stay_account_scoped(tm
         "haoke",
         "zhixuemeng",
         "zhihuishu",
+        "ketangpai",
         "project",
         "custom",
     ]
@@ -42,6 +43,7 @@ def test_dashboard_source_preferences_default_persist_and_stay_account_scoped(tm
         "haoke",
         "zhixuemeng",
         "zhihuishu",
+        "ketangpai",
         "project",
         "custom",
     ]

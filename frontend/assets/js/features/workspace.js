@@ -169,7 +169,7 @@ async function saveActionCompletion(done) {
   const a = workspaceDetail.action;
   try {
     await workspaceWrite(`/api/actions/${encodeURIComponent(a.ref)}`, {done, ...(a.editable ? {expected_updated_at: a.updated_at} : {})});
-    const reloadSource = {canvas: fetchCanvasTodos, haoke: fetchHaokeTodos, zhixuemeng: fetchZhixuemengTodos, zhihuishu: fetchZhihuishuTodos}[a.source];
+    const reloadSource = {canvas: fetchCanvasTodos, haoke: fetchHaokeTodos, zhixuemeng: fetchZhixuemengTodos, zhihuishu: fetchZhihuishuTodos, ketangpai: fetchKetangpaiTodos}[a.source];
     if (reloadSource) await reloadSource();
     await refreshWorkspaceSurfaces(); await openActionDetail(a.ref);
   } catch (error) { document.getElementById('action-detail-error').textContent = error.message; }

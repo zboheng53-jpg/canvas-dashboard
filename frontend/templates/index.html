@@ -128,6 +128,7 @@
             <option value="haoke" hidden disabled>好课</option>
             <option value="zhixuemeng" hidden disabled>智学盟</option>
             <option value="zhihuishu" hidden disabled>智慧树</option>
+            <option value="ketangpai" hidden disabled>课堂派</option>
             <option value="project">项目</option>
             <option value="custom">自定义</option>
           </select>
@@ -144,6 +145,7 @@
             <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter hidden" data-todo-source="haoke" aria-pressed="false"><span class="dot" style="background:var(--src-haoke)"></span>好课 <span class="n" id="src-count-haoke">0</span></button>
             <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter hidden" data-todo-source="zhixuemeng" aria-pressed="false"><span class="dot" style="background:var(--src-zxm)"></span>智学盟 <span class="n" id="src-count-zhixuemeng">0</span></button>
             <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter hidden" data-todo-source="zhihuishu" aria-pressed="false"><span class="dot" style="background:var(--src-zhs)"></span>智慧树 <span class="n" id="src-count-zhihuishu">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter hidden" data-todo-source="ketangpai" aria-pressed="false"><span class="dot" style="background:var(--src-ketangpai)"></span>课堂派 <span class="n" id="src-count-ketangpai">0</span></button>
             <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="project" aria-pressed="false"><span class="dot" style="background:var(--src-project)"></span>项目 <span class="n" id="src-count-project">0</span></button>
             <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="custom" aria-pressed="false"><span class="dot" style="background:var(--src-custom)"></span>自定义 <span class="n" id="src-count-custom">0</span></button>
             <details class="todo-source-manager" id="todo-source-manager">
@@ -161,6 +163,7 @@
                   <label class="todo-source-visibility-option hidden" data-todo-source-option="haoke"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="haoke" checked><span class="dot" style="background:var(--src-haoke)"></span><span>好课</span><small>来自连接与同步</small></label>
                   <label class="todo-source-visibility-option hidden" data-todo-source-option="zhixuemeng"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="zhixuemeng" checked><span class="dot" style="background:var(--src-zxm)"></span><span>智学盟</span><small>来自连接与同步</small></label>
                   <label class="todo-source-visibility-option hidden" data-todo-source-option="zhihuishu"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="zhihuishu" checked><span class="dot" style="background:var(--src-zhs)"></span><span>智慧树</span><small>来自连接与同步</small></label>
+                  <label class="todo-source-visibility-option hidden" data-todo-source-option="ketangpai"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="ketangpai" checked><span class="dot" style="background:var(--src-ketangpai)"></span><span>课堂派</span><small>来自连接与同步</small></label>
                   <label class="todo-source-visibility-option" data-todo-source-option="project"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="project" checked><span class="dot" style="background:var(--src-project)"></span><span>项目</span><small>长期项目</small></label>
                   <label class="todo-source-visibility-option" data-todo-source-option="custom"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="custom" checked><span class="dot" style="background:var(--src-custom)"></span><span>自定义</span><small>手动添加</small></label>
                 </div>
@@ -1538,10 +1541,14 @@
     let zhihuishuItems = [];
     let zhihuishuHiddenIds = [];
     let zhihuishuHighlightedIds = [];
+    let ketangpaiItems = [];
+    let ketangpaiHiddenIds = [];
+    let ketangpaiHighlightedIds = [];
     let canvasDeletedIds = [];
     let haokeDeletedIds = [];
     let zhixuemengDeletedIds = [];
     let zhihuishuDeletedIds = [];
+    let ketangpaiDeletedIds = [];
 
     let firstItemRender = true;
     setTimeout(() => { firstItemRender = false; }, 2800);
@@ -1602,7 +1609,7 @@
       if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); button.textContent = '正在刷新…'; }
       if (detail) detail.setAttribute('aria-busy', 'true');
       if (status) {
-        status.textContent = '正在刷新四个平台的连接状态…';
+        status.textContent = '正在刷新各平台的连接状态…';
         applyFeedbackSemantic(status, 'info');
       }
       try {
@@ -1611,13 +1618,14 @@
           fetchHaokeTodos(),
           fetchZhixuemengTodos(),
           fetchZhihuishuTodos(),
+          fetchKetangpaiTodos(),
         ]);
         const failures = [...document.querySelectorAll('#login-cards .login-card-status.attention')]
           .filter((item) => /失败|错误|重新|不可用/.test(item.textContent)).length;
         if (status) {
           status.textContent = failures
             ? `已完成刷新；${failures} 个平台需要处理。`
-            : '四个平台的连接状态已刷新；待办数据也已同步。';
+            : '各平台的连接状态已刷新；待办数据也已同步。';
           applyFeedbackSemantic(status, failures ? 'warning' : 'success');
         }
       } catch (error) {
@@ -1639,7 +1647,7 @@
     }
 
     const platformSyncs = {};
-    const platformLabels = {canvas: 'Canvas', haoke: '好课', zhixuemeng: '智学盟', zhihuishu: '智慧树'};
+    const platformLabels = {canvas: 'Canvas', haoke: '好课', zhixuemeng: '智学盟', zhihuishu: '智慧树', ketangpai: '课堂派'};
     function recordPlatformSync(platform, result) {
       if (!result || !result.sync) return;
       const sync = {...result.sync};
@@ -1771,8 +1779,8 @@
       }
     }
 
-    const TODO_SOURCE_ORDER = ['canvas', 'haoke', 'zhixuemeng', 'zhihuishu', 'project', 'custom'];
-    const TODO_PLATFORM_SOURCES = new Set(['canvas', 'haoke', 'zhixuemeng', 'zhihuishu']);
+    const TODO_SOURCE_ORDER = ['canvas', 'haoke', 'zhixuemeng', 'zhihuishu', 'ketangpai', 'project', 'custom'];
+    const TODO_PLATFORM_SOURCES = new Set(['canvas', 'haoke', 'zhixuemeng', 'zhihuishu', 'ketangpai']);
     let visibleTodoSources = new Set(TODO_SOURCE_ORDER);
     let todoSourcePreferenceRevision = 0;
     let todoSourcePreferenceSaveTimer = null;
@@ -1858,10 +1866,11 @@
         haoke: '好课',
         zhixuemeng: '智学盟',
         zhihuishu: '智慧树',
+        ketangpai: '课堂派',
         project: '项目',
         custom: '自定义',
       };
-      const counts = { all: items.length, canvas: 0, haoke: 0, zhixuemeng: 0, zhihuishu: 0, project: 0, custom: 0 };
+      const counts = { all: items.length, canvas: 0, haoke: 0, zhixuemeng: 0, zhihuishu: 0, ketangpai: 0, project: 0, custom: 0 };
       items.forEach((item) => { if (counts[item.source] !== undefined) counts[item.source] += 1; });
       const displayedSources = new Set(
         TODO_SOURCE_ORDER.filter((source) => todoSourceIsAvailable(source, counts) && visibleTodoSources.has(source))
@@ -2046,6 +2055,28 @@
         });
       });
 
+      ketangpaiItems.forEach(item => {
+        if (ketangpaiDeletedIds.includes(item.id)) return;
+        const isHidden = ketangpaiHiddenIds.includes(item.id);
+        const isHighlighted = ketangpaiHighlightedIds.includes(item.id);
+        unified.push({
+          id: `k${item.id}`,
+          source: 'ketangpai',
+          title: item.title,
+          course: item.course,
+          due_str: item.due_str,
+          due_ts: item.due_ts,
+          type: item.type || 'ketangpai',
+          url: item.url,
+          done: Boolean(item.done) || isHidden,
+          hidden: isHidden,
+          highlighted: isHighlighted,
+          rawId: item.id,
+          manualHighlighted: isHighlighted,
+          disconnected: platformSyncs.ketangpai?.connection_state === 'disconnected',
+        });
+      });
+
       projectItems.forEach(item => {
         const category = item.project_category || '项目';
         unified.push({
@@ -2198,6 +2229,12 @@
             <button class="todo-action-button ${flagClass}" onclick="toggleZhihuishuHighlight('${item.rawId}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
             <button class="btn-dismiss" onclick="togglePlatformCompletion('zhihuishu', '${item.rawId}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="btn-delete" onclick="toggleZhihuishuDelete('${item.rawId}')" title="\u5220\u9664">&#x1f5d1;</button>
+          `;
+        } else if (item.source === 'ketangpai') {
+          actionsHtml = `
+            <button class="todo-action-button ${flagClass}" onclick="toggleKetangpaiHighlight('${item.rawId}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
+            <button class="btn-dismiss" onclick="togglePlatformCompletion('ketangpai', '${item.rawId}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
+            <button class="btn-delete" onclick="toggleKetangpaiDelete('${item.rawId}')" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'project') {
           actionsHtml = `
@@ -2375,7 +2412,7 @@
         body: JSON.stringify({action: done ? 'uncomplete' : 'complete', id}),
       });
       if (!response.ok) return;
-      const collections = {canvas: canvasItems, haoke: haokeItems, zhixuemeng: zhixuemengItems, zhihuishu: zhihuishuItems};
+      const collections = {canvas: canvasItems, haoke: haokeItems, zhixuemeng: zhixuemengItems, zhihuishu: zhihuishuItems, ketangpai: ketangpaiItems};
       const item = (collections[platform] || []).find((entry) => String(entry.id) === String(id));
       if (item) item.done = !done;
       renderUnifiedList();
@@ -2563,6 +2600,69 @@
         zhixuemengHighlightedIds = zhixuemengHighlightedIds.filter(id => id !== itemId);
       } else {
         zhixuemengHighlightedIds.push(itemId);
+      }
+      renderUnifiedList();
+    }
+
+    // ---- Ketangpai Todos ----
+    async function fetchKetangpaiTodos(courseId = '') {
+      try {
+        const url = courseId ? `/api/ketangpai/todos?course_id=${encodeURIComponent(courseId)}` : '/api/ketangpai/todos';
+        const resp = await fetch(url);
+        const result = await resp.json();
+        recordPlatformSync('ketangpai', result);
+
+        if (result.need_setup && result.sync?.connection_state !== 'disconnected') {
+          setCardStatus('ketangpai', '未关联', 'attention');
+          ketangpaiItems = [];
+          ketangpaiHiddenIds = [];
+          ketangpaiHighlightedIds = [];
+          renderUnifiedList();
+          return;
+        }
+
+        if (!result.ok) {
+          setCardStatus('ketangpai', result.error || '获取失败', 'attention');
+        } else {
+          setCardStatus('ketangpai', '已连接', 'connected');
+        }
+
+        ketangpaiItems = result.data || [];
+        ketangpaiHiddenIds = result.hidden || [];
+        ketangpaiHighlightedIds = result.highlighted || [];
+        ketangpaiDeletedIds = result.deleted || [];
+        renderUnifiedList();
+      } catch (e) {
+        setCardStatus('ketangpai', '网络错误', 'attention');
+      }
+    }
+
+    async function toggleKetangpaiHide(itemId, current) {
+      const action = current ? 'unhide' : 'hide';
+      await fetch('/api/ketangpai/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, id: itemId }),
+      });
+      if (current) {
+        ketangpaiHiddenIds = ketangpaiHiddenIds.filter(id => id !== itemId);
+      } else {
+        ketangpaiHiddenIds.push(itemId);
+      }
+      renderUnifiedList();
+    }
+
+    async function toggleKetangpaiHighlight(itemId, current) {
+      const action = current ? 'unhighlight' : 'highlight';
+      await fetch('/api/ketangpai/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, id: itemId }),
+      });
+      if (current) {
+        ketangpaiHighlightedIds = ketangpaiHighlightedIds.filter(id => id !== itemId);
+      } else {
+        ketangpaiHighlightedIds.push(itemId);
       }
       renderUnifiedList();
     }
@@ -2888,6 +2988,17 @@
       renderUnifiedList();
     }
 
+    async function toggleKetangpaiDelete(id) {
+      const resp = await fetch('/api/ketangpai/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id }),
+      });
+      if (!resp.ok) return;
+      ketangpaiDeletedIds.push(id);
+      renderUnifiedList();
+    }
+
     async function toggleCustomDelete(id) {
       await fetch(`/api/custom/todos/${id}`, { method: 'DELETE' });
       fetchCustomTodos();
@@ -3030,6 +3141,7 @@
       if (platform === 'haoke') await loadHaokeStatusInline();
       if (platform === 'zhixuemeng') await loadZhixuemengStatusInline();
       if (platform === 'zhihuishu') await loadZhihuishuStatusInline();
+      if (platform === 'ketangpai') await loadKetangpaiStatusInline();
     }
 
     // --- Canvas Detail Panel ---
@@ -3389,13 +3501,223 @@
       await fetchZhihuishuTodos();
     }
 
+    // --- 课堂派 Detail Panel ---
+    function populateKetangpaiCourseSelectInline(select, courses) {
+      if (!select) return;
+      select.replaceChildren(new Option('全部课程 (' + (courses ? courses.length : 0) + ')', ''));
+      (Array.isArray(courses) ? courses : []).forEach((course) => {
+        const option = document.createElement('option');
+        option.value = String(course.id || '');
+        option.textContent = `${course.coursename || ''}${course.classname ? ' (' + course.classname + ')' : ''}`;
+        select.append(option);
+      });
+    }
+
+    async function loadKetangpaiStatusInline() {
+      const badge = document.getElementById('detail-status-badge-ketangpai');
+      const setupDiv = document.getElementById('ktp-setup-inline');
+      const loggedInDiv = document.getElementById('ktp-logged-in-inline');
+      try {
+        const resp = await fetch('/api/ketangpai/config');
+        if (!resp.ok) {
+          throw new Error('HTTP ' + resp.status);
+        }
+        const result = await resp.json();
+        if (result.ok && result.has_token) {
+          if (badge) { badge.textContent = '已登录'; badge.className = 'ui-status ui-status--success status-badge'; }
+          setCardStatus('ketangpai', '已连接', 'connected');
+          if (setupDiv) setupDiv.classList.add('hidden');
+          if (loggedInDiv) loggedInDiv.classList.remove('hidden');
+          if (result.courses) {
+            const select = document.getElementById('ktp-course-select-inline');
+            populateKetangpaiCourseSelectInline(select, result.courses);
+          }
+        } else {
+          if (badge) { badge.textContent = '未登录'; badge.className = 'ui-status ui-status--neutral status-badge'; }
+          setCardStatus('ketangpai', '未关联', 'attention');
+          if (setupDiv) setupDiv.classList.remove('hidden');
+          if (loggedInDiv) loggedInDiv.classList.add('hidden');
+        }
+      } catch (e) {
+        if (badge) { badge.textContent = '未登录'; badge.className = 'ui-status ui-status--neutral status-badge'; }
+        setCardStatus('ketangpai', '未关联', 'attention');
+        if (setupDiv) setupDiv.classList.remove('hidden');
+        if (loggedInDiv) loggedInDiv.classList.add('hidden');
+      }
+    }
+
+    let ktpSmsCountdownInline = 0;
+    let ktpSmsTimerInline = null;
+
+    async function sendKetangpaiSmsInline() {
+      if (ktpSmsCountdownInline > 0) return;
+      const phone = (document.getElementById('ktp-phone-inline')?.value || '').trim();
+      if (!phone) { showKetangpaiErrorInline('请输入手机号'); return; }
+      const btn = document.getElementById('ktp-send-sms-btn-inline');
+      if (btn) btn.disabled = true;
+      hideKetangpaiErrorInline();
+
+      try {
+        const resp = await fetch('/api/ketangpai/send-sms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          ktpSmsCountdownInline = 60;
+          if (ktpSmsTimerInline) clearInterval(ktpSmsTimerInline);
+          ktpSmsTimerInline = setInterval(() => {
+            ktpSmsCountdownInline--;
+            if (ktpSmsCountdownInline <= 0) {
+              clearInterval(ktpSmsTimerInline);
+              ktpSmsTimerInline = null;
+              if (btn) { btn.textContent = '发送验证码'; btn.disabled = false; }
+            } else {
+              if (btn) btn.textContent = `${ktpSmsCountdownInline}秒后发送`;
+            }
+          }, 1000);
+          if (btn) btn.textContent = `${ktpSmsCountdownInline}秒后发送`;
+        } else {
+          showKetangpaiErrorInline(result.error || '发送失败');
+          if (btn) btn.disabled = false;
+        }
+      } catch (e) {
+        showKetangpaiErrorInline('网络错误');
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function doKetangpaiLoginInline() {
+      const phone = (document.getElementById('ktp-phone-inline')?.value || '').trim();
+      const code = (document.getElementById('ktp-captcha-inline')?.value || '').trim();
+      if (!phone || !code) { showKetangpaiErrorInline('请输入手机号和验证码'); return; }
+      hideKetangpaiErrorInline();
+
+      try {
+        const resp = await fetch('/api/ketangpai/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, code }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          const capInput = document.getElementById('ktp-captcha-inline');
+          if (capInput) capInput.value = '';
+          if (ktpSmsTimerInline) { clearInterval(ktpSmsTimerInline); ktpSmsTimerInline = null; ktpSmsCountdownInline = 0; }
+          const btn = document.getElementById('ktp-send-sms-btn-inline');
+          if (btn) { btn.textContent = '发送验证码'; btn.disabled = false; }
+          await loadKetangpaiStatusInline();
+          await fetchKetangpaiTodos();
+        } else {
+          showKetangpaiErrorInline(result.error || '登录失败');
+        }
+      } catch (e) {
+        showKetangpaiErrorInline('网络错误');
+      }
+    }
+
+    function switchKtpAuthTab(tab) {
+      const smsPanel = document.getElementById('ktp-sms-login-panel');
+      const pwdPanel = document.getElementById('ktp-password-login-inline');
+      const smsTab = document.getElementById('ktp-tab-btn-sms');
+      const pwdTab = document.getElementById('ktp-toggle-login-mode-btn');
+      hideKetangpaiErrorInline();
+
+      if (tab === 'pwd') {
+        if (smsPanel) smsPanel.classList.add('hidden');
+        if (pwdPanel) pwdPanel.classList.remove('hidden');
+        if (smsTab) {
+          smsTab.classList.remove('is-active');
+          smsTab.setAttribute('aria-selected', 'false');
+        }
+        if (pwdTab) {
+          pwdTab.classList.add('is-active');
+          pwdTab.setAttribute('aria-selected', 'true');
+        }
+      } else {
+        if (smsPanel) smsPanel.classList.remove('hidden');
+        if (pwdPanel) pwdPanel.classList.add('hidden');
+        if (smsTab) {
+          smsTab.classList.add('is-active');
+          smsTab.setAttribute('aria-selected', 'true');
+        }
+        if (pwdTab) {
+          pwdTab.classList.remove('is-active');
+          pwdTab.setAttribute('aria-selected', 'false');
+        }
+      }
+    }
+
+    function toggleKtpLoginModeInline() {
+      const pwdPanel = document.getElementById('ktp-password-login-inline');
+      const isPwdHidden = !pwdPanel || pwdPanel.classList.contains('hidden');
+      switchKtpAuthTab(isPwdHidden ? 'pwd' : 'sms');
+    }
+
+    function showKtpPasswordLoginInline() {
+      switchKtpAuthTab('pwd');
+    }
+
+    async function doKetangpaiPasswordLoginInline(e) {
+      if (e) e.preventDefault();
+      const account = (document.getElementById('ktp-username-inline')?.value || '').trim();
+      const password = (document.getElementById('ktp-password-inline')?.value || '').trim();
+      if (!account || !password) { showKetangpaiErrorInline('请输入账号和密码'); return; }
+      hideKetangpaiErrorInline();
+
+      try {
+        const resp = await fetch('/api/ketangpai/login-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ account, password }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          await loadKetangpaiStatusInline();
+          await fetchKetangpaiTodos();
+        } else {
+          showKetangpaiErrorInline(result.error || '登录失败');
+        }
+      } catch (e) {
+        showKetangpaiErrorInline('网络错误');
+      }
+    }
+
+    function showKetangpaiErrorInline(msg) {
+      const el = document.getElementById('ketangpai-error-inline');
+      if (el) { el.textContent = msg; el.classList.remove('hidden'); }
+    }
+
+    function hideKetangpaiErrorInline() {
+      const el = document.getElementById('ketangpai-error-inline');
+      if (el) el.classList.add('hidden');
+    }
+
+    async function changeKetangpaiCourseInline() {
+      const select = document.getElementById('ktp-course-select-inline');
+      const courseId = select ? select.value : '';
+      await fetchKetangpaiTodos(courseId);
+    }
+
+    async function logoutKetangpaiInline() {
+      try {
+        await fetch('/api/ketangpai/logout', { method: 'POST' });
+      } catch (e) { /* ignore */ }
+      switchKtpAuthTab('sms');
+      hideKetangpaiErrorInline();
+      await loadKetangpaiStatusInline();
+      await fetchKetangpaiTodos();
+    }
+
     let platformPendingClear = null;
     const platformDisconnectEndpoints = {
       canvas: ['/api/config', 'DELETE'], haoke: ['/api/haoke/config', 'DELETE'],
       zhixuemeng: ['/api/zhixuemeng/logout', 'POST'], zhihuishu: ['/api/zhihuishu/config', 'DELETE'],
+      ketangpai: ['/api/ketangpai/logout', 'POST'],
     };
     async function refreshOnePlatform(platform) {
-      const loaders = {canvas: fetchCanvasTodos, haoke: fetchHaokeTodos, zhixuemeng: fetchZhixuemengTodos, zhihuishu: fetchZhihuishuTodos};
+      const loaders = {canvas: fetchCanvasTodos, haoke: fetchHaokeTodos, zhixuemeng: fetchZhixuemengTodos, zhihuishu: fetchZhihuishuTodos, ketangpai: fetchKetangpaiTodos};
       if (loaders[platform]) await loaders[platform]();
       if (typeof selectConnectionPlatform === 'function') selectConnectionPlatform(platform);
     }
@@ -3448,6 +3770,7 @@
       fetchHaokeTodos();
       fetchZhixuemengTodos();
       fetchZhihuishuTodos();
+      fetchKetangpaiTodos();
       refreshSessionActivity();
     } else {
       window.customToday = '2026-07-25';
@@ -3485,6 +3808,13 @@
       zhihuishuHiddenIds = [];
       zhihuishuDeletedIds = [];
 
+      ketangpaiItems = [
+        { id: 1, title: '1.力的基本概念，力系简化（1）', course: '力学原理A', type: '作业', due_str: '2026-09-22', due_ts: '2026-09-22T23:59:00', url: '' },
+      ];
+      ketangpaiHighlightedIds = [];
+      ketangpaiHiddenIds = [];
+      ketangpaiDeletedIds = [];
+
       projectItems = [
         { id: 101, project_id: 1, task_id: 11, kind: 'task', title: '全国大学生数学建模竞赛 · 选题与组内分工', project_name: '数学建模竞赛', due_date: '2026-07-27', flagged: false },
       ];
@@ -3506,6 +3836,7 @@
       setInterval(fetchHaokeTodos, 30 * 60 * 1000);
       setInterval(fetchZhixuemengTodos, 30 * 60 * 1000);
       setInterval(fetchZhihuishuTodos, 30 * 60 * 1000);
+      setInterval(fetchKetangpaiTodos, 30 * 60 * 1000);
       setInterval(fetchTerm, 60 * 1000);
       setInterval(fetchWeather, 60 * 60 * 1000);
     }

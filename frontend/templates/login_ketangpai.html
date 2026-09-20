@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>课堂派接入 · Canvas Dashboard</title>
+  {% include "_favicon.html" %}
+  {% include "_font_assets.html" %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <script>window.CSRF_TOKEN = "{{ csrf_token() }}";</script>
+  <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
+</head>
+<body>
+  <div class="dashboard">
+    <a href="/" class="login-page-back">&#x2190; 返回看板</a>
+    <div class="card enter-main-card">
+      <div class="section-header">
+        <h2>课堂派</h2>
+      </div>
+
+      <p class="ui-feedback ui-feedback--info setup-hint" id="status-line" role="status" aria-live="polite">检查中...</p>
+
+      <div class="login-body" id="form-body">
+        <div id="ketangpai-logged-in" class="hidden logged-in-row">
+          <span class="logged-in-label">已登录</span>
+          <select id="ktp-course-select" class="ui-control logged-in-select"></select>
+          <a href="#" onclick="logoutKetangpai();return false;" class="logged-in-link">登出</a>
+        </div>
+
+        <div id="ketangpai-setup" class="hidden">
+          <p class="ui-help setup-hint">请输入课堂派绑定的手机号和验证码登录：</p>
+          <div class="add-todo-form mb-s">
+            <input type="tel" id="ktp-phone" placeholder="手机号" autocomplete="off" class="ui-control">
+            <button type="button" id="ktp-send-sms-btn" onclick="sendKetangpaiSms()" class="ui-button ui-button--secondary ui-button--block btn-wide">发送验证码</button>
+          </div>
+          <div class="add-todo-form mb-s">
+            <input type="text" id="ktp-captcha" placeholder="验证码" autocomplete="off" class="ui-control">
+            <button type="button" onclick="doKetangpaiLogin()" class="ui-button ui-button--primary ui-button--block btn-wide btn-accent">登录</button>
+          </div>
+          <div class="ui-help form-note">
+            <a href="#" onclick="showKtpPasswordLogin();return false;">使用密码登录</a>
+          </div>
+          <div id="ktp-password-login" class="hidden mt-s">
+            <form class="add-todo-form" id="ktp-pwd-form" onsubmit="doKetangpaiPasswordLogin(event); return false;">
+              <input type="text" id="ktp-username" placeholder="手机号 / 邮箱 / 账号" autocomplete="username" class="ui-control">
+              <input type="password" id="ktp-password" placeholder="密码" autocomplete="current-password" class="ui-control">
+              <button type="submit" class="ui-button ui-button--primary ui-button--block btn-wide">登录</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="ui-alert ui-alert--danger ui-alert--compact error-banner hidden" id="ketangpai-error" role="alert"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function populateKetangpaiCourseSelect(select, courses) {
+      select.replaceChildren(new Option('全部课程 (' + (courses ? courses.length : 0) + ')', ''));
+      (Array.isArray(courses) ? courses : []).forEach((course) => {
+        const option = document.createElement('option');
+        option.value = String(course.id || '');
+        option.textContent = `${course.coursename || ''}${course.classname ? ' (' + course.classname + ')' : ''}`;
+        select.append(option);
+      });
+    }
+
+    function setKetangpaiPageStatus(text, semantic = 'neutral') {
+      const statusLine = document.getElementById('status-line');
+      statusLine.textContent = text;
+      statusLine.className = `ui-feedback ui-feedback--${semantic} setup-hint`;
+    }
+
+    function showKetangpaiError(message) {
+      const error = document.getElementById('ketangpai-error');
+      error.textContent = message;
+      error.classList.remove('hidden');
+    }
+
+    async function checkKetangpaiConfig() {
+      try {
+        const resp = await fetch('/api/ketangpai/config');
+        const result = await resp.json();
+        if (result.ok && result.has_token) {
+          setKetangpaiPageStatus('当前状态：已登录', 'success');
+          document.getElementById('ketangpai-setup').classList.add('hidden');
+          document.getElementById('ketangpai-logged-in').classList.remove('hidden');
+          if (result.courses) {
+            const select = document.getElementById('ktp-course-select');
+            populateKetangpaiCourseSelect(select, result.courses);
+          }
+        } else {
+          setKetangpaiPageStatus('当前状态：未登录', 'neutral');
+          document.getElementById('ketangpai-setup').classList.remove('hidden');
+          document.getElementById('ketangpai-logged-in').classList.add('hidden');
+        }
+      } catch (e) {
+        setKetangpaiPageStatus('状态获取失败', 'danger');
+        document.getElementById('ketangpai-setup').classList.remove('hidden');
+      }
+    }
+
+    let ktpSmsCountdown = 0;
+    let ktpSmsTimer = null;
+
+    async function sendKetangpaiSms() {
+      if (ktpSmsCountdown > 0) return;
+      const phone = document.getElementById('ktp-phone').value.trim();
+      if (!phone) { showKetangpaiError('请输入手机号'); return; }
+
+      const btn = document.getElementById('ktp-send-sms-btn');
+      btn.disabled = true;
+
+      try {
+        const resp = await fetch('/api/ketangpai/send-sms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          ktpSmsCountdown = 60;
+          if (ktpSmsTimer) clearInterval(ktpSmsTimer);
+          ktpSmsTimer = setInterval(() => {
+            ktpSmsCountdown--;
+            if (ktpSmsCountdown <= 0) {
+              clearInterval(ktpSmsTimer);
+              ktpSmsTimer = null;
+              btn.textContent = '发送验证码';
+              btn.disabled = false;
+            } else {
+              btn.textContent = `${ktpSmsCountdown}秒后发送`;
+            }
+          }, 1000);
+          btn.textContent = `${ktpSmsCountdown}秒后发送`;
+        } else {
+          showKetangpaiError(result.error || '发送失败');
+          btn.disabled = false;
+        }
+      } catch (e) {
+        showKetangpaiError('网络错误');
+        btn.disabled = false;
+      }
+    }
+
+    async function doKetangpaiLogin() {
+      const phone = document.getElementById('ktp-phone').value.trim();
+      const code = document.getElementById('ktp-captcha').value.trim();
+      if (!phone || !code) { showKetangpaiError('请输入手机号和验证码'); return; }
+
+      try {
+        const resp = await fetch('/api/ketangpai/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, code }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          document.getElementById('ktp-captcha').value = '';
+          if (ktpSmsTimer) { clearInterval(ktpSmsTimer); ktpSmsTimer = null; ktpSmsCountdown = 0; }
+          document.getElementById('ktp-send-sms-btn').textContent = '发送验证码';
+          document.getElementById('ktp-send-sms-btn').disabled = false;
+          checkKetangpaiConfig();
+        } else {
+          showKetangpaiError(result.error || '登录失败');
+        }
+      } catch (e) {
+        showKetangpaiError('网络错误');
+      }
+    }
+
+    function showKtpPasswordLogin() {
+      document.getElementById('ktp-password-login').classList.toggle('hidden');
+    }
+
+    async function doKetangpaiPasswordLogin(e) {
+      if (e) e.preventDefault();
+      const account = document.getElementById('ktp-username').value.trim();
+      const password = document.getElementById('ktp-password').value.trim();
+      if (!account || !password) return;
+
+      try {
+        const resp = await fetch('/api/ketangpai/login-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ account, password }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          checkKetangpaiConfig();
+        } else {
+          showKetangpaiError(result.error || '登录失败');
+        }
+      } catch (e) {
+        showKetangpaiError('网络错误');
+      }
+    }
+
+    async function logoutKetangpai() {
+      try {
+        await fetch('/api/ketangpai/logout', { method: 'POST' });
+      } catch (e) { /* ignore */ }
+      setKetangpaiPageStatus('当前状态：未登录', 'neutral');
+      document.getElementById('ketangpai-setup').classList.remove('hidden');
+      document.getElementById('ketangpai-logged-in').classList.add('hidden');
+      document.getElementById('ketangpai-error').classList.add('hidden');
+      document.getElementById('ktp-password-login').classList.add('hidden');
+    }
+
+    checkKetangpaiConfig();
+  </script>
+</body>
+</html>

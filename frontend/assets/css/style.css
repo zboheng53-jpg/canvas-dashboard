@@ -838,6 +838,7 @@ a:hover { color: var(--accent-hover); }
 .login-card[data-platform="haoke"] { --card-accent: var(--src-haoke); }
 .login-card[data-platform="zhixuemeng"] { --card-accent: var(--src-zhixuemeng); }
 .login-card[data-platform="zhihuishu"] { --card-accent: var(--src-zhihuishu); }
+.login-card[data-platform="ketangpai"] { --card-accent: var(--src-ketangpai); }
 
 .login-card-title {
   font-size: 14px;

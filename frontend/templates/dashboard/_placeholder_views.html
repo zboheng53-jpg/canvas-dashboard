@@ -366,6 +366,10 @@
             <span class="connection-platform-title">智慧树</span>
             <span class="ui-status ui-status--info connection-platform-status" id="card-status-zhihuishu">检查中...</span>
           </button>
+          <button type="button" class="ui-nav-item ui-nav-item--source ui-source--ketangpai connection-platform-item" data-od-id="connection-platform-ketangpai" data-platform="ketangpai" aria-pressed="false" aria-controls="detail-ketangpai" onclick="selectConnectionPlatform('ketangpai')">
+            <span class="connection-platform-title">课堂派</span>
+            <span class="ui-status ui-status--info connection-platform-status" id="card-status-ketangpai">检查中...</span>
+          </button>
         </div>
       </section>
 
@@ -525,6 +529,85 @@
           <div class="ui-feedback ui-feedback--info login-session-message" id="zhs-login-session-message-inline" role="status" aria-live="polite"></div>
         </div>
         <div class="connection-data-actions" data-platform-actions="zhihuishu"><button type="button" class="ui-button ui-button--secondary btn-secondary" onclick="disconnectPlatform('zhihuishu')">断开连接</button><button type="button" class="ui-button ui-button--danger btn-secondary connection-clear-button" onclick="showClearPlatformData('zhihuishu')">清除平台数据</button></div>
+      </div>
+      <!-- 课堂派 Details -->
+      <div class="connection-detail-section hidden" id="detail-ketangpai">
+        <div class="detail-platform-header">
+          <div class="detail-platform-title-wrap">
+            <div class="detail-platform-icon-circle">派</div>
+            <div>
+              <h2 class="detail-platform-title">课堂派</h2>
+              <span class="ui-status ui-status--info status-badge" id="detail-status-badge-ketangpai">检查中...</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="ui-section-label detail-section-title">数据说明</div>
+        <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note"><strong>输入的短信验证码或密码仅用于完成本次登录，不会保存。</strong><span>登录成功后，网站会加密保存课堂派提供的登录凭证，用于后续同步作业。断开连接后会删除保存的登录凭证。</span></div>
+        <div class="ui-section-label detail-section-title">连接配置</div>
+        <div class="ui-card detail-content-box">
+          <!-- Logged in state -->
+          <div id="ktp-logged-in-inline" class="hidden connection-stack">
+            <div class="connection-session-row">
+              <span class="ui-status ui-status--success connection-state-connected">已登录</span>
+              <button type="button" onclick="logoutKetangpaiInline()" class="ui-button ui-button--danger ui-button--block ui-button--sm btn-sm btn-wide connection-danger-quiet action-button" data-od-id="ketangpai-logout">登出</button>
+            </div>
+            <div class="form-group">
+              <label for="ktp-course-select-inline" class="ui-label connection-field-label">课程列表</label>
+              <select id="ktp-course-select-inline" onchange="changeKetangpaiCourseInline()" class="ui-control logged-in-select"></select>
+            </div>
+          </div>
+
+          <!-- Setup state -->
+          <div id="ktp-setup-inline" class="connection-stack">
+            <!-- 统一顶部登录方式分段选项卡 -->
+            <div class="ktp-auth-tabs" role="tablist" aria-label="登录方式切换">
+              <button type="button" class="ui-button ui-button--choice ktp-auth-tab is-active" id="ktp-tab-btn-sms" data-od-id="ketangpai-tab-sms" role="tab" aria-selected="true" onclick="switchKtpAuthTab('sms')">
+                短信验证码登录
+              </button>
+              <button type="button" class="ui-button ui-button--choice ktp-auth-tab" id="ktp-toggle-login-mode-btn" data-od-id="ketangpai-password-toggle" role="tab" aria-selected="false" onclick="switchKtpAuthTab('pwd')">
+                账号密码登录
+              </button>
+            </div>
+
+            <!-- 短信验证码登录面板 -->
+            <div id="ktp-sms-login-panel">
+              <div class="ktp-field-group">
+                <label class="ui-label connection-field-label" for="ktp-phone-inline">手机号</label>
+                <div class="ktp-input-with-button">
+                  <input type="tel" id="ktp-phone-inline" placeholder="请输入课堂派绑定的手机号" autocomplete="tel" class="ui-control">
+                  <button type="button" id="ktp-send-sms-btn-inline" data-od-id="ketangpai-send-code" onclick="sendKetangpaiSmsInline()" class="ui-button ui-button--secondary ktp-action-btn action-button">发送验证码</button>
+                </div>
+              </div>
+              <div class="ktp-field-group">
+                <label class="ui-label connection-field-label" for="ktp-captcha-inline">短信验证码</label>
+                <input type="text" id="ktp-captcha-inline" placeholder="请输入短信验证码" autocomplete="one-time-code" class="ui-control">
+              </div>
+              <div class="ktp-submit-wrap">
+                <button type="button" data-od-id="ketangpai-code-login" onclick="doKetangpaiLoginInline()" class="ui-button ui-button--primary ui-button--block ktp-submit-btn connection-primary-action action-button">登录课堂派</button>
+              </div>
+            </div>
+
+            <!-- 账号密码登录面板 -->
+            <div id="ktp-password-login-inline" class="hidden">
+              <form id="ktp-pwd-form-inline" onsubmit="doKetangpaiPasswordLoginInline(event); return false;">
+                <div class="ktp-field-group">
+                  <label class="ui-label connection-field-label" for="ktp-username-inline">课堂派账号 / 手机号 / 邮箱</label>
+                  <input type="text" id="ktp-username-inline" placeholder="请输入账号、手机号或邮箱" autocomplete="username" class="ui-control">
+                </div>
+                <div class="ktp-field-group">
+                  <label class="ui-label connection-field-label" for="ktp-password-inline">课堂派密码</label>
+                  <input type="password" id="ktp-password-inline" placeholder="请输入密码" autocomplete="current-password" class="ui-control">
+                </div>
+                <div class="ktp-submit-wrap">
+                  <button type="submit" class="ui-button ui-button--primary ui-button--block ktp-submit-btn action-button" data-od-id="ketangpai-password-login">登录课堂派</button>
+                </div>
+              </form>
+            </div>
+          </div>
+          <div class="ui-alert ui-alert--danger ui-alert--compact error-banner connection-error hidden" id="ketangpai-error-inline" role="alert"></div>
+        </div>
+        <div class="connection-data-actions" data-platform-actions="ketangpai"><button type="button" class="ui-button ui-button--secondary btn-secondary" onclick="disconnectPlatform('ketangpai')">断开连接</button><button type="button" class="ui-button ui-button--danger btn-secondary connection-clear-button" onclick="showClearPlatformData('ketangpai')">清除平台数据</button></div>
       </div>
     </div>
   </div>

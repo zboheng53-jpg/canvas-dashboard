@@ -74,6 +74,7 @@ SOURCE_CATEGORIES = {
     "haoke": ("Assignment", "#DC2626"),
     "zhixuemeng": ("Assignment", "#DC2626"),
     "zhihuishu": ("Assignment", "#DC2626"),
+    "ketangpai": ("Assignment", "#DC2626"),
     "custom": ("Assignment", "#DC2626"),
     "project": ("Project", "#EA580C"),
     "schedule": ("Schedule", "#059669"),

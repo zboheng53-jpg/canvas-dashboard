@@ -762,6 +762,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
 .todo-row .ui-source--haoke::before { background: var(--src-haoke, #2f8a64) !important; }
 .todo-row .ui-source--zhixuemeng::before { background: var(--src-zxm, #4078c8) !important; }
 .todo-row .ui-source--zhihuishu::before { background: var(--src-zhs, #c48a2c) !important; }
+.todo-row .ui-source--ketangpai::before { background: var(--src-ketangpai, #2e7bee) !important; }
 .todo-row .ui-source--project::before { background: var(--src-project, #8068c5) !important; }
 .todo-row .ui-source--custom::before { background: var(--src-custom, #8a94a3) !important; }
 
@@ -2365,6 +2366,7 @@ section.card.listcard,
 .connection-platform-item.ui-source--haoke::before { background: var(--ds-src-haoke, #2f8a64) !important; }
 .connection-platform-item.ui-source--zhixuemeng::before { background: var(--ds-src-zxm, #4078c8) !important; }
 .connection-platform-item.ui-source--zhihuishu::before { background: var(--ds-src-zhs, #c48a2c) !important; }
+.connection-platform-item.ui-source--ketangpai::before { background: var(--ds-src-ktp, #2e7bee) !important; }
 .connection-platform-title {
   font-size: 13px !important;
   font-weight: 600 !important;
@@ -2445,6 +2447,7 @@ section.card.listcard,
 #detail-haoke .detail-platform-icon-circle { background: rgba(47, 138, 100, 0.12) !important; color: var(--ds-src-haoke, #2f8a64) !important; }
 #detail-zhixuemeng .detail-platform-icon-circle { background: rgba(64, 120, 200, 0.12) !important; color: var(--ds-src-zxm, #4078c8) !important; }
 #detail-zhihuishu .detail-platform-icon-circle { background: rgba(196, 138, 44, 0.14) !important; color: var(--ds-src-zhs, #c48a2c) !important; }
+#detail-ketangpai .detail-platform-icon-circle { background: rgba(46, 123, 238, 0.12) !important; color: var(--ds-src-ktp, #2e7bee) !important; }
 .detail-platform-title {
   font-family: var(--font-serif) !important;
   font-size: 16px !important;
@@ -2553,6 +2556,79 @@ section.card.listcard,
   border-top: 1px solid var(--ds-line-soft, #eef0f3) !important;
 }
 .connection-data-actions .connection-clear-button { margin-left: auto !important; }
+
+/* 课堂派专属分段登录选项卡与排版间距 (Ketangpai Auth Tabs & Layout Spacing) */
+.ktp-auth-tabs {
+  display: flex !important;
+  gap: 4px !important;
+  background: var(--ds-line-soft, #f2f4f7) !important;
+  border-radius: 8px !important;
+  padding: 3px !important;
+  margin: 0 0 16px !important;
+}
+.ktp-auth-tab {
+  flex: 1 !important;
+  height: 32px !important;
+  min-height: 0 !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  color: var(--ds-ink-2, #5b6472) !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 12px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+  transition: all 0.15s ease !important;
+}
+.ktp-auth-tab:hover {
+  color: var(--ds-ink, #1c2330) !important;
+}
+.ktp-auth-tab.is-active,
+.ktp-auth-tab[aria-selected="true"] {
+  background: #ffffff !important;
+  color: var(--ds-ink, #1c2330) !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.08) !important;
+}
+.ktp-field-group {
+  margin-bottom: 14px !important;
+}
+.ktp-field-group:last-of-type {
+  margin-bottom: 0 !important;
+}
+.ktp-input-with-button {
+  display: flex !important;
+  gap: 8px !important;
+  align-items: center !important;
+}
+.ktp-input-with-button .ui-control {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+.ktp-action-btn {
+  white-space: nowrap !important;
+  min-width: 104px !important;
+  height: 38px !important;
+  font-size: 13px !important;
+  padding: 0 14px !important;
+}
+.ktp-submit-wrap {
+  margin-top: 18px !important;
+}
+.ktp-submit-btn {
+  height: 40px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  background: var(--ds-src-ktp, #2e7bee) !important;
+  border-color: var(--ds-src-ktp, #2e7bee) !important;
+  color: #ffffff !important;
+  border-radius: var(--ds-radius-sm, 7px) !important;
+}
+.ktp-submit-btn:hover {
+  background: #2368cc !important;
+  border-color: #2368cc !important;
+}
 
 /* ============================================================
  * 页 4：Apple Calendar（设计稿 .biz-cal 双栏）

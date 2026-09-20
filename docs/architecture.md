@@ -1,6 +1,6 @@
 # Architecture
 
-Canvas Dashboard is a single-process Flask/Waitress application that aggregates unfinished work from Canvas, 好课, 智学盟, 智慧树, and user-created todos. Production uses nginx for TLS and reverse proxying, while a separate systemd worker refreshes 智慧树 data.
+Canvas Dashboard is a single-process Flask/Waitress application that aggregates unfinished work from Canvas, 好课, 智学盟, 智慧树, 课堂派, and user-created todos. Production uses nginx for TLS and reverse proxying, while a separate systemd worker refreshes 智慧树 data.
 
 ## Runtime Topology
 
@@ -40,6 +40,7 @@ The Flask request path never launches a 智慧树 browser. Platform caches let t
 | `canvas_auth.py` | Canvas iCalendar validation, fetch, parse, cache, and item state |
 | `haoke_client.py` | Encrypted credentials, cache-first assignment fetch, and guarded background refresh |
 | `zhixuemeng_client.py` | Token login, course selection, assignment fetch, cache, and logout cleanup |
+| `ketangpai_client.py` | SMS/password login, encrypted token storage, course discovery, assignment/test fetch, cache, and state management |
 | `zhihuishu_worker.py` | User discovery, per-user timeout isolation, refresh scheduling, and status updates |
 | `zhihuishu_browser.py` | Playwright session checks, keepalive, and assignment extraction |
 | `zhihuishu_login_sessions.py` | Short tokenized Docker/noVNC login windows backed by persistent per-user profiles |

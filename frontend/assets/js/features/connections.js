@@ -7,4 +7,6 @@
   bindSubmit('haoke-setup-form-inline', saveHaokeCredentialsInline);
   bindSubmit('zxm-pwd-form-inline', doZhixuemengPasswordLoginInline);
   document.getElementById('zxm-course-select-inline')?.addEventListener('change', changeZhixuemengCourseInline);
+  bindSubmit('ktp-pwd-form-inline', doKetangpaiPasswordLoginInline);
+  document.getElementById('ktp-course-select-inline')?.addEventListener('change', changeKetangpaiCourseInline);
 })();

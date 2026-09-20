@@ -9,6 +9,7 @@ TODO_SOURCES = (
     "haoke",
     "zhixuemeng",
     "zhihuishu",
+    "ketangpai",
     "project",
     "custom",
 )

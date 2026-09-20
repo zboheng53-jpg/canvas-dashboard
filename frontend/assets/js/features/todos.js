@@ -7,6 +7,7 @@
     fetchHaokeTodos();
     fetchZhixuemengTodos();
     fetchZhihuishuTodos();
+    fetchKetangpaiTodos();
     fetchProjectTodos();
   });
   byId('list-updated')?.addEventListener('click', openSyncStatus);

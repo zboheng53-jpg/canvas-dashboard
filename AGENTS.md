@@ -1,6 +1,6 @@
 # Canvas Dashboard Agent Guide
 
-Flask webapp for aggregating unfinished assignments and exams from Canvas, 好课, 智学盟, 智慧树, and custom todos.
+Flask webapp for aggregating unfinished assignments and exams from Canvas, 好课, 智学盟, 智慧树, 课堂派, and custom todos.
 
 `AGENTS.md` is the canonical project rule file. `CLAUDE.md` must point to the same content; prefer a symbolic link, and use a hard link on Windows when symbolic-link privilege is unavailable.
 
@@ -45,6 +45,7 @@ canvas-dashboard/
 ├── zhihuishu_worker.py            # 智慧树后台多进程刷新 Worker
 ├── zhihuishu_browser.py           # 智慧树 Playwright 浏览器自动化
 ├── zhihuishu_login_sessions.py    # 智慧树短时 noVNC 登录窗口
+├── ketangpai_client.py            # 课堂派客户端 (短信/密码/课程/作业)
 ├── agent_auth.py                  # Agent API 独立安全凭据与 Token 管理
 ├── agent_mcp.py                   # 零依赖通用 MCP Server 脚本 (JSON-RPC stdio)
 ├── frontend/                      # 可独立打开的前端工作区
@@ -116,6 +117,7 @@ canvas-dashboard/
   - **智学盟**：使用 `X-Access-Token`，支持课程与作业列表抓取。
   - **智慧树**：路由只读缓存/状态；后台通过 `zhihuishu_worker.py --all-users` 定时拉取；独立 Chromium profile 运行；支持 noVNC 远程登录窗口。
   - **同济课表**：前端直接打开短时 noVNC 认证窗口；用户完成微信扫码或短信加强认证后，后端通过该窗口的 CDP 读取当前可见课表。只解析渲染中的表格并展开 `rowspan`/`colspan`，失败时保留上次成功缓存，认证结束或过期后删除临时 profile。
+  - **课堂派**：凭据加密存储，支持短信验证码与账号密码双模式登录；动态获取当学期有效课程，并发抓取作业与随堂测验，自动滤除已交项；使用 `PlatformStateStore` 叠加本地状态。
 - **Agent 接入与凭据 (`agent_auth.py`, `agent_mcp.py`)**：
   - 用户专属 Agent Token 采用独立高熵密钥生成（`cda_...`），在 `data/users/<username>/agent_token.json` 中仅存储 SHA-256 哈希，支持随时一键撤销与重置。
   - `/api/agent/v1/...` 接口采用 `Authorization: Bearer <token>` 认证，免受 CSRF 限制，提供统一事项与议程查询、待办和项目行动写入、关联排程、单次完成及项目资料更新等能力。写入规则由 `agent_mcp.py:WRITING_RULES` 与工具字段共同约束，下载包同步生成。

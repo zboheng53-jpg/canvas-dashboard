@@ -89,8 +89,8 @@ TOOLS = [
             "properties": {
                 "source": {
                     "type": "string",
-                    "description": "按来源筛选：all（全部）、canvas（Canvas）、haoke（好课）、zhixuemeng（智学盟）、zhihuishu（智慧树）、project（项目）、custom（自定义）",
-                    "enum": ["all", "canvas", "haoke", "zhixuemeng", "zhihuishu", "project", "custom"],
+                    "description": "按来源筛选：all（全部）、canvas（Canvas）、haoke（好课）、zhixuemeng（智学盟）、zhihuishu（智慧树）、ketangpai（课堂派）、project（项目）、custom（自定义）",
+                    "enum": ["all", "canvas", "haoke", "zhixuemeng", "zhihuishu", "ketangpai", "project", "custom"],
                 },
                 "status": {
                     "type": "string",
@@ -132,8 +132,8 @@ TOOLS = [
                 },
                 "source": {
                     "type": "string",
-                    "description": "待办所属来源平台，默认为 custom，可选 canvas、haoke、zhixuemeng、zhihuishu、project",
-                    "enum": ["custom", "canvas", "haoke", "zhixuemeng", "zhihuishu", "project"],
+                    "description": "待办所属来源平台，默认为 custom，可选 canvas、haoke、zhixuemeng、zhihuishu、ketangpai、project",
+                    "enum": ["custom", "canvas", "haoke", "zhixuemeng", "zhihuishu", "ketangpai", "project"],
                 },
             },
             "required": ["todo_id"],

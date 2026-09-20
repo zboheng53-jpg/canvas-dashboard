@@ -39,6 +39,14 @@ from zhixuemeng_client import (
     save_state as save_zxm_state,
     save_selected_course, get_selected_course, logout as zxm_logout, update_override as update_zxm_override,
 )
+import ketangpai_client
+from ketangpai_client import (
+    send_sms as ktp_send_sms, phone_login as ktp_phone_login, password_login as ktp_password_login,
+    has_token as has_ktp_token, fetch_assignments as fetch_ktp_assignments,
+    fetch_courses as fetch_ktp_courses, load_state as load_ktp_state,
+    update_state as update_ktp_state, save_state as save_ktp_state,
+    logout as ktp_logout, update_override as update_ktp_override,
+)
 import zhihuishu_store
 import zhihuishu_login_sessions
 import zhihuishu_worker
@@ -308,6 +316,7 @@ def _platform_cache_path(username: str, platform: str) -> Path:
         "haoke": "haoke_cache.json",
         "zhixuemeng": "zhixuemeng_cache.json",
         "zhihuishu": "zhihuishu_cache.json",
+        "ketangpai": "ketangpai_cache.json",
     }[platform]
 
 
@@ -591,6 +600,8 @@ def _calendar_items(username, category=None):
                 return True
             if platform == "zhihuishu" and zhihuishu_store.has_cookies(username):
                 return True
+            if platform == "ketangpai" and has_ktp_token(username):
+                return True
             return status.get("connection_state") == "connected"
 
         def add_cached(source, platform, cached_items, state, legacy_connected):
@@ -636,6 +647,8 @@ def _calendar_items(username, category=None):
         add_cached("Zhixuemeng", "zhixuemeng", zxm_cache.get("items", []) if isinstance(zxm_cache, dict) else [], load_zxm_state(username), True)
         zhs_cache = zhihuishu_store.load_cache(username)
         add_cached("Zhihuishu", "zhihuishu", zhs_cache["items"], zhihuishu_store.load_state(username), True)
+        ktp_cache = read_json_file(user_dir(username) / "ketangpai_cache.json", {})
+        add_cached("Ketangpai", "ketangpai", ktp_cache.get("items", []) if isinstance(ktp_cache, dict) else [], load_ktp_state(username), True)
 
     if cat_key in ("all", "projects"):
         for item in project_store.calendar_items(username):
@@ -865,7 +878,7 @@ def api_dashboard_preferences():
 
 @app.route("/login/<platform>")
 def login_page(platform):
-    if platform not in ("canvas", "haoke", "zhixuemeng", "zhihuishu"):
+    if platform not in ("canvas", "haoke", "zhixuemeng", "zhihuishu", "ketangpai"):
         return "Not Found", 404
     return render_template(f"login_{platform}.html", username=session.get("username"))
 
@@ -1076,6 +1089,10 @@ def api_account():
         zhixuemeng_client.logout(username)
     except Exception:
         logger.warning("Could not clear in-memory 智学盟 state for account deletion")
+    try:
+        ktp_logout(username)
+    except Exception:
+        logger.warning("Could not clear in-memory 课堂派 state for account deletion")
     ok, error = auth.delete_account(username, data.get("password") or "", data.get("confirmation") or "")
     if not ok:
         return jsonify({"ok": False, "error": error}), 400
@@ -1408,10 +1425,131 @@ def api_zxm_state():
         action = data.get("action", "")
         item_id = data.get("id")
         if action not in ("hide", "unhide", "highlight", "unhighlight", "delete", "undelete", "complete", "uncomplete") or item_id is None:
-            return jsonify({"ok": False, "error": "鏃犳晥鎿嶄綔"}), 400
+            return jsonify({"ok": False, "error": "无效操作"}), 400
         state = update_zxm_state(username, action, item_id)
         return jsonify({"ok": True, "state": state})
     return jsonify({"ok": True, "state": load_zxm_state(username)})
+
+
+# ---- Ketangpai Platform ----
+
+
+@app.route("/api/ketangpai/send-sms", methods=["POST"])
+def api_ktp_send_sms():
+    data = read_json_request()
+    if data is None:
+        return invalid_request_response()
+    phone = (data.get("phone") or "").strip()
+    verify = (data.get("verify") or "").strip()
+    sessionid = (data.get("sessionid") or "").strip()
+    if not phone:
+        return jsonify({"ok": False, "error": "phone required"}), 400
+    allowed, retry_after = _check_rate_limit(
+        "ketangpai-send-sms", phone, SMS_RATE_LIMIT_ATTEMPTS, SMS_RATE_LIMIT_SECONDS
+    )
+    if not allowed:
+        return _rate_limited_response(retry_after)
+    result = ktp_send_sms(phone, verify=verify, sessionid=sessionid)
+    return jsonify(result)
+
+
+@app.route("/api/ketangpai/figure-code")
+def api_ktp_figure_code():
+    result = ketangpai_client.get_figure_code()
+    return jsonify(result)
+
+
+@app.route("/api/ketangpai/login", methods=["POST"])
+def api_ktp_login():
+    username = session["username"]
+    data = read_json_request()
+    if data is None:
+        return invalid_request_response()
+    phone = (data.get("phone") or "").strip()
+    code = (data.get("code") or "").strip()
+    if not phone or not code:
+        return jsonify({"ok": False, "error": "phone and code required"}), 400
+    result = ktp_phone_login(username, phone, code)
+    if result.get("ok"):
+        platform_sync.mark_connected(username, "ketangpai")
+    return jsonify(result)
+
+
+@app.route("/api/ketangpai/login-password", methods=["POST"])
+def api_ktp_login_password():
+    username = session["username"]
+    data = read_json_request()
+    if data is None:
+        return invalid_request_response()
+    account = (data.get("account") or data.get("username") or "").strip()
+    password = (data.get("password") or "").strip()
+    if not account or not password:
+        return jsonify({"ok": False, "error": "account and password required"}), 400
+    result = ktp_password_login(username, account, password)
+    if result.get("ok"):
+        platform_sync.mark_connected(username, "ketangpai")
+    return jsonify(result)
+
+
+@app.route("/api/ketangpai/logout", methods=["POST"])
+def api_ktp_logout():
+    username = session["username"]
+    ktp_logout(username)
+    platform_sync.mark_disconnected(username, "ketangpai", _platform_cache_path(username, "ketangpai").exists())
+    return jsonify({"ok": True})
+
+
+@app.route("/api/ketangpai/config")
+def api_ktp_config():
+    username = session["username"]
+    has_token = has_ktp_token(username)
+    result = {"ok": True, "has_token": has_token}
+    if has_token:
+        courses_result = fetch_ktp_courses(username)
+        if courses_result.get("ok"):
+            result["courses"] = courses_result["courses"]
+    return jsonify(result)
+
+
+@app.route("/api/ketangpai/todos")
+def api_ktp_todos():
+    username = session["username"]
+    course_id = request.args.get("course_id", "").strip()
+    had_token = has_ktp_token(username)
+    result = fetch_ktp_assignments(username, course_id=course_id)
+    if had_token and not result.get("cached"):
+        platform_sync.record_result(
+            username, "ketangpai", ok=bool(result.get("ok")) and bool(result.get("sync_complete", True)),
+            has_cache=_platform_cache_path(username, "ketangpai").exists(), cached=False,
+            error_code="sync_incomplete" if result.get("sync_complete") is False else result.get("code"),
+            error_message=result.get("error"),
+        )
+    state = load_ktp_state(username)
+    result = build_platform_todos_response(
+        result,
+        state,
+        items_key="items",
+        save_state=lambda changed_state: save_ktp_state(username, changed_state),
+        now=datetime.now(CST),
+    )
+    connection_state = "connected" if has_ktp_token(username) else platform_sync.get(username, "ketangpai")["connection_state"]
+    return jsonify(_attach_sync(result, "ketangpai", connection_state=connection_state))
+
+
+@app.route("/api/ketangpai/state", methods=["GET", "POST"])
+def api_ktp_state():
+    username = session["username"]
+    if request.method == "POST":
+        data = read_json_request()
+        if data is None:
+            return invalid_request_response()
+        action = data.get("action", "")
+        item_id = data.get("id")
+        if action not in ("hide", "unhide", "highlight", "unhighlight", "delete", "undelete", "complete", "uncomplete") or item_id is None:
+            return invalid_request_response()
+        state = update_ktp_state(username, action, item_id)
+        return jsonify({"ok": True, "state": state})
+    return jsonify({"ok": True, "state": load_ktp_state(username)})
 
 
 # ---- Zhihuishu Platform ----
@@ -1496,6 +1634,11 @@ def api_clear_platform_data(platform):
             read_json_file(directory / "config.json", {})
         zxm_logout(username)
         paths = (directory / "zhixuemeng_cache.json", directory / "zhixuemeng_state.json")
+    elif platform == "ketangpai":
+        if (directory / "config.json").exists():
+            read_json_file(directory / "config.json", {})
+        ktp_logout(username)
+        paths = (directory / "ketangpai_cache.json", directory / "ketangpai_state.json")
     else:
         zhihuishu_login_sessions.stop_session(username)
         profile = directory / "zhihuishu_chromium_profile"
@@ -1517,11 +1660,11 @@ def api_zhihuishu_state():
     if request.method == "POST":
         data = read_json_request()
         if not isinstance(data, dict):
-            return jsonify({"ok": False, "error": "鏃犳晥璇锋眰"}), 400
+            return jsonify({"ok": False, "error": "无效请求"}), 400
         action = data.get("action", "")
         item_id = data.get("id")
         if action not in ("hide", "unhide", "highlight", "unhighlight", "delete", "undelete", "complete", "uncomplete") or item_id is None:
-            return jsonify({"ok": False, "error": "鏃犳晥鎿嶄綔"}), 400
+            return jsonify({"ok": False, "error": "无效操作"}), 400
         state = zhihuishu_store.update_state(username, action, item_id)
         return jsonify({"ok": True, "state": state})
     return jsonify({"ok": True, "state": zhihuishu_store.load_state(username)})
@@ -1535,6 +1678,7 @@ def api_platform_override(platform):
         "haoke": update_haoke_override,
         "zhixuemeng": update_zxm_override,
         "zhihuishu": zhihuishu_store.update_override,
+        "ketangpai": update_ktp_override,
     }
     update = stores.get(platform)
     if update is None:
@@ -2947,7 +3091,7 @@ def _workspace_action_response(username, ref):
                             todo["completed_at"] = _todo_timestamp() if changes["done"] else None
                 return current
             locked_json_update(_todos_file(username), [], update)
-        elif action["source"] in {"canvas", "haoke", "zhixuemeng", "zhihuishu"} and data == {"done": True}:
+        elif action["source"] in {"canvas", "haoke", "zhixuemeng", "zhihuishu", "ketangpai"} and data == {"done": True}:
             _complete_agent_todo(username, action["id"], source=action["source"])
         else:
             raise ActionValidationError("此事项请从原始入口编辑")
@@ -3101,6 +3245,7 @@ def _aggregate_agent_todos(username: str, source: str = "all", status: str = "pe
     add_platform_items("haoke", "haoke_cache.json", load_haoke_state)
     add_platform_items("zhixuemeng", "zhixuemeng_cache.json", load_zxm_state)
     add_platform_items("zhihuishu", "zhihuishu_cache.json", zhihuishu_store.load_state)
+    add_platform_items("ketangpai", "ketangpai_cache.json", load_ktp_state)
 
     # 3. Project tasks
     for item in project_store.todo_items(username):
@@ -3146,7 +3291,7 @@ def _platform_item_exists(username: str, platform_name: str, cache_file: str, it
     cache_path = user_dir(username) / cache_file
     if not cache_path.exists():
         return False
-    cached = read_json_file(cache_path, [] if platform_name != "zhixuemeng" else {})
+    cached = read_json_file(cache_path, [] if platform_name not in ("zhixuemeng", "ketangpai") else {})
     items = cached.get("items", []) if isinstance(cached, dict) else (cached if isinstance(cached, list) else [])
     str_id = str(item_id)
     return any(str(item.get("id")) == str_id for item in items if isinstance(item, dict))
@@ -3212,6 +3357,11 @@ def _complete_agent_todo(username: str, todo_id: str, source: str = "custom") ->
         if not _platform_item_exists(username, "zhihuishu", "zhihuishu_cache.json", todo_id):
             return False
         zhihuishu_store.update_state(username, "complete", todo_id)
+        return True
+    elif source == "ketangpai":
+        if not _platform_item_exists(username, "ketangpai", "ketangpai_cache.json", todo_id):
+            return False
+        update_ktp_state(username, "complete", todo_id)
         return True
     elif source == "project":
         due_match = re.fullmatch(r"due-(\d+)", str(todo_id))

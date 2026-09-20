@@ -38,7 +38,7 @@ _LEGACY_FILES = [
     "custom_todos.json", "config.json", "canvas_state.json", "haoke_state.json",
     "zhixuemeng_state.json", "zhihuishu_state.json", "zhihuishu_cache.json",
     "zhihuishu_cookies.json", "canvas_cache.json", "haoke_cache.json",
-    "zhixuemeng_cache.json",
+    "zhixuemeng_cache.json", "ketangpai_state.json", "ketangpai_cache.json",
 ]
 
 
