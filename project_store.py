@@ -673,7 +673,7 @@ def reorder_tasks(username, project_id, placements):
 
     state, result = _mutate(username, mutation)
     project = _find_project(state, project_id)
-    return _project_view(project)["tasks"] if result.get("valid") else None
+    return copy.deepcopy([task for task in project["tasks"] if not task.get("deleted_at")]) if result.get("valid") else None
 
 
 def overview(username, today=None):
