@@ -1,7 +1,26 @@
+import io
 import json
 from unittest.mock import MagicMock
 
 import agent_mcp
+
+
+def test_initialize_and_write_tools_share_rules(monkeypatch):
+    requests = [
+        {"jsonrpc": "2.0", "id": 1, "method": "initialize"},
+        {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+    ]
+    output = io.StringIO()
+    monkeypatch.setattr(agent_mcp.sys, "stdin", io.StringIO("\n".join(map(json.dumps, requests))))
+    monkeypatch.setattr(agent_mcp.sys, "stdout", output)
+    client = MagicMock()
+    agent_mcp.run_stdio_server(client)
+    initialized, listed = [json.loads(line)["result"] for line in output.getvalue().splitlines()]
+    assert initialized["instructions"] == agent_mcp.WRITING_RULES
+    definitions = {tool["name"]: tool for tool in listed["tools"]}
+    for name in ("add_todo", "add_project_task"):
+        assert definitions[name]["description"].endswith(initialized["instructions"])
+    client.request.assert_not_called()
 
 
 def test_mcp_tools_list():

@@ -6,6 +6,7 @@ import pytest
 
 import app as dashboard_app
 import agent_auth
+import agent_mcp
 import schedule_store
 import user_paths
 
@@ -124,6 +125,7 @@ def test_agent_export_bundles(client_with_user):
     resp = client_with_user.get("/api/agent/export/mcp-script")
     assert resp.status_code == 200
     assert b"CanvasDashboardClient" in resp.data
+    standalone_mcp = resp.data
 
     # MCP bundle zip download
     resp = client_with_user.get("/api/agent/export/mcp-bundle.zip")
@@ -134,6 +136,8 @@ def test_agent_export_bundles(client_with_user):
         assert "claude_desktop_config.json" in namelist
         assert "cursor_mcp.json" in namelist
         assert "README.md" in namelist
+        assert zf.read("canvas_mcp.py") == standalone_mcp
+        assert agent_mcp.WRITING_RULES in zf.read("README.md").decode("utf-8")
 
     # Skill bundle zip download
     resp = client_with_user.get("/api/agent/export/skill-bundle.zip")
@@ -144,7 +148,44 @@ def test_agent_export_bundles(client_with_user):
         assert "canvas_api.py" in namelist
         assert "README.md" in namelist
         skill_text = zf.read("SKILL.md").decode("utf-8")
+        assert agent_mcp.WRITING_RULES in skill_text
+        assert client_with_user.get("/skill/SKILL.md").get_data(as_text=True).splitlines() == skill_text.splitlines()
         assert "planned_on" in skill_text
         assert "request_id" in skill_text
         assert "growth" in skill_text
         compile(zf.read("canvas_api.py"), "canvas_api.py", "exec")
+
+
+def test_mcp_homework_roundtrip_in_ordinary_todos(client_with_user):
+    """Verify the supported write/read path, not the model's choice of tool."""
+    token = agent_auth.create_token("alice")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    class LocalAgentClient:
+        def request(self, endpoint, method="GET", data=None):
+            response = client_with_user.open(endpoint, method=method, json=data, headers=headers)
+            assert response.status_code in (200, 201), response.get_json()
+            return response.get_json()
+
+    api = LocalAgentClient()
+    projects_before = api.request("/api/agent/v1/projects")
+    homework = [
+        ("完成工程材料海报", "2026-09-22", "提交课程海报"),
+        ("提交机械制图作业", "2026-09-23", "每周三交；当前仅记录最近一次"),
+        ("提交课程实验作业", "2026-09-24", "双周周四交，已确认最近一次为 9/24"),
+    ]
+    for index, (title, due, details) in enumerate(homework):
+        payload = {"text": title, "due_date": due, "details": details,
+                   "commitment": "obligation", "request_id": f"homework-{index}"}
+        first = agent_mcp.handle_tool_call(api, "add_todo", payload)
+        assert due in first
+        assert agent_mcp.handle_tool_call(api, "add_todo", payload) == first
+
+    todos = api.request("/api/agent/v1/todos?source=custom&status=pending")["todos"]
+    assert len(todos) == 3
+    assert {(t["title"], t["due_date"], t["details"]) for t in todos} == set(homework)
+    assert all(t["source"] == "custom" and t["commitment"] == "obligation" for t in todos)
+    visible = agent_mcp.handle_tool_call(api, "get_todos", {"source": "custom"})
+    for title, due, _ in homework:
+        assert title in visible and due in visible
+    assert api.request("/api/agent/v1/projects") == projects_before
