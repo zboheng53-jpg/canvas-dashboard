@@ -3555,23 +3555,94 @@
 
     let ktpSmsCountdownInline = 0;
     let ktpSmsTimerInline = null;
+    let ktpFigureSessionId = '';
+    let ktpPendingPhone = '';
 
     async function sendKetangpaiSmsInline() {
       if (ktpSmsCountdownInline > 0) return;
       const phone = (document.getElementById('ktp-phone-inline')?.value || '').trim();
       if (!phone) { showKetangpaiErrorInline('请输入手机号'); return; }
-      const btn = document.getElementById('ktp-send-sms-btn-inline');
-      if (btn) btn.disabled = true;
       hideKetangpaiErrorInline();
+      ktpPendingPhone = phone;
+      await openKetangpaiFigureModal();
+    }
+
+    async function openKetangpaiFigureModal() {
+      const modal = document.getElementById('ktp-figure-modal');
+      const err = document.getElementById('ktp-figure-error');
+      const input = document.getElementById('ktp-figure-input');
+      if (err) { err.textContent = ''; err.classList.add('hidden'); }
+      if (input) input.value = '';
+      if (modal) modal.classList.remove('hidden');
+      await refreshKetangpaiFigureCode();
+      if (input) input.focus();
+    }
+
+    function closeKetangpaiFigureModal() {
+      const modal = document.getElementById('ktp-figure-modal');
+      if (modal) modal.classList.add('hidden');
+      const input = document.getElementById('ktp-figure-input');
+      if (input) input.value = '';
+      const err = document.getElementById('ktp-figure-error');
+      if (err) { err.textContent = ''; err.classList.add('hidden'); }
+    }
+
+    async function refreshKetangpaiFigureCode() {
+      const img = document.getElementById('ktp-figure-img');
+      const err = document.getElementById('ktp-figure-error');
+      try {
+        const resp = await fetch('/api/ketangpai/figure-code');
+        const data = await resp.json();
+        if (data.ok) {
+          ktpFigureSessionId = data.sessionid || '';
+          if (img) {
+            img.src = data.image_data || data.url || '';
+          }
+        } else {
+          if (err) {
+            err.textContent = data.error || '获取图形验证码失败';
+            err.classList.remove('hidden');
+          }
+        }
+      } catch (e) {
+        if (err) {
+          err.textContent = '网络错误，获取图形验证码失败';
+          err.classList.remove('hidden');
+        }
+      }
+    }
+
+    async function submitKetangpaiFigureCode(e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('ktp-figure-input');
+      const verify = (input?.value || '').trim();
+      const err = document.getElementById('ktp-figure-error');
+      const submitBtn = document.getElementById('ktp-figure-submit-btn');
+      const mainBtn = document.getElementById('ktp-send-sms-btn-inline');
+
+      if (!verify) {
+        if (err) {
+          err.textContent = '请输入计算结果';
+          err.classList.remove('hidden');
+        }
+        return;
+      }
+      if (err) { err.textContent = ''; err.classList.add('hidden'); }
+      if (submitBtn) submitBtn.disabled = true;
 
       try {
         const resp = await fetch('/api/ketangpai/send-sms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone }),
+          body: JSON.stringify({
+            phone: ktpPendingPhone,
+            verify: verify,
+            sessionid: ktpFigureSessionId,
+          }),
         });
         const result = await resp.json();
         if (result.ok) {
+          closeKetangpaiFigureModal();
           ktpSmsCountdownInline = 60;
           if (ktpSmsTimerInline) clearInterval(ktpSmsTimerInline);
           ktpSmsTimerInline = setInterval(() => {
@@ -3579,19 +3650,33 @@
             if (ktpSmsCountdownInline <= 0) {
               clearInterval(ktpSmsTimerInline);
               ktpSmsTimerInline = null;
-              if (btn) { btn.textContent = '发送验证码'; btn.disabled = false; }
+              if (mainBtn) { mainBtn.textContent = '发送验证码'; mainBtn.disabled = false; }
             } else {
-              if (btn) btn.textContent = `${ktpSmsCountdownInline}秒后发送`;
+              if (mainBtn) mainBtn.textContent = `${ktpSmsCountdownInline}秒后发送`;
             }
           }, 1000);
-          if (btn) btn.textContent = `${ktpSmsCountdownInline}秒后发送`;
+          if (mainBtn) {
+            mainBtn.textContent = `${ktpSmsCountdownInline}秒后发送`;
+            mainBtn.disabled = true;
+          }
+          const captchaInput = document.getElementById('ktp-captcha-inline');
+          if (captchaInput) captchaInput.focus();
         } else {
-          showKetangpaiErrorInline(result.error || '发送失败');
-          if (btn) btn.disabled = false;
+          if (err) {
+            err.textContent = result.error || '验证失败，请重新输入';
+            err.classList.remove('hidden');
+          }
+          if (input) input.value = '';
+          await refreshKetangpaiFigureCode();
+          if (input) input.focus();
         }
-      } catch (e) {
-        showKetangpaiErrorInline('网络错误');
-        if (btn) btn.disabled = false;
+      } catch (ex) {
+        if (err) {
+          err.textContent = '网络错误，发送失败';
+          err.classList.remove('hidden');
+        }
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
       }
     }
 

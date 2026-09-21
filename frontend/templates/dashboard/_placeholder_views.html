@@ -884,3 +884,30 @@
     <div class="project-modal-actions"><button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="closePlatformDataConfirm()">取消</button><button type="button" class="ui-button ui-button--danger project-button-danger" onclick="confirmClearPlatformData()">确认清除</button></div>
   </div>
 </div>
+
+<div class="project-modal-backdrop hidden" id="ktp-figure-modal" onclick="if (event.target === this) closeKetangpaiFigureModal()">
+  <div class="project-modal-card project-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="ktp-figure-modal-title">
+    <div class="project-modal-header">
+      <div>
+        <h2 id="ktp-figure-modal-title">安全验证</h2>
+      </div>
+      <button type="button" class="ui-icon-button project-modal-close" onclick="closeKetangpaiFigureModal()" aria-label="关闭">×</button>
+    </div>
+    <form class="project-modal-form" id="ktp-figure-form" onsubmit="submitKetangpaiFigureCode(event); return false;">
+      <p class="ui-help ktp-figure-prompt">请输入计算结果以发送短信验证码：</p>
+      <div class="ktp-figure-preview-wrap">
+        <img id="ktp-figure-img" src="" alt="计算验证码" class="ktp-figure-img" onclick="refreshKetangpaiFigureCode()" title="看不清？点击刷新验证码">
+        <button type="button" class="ui-button ui-button--secondary ui-button--sm btn-sm" onclick="refreshKetangpaiFigureCode()">换一张</button>
+      </div>
+      <div class="ktp-field-group">
+        <label class="ui-label connection-field-label" for="ktp-figure-input">计算结果</label>
+        <input type="text" id="ktp-figure-input" placeholder="请输入图片中的计算结果" autocomplete="off" class="ui-control">
+      </div>
+      <div class="ui-alert ui-alert--danger ui-alert--compact error-banner hidden" id="ktp-figure-error" role="alert"></div>
+      <div class="project-modal-actions">
+        <button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="closeKetangpaiFigureModal()">取消</button>
+        <button type="submit" id="ktp-figure-submit-btn" class="ui-button ui-button--primary project-button-primary">确认发送</button>
+      </div>
+    </form>
+  </div>
+</div>

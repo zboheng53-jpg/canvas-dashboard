@@ -11,6 +11,7 @@ Login flows:
 """
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import time as time_module
@@ -19,6 +20,8 @@ from datetime import datetime, timedelta, timezone
 
 import requests
 from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 import settings
 from platform_state import PlatformStateStore
@@ -52,6 +55,18 @@ def _decrypt_token(cipher: str) -> str:
     return f.decrypt(cipher.encode()).decode()
 
 
+def _encrypt_password(password: str) -> str:
+    """Encrypt password for Ketangpai using AES-128-CBC PKCS7 padding."""
+    key = b"ktp4567890123456"
+    iv = b"ktp4567890123456"
+    padder = padding.PKCS7(128).padder()
+    padded = padder.update(password.encode("utf-8")) + padder.finalize()
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
+    encryptor = cipher.encryptor()
+    encrypted = encryptor.update(padded) + encryptor.finalize()
+    return base64.b64encode(encrypted).decode("utf-8")
+
+
 # ---- SMS & Captcha ----
 
 def get_figure_code() -> dict:
@@ -66,7 +81,28 @@ def get_figure_code() -> dict:
         data = r.json()
         if data.get("status") == 1:
             res = data.get("data", {})
-            return {"ok": True, "url": res.get("url"), "sessionid": res.get("sessionid")}
+            img_url = res.get("url")
+            sessionid = res.get("sessionid")
+            image_data = None
+            if img_url:
+                try:
+                    img_resp = requests.get(
+                        img_url,
+                        headers={"Referer": f"{WEB_URL}/"},
+                        timeout=5,
+                    )
+                    if img_resp.status_code == 200:
+                        content_type = img_resp.headers.get("Content-Type", "image/png")
+                        b64 = base64.b64encode(img_resp.content).decode("ascii")
+                        image_data = f"data:{content_type};base64,{b64}"
+                except Exception as img_err:
+                    logger.warning(f"Ketangpai fetch figure image failed: {img_err}")
+            return {
+                "ok": True,
+                "url": img_url,
+                "sessionid": sessionid,
+                "image_data": image_data,
+            }
         return {"ok": False, "error": data.get("message", "获取图形验证码失败")}
     except Exception as e:
         logger.error(f"Ketangpai get figure code failed: {e}")
@@ -93,7 +129,13 @@ def send_sms(phone: str, verify: str = "", sessionid: str = "") -> dict:
         data = r.json()
         if data.get("status") == 1:
             return {"ok": True, "message": "验证码已发送"}
-        return {"ok": False, "error": data.get("message", "发送失败")}
+        err_msg = data.get("message", "发送失败")
+        code = data.get("code")
+        if code == 30106 or err_msg == "验证码输入错误":
+            err_msg = "图形验证码计算错误，请重新输入"
+        elif code in (30117, "30117"):
+            err_msg = "该手机号未在课堂派注册"
+        return {"ok": False, "error": err_msg, "code": code}
     except Exception as e:
         logger.error(f"Ketangpai SMS send failed: {e}")
         return {"ok": False, "error": f"发送失败: {e}"}
@@ -137,7 +179,8 @@ def password_login(username: str, account: str, password: str) -> dict:
     try:
         payload = {
             "email": account,
-            "password": password,
+            "password": _encrypt_password(password),
+            "encryption": 1,
             "remember": "1",
             "source_type": 1,
             "reqtimestamp": int(time_module.time() * 1000),

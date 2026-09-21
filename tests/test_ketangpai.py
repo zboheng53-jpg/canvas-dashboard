@@ -68,6 +68,72 @@ def test_token_encryption_and_storage(test_env):
     assert ketangpai_client._get_token(user) is None
 
 
+def test_encrypt_password():
+    plain = "my_secret_pwd_123"
+    enc = ketangpai_client._encrypt_password(plain)
+    assert enc != plain
+    # Decrypt and verify
+    import base64
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    from cryptography.hazmat.primitives import padding
+    raw = base64.b64decode(enc.encode("utf-8"))
+    cipher = Cipher(algorithms.AES(b"ktp4567890123456"), modes.CBC(b"ktp4567890123456"))
+    dec = cipher.decryptor()
+    padded = dec.update(raw) + dec.finalize()
+    unpadder = padding.PKCS7(128).unpadder()
+    unpadded = unpadder.update(padded) + unpadder.finalize()
+    assert unpadded.decode("utf-8") == plain
+
+
+def test_get_figure_code(monkeypatch):
+    mock_post_resp = MagicMock()
+    mock_post_resp.json.return_value = {
+        "status": 1,
+        "data": {
+            "url": "https://openapiv5.ketangpai.com/UserApi/verify?sessionid=sess_123",
+            "sessionid": "sess_123",
+        },
+    }
+    mock_get_resp = MagicMock()
+    mock_get_resp.status_code = 200
+    mock_get_resp.headers = {"Content-Type": "image/png"}
+    mock_get_resp.content = b"\x89PNG\r\n\x1a\nfakeimagebytes"
+
+    monkeypatch.setattr(ketangpai_client.requests, "post", lambda url, **kw: mock_post_resp)
+    monkeypatch.setattr(ketangpai_client.requests, "get", lambda url, **kw: mock_get_resp)
+
+    res = ketangpai_client.get_figure_code()
+    assert res["ok"] is True
+    assert res["sessionid"] == "sess_123"
+    assert res["url"] == "https://openapiv5.ketangpai.com/UserApi/verify?sessionid=sess_123"
+    assert res["image_data"].startswith("data:image/png;base64,")
+
+
+def test_send_sms_success_and_errors(monkeypatch):
+    # Success
+    mock_ok = MagicMock()
+    mock_ok.json.return_value = {"status": 1, "message": "success"}
+    monkeypatch.setattr(ketangpai_client.requests, "post", lambda url, **kw: mock_ok)
+    res = ketangpai_client.send_sms("13800000000", verify="42", sessionid="sess_123")
+    assert res["ok"] is True
+
+    # Error 30106 -> Graphical captcha error
+    mock_err_30106 = MagicMock()
+    mock_err_30106.json.return_value = {"status": 0, "code": 30106, "message": "验证码输入错误"}
+    monkeypatch.setattr(ketangpai_client.requests, "post", lambda url, **kw: mock_err_30106)
+    res = ketangpai_client.send_sms("13800000000", verify="wrong", sessionid="sess_123")
+    assert res["ok"] is False
+    assert "图形验证码计算错误" in res["error"]
+
+    # Error 30117 -> Unregistered mobile
+    mock_err_30117 = MagicMock()
+    mock_err_30117.json.return_value = {"status": 0, "code": 30117, "message": "手机号未注册"}
+    monkeypatch.setattr(ketangpai_client.requests, "post", lambda url, **kw: mock_err_30117)
+    res = ketangpai_client.send_sms("13800000000", verify="42", sessionid="sess_123")
+    assert res["ok"] is False
+    assert "该手机号未在课堂派注册" in res["error"]
+
+
 def test_phone_login_success(monkeypatch, test_env):
     user = "alice"
     mock_resp = MagicMock()
@@ -101,18 +167,29 @@ def test_phone_login_failure(monkeypatch, test_env):
 
 def test_password_login_success(monkeypatch, test_env):
     user = "alice"
-    mock_resp = MagicMock()
-    mock_resp.json.return_value = {
-        "status": 1,
-        "message": "success",
-        "data": {"token": "tok_pwd_xyz"},
-    }
-    monkeypatch.setattr(ketangpai_client.requests, "post", lambda url, **kwargs: mock_resp)
+    captured_payload = {}
+
+    def mock_post(url, **kwargs):
+        nonlocal captured_payload
+        captured_payload = kwargs.get("json", {})
+        resp = MagicMock()
+        resp.json.return_value = {
+            "status": 1,
+            "message": "success",
+            "data": {"token": "tok_pwd_xyz"},
+        }
+        return resp
+
+    monkeypatch.setattr(ketangpai_client.requests, "post", mock_post)
 
     res = ketangpai_client.password_login(user, "test@example.com", "pass123")
     assert res["ok"] is True
     assert ketangpai_client.has_token(user)
     assert ketangpai_client._get_token(user) == "tok_pwd_xyz"
+    # Verify encrypted password payload
+    assert captured_payload.get("encryption") == 1
+    assert captured_payload.get("password") != "pass123"
+    assert captured_payload.get("email") == "test@example.com"
 
 
 def test_fetch_courses_dedupes_and_formats(monkeypatch, test_env):
@@ -302,6 +379,39 @@ def test_api_ketangpai_login_routes(client_with_user, monkeypatch):
     )
     assert resp.status_code == 200
     assert resp.get_json()["ok"] is True
+
+
+def test_api_ketangpai_figure_code_and_send_sms(client_with_user, monkeypatch):
+    monkeypatch.setattr(
+        dashboard_app.ketangpai_client,
+        "get_figure_code",
+        lambda: {"ok": True, "sessionid": "s123", "url": "http://example.com/img.png", "image_data": "data:image/png;base64,abc"},
+    )
+    captured_sms = {}
+    def mock_send_sms(phone, verify="", sessionid=""):
+        nonlocal captured_sms
+        captured_sms = {"phone": phone, "verify": verify, "sessionid": sessionid}
+        return {"ok": True, "message": "验证码已发送"}
+
+    monkeypatch.setattr(dashboard_app, "ktp_send_sms", mock_send_sms)
+
+    # Figure code endpoint
+    resp = client_with_user.get("/api/ketangpai/figure-code")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is True
+    assert data["sessionid"] == "s123"
+    assert data["image_data"] == "data:image/png;base64,abc"
+
+    # Send SMS endpoint
+    resp = client_with_user.post(
+        "/api/ketangpai/send-sms",
+        json={"phone": "13800000000", "verify": "42", "sessionid": "s123"},
+        headers=client_with_user.csrf_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+    assert captured_sms == {"phone": "13800000000", "verify": "42", "sessionid": "s123"}
 
 
 def test_api_clear_platform_data_and_override(client_with_user, test_env):

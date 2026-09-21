@@ -2629,6 +2629,28 @@ section.card.listcard,
   background: #2368cc !important;
   border-color: #2368cc !important;
 }
+.ktp-figure-preview-wrap {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  margin: 6px 0 14px !important;
+}
+.ktp-figure-img {
+  height: 48px !important;
+  max-width: 180px !important;
+  border-radius: var(--ds-radius-sm, 6px) !important;
+  border: 1px solid var(--ds-line, #e4e7ec) !important;
+  cursor: pointer !important;
+  background: #f8fafc !important;
+  object-fit: contain !important;
+  transition: opacity 0.15s ease !important;
+}
+.ktp-figure-img:hover {
+  opacity: 0.85 !important;
+}
+.ktp-figure-prompt {
+  margin: 0 0 10px 0 !important;
+}
 
 /* ============================================================
  * 页 4：Apple Calendar（设计稿 .biz-cal 双栏）

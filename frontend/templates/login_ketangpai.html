@@ -33,6 +33,16 @@
             <input type="tel" id="ktp-phone" placeholder="手机号" autocomplete="off" class="ui-control">
             <button type="button" id="ktp-send-sms-btn" onclick="sendKetangpaiSms()" class="ui-button ui-button--secondary ui-button--block btn-wide">发送验证码</button>
           </div>
+          <div id="ktp-figure-group" class="hidden mb-s">
+            <div class="ktp-figure-preview-wrap">
+              <img id="ktp-figure-img-page" src="" alt="计算验证码" class="ktp-figure-img" onclick="refreshKetangpaiFigureCodePage()" title="看不清？点击刷新验证码">
+              <button type="button" class="ui-button ui-button--secondary ui-button--sm btn-sm" onclick="refreshKetangpaiFigureCodePage()">换一张</button>
+            </div>
+            <div class="add-todo-form mb-s">
+              <input type="text" id="ktp-figure-input-page" placeholder="请输入计算结果" autocomplete="off" class="ui-control">
+              <button type="button" id="ktp-figure-confirm-btn" onclick="submitKetangpaiSmsPage()" class="ui-button ui-button--primary btn-wide">确认发送</button>
+            </div>
+          </div>
           <div class="add-todo-form mb-s">
             <input type="text" id="ktp-captcha" placeholder="验证码" autocomplete="off" class="ui-control">
             <button type="button" onclick="doKetangpaiLogin()" class="ui-button ui-button--primary ui-button--block btn-wide btn-accent">登录</button>
@@ -102,23 +112,51 @@
 
     let ktpSmsCountdown = 0;
     let ktpSmsTimer = null;
+    let ktpFigureSessionIdPage = '';
 
     async function sendKetangpaiSms() {
       if (ktpSmsCountdown > 0) return;
       const phone = document.getElementById('ktp-phone').value.trim();
       if (!phone) { showKetangpaiError('请输入手机号'); return; }
+      const figGroup = document.getElementById('ktp-figure-group');
+      if (figGroup) figGroup.classList.remove('hidden');
+      await refreshKetangpaiFigureCodePage();
+      document.getElementById('ktp-figure-input-page')?.focus();
+    }
 
+    async function refreshKetangpaiFigureCodePage() {
+      const img = document.getElementById('ktp-figure-img-page');
+      try {
+        const resp = await fetch('/api/ketangpai/figure-code');
+        const data = await resp.json();
+        if (data.ok) {
+          ktpFigureSessionIdPage = data.sessionid || '';
+          if (img) img.src = data.image_data || data.url || '';
+        } else {
+          showKetangpaiError(data.error || '获取图形验证码失败');
+        }
+      } catch (e) {
+        showKetangpaiError('网络错误，获取图形验证码失败');
+      }
+    }
+
+    async function submitKetangpaiSmsPage() {
+      const phone = document.getElementById('ktp-phone').value.trim();
+      const verify = (document.getElementById('ktp-figure-input-page')?.value || '').trim();
+      if (!verify) { showKetangpaiError('请输入计算结果'); return; }
       const btn = document.getElementById('ktp-send-sms-btn');
-      btn.disabled = true;
+      const confirmBtn = document.getElementById('ktp-figure-confirm-btn');
+      if (confirmBtn) confirmBtn.disabled = true;
 
       try {
         const resp = await fetch('/api/ketangpai/send-sms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone }),
+          body: JSON.stringify({ phone, verify, sessionid: ktpFigureSessionIdPage }),
         });
         const result = await resp.json();
         if (result.ok) {
+          document.getElementById('ktp-figure-group').classList.add('hidden');
           ktpSmsCountdown = 60;
           if (ktpSmsTimer) clearInterval(ktpSmsTimer);
           ktpSmsTimer = setInterval(() => {
@@ -133,13 +171,16 @@
             }
           }, 1000);
           btn.textContent = `${ktpSmsCountdown}秒后发送`;
+          btn.disabled = true;
+          document.getElementById('ktp-captcha')?.focus();
         } else {
           showKetangpaiError(result.error || '发送失败');
-          btn.disabled = false;
+          await refreshKetangpaiFigureCodePage();
         }
       } catch (e) {
         showKetangpaiError('网络错误');
-        btn.disabled = false;
+      } finally {
+        if (confirmBtn) confirmBtn.disabled = false;
       }
     }
 
