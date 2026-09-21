@@ -76,7 +76,7 @@
     </div>
 
     <!-- KPI 概览 -->
-    <div class="kpis" id="dashboard-kpis">
+    <div class="kpis enter-kpis" id="dashboard-kpis">
       <div class="kpi">
         <div class="k-label">待完成</div>
         <div class="k-value" id="stat-pending-count">0</div>
@@ -119,6 +119,11 @@
           <form class="add-row add-todo-form" id="add-todo-form">
             <input type="text" id="new-todo-input" placeholder="添加新待办…" autocomplete="off" class="ui-control input todo-title-input">
             <input type="date" id="new-todo-due" class="ui-control input date date-input" aria-label="截止日期" title="截止日期">
+            <select id="new-todo-repeat" class="ui-control select new-todo-repeat-select" aria-label="重复设置" title="重复设置" style="padding: 4px 8px; font-size: 13px; height: 32px; border-radius: 6px;">
+              <option value="none">不重复</option>
+              <option value="weekly">每周</option>
+              <option value="biweekly">隔周</option>
+            </select>
             <button type="submit" class="ui-button ui-button--primary btn-quiet">添加</button>
           </form>
 
@@ -2127,6 +2132,11 @@
           rawId: item.id,
           manualHighlighted: item.highlighted || false,
           subtasks: item.subtasks || [],
+          is_recurring: Boolean(item.is_recurring),
+          series_id: item.series_id,
+          original_due_date: item.original_due_date,
+          repeat_label: item.repeat_label,
+          ref: item.ref,
         });
       });
 
@@ -2179,22 +2189,25 @@
 
         let urgencyClass = '';
         if (!isDismissed) {
-          if (item.due_ts) {
-            const todayStr = window.customToday || new Date().toISOString().split('T')[0];
-            const dueStr = item.due_ts.split('T')[0];
-            const dueTime = new Date(item.due_ts).getTime();
+          const todayStr = window.customToday || new Date().toISOString().split('T')[0];
+          const effectiveDueTs = item.due_ts || (item.plannedOn ? `${item.plannedOn}T23:59:59` : null);
+          if (effectiveDueTs) {
+            const dueStr = effectiveDueTs.split('T')[0];
+            const dueTime = new Date(effectiveDueTs).getTime();
             const now = Date.now();
             const hoursLeft = (dueTime - now) / 3600000;
 
             if (dueStr < todayStr || hoursLeft < 0) {
               urgencyClass = 'urgent is-overdue';
             } else if (dueStr === todayStr || (hoursLeft >= 0 && hoursLeft <= 24)) {
-              urgencyClass = 'urgent is-today';
+              urgencyClass = 'is-today';
             } else if (hoursLeft <= 72) {
               urgencyClass = 'approaching is-approaching';
             } else {
               urgencyClass = 'remote is-normal';
             }
+          } else if (item.isTodayAction) {
+            urgencyClass = 'is-today';
           } else {
             urgencyClass = 'remote';
           }
@@ -2204,7 +2217,7 @@
         const flagTitle = manualFlag ? '\u53d6\u6d88\u6807\u7ea2' : '\u6807\u7ea2';
         const flagClass = manualFlag ? 'btn-flag active' : 'btn-flag';
         const dismissTitle = isDismissed ? '\u53d6\u6d88\u5b8c\u6210' : '\u5b8c\u6210';
-        const uiListStateClass = urgencyClass.includes('urgent')
+        const uiListStateClass = urgencyClass.includes('is-overdue')
           ? ' ui-list-item--danger'
           : urgencyClass.includes('approaching')
             ? ' ui-list-item--warning'
@@ -2225,11 +2238,19 @@
             <button class="btn-delete" onclick="toggleHaokeDelete(${item.rawId})" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'custom') {
-          actionsHtml = `
-            <button class="todo-action-button ${flagClass}" onclick="toggleCustomHighlight(${item.rawId}, ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
-            <button class="btn-dismiss" onclick="toggleTodoCheck(${item.rawId}, ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
-            <button class="btn-delete" onclick="toggleCustomDelete(${item.rawId})" title="\u5220\u9664">&#x1f5d1;</button>
-          `;
+          if (item.is_recurring) {
+            actionsHtml = `
+              <button class="btn-dismiss" onclick="toggleRecurringCheck(${item.series_id}, '${item.original_due_date}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
+              <button class="todo-action-button btn-action-skip" onclick="skipRecurringOccurrence(${item.series_id}, '${item.original_due_date}')" title="跳过本次" style="background:none; border:none; cursor:pointer; font-size:14px; color:var(--text-muted, #888); padding:0 4px;" aria-label="跳过本次">⏭</button>
+              <button class="btn-delete" onclick="deleteRecurringSeries(${item.series_id})" title="删除重复待办">&#x1f5d1;</button>
+            `;
+          } else {
+            actionsHtml = `
+              <button class="todo-action-button ${flagClass}" onclick="toggleCustomHighlight(${item.rawId}, ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
+              <button class="btn-dismiss" onclick="toggleTodoCheck(${item.rawId}, ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
+              <button class="btn-delete" onclick="toggleCustomDelete(${item.rawId})" title="\u5220\u9664">&#x1f5d1;</button>
+            `;
+          }
         } else if (item.source === 'zhixuemeng') {
           actionsHtml = `
             <button class="todo-action-button ${flagClass}" onclick="toggleZhixuemengHighlight('${item.id.substring(1)}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
@@ -2257,16 +2278,18 @@
         }
 
         const safeUrl = sanitizeExternalUrl(item.url);
-        const titleHtml = item.source === 'custom'
-          ? `<span class="ui-list-item__title item-title item-title-plain editable-title" data-id="${item.rawId}" data-field="text">${escapeHtml(item.title)}</span>`
-          : (item.source === 'project'
-            ? `<button type="button" class="ui-button ui-button--text ui-list-item__title item-title action-title-button" onclick="openActionDetail('${item.taskId === null ? 'project_due:' + item.projectId : 'project:' + item.projectId + ':' + item.taskId}')">${escapeHtml(item.title)}</button>`
-            : (safeUrl ? `<a class="ui-list-item__title item-title" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</a>` : `<span class="ui-list-item__title item-title item-title-plain">${escapeHtml(item.title)}</span>`));
-        const dueHtml = item.source === 'custom'
+        const titleHtml = item.is_recurring
+          ? `<button type="button" class="ui-button ui-button--text ui-list-item__title item-title action-title-button" onclick="openActionDetail('${item.ref}')">${escapeHtml(item.title)}</button>`
+          : (item.source === 'custom'
+            ? `<span class="ui-list-item__title item-title item-title-plain editable-title" data-id="${item.rawId}" data-field="text">${escapeHtml(item.title)}</span>`
+            : (item.source === 'project'
+              ? `<button type="button" class="ui-button ui-button--text ui-list-item__title item-title action-title-button" onclick="openActionDetail('${item.taskId === null ? 'project_due:' + item.projectId : 'project:' + item.projectId + ':' + item.taskId}')">${escapeHtml(item.title)}</button>`
+              : (safeUrl ? `<a class="ui-list-item__title item-title" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</a>` : `<span class="ui-list-item__title item-title item-title-plain">${escapeHtml(item.title)}</span>`)));
+        const dueHtml = (item.source === 'custom' && !item.is_recurring)
           ? `<span class="ui-list-item__meta item-due editable-due" data-id="${item.rawId}" data-field="due_date">${item.due_str}</span>`
           : item.source === 'project'
-            ? `<button class="ui-button ui-button--text ui-list-item__meta item-due project-due-editable" onclick="startProjectTodoDueEdit(this)" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" data-date-field="${!item.due_str && item.isTodayAction ? 'planned_on' : 'due_date'}" data-date-value="${item.due_str || item.plannedOn}" aria-label="${!item.due_str && item.isTodayAction ? '修改计划日期' : '修改截止日期'}">${item.due_str || (item.plannedOn ? '计划 ' + item.plannedOn : '')}</button>`
-          : `<span class="ui-list-item__meta item-due">${item.due_str}</span>`;
+            ? `<button class="ui-button ui-button--text ui-list-item__meta item-due project-due-editable" onclick="startProjectTodoDueEdit(this)" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" data-date-field="${!item.due_str && item.isTodayAction ? 'planned_on' : 'due_date'}" data-date-value="${item.due_str || item.plannedOn}" aria-label="${!item.due_str && item.isTodayAction ? '修改计划日期' : '修改截止日期'}" title="${!item.due_str && item.isTodayAction ? '计划推进：' + (item.plannedOn || '') + '（点击修改）' : '截止日期：' + (item.due_str || item.plannedOn || '') + '（点击修改）'}">${item.due_str || item.plannedOn || ''}</button>`
+            : `<span class="ui-list-item__meta item-due">${item.due_str}</span>`;
 
         // courseHtml 改为整合进副标题，详见下方 rowHtml 重构
         let courseHtml = '';
@@ -2285,17 +2308,19 @@
         const isSubtaskExpanded = item.source === 'custom' && expandedCustomTodoIds.includes(item.rawId);
         const subtaskToggleLabel = isSubtaskExpanded ? '\u6536\u8d77\u5b50\u4efb\u52a1' : '\u5c55\u5f00\u5b50\u4efb\u52a1';
         const subtaskToggleIcon = isSubtaskExpanded ? '&#x25be;' : '&#x25b8;';
-        const subtaskToggleHtml = item.source === 'custom'
+        const subtaskToggleHtml = (item.source === 'custom' && !item.is_recurring)
           ? `<button class="subtask-toggle" onclick="toggleSubtasks(${item.rawId})" title="${subtaskToggleLabel}" aria-label="${subtaskToggleLabel}">${subtaskToggleIcon}</button>`
-          : '<span class="subtask-toggle subtask-toggle-placeholder" aria-hidden="true">&#x25b8;</span>';
+          : '<span class="subtask-toggle subtask-toggle-placeholder" aria-hidden="true"></span>';
         const mobileActionsOpen = openMobileActionItemId === item.id;
 
-        const animAttr = doAnimate ? `enter-item" style="animation-delay:${0.34 + idx * 0.04}s` : '';
+        const animAttr = doAnimate ? `enter-item" style="animation-delay:${0.08 + Math.min(idx, 8) * 0.02}s` : '';
 
         // 设计稿两行结构：body（上：标题+副标题）+ right（下：来源+截止胶囊+操作）
         // 副标题：课程名 · 类型 · 截止时间（与原 .item-course 合并到副标题）
         const metaParts = [];
-        if (item.course) {
+        if (item.is_recurring) {
+          metaParts.push(`↻ 重复待办 · ${escapeHtml(item.repeat_label || '每周')}`);
+        } else if (item.course) {
           metaParts.push(item.source === 'project'
             ? `<button type="button" class="project-todo-link" onclick="openProjectsView(${item.projectId})">${escapeHtml(item.course)}</button>`
             : escapeHtml(item.course));
@@ -2903,6 +2928,7 @@
       e.preventDefault();
       const input = document.getElementById('new-todo-input');
       const dueInput = document.getElementById('new-todo-due');
+      const repeatSelect = document.getElementById('new-todo-repeat');
       const text = input.value.trim();
       if (!text) return;
 
@@ -2911,21 +2937,37 @@
       let taskText = parts[0];
       if (parts.length > 1) {
         taskText = parts[0].trim();
-        labels = parts.slice(1).map(tag => tag.substring(1)).filter(tag => tag); // 绉婚櫎#绗﹀彿
+        labels = parts.slice(1).map(tag => tag.substring(1)).filter(tag => tag);
       }
 
-      const resp = await fetch('/api/custom/todos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: taskText,
-          due_date: dueInput.value,
-          labels: labels  // 娣诲姞鏍囩
-        }),
-      });
+      const repeatVal = repeatSelect ? repeatSelect.value : 'none';
+      let resp;
+      if (repeatVal === 'weekly' || repeatVal === 'biweekly') {
+        resp = await fetch('/api/recurring-todos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: taskText,
+            first_due_date: dueInput.value || (window.customToday || new Date().toISOString().split('T')[0]),
+            interval_weeks: repeatVal === 'weekly' ? 1 : 2,
+            details: labels.length ? ('标签: ' + labels.join(', ')) : ''
+          }),
+        });
+      } else {
+        resp = await fetch('/api/custom/todos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: taskText,
+            due_date: dueInput.value,
+            labels: labels
+          }),
+        });
+      }
       if (resp.ok) {
         input.value = '';
         dueInput.value = '';
+        if (repeatSelect) repeatSelect.value = 'none';
         setNewTodoDueDefault(window.customToday || new Date().toISOString().split('T')[0]);
         await fetchCustomTodos();
         if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
@@ -2936,10 +2978,46 @@
     }
 
     async function toggleTodoCheck(id, done) {
+      if (typeof id === 'string' && id.startsWith('recurring_')) {
+        const parts = id.split('_');
+        const seriesId = parts[1];
+        const origDate = parts.slice(2).join('_');
+        await toggleRecurringCheck(seriesId, origDate, done);
+        return;
+      }
       await fetch(`/api/custom/todos/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ done: !done }),
+      });
+      await fetchCustomTodos();
+      if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+    }
+
+    async function toggleRecurringCheck(seriesId, origDate, done) {
+      await fetch(`/api/recurring-todos/${seriesId}/occurrences/${origDate}/complete`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ done: !done }),
+      });
+      await fetchCustomTodos();
+      if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+    }
+
+    async function skipRecurringOccurrence(seriesId, origDate) {
+      await fetch(`/api/recurring-todos/${seriesId}/occurrences/${origDate}/skip`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skipped: true }),
+      });
+      await fetchCustomTodos();
+      if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+    }
+
+    async function deleteRecurringSeries(seriesId) {
+      if (!confirm('确定要删除此重复待办系列吗？')) return;
+      await fetch(`/api/recurring-todos/${seriesId}`, {
+        method: 'DELETE',
       });
       await fetchCustomTodos();
       if (typeof loadTodaySchedule === 'function') loadTodaySchedule();

@@ -27,8 +27,8 @@ WRITING_RULES = """先按用户要看到的结果选择普通待办、项目行�
 用户说“整理进待办”且内容是课程作业、报名、提交等日常责任时，默认使用 add_todo / POST /todos，commitment 为 obligation。多门课、跨一学期或每周/双周重复都不是建立长期项目的依据。
 长期项目承载有目标、阶段成果和持续推进关系的工作（如竞赛、科研、健身计划）；仅当事项服务于这样的目标或用户明确指定项目归属时，才使用项目行动。已有同名项目本身不能证明归属正确。
 项目归属与责任性质分别判断：obligation 是作业、报名、提交和明确承诺；growth 是自主练习和个人提升。项目可以包含 obligation，但不能为了容纳普通责任而新建项目。
-重复作业默认只写每项最近一次能可靠确定的截止，重复规则原文放 details；保留仍未完成的旧次，不用下次日期覆盖。用户明确要求批量录入具体各次或指定范围时才展开，仍按事项性质选择普通待办或项目行动。
-当前普通待办不会完成后自动生成下一次；recurring 只是每周的时间安排，不是重复截止待办，也不支持隔周规则。不能用重复日程冒充作业提醒，不能承诺已设置自动续期。只有用户要求安排时间且信息足够时才创建排程。
+每周或隔周重复的日常作业使用重复待办（create_recurring_todo_series）：以首次截止日期确定星期和隔周基准。首页每个系列仅展示最近一次未完成、未跳过的期次（7天内或已逾期），完成或跳过后自动推进，旧次未完成不会阻止后续次数产生。不确定重复节奏的单次作业使用普通待办 add_todo / POST /todos。
+recurring 排程是每周的时间安排，不是重复待办系列。不能用重复日程冒充作业提醒。只有用户要求安排时间且信息足够时才创建排程。
 标题采用动宾结构，建议 8–20 字，最多 40 字；步骤、材料、完成标准写入 details，项目长期背景和暂缓决定写入 materials。
 planned_on 是准备做的日期，due_date 是真实截止，两者独立；未知日期留空，不推测截止或完成状态。学期覆盖范围不能变成项目截止，不用学期末或 12/31 代替最近一次作业截止。双周基准不明时保留原文，只澄清影响本次截止的缺口，其余事项继续写入。
 为已有事项安排时间，schedule_action 传入 action_ref，不复制另一条同名事项。只有用户明确给出重复节奏时才使用 recurring 和起止日期。
@@ -202,6 +202,29 @@ TOOLS.extend([
            "operation": {"type": "string", "enum": ["delete", "restore", "to-materials"]},
            "expected_updated_at": {"type": "string"}, "expected_project_updated_at": {"type": "string", "description": "转为资料时必须提供项目版本"}},
           ["project_id", "operation", "expected_updated_at"]),
+    _tool("create_recurring_todo_series", "创建每周或隔周自动推进的重复待办系列（如每周作业、双周报告）。首页最多展示最近一次未完成期次。",
+          {"title": {"type": "string", "maxLength": 40, "description": "待办简短标题（8-20字）"},
+           "first_due_date": {"type": "string", "description": "首次截止日期 YYYY-MM-DD（确定星期与基准）"},
+           "interval_weeks": {"type": "integer", "enum": [1, 2], "description": "重复间隔：1 为每周，2 为隔周；默认 1"},
+           "end_date": {"type": ["string", "null"], "description": "可选结束日期 YYYY-MM-DD"},
+           "details": {"type": "string", "maxLength": 12000, "description": "要求、背景或材料"},
+           "request_id": {"type": "string", "description": "幂等请求标识"}},
+          ["title", "first_due_date"]),
+    _tool("get_recurring_todo_series", "获取重复待办系列列表或单个系列详情与近期的期次展开。",
+          {"series_id": {"type": ["integer", "null"], "description": "系列 ID；留空则获取所有活跃系列"}}),
+    _tool("update_recurring_todo_occurrence", "完成、跳过或调整重复待办中单次期次的截止日期、标题或详情。",
+          {"series_id": {"type": "integer", "description": "系列 ID"},
+           "date": {"type": "string", "description": "目标期次的原始基准日期 YYYY-MM-DD"},
+           "done": {"type": ["boolean", "null"], "description": "是否完成本次"},
+           "skipped": {"type": ["boolean", "null"], "description": "是否跳过本次"},
+           "due_date": {"type": ["string", "null"], "description": "仅调整本次的实际截止日期 YYYY-MM-DD"},
+           "title": {"type": ["string", "null"], "description": "仅调整本次的标题"},
+           "details": {"type": ["string", "null"], "description": "仅调整本次的详情"}},
+          ["series_id", "date"]),
+    _tool("stop_recurring_todo_series", "停止重复待办系列，指定日期之后的期次不再生成。",
+          {"series_id": {"type": "integer", "description": "系列 ID"},
+           "stop_date": {"type": ["string", "null"], "description": "停止生效日期 YYYY-MM-DD；留空默认今天"}},
+          ["series_id"]),
 ])
 _schedule_properties = next(t["inputSchema"]["properties"] for t in TOOLS if t["name"] == "schedule_action")
 TOOLS.append(_tool("update_schedule", "调整已有排程，只传修改字段；使用查询到的排程 updated_at。重复排程修改整个系列。",
@@ -294,6 +317,25 @@ def handle_tool_call(client: CanvasDashboardClient, name: str, args: dict[str, A
         elif operation == "to-materials":
             raise ValueError("转为资料需要 task_id")
         return json.dumps(client.request(endpoint + "/" + operation, method="POST", data=payload), ensure_ascii=False)
+    if name == "create_recurring_todo_series":
+        return json.dumps(client.request("/api/agent/v1/recurring-todos", method="POST", data=payload), ensure_ascii=False)
+    if name == "get_recurring_todo_series":
+        s_id = payload.get("series_id")
+        endpoint = f"/api/agent/v1/recurring-todos/{int(s_id)}" if s_id else "/api/agent/v1/recurring-todos"
+        return json.dumps(client.request(endpoint), ensure_ascii=False)
+    if name == "update_recurring_todo_occurrence":
+        s_id = int(payload.pop("series_id"))
+        orig_date = payload.pop("date")
+        if "done" in payload and payload["done"] is not None:
+            res = client.request(f"/api/agent/v1/recurring-todos/{s_id}/occurrences/{orig_date}/complete", method="PUT", data={"done": payload["done"]})
+        elif "skipped" in payload and payload["skipped"] is not None:
+            res = client.request(f"/api/agent/v1/recurring-todos/{s_id}/occurrences/{orig_date}/skip", method="PUT", data={"skipped": payload["skipped"]})
+        else:
+            res = client.request(f"/api/agent/v1/recurring-todos/{s_id}/occurrences/{orig_date}", method="PUT", data=payload)
+        return json.dumps(res, ensure_ascii=False)
+    if name == "stop_recurring_todo_series":
+        s_id = int(payload.pop("series_id"))
+        return json.dumps(client.request(f"/api/agent/v1/recurring-todos/{s_id}/stop", method="POST", data=payload), ensure_ascii=False)
     if name in {"find_actions", "get_action", "get_agenda", "add_project_task", "update_action", "schedule_action", "update_schedule", "cancel_schedule", "complete_schedule_occurrence", "update_project_materials"}:
         method = "GET"
         if name == "find_actions":

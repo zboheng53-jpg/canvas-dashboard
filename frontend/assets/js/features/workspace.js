@@ -96,6 +96,25 @@ function renderActionDetail() {
       }
     }, false, true);
   }
+  if (a.editable && a.source === 'recurring') {
+    if (!a.done && !a.skipped) {
+      button('跳过本次', async () => {
+        try {
+          await workspaceWrite(`/api/recurring-todos/${a.series_id}/occurrences/${a.original_due_date}/skip`, {skipped: true});
+          await refreshWorkspaceSurfaces();
+          closeActionDetail();
+        } catch (error) { document.getElementById('action-detail-error').textContent = error.message; }
+      });
+    }
+    button('删除系列', async () => {
+      if (!confirm('确定要删除此重复待办系列吗？')) return;
+      try {
+        await workspaceRequest(`/api/recurring-todos/${a.series_id}`, {method: 'DELETE'});
+        await refreshWorkspaceSurfaces();
+        closeActionDetail();
+      } catch (error) { document.getElementById('action-detail-error').textContent = error.message; }
+    }, false, true);
+  }
   if (a.parent_ref) button('查看所属待办', () => openActionDetail(a.parent_ref));
   if (a.url) {
     const url = sanitizeExternalUrl(a.url);

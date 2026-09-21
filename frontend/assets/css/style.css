@@ -6,7 +6,7 @@
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(18px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -14,13 +14,25 @@
   }
 }
 
-.enter-sidebar { animation: fadeInUp 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
-.enter-top-bar { animation: fadeInUp 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
-.enter-main-card { animation: fadeInUp 0.7s 0.08s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
-.enter-right-card { animation: fadeInUp 0.7s 0.12s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.enter-sidebar { animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.enter-top-bar { animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.enter-kpis { animation: fadeInUp 0.4s 0.04s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.enter-main-card { animation: fadeInUp 0.4s 0.08s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.enter-right-card { animation: fadeInUp 0.4s 0.12s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
 .enter-item {
-  animation: fadeInUp 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: fadeInUp 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enter-sidebar,
+  .enter-top-bar,
+  .enter-kpis,
+  .enter-main-card,
+  .enter-right-card,
+  .enter-item {
+    animation: none !important;
+  }
 }
 
 /* ---- Reset ---- */
@@ -974,6 +986,7 @@ a:hover { color: var(--accent-hover); }
 @media (max-width: 768px) {
   .enter-sidebar,
   .enter-top-bar,
+  .enter-kpis,
   .enter-main-card,
   .enter-right-card { animation: none; }
   .dashboard { padding: 24px 14px 48px; }

@@ -145,6 +145,32 @@ class CanvasDashboard:
             raise ValueError(f"Invalid schedule kind: {kind}")
         return self._req(f"/api/agent/v1/schedule/{kind}", method="POST", data=fields)
 
+    def create_recurring_todo_series(self, title: str, first_due_date: str, interval_weeks: int = 1, end_date: Optional[str] = None, details: Optional[str] = None, **fields) -> dict:
+        payload = {"title": title, "first_due_date": first_due_date, "interval_weeks": interval_weeks}
+        if end_date:
+            payload["end_date"] = end_date
+        if details:
+            payload["details"] = details
+        payload.update(fields)
+        return self._req("/api/agent/v1/recurring-todos", method="POST", data=payload)
+
+    def get_recurring_todo_series(self, series_id: Optional[int] = None) -> dict:
+        endpoint = f"/api/agent/v1/recurring-todos/{int(series_id)}" if series_id else "/api/agent/v1/recurring-todos"
+        return self._req(endpoint)
+
+    def update_recurring_todo_occurrence(self, series_id: int, date: str, done: Optional[bool] = None, skipped: Optional[bool] = None, **changes) -> dict:
+        if done is not None:
+            return self._req(f"/api/agent/v1/recurring-todos/{int(series_id)}/occurrences/{date}/complete", method="PUT", data={"done": done})
+        if skipped is not None:
+            return self._req(f"/api/agent/v1/recurring-todos/{int(series_id)}/occurrences/{date}/skip", method="PUT", data={"skipped": skipped})
+        return self._req(f"/api/agent/v1/recurring-todos/{int(series_id)}/occurrences/{date}", method="PUT", data=changes)
+
+    def stop_recurring_todo_series(self, series_id: int, stop_date: Optional[str] = None) -> dict:
+        payload = {}
+        if stop_date:
+            payload["stop_date"] = stop_date
+        return self._req(f"/api/agent/v1/recurring-todos/{int(series_id)}/stop", method="POST", data=payload)
+
 
 def main():
     parser = argparse.ArgumentParser(description="Canvas Dashboard Skill API Client")
@@ -176,6 +202,18 @@ def main():
     p_add.add_argument("--due", help="Due date YYYY-MM-DD")
     p_add.add_argument("--planned", help="Planned date YYYY-MM-DD")
     p_add.add_argument("--details", help="Details, requirements, standards")
+
+    # add-recurring-todo
+    p_rec = subparsers.add_parser("add-recurring-todo", help="Add a weekly/biweekly recurring todo series")
+    p_rec.add_argument("title", help="Todo title")
+    p_rec.add_argument("--first-due", required=True, help="First due date YYYY-MM-DD")
+    p_rec.add_argument("--interval", type=int, default=1, choices=[1, 2], help="Interval in weeks (1: weekly, 2: biweekly)")
+    p_rec.add_argument("--end", help="End date YYYY-MM-DD")
+    p_rec.add_argument("--details", help="Details")
+
+    # recurring-todos
+    p_rec_list = subparsers.add_parser("recurring-todos", help="List recurring todo series or get series detail")
+    p_rec_list.add_argument("--id", type=int, help="Series ID")
 
     # complete-todo
     p_comp = subparsers.add_parser("complete-todo", help="Mark a todo as completed")
@@ -212,6 +250,10 @@ def main():
             result = client.get_todos(source=args.source, status=args.status)
         elif args.command == "add-todo":
             result = client.add_todo(args.text, due_date=args.due, planned_on=args.planned, details=args.details)
+        elif args.command == "add-recurring-todo":
+            result = client.create_recurring_todo_series(args.title, first_due_date=args.first_due, interval_weeks=args.interval, end_date=args.end, details=args.details)
+        elif args.command == "recurring-todos":
+            result = client.get_recurring_todo_series(series_id=args.id)
         elif args.command == "complete-todo":
             result = client.complete_todo(args.todo_id, source=args.source)
         elif args.command == "agenda":

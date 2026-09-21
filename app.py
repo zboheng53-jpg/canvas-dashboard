@@ -57,6 +57,7 @@ import project_store
 import platform_sync
 import dashboard_preferences
 import workspace_agenda
+import recurring_todo_store
 from agent_mcp import WRITING_RULES
 from action_contract import (ActionValidationError, ActionConflictError, action_fields, short_title, check_version, fingerprint, replay)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
@@ -584,6 +585,18 @@ def _calendar_items(username, category=None):
                     "title": subtask.get("text"),
                     "due_date": subtask.get("due_date"),
                     "course": todo.get("text"),
+                })
+
+        today_date = now.date()
+        for occ in recurring_todo_store.get_range_occurrences(username, today_date - timedelta(days=30), today_date + timedelta(days=90)):
+            if occ["status"] == "pending":
+                items.append({
+                    "source": "Custom",
+                    "id": occ["id"],
+                    "uid": f"recurring-{occ['series_id']}-{occ['original_due_date']}",
+                    "title": f"↻ {occ['title']}",
+                    "due_date": occ["due_date"],
+                    "course": "重复待办",
                 })
 
         def is_eligible(platform, legacy_default):
@@ -1805,12 +1818,33 @@ def api_custom_todos():
     today = datetime.now(CST).date()
     todos = _remove_expired_completed_todos(username, today)
 
+    for r_item in recurring_todo_store.get_homepage_items(username, today=today):
+        todos.append({
+            "id": r_item["id"],
+            "raw_id": r_item["id"],
+            "text": r_item["title"],
+            "details": r_item.get("details", ""),
+            "due_date": r_item["due_date"],
+            "done": r_item["done"],
+            "skipped": r_item.get("skipped", False),
+            "is_recurring": True,
+            "series_id": r_item["series_id"],
+            "original_due_date": r_item["original_due_date"],
+            "interval_weeks": r_item["interval_weeks"],
+            "repeat_label": r_item["repeat_label"],
+            "labels": [f"↻ {r_item['repeat_label']}"],
+            "commitment": "obligation",
+            "source": "custom",
+            "created_at": r_item.get("series_created_at"),
+            "ref": r_item["action_ref"],
+        })
+
     todos.sort(key=lambda t: (
         1 if t["done"] else 0,
         0 if t.get("due_date") else 1,
         t.get("due_date") or "9999-99-99",
     ))
-    return jsonify({"ok": True, "data": [{**t, "ref": _custom_action_ref(t)} for t in todos], "today": datetime.now(CST).strftime("%Y-%m-%d")})
+    return jsonify({"ok": True, "data": [{**t, "ref": t.get("ref") or _custom_action_ref(t)} for t in todos], "today": datetime.now(CST).strftime("%Y-%m-%d")})
 
 
 @app.route("/api/custom/todos/<int:todo_id>", methods=["PUT", "DELETE"])
@@ -1876,6 +1910,116 @@ def api_custom_todo_item(todo_id):
         return jsonify({"ok": True, "todo": result["todo"]})
 
     return jsonify({"ok": False, "error": "Method not allowed"}), 405
+
+
+# ============================================================================
+# Recurring Todos Endpoints (Web & Agent)
+# ============================================================================
+
+def _recurring_todos_list_response(username):
+    store = recurring_todo_store.load_store(username)
+    series_list = [s for s in store.get("series", []) if not s.get("deleted_at")]
+    return jsonify({"ok": True, "series": series_list})
+
+
+def _recurring_todo_create_response(username):
+    payload = read_json_request()
+    if not payload:
+        return invalid_request_response()
+    created = recurring_todo_store.create_series(username, payload)
+    return jsonify({"ok": True, "series": created}), 201
+
+
+def _recurring_todo_detail_response(username, series_id):
+    s = recurring_todo_store.get_series(username, series_id)
+    if not s:
+        return api_error("series_not_found", "未找到指定重复待办系列", 404)
+    today = datetime.now(CST).date()
+    start_bound = today - timedelta(days=30)
+    end_bound = today + timedelta(days=90)
+    occurrences = recurring_todo_store.expand_occurrences(s, start_bound, end_bound)
+    return jsonify({"ok": True, "series": s, "occurrences": occurrences})
+
+
+def _recurring_todo_update_response(username, series_id):
+    data = read_json_request()
+    if not data:
+        return invalid_request_response()
+    updated = recurring_todo_store.update_series_rule(username, series_id, data, expected_updated_at=data.get("expected_updated_at"))
+    return jsonify({"ok": True, "series": updated})
+
+
+def _recurring_todo_delete_response(username, series_id):
+    deleted = recurring_todo_store.delete_series(username, series_id)
+    if not deleted:
+        return api_error("series_not_found", "未找到指定重复待办系列", 404)
+    return jsonify({"ok": True})
+
+
+def _recurring_todo_stop_response(username, series_id):
+    data = read_json_request() or {}
+    updated = recurring_todo_store.stop_series(username, series_id, stop_date=data.get("stop_date"))
+    return jsonify({"ok": True, "series": updated})
+
+
+def _recurring_occurrence_complete_response(username, series_id, date_str):
+    data = read_json_request()
+    if not data or "done" not in data or type(data["done"]) is not bool:
+        return invalid_request_response()
+    updated = recurring_todo_store.complete_occurrence(username, series_id, date_str, data["done"])
+    return jsonify({"ok": True, "result": updated})
+
+
+def _recurring_occurrence_skip_response(username, series_id, date_str):
+    data = read_json_request() or {}
+    skip = data.get("skipped", True)
+    updated = recurring_todo_store.skip_occurrence(username, series_id, date_str, skip=skip)
+    return jsonify({"ok": True, "result": updated})
+
+
+def _recurring_occurrence_update_response(username, series_id, date_str):
+    data = read_json_request()
+    if not data:
+        return invalid_request_response()
+    updated = recurring_todo_store.update_occurrence(username, series_id, date_str, data)
+    return jsonify({"ok": True, "result": updated})
+
+
+@app.route("/api/recurring-todos", methods=["GET", "POST"])
+def api_recurring_todos():
+    if request.method == "POST":
+        return _recurring_todo_create_response(session["username"])
+    return _recurring_todos_list_response(session["username"])
+
+
+@app.route("/api/recurring-todos/<int:series_id>", methods=["GET", "PUT", "DELETE"])
+def api_recurring_todo_item(series_id):
+    username = session["username"]
+    if request.method == "DELETE":
+        return _recurring_todo_delete_response(username, series_id)
+    if request.method == "PUT":
+        return _recurring_todo_update_response(username, series_id)
+    return _recurring_todo_detail_response(username, series_id)
+
+
+@app.route("/api/recurring-todos/<int:series_id>/stop", methods=["POST"])
+def api_recurring_todo_stop(series_id):
+    return _recurring_todo_stop_response(session["username"], series_id)
+
+
+@app.route("/api/recurring-todos/<int:series_id>/occurrences/<date_str>/complete", methods=["PUT"])
+def api_recurring_occurrence_complete(series_id, date_str):
+    return _recurring_occurrence_complete_response(session["username"], series_id, date_str)
+
+
+@app.route("/api/recurring-todos/<int:series_id>/occurrences/<date_str>/skip", methods=["PUT"])
+def api_recurring_occurrence_skip(series_id, date_str):
+    return _recurring_occurrence_skip_response(session["username"], series_id, date_str)
+
+
+@app.route("/api/recurring-todos/<int:series_id>/occurrences/<date_str>", methods=["PUT"])
+def api_recurring_occurrence_update(series_id, date_str):
+    return _recurring_occurrence_update_response(session["username"], series_id, date_str)
 
 
 # ---- Course timetable and simple schedule items ----
@@ -2914,7 +3058,7 @@ def _create_custom_action(username, data):
     return created
 
 
-def _workspace_actions(username):
+def _workspace_actions(username, range_bounds=None):
     actions = []
     for todo in _load_todos(username):
         actions.append({**todo, "ref": _custom_action_ref(todo), "title": todo.get("text", ""),
@@ -2926,6 +3070,23 @@ def _workspace_actions(username):
                                 "parent_ref": _custom_action_ref(todo), "title": subtask.get("text", ""), "course": todo.get("text", ""),
                                 "source": "custom_subtask", "commitment": "obligation", "active": not todo.get("done"),
                                 "done": bool(todo.get("done") or subtask.get("done")), "editable": False})
+    if range_bounds:
+        start_d, end_d = range_bounds
+        r_items = recurring_todo_store.get_range_occurrences(username, start_d, end_d)
+    else:
+        r_items = recurring_todo_store.get_homepage_items(username)
+    for r_item in r_items:
+        actions.append({
+            **r_item,
+            "ref": r_item["action_ref"],
+            "title": r_item["title"],
+            "source": "recurring",
+            "course": f"重复待办 · {r_item.get('repeat_label', '')}",
+            "commitment": "obligation",
+            "active": r_item.get("active", True),
+            "editable": True,
+            "details": r_item.get("details", ""),
+        })
     for project in project_store.load_projects(username, include_deleted=True):
         active = project["status"] == "active" and not project.get("deleted_at")
         common = {"project_id": project["id"], "project_name": project["name"], "active": active}
@@ -2941,7 +3102,7 @@ def _workspace_actions(username):
                             "active": active and not task.get("deleted_at"),
                             "editable": active and not task.get("deleted_at")})
     for todo in _aggregate_agent_todos(username, status="all"):
-        if todo["source"] in {"custom", "custom_subtask", "project"}:
+        if todo["source"] in {"custom", "custom_subtask", "project", "recurring"}:
             continue
         due = _parse_calendar_due(todo.get("due_date"))
         actions.append({**todo, "ref": f"{todo['source']}:{todo['id']}", "commitment": "obligation",
@@ -2952,12 +3113,14 @@ def _workspace_actions(username):
 
 
 def _get_workspace_action(username, ref):
+    if ref and ref.startswith("recurring:"):
+        return recurring_todo_store.get_occurrence_by_ref(username, ref)
     return next((action for action in _workspace_actions(username) if action["ref"] == ref and not action.get("deleted_at")), None)
 
 
 def _workspace_agenda(username, start, end):
     _, _, semester_start = get_term_info()
-    return workspace_agenda.build(username, start, end, semester_start, _workspace_actions(username))
+    return workspace_agenda.build(username, start, end, semester_start, _workspace_actions(username, range_bounds=(start, end)))
 
 
 def _workspace_day(username, day):
@@ -3107,6 +3270,23 @@ def _workspace_action_response(username, ref):
             locked_json_update(_todos_file(username), [], update)
         elif action["source"] in {"canvas", "haoke", "zhixuemeng", "zhihuishu", "ketangpai"} and data == {"done": True}:
             _complete_agent_todo(username, action["id"], source=action["source"])
+        elif action["source"] == "recurring":
+            changes = action_fields(data)
+            series_id = action["series_id"]
+            orig_due_date = action["original_due_date"]
+            if "title" in data:
+                changes["title"] = short_title(data["title"])
+            if "done" in data:
+                if type(data["done"]) is not bool:
+                    return invalid_request_response()
+                recurring_todo_store.complete_occurrence(username, series_id, orig_due_date, data["done"])
+            if "skipped" in data:
+                if type(data["skipped"]) is not bool:
+                    return invalid_request_response()
+                recurring_todo_store.skip_occurrence(username, series_id, orig_due_date, data["skipped"])
+            occ_changes = {k: v for k, v in changes.items() if k in ("title", "details", "due_date")}
+            if occ_changes:
+                recurring_todo_store.update_occurrence(username, series_id, orig_due_date, occ_changes)
         else:
             raise ActionValidationError("此事项请从原始入口编辑")
         action = _get_workspace_action(username, ref)
@@ -3221,6 +3401,29 @@ def _aggregate_agent_todos(username: str, source: str = "all", status: str = "pe
                     "labels": [],
                     "url": None,
                 })
+
+    # 1.5 Recurring todos
+    if source in ("all", "custom", "recurring"):
+        today = datetime.now(CST).date()
+        for r in recurring_todo_store.get_homepage_items(username, today=today):
+            all_todos.append({
+                "id": r["id"],
+                "title": r["title"],
+                "ref": r["action_ref"],
+                "details": r.get("details", ""),
+                "planned_on": None,
+                "commitment": "obligation",
+                "course": "重复待办",
+                "due_date": r["due_date"],
+                "source": "custom",
+                "source_type": "recurring",
+                "is_recurring": True,
+                "series_id": r["series_id"],
+                "original_due_date": r["original_due_date"],
+                "done": r["done"],
+                "labels": [f"↻ {r['repeat_label']}"],
+                "url": None,
+            })
 
     # 2. Platform items
     def add_platform_items(platform_name: str, cache_file: str, state_loader):
@@ -3377,6 +3580,17 @@ def _complete_agent_todo(username: str, todo_id: str, source: str = "custom") ->
             return False
         update_ktp_state(username, "complete", todo_id)
         return True
+    elif source == "recurring" or str(todo_id).startswith("recurring_"):
+        parts = str(todo_id).split("_")
+        if len(parts) >= 3:
+            try:
+                s_id = int(parts[1])
+                orig_d = "_".join(parts[2:])
+                recurring_todo_store.complete_occurrence(username, s_id, orig_d, True)
+                return True
+            except Exception:
+                return False
+        return False
     elif source == "project":
         due_match = re.fullmatch(r"due-(\d+)", str(todo_id))
         if due_match:
@@ -3461,7 +3675,9 @@ def api_agent_todo_complete(todo_id):
     data = read_json_request() or {}
     source = data.get("source") or request.args.get("source")
     if not source:
-        if str(todo_id).startswith("task-") or str(todo_id).startswith("due-"):
+        if str(todo_id).startswith("recurring_"):
+            source = "recurring"
+        elif str(todo_id).startswith("task-") or str(todo_id).startswith("due-"):
             source = "project"
         elif ":" in str(todo_id):
             source = "custom_subtask"
@@ -3471,6 +3687,51 @@ def api_agent_todo_complete(todo_id):
     if not success:
         return api_error("todo_not_found", "未找到指定待办或无法标记完成", 404)
     return jsonify({"ok": True, "id": todo_id, "source": source, "completed": True})
+
+
+# ---- Agent API for Recurring Todos ----
+
+@app.route("/api/agent/v1/recurring-todos", methods=["GET", "POST"])
+@require_agent_auth
+def api_agent_recurring_todos():
+    if request.method == "POST":
+        return _recurring_todo_create_response(request.agent_username)
+    return _recurring_todos_list_response(request.agent_username)
+
+
+@app.route("/api/agent/v1/recurring-todos/<int:series_id>", methods=["GET", "PUT", "DELETE"])
+@require_agent_auth
+def api_agent_recurring_todo_item(series_id):
+    username = request.agent_username
+    if request.method == "DELETE":
+        return _recurring_todo_delete_response(username, series_id)
+    if request.method == "PUT":
+        return _recurring_todo_update_response(username, series_id)
+    return _recurring_todo_detail_response(username, series_id)
+
+
+@app.route("/api/agent/v1/recurring-todos/<int:series_id>/stop", methods=["POST"])
+@require_agent_auth
+def api_agent_recurring_todo_stop(series_id):
+    return _recurring_todo_stop_response(request.agent_username, series_id)
+
+
+@app.route("/api/agent/v1/recurring-todos/<int:series_id>/occurrences/<date_str>/complete", methods=["PUT"])
+@require_agent_auth
+def api_agent_recurring_occurrence_complete(series_id, date_str):
+    return _recurring_occurrence_complete_response(request.agent_username, series_id, date_str)
+
+
+@app.route("/api/agent/v1/recurring-todos/<int:series_id>/occurrences/<date_str>/skip", methods=["PUT"])
+@require_agent_auth
+def api_agent_recurring_occurrence_skip(series_id, date_str):
+    return _recurring_occurrence_skip_response(request.agent_username, series_id, date_str)
+
+
+@app.route("/api/agent/v1/recurring-todos/<int:series_id>/occurrences/<date_str>", methods=["PUT"])
+@require_agent_auth
+def api_agent_recurring_occurrence_update(series_id, date_str):
+    return _recurring_occurrence_update_response(request.agent_username, series_id, date_str)
 
 
 def _manage_project_record(username, project_id, operation, task_id=None):

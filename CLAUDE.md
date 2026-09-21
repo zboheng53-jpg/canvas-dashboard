@@ -45,6 +45,7 @@ canvas-dashboard/
 ├── zhihuishu_worker.py            # 智慧树后台多进程刷新 Worker
 ├── zhihuishu_browser.py           # 智慧树 Playwright 浏览器自动化
 ├── zhihuishu_login_sessions.py    # 智慧树短时 noVNC 登录窗口
+├── recurring_todo_store.py        # 原生重复待办系列、周期展开与独立完成状态
 ├── ketangpai_client.py            # 课堂派客户端 (短信/密码/课程/作业)
 ├── agent_auth.py                  # Agent API 独立安全凭据与 Token 管理
 ├── agent_mcp.py                   # 零依赖通用 MCP Server 脚本 (JSON-RPC stdio)
@@ -111,6 +112,11 @@ canvas-dashboard/
   - `/api/actions` 和 `/api/agenda` 供网页及 Agent 共用；排程以 `action_ref` 引用原事项，标题与任务完成状态从原记录读取。取消安排不删除事项，单次完成不结束整个行动。
   - 创建支持 `request_id` 幂等，更新支持 `expected_updated_at` 冲突检查；使用各存储层锁和原子写，不绕过账户隔离。重复安排的单次修改须原子跳过原日期并创建例外，保留本次完成记录。
   - 今日总览保持现有左、中、右分区：中央为统一待办清单（今日与逾期项目行动由统一事项与议程投影去重后直接并入待办，不再另设独立行动卡片），右上长期项目、右下今日日程。可选下一步不自动排入今天。暂放、完成和删除项目的关联排程退出活动展示与订阅，但保留引用及历史。右下今天优先，有空间时接续未来日期；周视图使用全天、上午、下午、晚上四段并保留精确时间；桌面四段固定同屏，溢出项在格内入口展开。界面不展示“责任／成长”标签，表单以“同时加入待办清单”控制显示范围。
+- **原生重复待办 (`recurring_todo_store.py`)**：
+  - 存储位于 `data/users/<username>/recurring_todos.json`，采用锁 + 原子写。
+  - 支持每周、隔周重复（以首次截止日期确定星期和隔周基准）。
+  - 首页每个系列最多展示一条记录：按实际截止排序，取最早未完成且未跳过的单次；该次已逾期或截止距今不超过 7 天时进入首页，否则不占位。旧次未完成持续展示旧次，不阻碍后续次数在日程与全量展开中生成；完成或跳过旧次后顺延推选下一次。
+  - 议程与 Apple 日历支持范围展开（UID 稳定前缀 `recurring-<series_id>-<orig_date>`），单次修改、跳过、完成与系列管理独立操作。
 - **第三方平台特点**：
   - **Canvas**：解析 iCal feed，缓存于 `canvas_cache.json`。
   - **好课**：凭据加密存储，`/api/haoke/todos` 缓存优先，后台守护进程异步刷新。

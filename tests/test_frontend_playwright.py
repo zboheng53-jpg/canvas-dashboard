@@ -1340,4 +1340,103 @@ def test_frontend_todo_completion_sinks_and_syncs_with_agenda(live_app, browser)
     assert course_classes["futureDone"] is False
 
 
+def test_frontend_today_and_overdue_visual_consistency(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "visualconsistency")
+
+    # 1. 验证 KPI 概览带有入场动效类 enter-kpis
+    expect(page.locator("#dashboard-kpis")).to_have_class(re.compile(r"\benter-kpis\b"))
+
+    today_str = page.evaluate("workspaceTodayISO()")
+    # 2. 添加今天到期的自定义待办和逾期的自定义待办
+    page.fill("#new-todo-input", "今日正常待办")
+    page.fill("#new-todo-due", today_str)
+    page.click("#add-todo-form button")
+
+    page.fill("#new-todo-input", "已逾期待办事项")
+    page.fill("#new-todo-due", "2026-07-01")
+    page.click("#add-todo-form button")
+
+    today_row = page.locator(".todo-row").filter(has_text="今日正常待办")
+    overdue_row = page.locator(".todo-row").filter(has_text="已逾期待办事项")
+    expect(today_row).to_be_visible()
+    expect(overdue_row).to_be_visible()
+
+    # 3. 验证逾期行有 ui-list-item--danger，而今天行绝不应带有 ui-list-item--danger
+    expect(overdue_row).to_have_class(re.compile(r"\bui-list-item--danger\b"))
+    expect(overdue_row).to_have_class(re.compile(r"\bis-overdue\b"))
+    expect(today_row).not_to_have_class(re.compile(r"\bui-list-item--danger\b"))
+    expect(today_row).to_have_class(re.compile(r"\bis-today\b"))
+
+    # 4. 创建一个计划在今天推进的项目任务，验证其日期胶囊为纯净日期文本且无计划汉字前缀
+    page.evaluate("""async (todayStr) => {
+        const csrf = window.CSRF_TOKEN || '';
+        const projRes = await fetch('/api/projects', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf},
+            body: JSON.stringify({name: '视觉一致性项目'})
+        });
+        const proj = (await projRes.json()).project;
+        await fetch(`/api/projects/${proj.id}/tasks`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf},
+            body: JSON.stringify({
+                name: '今日项目行动',
+                planned_on: todayStr,
+                commitment: 'growth'
+            })
+        });
+    }""", today_str)
+    page.reload()
+
+    project_row = page.locator(".todo-row").filter(has_text="今日项目行动")
+    expect(project_row).to_be_visible()
+    expect(project_row).not_to_have_class(re.compile(r"\bui-list-item--danger\b"))
+    expect(project_row).to_have_class(re.compile(r"\bis-today\b"))
+
+    # 验证胶囊文字为纯净日期（today_str），不含“计划 ”前缀
+    due_badge = project_row.locator(".project-due-editable")
+    expect(due_badge).to_have_text(today_str)
+    expect(due_badge).not_to_contain_text("计划")
+
+    # 5. 验证非自定义待办占位符没有实心黑三角符号
+    expect(project_row.locator(".subtask-toggle-placeholder")).not_to_contain_text("\u25b8")
+
+
+def test_frontend_recurring_todo_creation_and_homepage_single_item(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "recurringuser")
+
+    today_str = page.evaluate("workspaceTodayISO()")
+
+    # 1. 提交新建每周重复待办
+    page.fill("#new-todo-input", "每周电工实验")
+    page.fill("#new-todo-due", today_str)
+    page.select_option("#new-todo-repeat", "weekly")
+    page.click("#add-todo-form button")
+
+    # 2. 验证首页展示该重复待办，且仅有 1 项该系列的条目
+    rec_row = page.locator(".todo-row").filter(has_text="每周电工实验")
+    expect(rec_row).to_be_visible()
+    expect(rec_row).to_contain_text("↻ 重复待办 · 每周")
+    expect(rec_row).to_have_count(1)
+
+    # 3. 验证点击标题打开事项详情弹窗
+    title_btn = rec_row.locator(".action-title-button")
+    title_btn.click()
+    dialog = page.locator("#action-detail-dialog")
+    expect(dialog).to_be_visible()
+    expect(page.locator("#action-detail-title")).to_have_text("每周电工实验")
+
+    # 关闭弹窗
+    page.locator('#action-detail-dialog button[aria-label="关闭事项详情"]').click()
+    expect(dialog).not_to_be_visible()
+
+    # 4. 点击完成按钮完成本次
+    rec_row.locator(".item-desktop-actions .btn-dismiss").click()
+
+    # 完成后该次标记完成，下一个未完成周期自动推选上首页（若在7天内展示）
+    # 验证列表中仍至多有 1 项该系列条目，且更新为下一周期
+    expect(page.locator(".todo-row").filter(has_text="每周电工实验")).to_have_count(1)
+    expect(page.locator(".todo-row").filter(has_text="每周电工实验").locator(".item-desktop-actions .btn-action-skip")).to_be_visible()
 
