@@ -144,13 +144,6 @@
             <span class="ui-count-pill ui-count-pill--danger stat-pill urgent">即将到期 <b class="stat-count urgent" id="stat-urgent">0</b> 项</span>
           </div>
 
-          <!-- 时间范围筛选 (Time Scope Filter) -->
-          <div class="src-filters todo-time-filters" id="todo-time-filters" role="group" aria-label="按时间范围筛选待办" style="display: flex; gap: 6px; margin-bottom: 8px;">
-            <button type="button" class="ui-button ui-button--choice f-chip todo-time-filter is-on" data-time-filter="all" aria-pressed="true">全部 <span class="n" id="time-count-all">0</span></button>
-            <button type="button" class="ui-button ui-button--choice f-chip todo-time-filter" data-time-filter="today" aria-pressed="false">今天 <span class="n" id="time-count-today">0</span></button>
-            <button type="button" class="ui-button ui-button--choice f-chip todo-time-filter" data-time-filter="overdue" aria-pressed="false">已逾期 <span class="n" id="time-count-overdue">0</span></button>
-          </div>
-
           <!-- 来源筛选 Chips -->
           <div class="src-filters todo-source-filters" id="todo-source-filters" role="group" aria-label="按来源筛选待办">
             <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter is-on" data-todo-source="all" aria-pressed="true">全部 <span class="n" id="src-count-all">0</span></button>
@@ -1872,21 +1865,6 @@
       renderUnifiedList();
     }
 
-    let todoTimeFilter = 'all';
-    function setTodoTimeFilter(timeFilter) {
-      todoTimeFilter = timeFilter || 'all';
-      document.querySelectorAll('[data-time-filter]').forEach((element) => {
-        const val = element.dataset.timeFilter;
-        const isActive = val === todoTimeFilter;
-        element.classList.toggle('is-on', isActive);
-        element.classList.toggle('is-active', isActive);
-        if (element.tagName === 'BUTTON') {
-          element.setAttribute('aria-pressed', String(isActive));
-        }
-      });
-      renderUnifiedList();
-    }
-
     let collapsedTodoGroups = new Set();
     function toggleTodoGroup(key) {
       if (collapsedTodoGroups.has(key)) {
@@ -1898,12 +1876,6 @@
     }
 
     let deletingCustomIds = new Set();
-    function triggerCustomInlineEdit(id) {
-      const titleBtn = document.querySelector(`button[data-custom-title-id="${id}"]`);
-      if (titleBtn) {
-        startInlineEdit(titleBtn, 'text');
-      }
-    }
 
     function renderTodoSourceFilters(items) {
       const labels = {
@@ -2197,57 +2169,15 @@
       }
 
       const todayStr = window.customToday || new Date().toISOString().split('T')[0];
-      const activeUnified = unified.filter((it) => !it.done && !it.hidden);
-      const isItemOverdue = (it) => {
-        if (it.done || it.hidden) return false;
-        const due = it.due_ts ? it.due_ts.slice(0, 10) : '';
-        return Boolean(due && due < todayStr);
-      };
-      const isItemToday = (it) => {
-        if (it.done || it.hidden) return false;
-        if (it.isTodayAction) return true;
-        const due = it.due_ts ? it.due_ts.slice(0, 10) : '';
-        return due === todayStr;
-      };
 
-      const sourceScope = todoSourceFilter === 'all'
-        ? activeUnified
-        : activeUnified.filter((it) => it.source === todoSourceFilter);
-
-      const timeCountAll = sourceScope.length;
-      const timeCountToday = sourceScope.filter(isItemToday).length;
-      const timeCountOverdue = sourceScope.filter(isItemOverdue).length;
-
-      const elTimeAll = document.getElementById('time-count-all');
-      if (elTimeAll) elTimeAll.textContent = timeCountAll;
-      const elTimeToday = document.getElementById('time-count-today');
-      if (elTimeToday) elTimeToday.textContent = timeCountToday;
-      const elTimeOverdue = document.getElementById('time-count-overdue');
-      if (elTimeOverdue) elTimeOverdue.textContent = timeCountOverdue;
-
-      const filteredItems = unified.filter((item) => {
-        if (todoSourceFilter !== 'all' && item.source !== todoSourceFilter) {
-          return false;
-        }
-        if (todoTimeFilter === 'today') {
-          return isItemToday(item);
-        }
-        if (todoTimeFilter === 'overdue') {
-          return isItemOverdue(item);
-        }
-        return true;
-      });
+      const filteredItems = todoSourceFilter === 'all'
+        ? unified
+        : unified.filter((item) => item.source === todoSourceFilter);
 
       if (filteredItems.length === 0) {
         let emptyTitle = '没有待办事项';
         let emptyDesc = '新的课程任务同步后会显示在这里。';
-        if (todoTimeFilter === 'today') {
-          emptyTitle = '今天暂无待办事项';
-          emptyDesc = '可切换到「全部」或查看后续日期安排。';
-        } else if (todoTimeFilter === 'overdue') {
-          emptyTitle = '暂无已逾期的待办事项';
-          emptyDesc = '所有任务都在截止时间之内。';
-        } else if (todoSourceFilter !== 'all') {
+        if (todoSourceFilter !== 'all') {
           emptyTitle = '该来源暂无待办事项';
           emptyDesc = '切换来源或清除筛选后可查看其他待办。';
         }
@@ -2337,7 +2267,6 @@
           } else {
             const isDeleting = deletingCustomIds.has(item.rawId);
             actionsHtml = `
-              <button class="todo-action-button btn-inline-edit" onclick="event.stopPropagation(); triggerCustomInlineEdit(${item.rawId})" title="编辑待办" aria-label="编辑待办" style="background:none; border:none; cursor:pointer; font-size:13px; color:var(--text-muted, #888); padding:0 4px;">✎</button>
               <button class="todo-action-button ${flagClass}" onclick="toggleCustomHighlight(${item.rawId}, ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
               <button class="btn-dismiss" onclick="toggleTodoCheck(${item.rawId}, ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
               <button class="btn-delete" onclick="toggleCustomDelete(${item.rawId})" ${isDeleting ? 'disabled aria-busy="true"' : ''} title="\u5220\u9664">&#x1f5d1;</button>
@@ -2370,18 +2299,13 @@
         }
 
         const safeUrl = sanitizeExternalUrl(item.url);
-        if (safeUrl && item.source !== 'project' && item.source !== 'custom') {
-          actionsHtml = `<a class="todo-action-button btn-external-link" href="${safeUrl}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();" title="打开原始页面" aria-label="打开原始页面" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center; padding:0 4px; font-size:13px; color:var(--text-muted, #888);">↗</a>` + actionsHtml;
-        }
-
-        const actionRef = item.ref || (
-          item.source === 'project'
-            ? (item.taskId === null ? 'project_due:' + item.projectId : 'project:' + item.projectId + ':' + item.taskId)
-            : (item.source === 'custom'
-              ? (item.is_recurring ? item.ref : ('custom:' + item.rawId))
-              : (item.source + ':' + item.rawId))
-        );
-        const titleHtml = `<button type="button" class="ui-button ui-button--text ui-list-item__title item-title action-title-button" onclick="openActionDetail('${escapeHtml(actionRef)}')" data-custom-title-id="${item.source === 'custom' && !item.is_recurring ? item.rawId : ''}" data-id="${item.rawId}" data-field="text">${escapeHtml(item.title)}</button>`;
+        const titleHtml = item.is_recurring
+          ? `<button type="button" class="ui-button ui-button--text ui-list-item__title item-title action-title-button" onclick="openActionDetail('${item.ref}')">${escapeHtml(item.title)}</button>`
+          : (item.source === 'custom'
+            ? `<span class="ui-list-item__title item-title item-title-plain editable-title" data-id="${item.rawId}" data-field="text">${escapeHtml(item.title)}</span>`
+            : (item.source === 'project'
+              ? `<button type="button" class="ui-button ui-button--text ui-list-item__title item-title action-title-button" onclick="openActionDetail('${item.taskId === null ? 'project_due:' + item.projectId : 'project:' + item.projectId + ':' + item.taskId}')">${escapeHtml(item.title)}</button>`
+              : (safeUrl ? `<a class="ui-list-item__title item-title" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</a>` : `<span class="ui-list-item__title item-title item-title-plain">${escapeHtml(item.title)}</span>`)));
         const dueHtml = (item.source === 'custom' && !item.is_recurring)
           ? `<span class="ui-list-item__meta item-due editable-due" data-id="${item.rawId}" data-field="due_date">${item.due_str}</span>`
           : item.source === 'project'

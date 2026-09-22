@@ -1207,7 +1207,7 @@ def test_frontend_v2_preserves_core_todo_actions(live_app, browser):
     page.click("#add-todo-form button")
     custom_item = page.locator(".todo-row-wrap").filter(has_text="Original custom todo")
     expect(custom_item).to_be_visible()
-    custom_item.locator(".item-desktop-actions .btn-inline-edit").click()
+    custom_item.locator(".editable-title").click()
     page.locator(".inline-edit-input").fill("Edited custom todo #updated")
     page.locator(".inline-edit-input").blur()
 

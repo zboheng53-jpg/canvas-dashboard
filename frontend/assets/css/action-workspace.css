@@ -269,20 +269,3 @@ details[open] > summary .project-disclosure-chevron {
 .todo-group-heading:hover {
   opacity: 0.85;
 }
-.todo-time-filters {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-.btn-inline-edit {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: none;
-  cursor: pointer;
-  color: var(--text-muted, #888);
-}
-.btn-inline-edit:hover {
-  color: var(--ink, #1c2330);
-}
