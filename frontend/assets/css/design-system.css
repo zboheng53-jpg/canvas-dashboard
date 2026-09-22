@@ -573,46 +573,117 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
  * 染成设计稿 .biz-todo / .grouplabel / .src / .due 的视觉
  * ============================================================ */
 
-/* 分组标签：serif 16px 600，贴近设计稿 .grouplabel */
+/* 分组标签：serif 15px 600，贴近设计稿 .grouplabel，融入 Notion 贯穿细分割线与平滑折叠箭头 */
 .todo-group {
-  margin-top: 0 !important;
-  padding-top: 12px !important;
-  border-top: 1px solid var(--ds-line-soft, #eef0f3) !important;
+  margin-top: 14px !important;
+  padding-top: 0 !important;
+  border-top: none !important;
 }
 .todo-group:first-child {
-  margin-top: 0 !important;
-  padding-top: 2px !important;
+  margin-top: 4px !important;
+  padding-top: 0 !important;
   border-top: none !important;
 }
 .todo-group-heading {
   display: flex !important;
-  align-items: baseline !important;
-  gap: 8px !important;
-  padding: 4px 18px 6px !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 6px 18px !important;
   margin-bottom: 2px !important;
   border-bottom: none !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  border-radius: var(--ds-radius-sm, 7px) !important;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+.todo-group-heading:hover {
+  background-color: rgba(0, 0, 0, 0.02) !important;
+}
+.todo-group-heading:focus-visible {
+  outline: 2px solid var(--ds-accent, #2563eb);
+  outline-offset: -2px;
+}
+.todo-group-heading-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.todo-group-chevron-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--ds-ink-3, #7d8694);
+  transition: color 0.15s ease;
+}
+.todo-group-heading:hover .todo-group-chevron-wrap {
+  color: var(--ds-ink-1, #1c2330);
+}
+.todo-group-chevron {
+  width: 12px;
+  height: 12px;
+  display: block;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center;
+}
+.todo-group.is-collapsed .todo-group-chevron {
+  transform: rotate(-90deg);
 }
 .todo-group-heading h3.ui-card__title {
   font-family: var(--ds-font-serif, var(--font-serif)) !important;
-  font-size: 16px !important;
+  font-size: 15px !important;
   font-weight: 600 !important;
   color: var(--ds-ink-2, #5b6472) !important;
   letter-spacing: 0 !important;
-  line-height: 1.3 !important;
+  line-height: 1.2 !important;
+  margin: 0 !important;
+  transition: color 0.15s ease;
+}
+.todo-group-heading:hover h3.ui-card__title {
+  color: var(--ds-ink-1, #1c2330) !important;
+}
+.todo-group-count-dot {
+  color: var(--ds-ink-3, #7d8694);
+  font-size: 11px;
+  opacity: 0.5;
+  user-select: none;
 }
 .todo-group-heading .ui-count-pill {
   color: var(--ds-ink-3, #7d8694) !important;
-  font-size: 12.5px !important;
+  font-size: 12px !important;
   font-weight: 500 !important;
+  font-family: var(--font-number, inherit) !important;
   background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  min-height: auto !important;
+  line-height: 1 !important;
 }
-/* 已逾期组：标题变红 */
-.todo-group.is-overdue .todo-group-heading h3.ui-card__title { color: var(--ds-danger, #d64545) !important; }
-.todo-group.is-overdue .todo-group-heading .ui-count-pill { color: var(--ds-danger, #d64545) !important; opacity: .7; }
+.todo-group-divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--ds-line-soft, #eef0f3);
+  transition: background-color 0.15s ease;
+}
+.todo-group-heading:hover .todo-group-divider-line {
+  background: var(--ds-line, #e6e8ec);
+}
 
-/* 已完成组：标题与计数器低调柔和 */
+/* 已逾期组：标题、Chevron与点变红，分割线柔和微红调 */
+.todo-group.is-overdue .todo-group-heading h3.ui-card__title { color: var(--ds-danger, #d64545) !important; }
+.todo-group.is-overdue .todo-group-heading .ui-count-pill { color: var(--ds-danger, #d64545) !important; opacity: .85; }
+.todo-group.is-overdue .todo-group-heading .todo-group-chevron-wrap { color: var(--ds-danger, #d64545) !important; opacity: .85; }
+.todo-group.is-overdue .todo-group-heading .todo-group-count-dot { color: var(--ds-danger, #d64545); opacity: .6; }
+.todo-group.is-overdue .todo-group-heading .todo-group-divider-line { background: rgba(214, 69, 69, 0.16); }
+.todo-group.is-overdue .todo-group-heading:hover .todo-group-divider-line { background: rgba(214, 69, 69, 0.28); }
+
+/* 已完成组：低调柔和 */
 .todo-group.is-completed .todo-group-heading h3.ui-card__title { color: var(--ds-ink-3, #7d8694) !important; font-weight: 500 !important; }
 .todo-group.is-completed .todo-group-heading .ui-count-pill { color: var(--ds-ink-3, #7d8694) !important; opacity: .7; }
+.todo-group.is-completed .todo-group-heading .todo-group-chevron-wrap { color: var(--ds-ink-3, #7d8694) !important; opacity: .6; }
+.todo-group.is-completed .todo-group-heading .todo-group-divider-line { opacity: .6; }
 
 /* 待办项分隔线：统一使用 hairline 细线，并覆盖自定义待办包裹层 */
 .todo-group-items > .ui-list-item,

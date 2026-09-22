@@ -266,6 +266,4 @@ details[open] > summary .project-disclosure-chevron {
   cursor: pointer;
   user-select: none;
 }
-.todo-group-heading:hover {
-  opacity: 0.85;
-}
+

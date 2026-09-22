@@ -2395,12 +2395,18 @@
         const isCollapsed = collapsedTodoGroups.has(group.key);
         return `
         <section class="todo-group ${group.key === 'overdue' ? 'is-overdue' : ''} ${group.key === 'completed' ? 'is-completed' : ''} ${isCollapsed ? 'is-collapsed' : ''}" data-group-key="${group.key}">
-          <div class="todo-group-heading" onclick="toggleTodoGroup('${group.key}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTodoGroup('${group.key}');}" role="button" tabindex="0" aria-expanded="${!isCollapsed}" style="cursor: pointer; user-select: none;">
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span class="todo-group-chevron" style="display: inline-block; font-size: 10px; color: var(--text-muted, #888); transition: transform 0.15s ease; transform: ${isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)'};" aria-hidden="true">▼</span>
-              <h3 class="ui-card__title" style="margin: 0;">${escapeHtml(group.title)}</h3>
+          <div class="todo-group-heading" onclick="toggleTodoGroup('${group.key}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTodoGroup('${group.key}');}" role="button" tabindex="0" aria-expanded="${!isCollapsed}" title="点击${isCollapsed ? '展开' : '折叠'}">
+            <div class="todo-group-heading-left">
+              <span class="todo-group-chevron-wrap" aria-hidden="true">
+                <svg class="todo-group-chevron" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="4 6 8 10 12 6"></polyline>
+                </svg>
+              </span>
+              <h3 class="ui-card__title">${escapeHtml(group.title)}</h3>
+              <span class="todo-group-count-dot" aria-hidden="true">·</span>
+              <span class="ui-count-pill">${group.items.length}</span>
             </div>
-            <span class="ui-count-pill">${group.items.length}</span>
+            <div class="todo-group-divider-line" aria-hidden="true"></div>
           </div>
           <div class="todo-group-items" style="${isCollapsed ? 'display: none;' : ''}">${group.items.map(renderTodoItem).join('')}</div>
         </section>
