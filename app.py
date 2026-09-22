@@ -771,10 +771,16 @@ def _calendar_items(username, category=None):
         for kind in ("one_off", "recurring"):
             visible = []
             for item in sched_items.get(kind, []):
-                action = linked_actions.get(item.get("action_ref"))
-                if (item.get("action_ref") or "").startswith(("project:", "project_due:")) and (not action or not action.get("active") or action.get("done")):
+                ref = item.get("action_ref")
+                action = linked_actions.get(ref)
+                if not action and ref and ref.startswith("recurring:"):
+                    action = recurring_todo_store.get_occurrence_by_ref(username, ref)
+                if ref and (not action or not action.get("active") or action.get("done")):
                     continue
-                visible.append({**item, **({"title": action["title"], "details": action.get("details", "")} if action else {})})
+                sched_details = item.get("details") or ""
+                act_details = action.get("details", "") if action else ""
+                comb_details = sched_details or act_details
+                visible.append({**item, **({"title": action["title"], "details": comb_details, "schedule_details": sched_details, "action_details": act_details} if action else {})})
             sched_items[kind] = visible
         for item in sched_items.get("one_off", []):
             if item.get("occurrence_done"):
@@ -3101,7 +3107,7 @@ def _workspace_actions(username, range_bounds=None):
                             "deleted_at": task.get("deleted_at") or project.get("deleted_at"),
                             "active": active and not task.get("deleted_at"),
                             "editable": active and not task.get("deleted_at")})
-    for todo in _aggregate_agent_todos(username, status="all"):
+    for todo in _aggregate_agent_todos(username, status="all", _include_focus=False):
         if todo["source"] in {"custom", "custom_subtask", "project", "recurring"}:
             continue
         due = _parse_calendar_due(todo.get("due_date"))
@@ -3121,6 +3127,13 @@ def _get_workspace_action(username, ref):
 def _workspace_agenda(username, start, end):
     _, _, semester_start = get_term_info()
     return workspace_agenda.build(username, start, end, semester_start, _workspace_actions(username, range_bounds=(start, end)))
+
+
+def _project_focus_data(username):
+    today = datetime.now(CST).date()
+    actions = _workspace_actions(username)
+    agenda = _workspace_agenda(username, today, today + timedelta(days=13))
+    return workspace_agenda.focus(actions, agenda, today, schedule_store.load_items(username))
 
 
 def _workspace_day(username, day):
@@ -3161,9 +3174,10 @@ def _schedule_exception_response(username, item_id):
         return invalid_request_response()
     changes = None
     if not data.get("cancel"):
-        if not isinstance(data.get("changes"), dict):
+        target_day = action_fields({"planned_on": data["changes"].get("date") or day}).get("planned_on")
+        if not target_day:
             return invalid_request_response()
-        changes = _schedule_item_payload({**data["changes"], "date": day}, "one_off")
+        changes = _schedule_item_payload({**data["changes"], "date": target_day}, "one_off")
         if changes is None:
             return invalid_request_response()
     item = schedule_store.replace_occurrence(username, item_id, day, changes, data.get("expected_updated_at"))
@@ -3268,8 +3282,20 @@ def _workspace_action_response(username, ref):
                             todo["completed_at"] = _todo_timestamp() if changes["done"] else None
                 return current
             locked_json_update(_todos_file(username), [], update)
-        elif action["source"] in {"canvas", "haoke", "zhixuemeng", "zhihuishu", "ketangpai"} and data == {"done": True}:
-            _complete_agent_todo(username, action["id"], source=action["source"])
+        elif action["source"] in {"canvas", "haoke", "zhixuemeng", "zhihuishu", "ketangpai"} and "done" in data:
+            if type(data["done"]) is not bool:
+                return invalid_request_response()
+            target_state = "complete" if data["done"] else "uncomplete"
+            if action["source"] == "canvas":
+                update_state(username, target_state, action["id"])
+            elif action["source"] == "haoke":
+                update_haoke_state(username, target_state, action["id"])
+            elif action["source"] == "zhixuemeng":
+                update_zxm_state(username, target_state, action["id"])
+            elif action["source"] == "zhihuishu":
+                zhihuishu_store.update_state(username, target_state, action["id"])
+            elif action["source"] == "ketangpai":
+                update_ktp_state(username, target_state, action["id"])
         elif action["source"] == "recurring":
             changes = action_fields(data)
             series_id = action["series_id"]
@@ -3362,7 +3388,7 @@ def api_agent_schedule_update(kind, item_id):
     return jsonify({"ok": True, "item": item})
 
 
-def _aggregate_agent_todos(username: str, source: str = "all", status: str = "pending") -> list[dict]:
+def _aggregate_agent_todos(username: str, source: str = "all", status: str = "pending", _include_focus: bool = True) -> list[dict]:
     all_todos = []
 
     # 1. Custom todos
@@ -3465,11 +3491,14 @@ def _aggregate_agent_todos(username: str, source: str = "all", status: str = "pe
     add_platform_items("ketangpai", "ketangpai_cache.json", load_ktp_state)
 
     # 3. Project tasks
+    seen_project_refs = set()
     for item in project_store.todo_items(username):
+        ref = item.get("action_ref") or f"project_due:{item['project_id']}"
+        seen_project_refs.add(ref)
         all_todos.append({
             "id": str(item["id"]),
             "title": item["title"],
-            "ref": item.get("action_ref") or f"project_due:{item['project_id']}",
+            "ref": ref,
             "commitment": item.get("commitment", "obligation"),
             "course": item["project_name"],
             "due_date": item.get("due_date"),
@@ -3478,6 +3507,29 @@ def _aggregate_agent_todos(username: str, source: str = "all", status: str = "pe
             "labels": [],
             "url": None,
         })
+
+    if _include_focus and source in ("all", "project"):
+        try:
+            f_data = _project_focus_data(username)
+            for act in f_data.get("today", []):
+                ref = act.get("ref") or act.get("action_ref")
+                if ref and ref not in seen_project_refs and not act.get("done"):
+                    seen_project_refs.add(ref)
+                    all_todos.append({
+                        "id": str(act.get("task_id") or act.get("id")),
+                        "title": act.get("title") or act.get("name", ""),
+                        "ref": ref,
+                        "commitment": act.get("commitment", "growth"),
+                        "course": act.get("project_name", ""),
+                        "due_date": act.get("due_date") or act.get("planned_on"),
+                        "planned_on": act.get("planned_on"),
+                        "source": "project",
+                        "done": False,
+                        "labels": [],
+                        "url": None,
+                    })
+        except Exception:
+            pass
 
     # Filtering
     filtered = []
@@ -3792,10 +3844,7 @@ def api_agent_project_task_manage(project_id, task_id, operation):
 
 
 def _project_focus(username):
-    today = datetime.now(CST).date()
-    actions = _workspace_actions(username)
-    agenda = _workspace_agenda(username, today, today + timedelta(days=13))
-    return jsonify({"ok": True, **workspace_agenda.focus(actions, agenda, today, schedule_store.load_items(username))})
+    return jsonify({"ok": True, **_project_focus_data(username)})
 
 
 @app.route("/api/actions/focus")

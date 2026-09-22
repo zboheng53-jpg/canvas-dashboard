@@ -2,11 +2,11 @@
    Canvas Dashboard 鈥?Optimized Design
    ======================================== */
 
-/* ---- Page Enter Animation ---- */
-@keyframes fadeInUp {
+/* ---- Page Enter Animation (Smooth, Layered & Calm) ---- */
+@keyframes dashboardFadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(0);
   }
   to {
     opacity: 1;
@@ -14,14 +14,47 @@
   }
 }
 
-.enter-sidebar { animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.enter-top-bar { animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.enter-kpis { animation: fadeInUp 0.4s 0.04s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.enter-main-card { animation: fadeInUp 0.4s 0.08s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.enter-right-card { animation: fadeInUp 0.4s 0.12s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.enter-sidebar,
+.enter-top-bar,
+.enter-kpis,
+.enter-main-card,
+.enter-right-card,
+.enter-item {
+  transform: translateY(0);
+}
+
+/* 层次渐入：侧边栏 -> 顶部栏 -> KPI数据 -> 中央核心待办 -> 右侧长期项目与日程 */
+.enter-sidebar {
+  animation: dashboardFadeIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.enter-top-bar {
+  animation: dashboardFadeIn 0.46s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both;
+}
+
+.enter-kpis {
+  animation: dashboardFadeIn 0.46s cubic-bezier(0.16, 1, 0.3, 1) 0.10s both;
+}
+
+.enter-main-card {
+  animation: dashboardFadeIn 0.50s cubic-bezier(0.16, 1, 0.3, 1) 0.16s both;
+}
+
+.enter-right-card {
+  animation: dashboardFadeIn 0.50s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both;
+}
+
+/* 右侧栏卡片细化层次：长期项目先于今日日程 */
+#long-term-projects-card.enter-right-card {
+  animation-delay: 0.20s;
+}
+
+#today-schedule-card.enter-right-card {
+  animation-delay: 0.26s;
+}
 
 .enter-item {
-  animation: fadeInUp 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

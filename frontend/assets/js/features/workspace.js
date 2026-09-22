@@ -34,9 +34,22 @@ function workspaceDateLabel(day) {
 }
 
 async function refreshWorkspaceSurfaces() {
-  await Promise.all([loadProjects(selectedProjectId), loadProjectOverview(), fetchProjectTodos(), fetchCustomTodos(), loadTodaySchedule()]);
-  if (!document.getElementById('dashboard-view-schedule').classList.contains('hidden')) await loadScheduleManager();
+  await Promise.all([
+    typeof loadProjects === 'function' ? loadProjects(selectedProjectId) : Promise.resolve(),
+    typeof loadProjectOverview === 'function' ? loadProjectOverview() : Promise.resolve(),
+    typeof fetchProjectTodos === 'function' ? fetchProjectTodos() : Promise.resolve(),
+    typeof fetchCustomTodos === 'function' ? fetchCustomTodos() : Promise.resolve(),
+    typeof loadTodaySchedule === 'function' ? loadTodaySchedule() : Promise.resolve(),
+  ]);
+  if (typeof loadForwardAgenda === 'function') {
+    try { await loadForwardAgenda(); } catch (_) {}
+  }
+  if (!document.getElementById('dashboard-view-schedule')?.classList.contains('hidden') && typeof loadScheduleManager === 'function') {
+    await loadScheduleManager();
+  }
 }
+window.refreshWorkspaceSurfaces = refreshWorkspaceSurfaces;
+window.refreshAllSurfaces = refreshWorkspaceSurfaces;
 
 async function openActionDetail(ref, occurrence = null) {
   const dialog = document.getElementById('action-detail-dialog');
@@ -83,10 +96,13 @@ function renderActionDetail() {
     b.type = 'button'; b.addEventListener('click', fn); buttons.append(b); return b;
   };
   if (a.editable) button('编辑事项', renderActionEditor);
-  if (!a.done && a.active !== false && a.source !== 'project_due' && a.source !== 'custom_subtask') {
+  const canCompleteOrReopen = a.source !== 'project_due' && a.source !== 'custom_subtask';
+  if (!a.done && a.active !== false && canCompleteOrReopen) {
     button('安排时间', () => scheduleAction(a));
-    button('完成事项', () => saveActionCompletion(true), true);
-  } else if (a.done && a.editable) button('重新开启事项', () => saveActionCompletion(false));
+    button(a.source === 'recurring' ? '完成本次待办' : '完成事项', () => saveActionCompletion(true), true);
+  } else if (a.done && canCompleteOrReopen && (a.editable || ['canvas', 'haoke', 'zhixuemeng', 'zhihuishu', 'ketangpai', 'project', 'custom', 'recurring'].includes(a.source))) {
+    button(a.source === 'recurring' ? '撤销本次完成' : '重新开启事项', () => saveActionCompletion(false));
+  }
   if (a.project_id) button('进入项目', () => { closeActionDetail(); openProjectsView(a.project_id); });
   if (a.editable && a.source === 'project' && a.project_id && a.task_id) {
     button('删除事项', () => {
@@ -96,7 +112,7 @@ function renderActionDetail() {
       }
     }, false, true);
   }
-  if (a.editable && a.source === 'recurring') {
+  if (a.source === 'recurring') {
     if (!a.done && !a.skipped) {
       button('跳过本次', async () => {
         try {
@@ -120,8 +136,9 @@ function renderActionDetail() {
     const url = sanitizeExternalUrl(a.url);
     if (url) { const link = wNode('a', 'ui-button ui-button--secondary', '打开原始任务'); link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; buttons.append(link); }
   }
-  if (occurrence?.id && !a.done) {
-    button(occurrence.occurrence_done ? '撤销本次完成' : '完成本次安排', async () => {
+  const isRealScheduleOccurrence = occurrence?.id && ['one_off', 'recurring', 'one-off'].includes(occurrence.kind);
+  if (isRealScheduleOccurrence && !a.done) {
+    button(occurrence.occurrence_done ? '撤销本次安排完成' : '完成本次安排', async () => {
       try {
         await workspaceWrite(`/api/schedule/${occurrence.kind.replace('_', '-')}/${occurrence.id}/occurrence`, {date: occurrence.date, done: !occurrence.occurrence_done});
         occurrence.occurrence_done = !occurrence.occurrence_done;
@@ -341,6 +358,7 @@ async function loadForwardAgenda() {
     const data = await workspaceRequest(`/api/agenda?start=${start}&end=${end.toISOString().slice(0,10)}`);
     if (requestId !== workspaceTodayRequest) return;
     workspaceTodayData = data; renderForwardAgenda();
+    if (typeof renderUnifiedList === 'function') renderUnifiedList();
     const courses = data.days[0].timed.filter(e => e.kind === 'course');
     document.getElementById('stat-course-count').textContent = courses.length;
     const currentTime = new Intl.DateTimeFormat('en-GB', {timeZone:'Asia/Shanghai', hour:'2-digit', minute:'2-digit'}).format(new Date());
@@ -409,26 +427,81 @@ function renderForwardAgenda() {
 }
 
 let workspaceSearchOpener = null;
-async function openActionSearch() {
+let workspaceSearchSelectCallback = null;
+
+async function openActionSearch(options = {}) {
   const dialog = document.getElementById('action-search-dialog');
   if (!dialog) return;
   workspaceSearchOpener = document.activeElement;
+  workspaceSearchSelectCallback = typeof options === 'function' ? options : options?.onSelect || null;
+  const isSelectMode = Boolean(workspaceSearchSelectCallback);
+  const titleEl = dialog.querySelector('.action-detail-header h3') || dialog.querySelector('h3');
+  if (titleEl) titleEl.textContent = isSelectMode ? '选择要安排的事项' : '查找事项与日程';
   if (!dialog.open) dialog.showModal();
   const list = document.getElementById('action-search-list'); list.textContent = '正在加载…';
   const input = document.getElementById('action-search-input'); input.value = ''; input.focus();
   try {
-    const {actions} = await workspaceRequest('/api/actions');
+    const {actions} = await workspaceRequest('/api/actions?status=all');
+    let scheduleItems = [];
+    if (!isSelectMode) {
+      try {
+        const sch = await workspaceRequest('/api/schedule');
+        const oneOff = (sch.items?.one_off || []).map(item => ({...item, kind: 'one-off', isSchedule: true}));
+        const recurring = (sch.items?.recurring || []).map(item => ({...item, kind: 'recurring', isSchedule: true}));
+        scheduleItems = [...oneOff, ...recurring];
+      } catch (_) {}
+    }
     const render = () => {
       list.replaceChildren();
       const q = input.value.trim().toLocaleLowerCase();
-      const matched = actions.filter(a => [a.title, a.details, a.project_name].filter(Boolean).join(' ').toLocaleLowerCase().includes(q));
-      matched.forEach(a => {
+      const matchedActions = actions.filter(a => [a.title, a.details, a.project_name].filter(Boolean).join(' ').toLocaleLowerCase().includes(q));
+      let matchedSchedules = [];
+      if (!isSelectMode) {
+        matchedSchedules = scheduleItems.filter(s => [s.title, s.details, s.location].filter(Boolean).join(' ').toLocaleLowerCase().includes(q));
+      }
+      matchedActions.forEach(a => {
         const b = wNode('button', 'action-pool-item'); b.type = 'button';
-        b.append(wNode('strong', '', a.title), wNode('small', '', [a.project_name, a.planned_on ? `计划 ${a.planned_on}` : '', a.due_date ? `截止 ${a.due_date}` : ''].filter(Boolean).join(' · ')));
-        b.onclick = () => { closeActionSearch(); openActionDetail(a.ref); }; list.append(b);
+        const titleLine = wNode('strong', '', a.title);
+        if (a.done) {
+          const doneTag = wNode('span', 'ui-badge', '已完成');
+          doneTag.style.cssText = 'font-size: 11px; margin-left: 6px; font-weight: normal; opacity: 0.7;';
+          titleLine.append(doneTag);
+        }
+        b.append(titleLine, wNode('small', '', [a.project_name, a.planned_on ? `计划 ${a.planned_on}` : '', a.due_date ? `截止 ${a.due_date}` : ''].filter(Boolean).join(' · ')));
+        b.onclick = () => {
+          if (workspaceSearchSelectCallback) {
+            const cb = workspaceSearchSelectCallback;
+            closeActionSearch();
+            cb(a);
+          } else {
+            closeActionSearch();
+            openActionDetail(a.ref);
+          }
+        };
+        list.append(b);
       });
-      if (!matched.length) {
-        list.innerHTML = '<p class="muted" style="text-align: center; padding: 20px 0;">未找到匹配的事项（仅搜索当前未完成的待办与项目行动）</p>';
+      if (!isSelectMode) {
+        matchedSchedules.forEach(s => {
+          const b = wNode('button', 'action-pool-item'); b.type = 'button';
+          const titleLine = wNode('strong', '', s.title);
+          const badge = wNode('span', 'ui-badge', s.kind === 'recurring' ? '每周日程' : '独立日程');
+          badge.style.cssText = 'font-size: 11px; margin-left: 6px; font-weight: normal; color: var(--accent); background: var(--accent-subtle, rgba(0,100,250,0.08));';
+          titleLine.append(badge);
+          const metaText = s.kind === 'recurring'
+            ? `每周重复 · ${s.start_time || ''}-${s.end_time || ''}`
+            : `${s.date || ''} · ${s.start_time || ''}-${s.end_time || ''}`;
+          b.append(titleLine, wNode('small', '', [metaText, s.location].filter(Boolean).join(' · ')));
+          b.onclick = () => {
+            closeActionSearch();
+            if (typeof openScheduleItemModal === 'function') {
+              openScheduleItemModal(s.kind, s);
+            }
+          };
+          list.append(b);
+        });
+      }
+      if (!matchedActions.length && (!scheduleItems.length || !matchedSchedules.length)) {
+        list.innerHTML = '<p class="muted" style="text-align: center; padding: 20px 0;">未找到匹配的事项或日程</p>';
       }
     };
     input.oninput = render; render();

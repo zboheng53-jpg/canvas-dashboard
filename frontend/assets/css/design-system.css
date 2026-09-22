@@ -1618,12 +1618,88 @@ section.card.listcard,
   background: #fef2f2 !important;
   color: #b91c1c !important;
 }
-.academic-sidebar .sidebar-logout:hover svg { opacity: 1; }
-.sidebar-collapsed .academic-sidebar .sidebar-user,
-.sidebar-collapsed .academic-sidebar .sidebar-logout {
+/* ---------- 6b. 折叠侧栏细节精致化（打开按钮、收起数字、对称圆角） ---------- */
+.sidebar-collapsed .user-profile {
+  flex-direction: column !important;
+  align-items: center !important;
   justify-content: center !important;
-  padding-right: 0 !important;
-  padding-left: 0 !important;
+  padding: 6px 0 10px !important;
+  gap: 8px !important;
+}
+.sidebar-collapsed .user-profile .up-info {
+  display: none !important;
+}
+.sidebar-collapsed .academic-sidebar .sidebar-collapse-toggle {
+  display: grid !important;
+  place-items: center !important;
+  width: 28px !important;
+  height: 28px !important;
+  margin: 0 auto !important;
+  border-radius: 6px !important;
+  transform: rotate(180deg) !important;
+  color: var(--ds-ink-3, #7d8694) !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.sidebar-collapsed .academic-sidebar .sidebar-collapse-toggle:hover {
+  background: #f4f6f9 !important;
+  color: var(--ds-ink-1, #1c2330) !important;
+}
+.sidebar-collapsed .academic-sidebar .nav-count,
+.sidebar-collapsed .academic-sidebar [data-nav-count] {
+  display: none !important;
+}
+.sidebar-collapsed .academic-sidebar .sidebar-nav {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  width: 100% !important;
+}
+.sidebar-collapsed .academic-sidebar .sidebar-nav-group {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  width: 100% !important;
+}
+.sidebar-collapsed .academic-sidebar .sidebar-nav-item,
+.sidebar-collapsed .academic-sidebar .sidebar-footer-action {
+  width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 !important;
+  margin: 0 auto 4px !important;
+  justify-content: center !important;
+  align-items: center !important;
+  border-radius: 10px !important;
+  gap: 0 !important;
+}
+.sidebar-collapsed .academic-sidebar .sidebar-nav-item:hover:not(.is-active) {
+  border-radius: 10px !important;
+  background: #f4f6f9 !important;
+}
+.sidebar-collapsed .academic-sidebar .sidebar-nav-item.is-active {
+  border-radius: 10px !important;
+  background: var(--ds-accent-soft, #eff4fe) !important;
+}
+.sidebar-collapsed .academic-sidebar .sidebar-user {
+  width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 !important;
+  margin: 0 auto !important;
+  justify-content: center !important;
+  align-items: center !important;
+  border-radius: 10px !important;
+}
+.sidebar-collapsed .academic-sidebar .sidebar-logout {
+  width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 !important;
+  margin: 0 auto !important;
+  justify-content: center !important;
+  align-items: center !important;
+  border-radius: 10px !important;
 }
 
 /* ---------- 7. 顶栏天气模块字号（设计稿 .opt1-temp-row 26px / 图标 24px / 明细 13.5px） ---------- */

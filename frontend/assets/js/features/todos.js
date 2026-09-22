@@ -5,13 +5,27 @@
   byId('new-todo-input')?.addEventListener('input', () => { if (typeof resetTodoRequestId === 'function') resetTodoRequestId(); });
   byId('new-todo-due')?.addEventListener('change', () => { if (typeof resetTodoRequestId === 'function') resetTodoRequestId(); });
   byId('new-todo-repeat')?.addEventListener('change', () => { if (typeof resetTodoRequestId === 'function') resetTodoRequestId(); });
-  byId('btn-refresh')?.addEventListener('click', () => {
-    fetchCanvasTodos();
-    fetchHaokeTodos();
-    fetchZhixuemengTodos();
-    fetchZhihuishuTodos();
-    fetchKetangpaiTodos();
-    fetchProjectTodos();
+  byId('btn-refresh')?.addEventListener('click', async () => {
+    const btn = byId('btn-refresh');
+    btn?.setAttribute('aria-busy', 'true');
+    btn?.classList.add('is-refreshing');
+    try {
+      if (typeof fetchCanvasTodos === 'function') fetchCanvasTodos();
+      if (typeof fetchHaokeTodos === 'function') fetchHaokeTodos();
+      if (typeof fetchZhixuemengTodos === 'function') fetchZhixuemengTodos();
+      if (typeof fetchZhihuishuTodos === 'function') fetchZhihuishuTodos();
+      if (typeof fetchKetangpaiTodos === 'function') fetchKetangpaiTodos();
+      if (typeof refreshWorkspaceSurfaces === 'function') {
+        await refreshWorkspaceSurfaces();
+      } else {
+        if (typeof fetchProjectTodos === 'function') await fetchProjectTodos();
+        if (typeof fetchCustomTodos === 'function') await fetchCustomTodos();
+        if (typeof loadTodaySchedule === 'function') await loadTodaySchedule();
+      }
+    } finally {
+      btn?.removeAttribute('aria-busy');
+      btn?.classList.remove('is-refreshing');
+    }
   });
   byId('list-updated')?.addEventListener('click', openSyncStatus);
   byId('todo-source-select')?.addEventListener('change', (event) => setTodoSourceFilter(event.target.value));

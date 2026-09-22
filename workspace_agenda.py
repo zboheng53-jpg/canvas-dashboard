@@ -1,6 +1,7 @@
 """One date-range projection for the homepage, week planner and Agent API."""
 from datetime import date, timedelta
 
+import recurring_todo_store
 import schedule_store
 
 
@@ -11,22 +12,41 @@ def build(username, start, end, semester_start, actions):
     by_ref = {action["ref"]: action for action in actions}
     days = []
     scheduled_refs = set()
+
+    def _resolve_action(ref):
+        if not ref:
+            return None
+        act = by_ref.get(ref)
+        if act is None and ref.startswith("recurring:"):
+            act = recurring_todo_store.get_occurrence_by_ref(username, ref)
+        return act
+
     for offset in range((end - start).days + 1):
         day = start + timedelta(days=offset)
         day_iso = day.isoformat()
         result = schedule_store.today_entries(username, day, semester_start, courses, items)
-        timed = [event for event in result["timed"] if not (
-            (event.get("action_ref") or "").startswith(("project:", "project_due:")) and
-            not by_ref.get(event["action_ref"], {}).get("active", False))]
+        timed = []
+        for event in result["timed"]:
+            ref = event.get("action_ref")
+            if ref:
+                action = _resolve_action(ref)
+                if not action or not action.get("active", True):
+                    continue
+            timed.append(event)
+
         for event in timed:
             event["date"] = day_iso
             ref = event.get("action_ref")
             if not ref:
                 continue
-            action = by_ref.get(ref)
+            action = _resolve_action(ref)
             event["link_missing"] = action is None
             if action is not None:
-                event.update(title=action["title"], details=action.get("details", ""),
+                schedule_details = event.get("details", "")
+                event.update(title=action["title"],
+                             details=schedule_details or action.get("details", ""),
+                             schedule_details=schedule_details,
+                             action_details=action.get("details", ""),
                              commitment=action["commitment"], done=action["done"],
                              project_name=action.get("project_name"), action=action)
                 scheduled_refs.add(ref)
@@ -60,6 +80,8 @@ def focus(actions, agenda, day, schedules):
     future_refs.update(item.get("action_ref") for item in schedules.get("recurring", [])
                        if item.get("enabled", True) and (item.get("start_date") or "") > target)
     future_refs.update(e.get("action_ref") for d in agenda["days"][1:] for e in d["timed"] if not e.get("occurrence_done"))
+    past_refs = {item.get("action_ref") for item in schedules.get("one_off", [])
+                 if (item.get("date") or "") < target and not item.get("occurrence_done")}
     for action in actions:
         if action["source"] != "project" or action["done"] or not action.get("active", True):
             continue
@@ -71,7 +93,7 @@ def focus(actions, agenda, day, schedules):
             overdue.append(item)
         if pending_occurrences or due == target or (planned == target and not occurrences):
             today.append(item)
-        elif planned and planned < target and not occurrences:
+        elif ((planned and planned < target) or (action["ref"] in past_refs)) and not occurrences and action["ref"] not in future_refs:
             previous.append(item)
         elif action.get("is_next_action") and not occurrences and not (planned and planned > target) and action["ref"] not in future_refs:
             candidates.append(item)

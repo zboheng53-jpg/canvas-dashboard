@@ -1085,11 +1085,45 @@
       return minutesToTime(Math.max(8 * 60, Math.min(20 * 60, rounded)));
     }
 
+    function openScheduleActionPicker() {
+      if (typeof openActionSearch === 'function') {
+        openActionSearch({
+          onSelect: (action) => {
+            linkScheduleAction(action);
+          }
+        });
+      }
+    }
+
+    function linkScheduleAction(action) {
+      if (!action) return;
+      document.getElementById('schedule-form-title').value = action.title;
+      document.getElementById('schedule-form-action-ref').value = action.ref;
+      document.getElementById('schedule-form-title').readOnly = true;
+      const hint = document.getElementById('schedule-link-hint');
+      if (hint) hint.textContent = `已关联事项「${action.title}」，标题与完成状态保持同步。`;
+      document.getElementById('schedule-btn-pick-action')?.classList.add('hidden');
+      document.getElementById('schedule-btn-unlink-action')?.classList.remove('hidden');
+      document.getElementById('field-schedule-create-todo-wrap')?.classList.add('hidden');
+    }
+
+    function unlinkScheduleAction() {
+      document.getElementById('schedule-form-action-ref').value = '';
+      document.getElementById('schedule-form-title').readOnly = false;
+      const hint = document.getElementById('schedule-link-hint');
+      if (hint) hint.textContent = '当前为独立日程，仅在日程中显示，不加入待办清单。';
+      document.getElementById('schedule-btn-pick-action')?.classList.remove('hidden');
+      document.getElementById('schedule-btn-unlink-action')?.classList.add('hidden');
+      document.getElementById('field-schedule-create-todo-wrap')?.classList.remove('hidden');
+    }
+
     function openScheduleItemModal(defaultKind = 'one-off', item = null, presets = {}) {
       const modal = document.getElementById('schedule-item-modal');
       const form = document.getElementById('schedule-modal-form');
       if (!modal || !form) return;
       form.reset();
+      const errEl = document.getElementById('schedule-form-error');
+      if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
       scheduleEditingKind = item ? (defaultKind === 'recurring' || item.kind === 'recurring' ? 'recurring' : 'one-off') : null;
       scheduleEditingItem = item;
       scheduleEditingOccurrenceDate = presets.date || item?.date || formatDateISO(new Date());
@@ -1101,11 +1135,31 @@
         radio.disabled = Boolean(item) && radio.value !== kind;
       }
       const startTime = item?.start_time || presets.start_time || defaultScheduleStartTime();
+      const hasActionRef = Boolean(item?.action_ref || presets.action_ref);
       document.getElementById('schedule-form-title').value = item?.title || presets.title || '';
       document.getElementById('schedule-form-action-ref').value = item?.action_ref || presets.action_ref || '';
-      document.getElementById('schedule-form-title').readOnly = Boolean(item?.action_ref || presets.action_ref);
+      document.getElementById('schedule-form-title').readOnly = hasActionRef;
       document.getElementById('schedule-form-details').value = item?.details || '';
-      document.getElementById('schedule-link-hint').textContent = item?.action_ref || presets.action_ref ? '已关联事项；这里调整时间，事项标题与完成状态保持同步。' : '可从事项详情选择“安排时间”，建立关联。';
+      
+      const linkHint = document.getElementById('schedule-link-hint');
+      const pickBtn = document.getElementById('schedule-btn-pick-action');
+      const unlinkBtn = document.getElementById('schedule-btn-unlink-action');
+      const createWrap = document.getElementById('field-schedule-create-todo-wrap');
+      const createCheck = document.getElementById('schedule-form-create-todo');
+      if (createCheck) createCheck.checked = false;
+
+      if (hasActionRef) {
+        if (linkHint) linkHint.textContent = '已关联事项；这里调整时间，事项标题与完成状态保持同步。';
+        pickBtn?.classList.add('hidden');
+        unlinkBtn?.classList.remove('hidden');
+        createWrap?.classList.add('hidden');
+      } else {
+        if (linkHint) linkHint.textContent = '当前为独立日程，仅在日程中显示，不加入待办清单。';
+        pickBtn?.classList.remove('hidden');
+        unlinkBtn?.classList.add('hidden');
+        createWrap?.classList.toggle('hidden', Boolean(item));
+      }
+
       document.getElementById('schedule-form-start').value = startTime;
       document.getElementById('schedule-form-end').value = item?.end_time || presets.end_time || minutesToTime(timeToMinutes(startTime) + 60);
       document.getElementById('schedule-form-location').value = item?.location || '';
@@ -1144,45 +1198,144 @@
 
     async function handleScheduleFormSubmit(event) {
       event.preventDefault();
-      const formData = new FormData(event.currentTarget);
+      const form = event.currentTarget;
+      const errorEl = document.getElementById('schedule-form-error');
+      if (errorEl) {
+        errorEl.textContent = '';
+        errorEl.style.display = 'none';
+      }
+
+      const formData = new FormData(form);
       const kind = formData.get('kind');
+      const startTime = formData.get('start_time');
+      const endTime = formData.get('end_time');
+
+      if (startTime && endTime && startTime >= endTime) {
+        if (errorEl) {
+          errorEl.textContent = '结束时间必须晚于开始时间';
+          errorEl.style.display = 'block';
+        } else {
+          alert('结束时间必须晚于开始时间');
+        }
+        return;
+      }
+
       const payload = {
         title: formData.get('title'),
         action_ref: formData.get('action_ref') || null,
         details: formData.get('details'),
-        start_time: formData.get('start_time'),
-        end_time: formData.get('end_time'),
+        start_time: startTime,
+        end_time: endTime,
         location: formData.get('location')
       };
+
       if (kind === 'recurring') {
         payload.weekday = Number(formData.get('weekday'));
         payload.start_date = formData.get('start_date');
-        payload.end_date = formData.get('end_date');
+        payload.end_date = formData.get('end_date') || null;
         payload.enabled = scheduleEditingItem?.enabled ?? true;
         payload.skipped_dates = scheduleEditingItem?.skipped_dates || [];
       } else {
         payload.date = formData.get('date');
       }
-      closeScheduleItemModal();
-      if (scheduleEditingKind === 'recurring' && formData.get('scope') === 'occurrence') {
-        const skippedDates = [...new Set([...(scheduleEditingItem.skipped_dates || []), scheduleEditingOccurrenceDate])];
-        await saveScheduleItem('recurring', scheduleEditingItem.id, {...scheduleEditingItem, skipped_dates: skippedDates});
-        await saveScheduleItem('one-off', null, {...payload, date: scheduleEditingOccurrenceDate});
-        return;
+
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const origBtnText = submitBtn ? submitBtn.textContent : '保存事项';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.setAttribute('aria-busy', 'true');
+        submitBtn.textContent = '正在保存…';
       }
-      await saveScheduleItem(kind, scheduleEditingItem?.id || null, payload);
+
+      try {
+        if (!payload.action_ref && formData.get('create_todo')) {
+          const todoResp = await fetch('/api/custom/todos', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              text: payload.title,
+              due_date: payload.date || null,
+              details: payload.details || '',
+            }),
+          });
+          const todoData = await todoResp.json();
+          if (!todoResp.ok || !todoData.ok) {
+            throw new Error(todoData.error || '创建关联待办失败');
+          }
+          payload.action_ref = todoData.todo?.ref;
+          if (typeof fetchCustomTodos === 'function') fetchCustomTodos();
+        }
+
+        if (scheduleEditingKind === 'recurring' && formData.get('scope') === 'occurrence') {
+          const exceptionUrl = `/api/schedule/recurring/${scheduleEditingItem.id}/exception`;
+          const exceptionBody = {
+            date: scheduleEditingOccurrenceDate,
+            expected_updated_at: scheduleEditingItem.updated_at,
+            changes: {
+              ...payload,
+              date: payload.date || scheduleEditingOccurrenceDate,
+            }
+          };
+          const response = await fetch(exceptionUrl, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(exceptionBody),
+          });
+          const data = await response.json();
+          if (!response.ok || !data.ok) {
+            throw new Error(data.error || '单次排程修改失败');
+          }
+          setScheduleStatus(data.overlap ? '已保存；该事项与其他日程时间重叠' : '已保存');
+          await loadScheduleManager();
+          await loadTodaySchedule();
+        } else {
+          await saveScheduleItem(kind, scheduleEditingItem?.id || null, payload);
+        }
+        if (typeof notifyCrossTabChange === 'function') notifyCrossTabChange('schedule');
+        closeScheduleItemModal();
+      } catch (err) {
+        if (errorEl) {
+          errorEl.textContent = err.message || '保存失败，请检查输入后重试';
+          errorEl.style.display = 'block';
+        } else {
+          alert('保存失败：' + (err.message || '网络异常'));
+        }
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.removeAttribute('aria-busy');
+          submitBtn.textContent = origBtnText;
+        }
+      }
     }
 
     async function deleteScheduleItemFromModal() {
       if (!scheduleEditingItem || !confirm(`确定删除「${scheduleEditingItem.title}」吗？`)) return;
       const form = document.getElementById('schedule-modal-form');
       const scope = new FormData(form).get('scope');
-      closeScheduleItemModal();
-      if (scheduleEditingKind === 'recurring' && scope === 'occurrence') {
-        const skippedDates = [...new Set([...(scheduleEditingItem.skipped_dates || []), scheduleEditingOccurrenceDate])];
-        await saveScheduleItem('recurring', scheduleEditingItem.id, {...scheduleEditingItem, skipped_dates: skippedDates});
-      } else {
-        await deleteScheduleItem(scheduleEditingKind, scheduleEditingItem.id);
+      try {
+        if (scheduleEditingKind === 'recurring' && scope === 'occurrence') {
+          const exceptionUrl = `/api/schedule/recurring/${scheduleEditingItem.id}/exception`;
+          const response = await fetch(exceptionUrl, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              date: scheduleEditingOccurrenceDate,
+              cancel: true,
+              expected_updated_at: scheduleEditingItem.updated_at,
+            }),
+          });
+          const data = await response.json();
+          if (!response.ok || !data.ok) throw new Error(data.error || '删除本次安排失败');
+          await loadScheduleManager();
+          await loadTodaySchedule();
+        } else {
+          await deleteScheduleItem(scheduleEditingKind, scheduleEditingItem.id);
+        }
+        if (typeof notifyCrossTabChange === 'function') notifyCrossTabChange('schedule');
+        closeScheduleItemModal();
+      } catch (err) {
+        alert('删除失败：' + err.message);
       }
     }
 
@@ -1288,9 +1441,13 @@
       const url = itemId ? `/api/schedule/${kind === 'recurring' ? 'recurring' : 'one-off'}/${itemId}` : `/api/schedule/${kind === 'recurring' ? 'recurring' : 'one-off'}`;
       const response = await fetch(url, {method: itemId ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
       const data = await response.json();
-      if (!response.ok || !data.ok) { setScheduleStatus(data.error || '保存失败', true); return; }
+      if (!response.ok || !data.ok) {
+        setScheduleStatus(data.error || '保存失败', true);
+        throw new Error(data.error || '保存失败');
+      }
       setScheduleStatus(data.overlap ? '已保存；该事项与其他日程时间重叠' : '已保存');
       await loadScheduleManager(); await loadTodaySchedule();
+      return data;
     }
 
     async function deleteScheduleItem(kind, itemId) {
@@ -1578,7 +1735,15 @@
         detailBadge.textContent = text;
         applyStatusSemantic(detailBadge, semantic);
       }
-      const attentionElements = document.querySelectorAll('#login-cards .login-card-status.attention');
+      updateAttentionStatus();
+    }
+
+    function updateAttentionStatus() {
+      const allAttentionElements = document.querySelectorAll('#login-cards .login-card-status.attention');
+      const attentionElements = Array.from(allAttentionElements).filter(item => {
+        const platform = item.id.replace('card-status-', '');
+        return typeof visibleTodoSources !== 'undefined' ? visibleTodoSources.has(platform) : true;
+      });
       const attentionCount = attentionElements.length;
       const attentionDot = document.getElementById('connections-attention');
       if (attentionDot) {
@@ -1672,21 +1837,29 @@
     function renderDashboardSyncStatus() {
       const button = document.getElementById('list-updated');
       if (!button) return;
-      const entries = Object.entries(platformSyncs);
+      const visiblePlatforms = TODO_SOURCE_ORDER.filter(s => TODO_PLATFORM_SOURCES.has(s) && (typeof visibleTodoSources !== 'undefined' ? visibleTodoSources.has(s) : true));
+      const entries = Object.entries(platformSyncs).filter(([platform]) => {
+        return typeof visibleTodoSources !== 'undefined' ? visibleTodoSources.has(platform) : true;
+      });
       const active = entries.filter(([, sync]) => sync.connection_state !== 'unconfigured');
       const issues = active.filter(([, sync]) => syncPriority(sync) < 99).sort((a, b) => {
         const priority = syncPriority(a[1]) - syncPriority(b[1]);
         return priority || String(a[1].last_success_at || '').localeCompare(String(b[1].last_success_at || ''));
       });
       let text = '尚未连接平台';
-      if (issues.length === 1) {
+      if (visiblePlatforms.length === 0) {
+        text = '外部平台已隐藏';
+      } else if (issues.length === 1) {
         const [platform, sync] = issues[0];
         text = sync.connection_state === 'needs_reauth' ? `${platformLabels[platform]}需要重新连接`
           : sync.data_state === 'unavailable' ? '更新失败' : `${platformLabels[platform]}数据未更新`;
-      } else if (issues.length > 1) text = `${issues.length} 个平台需要处理`;
-      else if (active.length && active.every(([, sync]) => sync.connection_state === 'disconnected')) text = '平台已断开';
-      else if (active.some(([, sync]) => sync.refreshing)) text = '正在更新';
-      else if (active.length) {
+      } else if (issues.length > 1) {
+        text = `${issues.length} 个平台需要处理`;
+      } else if (active.length && active.every(([, sync]) => sync.connection_state === 'disconnected')) {
+        text = '平台已断开';
+      } else if (active.some(([, sync]) => sync.refreshing)) {
+        text = '正在更新';
+      } else if (active.length) {
         const latest = active.map(([, sync]) => sync.last_success_at).filter(Boolean).sort().pop();
         text = latest ? `已更新 · ${new Date(latest).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}` : '已连接，等待首次成功同步';
       }
@@ -1811,6 +1984,8 @@
         );
         if (status) status.textContent = '设置会保存到你的账户；可选平台随连接状态自动更新。';
         renderUnifiedList();
+        renderDashboardSyncStatus();
+        updateAttentionStatus();
       } catch (error) {
         if (status) status.textContent = '暂时无法读取设置，当前使用默认标签。';
       }
@@ -1822,6 +1997,8 @@
       else visibleTodoSources.delete(source);
       if (!visible && todoSourceFilter === source) todoSourceFilter = 'all';
       renderUnifiedList();
+      renderDashboardSyncStatus();
+      updateAttentionStatus();
 
       const revision = ++todoSourcePreferenceRevision;
       const status = document.getElementById('todo-source-manager-status');
@@ -1841,6 +2018,8 @@
           visibleTodoSources = new Set(result.visible_todo_sources || requestedSources);
           if (status) status.textContent = '已保存；可选平台随连接状态自动更新。';
           renderUnifiedList();
+          renderDashboardSyncStatus();
+          updateAttentionStatus();
         } catch (error) {
           if (revision !== todoSourcePreferenceRevision) return;
           if (status) status.textContent = '保存失败，请稍后重试。';
@@ -1865,7 +2044,7 @@
       renderUnifiedList();
     }
 
-    let collapsedTodoGroups = new Set();
+    let collapsedTodoGroups = new Set(['previous']);
     function toggleTodoGroup(key) {
       if (collapsedTodoGroups.has(key)) {
         collapsedTodoGroups.delete(key);
@@ -1888,8 +2067,11 @@
         project: '项目',
         custom: '自定义',
       };
-      const counts = { all: items.length, canvas: 0, haoke: 0, zhixuemeng: 0, zhihuishu: 0, ketangpai: 0, project: 0, custom: 0 };
-      items.forEach((item) => { if (counts[item.source] !== undefined) counts[item.source] += 1; });
+      const counts = { all: items.filter(it => !it.is_previous).length, canvas: 0, haoke: 0, zhixuemeng: 0, zhihuishu: 0, ketangpai: 0, project: 0, custom: 0 };
+      items.forEach((item) => {
+        if (item.is_previous) return;
+        if (counts[item.source] !== undefined) counts[item.source] += 1;
+      });
       const displayedSources = new Set(
         TODO_SOURCE_ORDER.filter((source) => todoSourceIsAvailable(source, counts) && visibleTodoSources.has(source))
       );
@@ -1948,9 +2130,9 @@
     }
 
     function buildTodoGroups(items) {
-      // 设计稿分组：已逾期 / 今天 / 明天 / 本周内 / 更晚 / 无日期 / 已完成
-      const labels = { overdue: '已逾期', today: '今天', tomorrow: '明天', week: '本周内', later: '更晚', nodate: '无日期', completed: '已完成' };
-      const groups = { overdue: [], today: [], tomorrow: [], week: [], later: [], nodate: [], completed: [] };
+      // 设计稿分组：已逾期 / 今天 / 此前未完成 / 明天 / 本周内 / 更晚 / 无日期 / 已完成
+      const labels = { overdue: '已逾期', today: '今天', previous: '此前未完成', tomorrow: '明天', week: '本周内', later: '更晚', nodate: '无日期', completed: '已完成' };
+      const groups = { overdue: [], today: [], previous: [], tomorrow: [], week: [], later: [], nodate: [], completed: [] };
       const todayStr = window.customToday || new Date().toISOString().slice(0, 10);
       const today = new Date(todayStr + 'T00:00:00');
       const tomorrow = new Date(today.getTime() + 86400000);
@@ -1959,6 +2141,7 @@
       items.forEach((item) => {
         if (item.done) { groups.completed.push(item); return; }
         if (item.isTodayAction && (!item.due_ts || item.due_ts.slice(0, 10) >= todayStr)) { groups.today.push(item); return; }
+        if (item.is_previous) { groups.previous.push(item); return; }
         if (!item.due_ts) { groups.nodate.push(item); return; }
         const dueDate = new Date(item.due_ts.slice(0, 10) + 'T00:00:00');
         if (dueDate < today) { groups.overdue.push(item); return; }
@@ -1973,7 +2156,7 @@
         dueKey(a).localeCompare(dueKey(b)) || a._stableIndex - b._stableIndex
       );
       Object.values(groups).forEach(sortGroup);
-      const order = ['overdue', 'today', 'tomorrow', 'week', 'later', 'nodate', 'completed'];
+      const order = ['overdue', 'today', 'previous', 'tomorrow', 'week', 'later', 'nodate', 'completed'];
       return order
         .filter((k) => groups[k].length)
         .map((k) => ({ key: k, title: labels[k], items: groups[k] }));
@@ -1985,6 +2168,17 @@
 
       // Build unified items
       let unified = [];
+
+      // LINK-05: collect today scheduled action references
+      const today = window.customToday || new Date().toISOString().split('T')[0];
+      const todayScheduledRefs = new Set();
+      if (window.workspaceTodayData?.days?.[0]?.timed) {
+        for (const e of window.workspaceTodayData.days[0].timed) {
+          if (e.action_ref && !e.occurrence_done && !e.done) {
+            todayScheduledRefs.add(e.action_ref);
+          }
+        }
+      }
 
       canvasItems.forEach(item => {
         if (canvasDeletedIds.includes(item.id)) return;
@@ -2005,6 +2199,7 @@
           rawId: item.id,
           manualHighlighted: isHighlighted,
           disconnected: platformSyncs.canvas?.connection_state === 'disconnected',
+          isTodayAction: todayScheduledRefs.has(`canvas:${item.id}`),
         });
       });
 
@@ -2027,6 +2222,7 @@
           rawId: item.id,
           manualHighlighted: isHighlighted,
           disconnected: platformSyncs.haoke?.connection_state === 'disconnected',
+          isTodayAction: todayScheduledRefs.has(`haoke:${item.id}`),
         });
       });
 
@@ -2049,6 +2245,7 @@
           rawId: item.id,
           manualHighlighted: isHighlighted,
           disconnected: platformSyncs.zhixuemeng?.connection_state === 'disconnected',
+          isTodayAction: todayScheduledRefs.has(`zhixuemeng:${item.id}`),
         });
       });
 
@@ -2071,6 +2268,7 @@
           rawId: item.id,
           manualHighlighted: isHighlighted,
           disconnected: platformSyncs.zhihuishu?.connection_state === 'disconnected',
+          isTodayAction: todayScheduledRefs.has(`zhihuishu:${item.id}`),
         });
       });
 
@@ -2093,6 +2291,7 @@
           rawId: item.id,
           manualHighlighted: isHighlighted,
           disconnected: platformSyncs.ketangpai?.connection_state === 'disconnected',
+          isTodayAction: todayScheduledRefs.has(`ketangpai:${item.id}`),
         });
       });
 
@@ -2122,13 +2321,14 @@
           isTodayAction: Boolean(item.is_today),
           plannedOn: item.planned_on || '',
           occurrences: item.occurrences || [],
+          ref: item.ref,
         });
       });
 
       customItems.forEach(item => {
-        const today = window.customToday || new Date().toISOString().split('T')[0];
         const isOverdue = item.due_date && item.due_date < today && !item.done;
         const displayHighlighted = (item.highlighted || isOverdue) && !item.done;
+        const isTodayAction = Boolean(item.isTodayAction || (item.ref && todayScheduledRefs.has(item.ref)));
         unified.push({
           id: `x${item.id}`,
           source: 'custom',
@@ -2137,7 +2337,7 @@
           labels: item.labels || [],
           due_str: item.due_date || '',
           due_ts: item.due_date ? `${item.due_date}T23:59:59+08:00` : null,
-          type: '\u81ea\u5b9a\u4e49',
+          type: '自定义',
           url: '',
           done: item.done,
           hidden: false,
@@ -2150,7 +2350,40 @@
           original_due_date: item.original_due_date,
           repeat_label: item.repeat_label,
           ref: item.ref,
+          isTodayAction: isTodayAction,
         });
+      });
+
+      (window.projectPreviousActions || []).forEach(item => {
+        if (!unified.some(u => u.ref === item.ref)) {
+          unified.push({
+            id: `p${item.id}`,
+            source: 'project',
+            title: item.title,
+            course: item.project_name,
+            category: '此前未完成',
+            isNextAction: false,
+            isMainProject: false,
+            groupName: '',
+            due_str: item.due_date || item.planned_on || '',
+            due_ts: item.due_date ? `${item.due_date}T23:59:59` : null,
+            type: '此前未完成',
+            url: '',
+            done: false,
+            hidden: false,
+            highlighted: false,
+            rawId: item.id,
+            manualHighlighted: false,
+            projectId: item.project_id,
+            taskId: item.task_id,
+            projectKind: 'project_task',
+            isTodayAction: false,
+            is_previous: true,
+            plannedOn: item.planned_on || '',
+            occurrences: item.occurrences || [],
+            ref: item.ref,
+          });
+        }
       });
 
       // Stable sorting happens inside each requested time group: highlighted
@@ -2161,7 +2394,7 @@
       renderTodoSourceFilters(unified);
       updateStatsBar(unified);
       // 侧栏 nav-count 数字：今日总览的未完成待办数；长期项目的进行中数（从 #active-project-count 读）
-      const overviewCount = unified.filter((it) => !it.done && !it.hidden).length;
+      const overviewCount = unified.filter((it) => !it.done && !it.hidden && !it.is_previous).length;
       const overviewEl = document.querySelector('[data-nav-count="overview"]');
       if (overviewEl) {
         if (overviewCount > 0) { overviewEl.textContent = overviewCount; overviewEl.hidden = false; }
@@ -2334,7 +2567,7 @@
           : '<span class="subtask-toggle subtask-toggle-placeholder" aria-hidden="true"></span>';
         const mobileActionsOpen = openMobileActionItemId === item.id;
 
-        const animAttr = doAnimate ? `enter-item" style="animation-delay:${0.08 + Math.min(idx, 8) * 0.02}s` : '';
+        const animAttr = '';
 
         // 设计稿两行结构：body（上：标题+副标题）+ right（下：来源+截止胶囊+操作）
         // 副标题：课程名 · 类型 · 截止时间（与原 .item-course 合并到副标题）
@@ -2357,7 +2590,7 @@
         const projectMainClass = item.isMainProject ? ' is-project-main' : '';
 
         const rowHtml = `
-          <div class="ui-list-item ui-list-item--interactive todo-row${uiListStateClass}${uiListMutedClass}${projectMainClass} ${urgencyClass} ${manualFlag ? 'manual-flagged' : ''} ${isDismissed ? 'dismissed' : ''} ${animAttr}">
+          <div class="ui-list-item ui-list-item--interactive todo-row${uiListStateClass}${uiListMutedClass}${projectMainClass} ${urgencyClass} ${manualFlag ? 'manual-flagged' : ''} ${isDismissed ? 'dismissed' : ''}">
             <div class="biz-todo__body">
               <div class="biz-todo__title">${titleHtml}</div>
               ${metaHtml}
@@ -2408,7 +2641,7 @@
             </div>
             <div class="todo-group-divider-line" aria-hidden="true"></div>
           </div>
-          <div class="todo-group-items" style="${isCollapsed ? 'display: none;' : ''}">${group.items.map(renderTodoItem).join('')}</div>
+          <div class="todo-group-items" style="${isCollapsed ? 'display: none;' : ''}">${isCollapsed ? '' : group.items.map(renderTodoItem).join('')}</div>
         </section>
         `;
       }).join('');
@@ -2428,7 +2661,7 @@
     }
 
     function updateStatsBar(unified) {
-      const activeItems = unified.filter(item => !item.done && !item.hidden);
+      const activeItems = unified.filter(item => !item.done && !item.hidden && !item.is_previous);
       const pending = activeItems.length;
 
       const todayStr = window.customToday || new Date().toISOString().slice(0, 10);
@@ -3214,6 +3447,10 @@
 
     async function saveInlineEdit(id, field, value) {
       const item = customItems.find(t => t.id === id);
+      const prevText = item ? item.text : undefined;
+      const prevDue = item ? item.due_date : undefined;
+      const prevLabels = item && Array.isArray(item.labels) ? [...item.labels] : [];
+
       if (item) {
         if (field === 'multi') {
           item.text = value.text;
@@ -3223,22 +3460,51 @@
         } else if (field === 'due_date') {
           item.due_date = value || null;
         } else if (field === 'labels') {
-          item.labels = value; // 鏀寔鏍囩
+          item.labels = value;
         }
       }
+      renderUnifiedList();
+
       const payload = {};
+      if (item && item.updated_at) {
+        payload.expected_updated_at = item.updated_at;
+      }
       if (field === 'multi') {
         payload.text = value.text;
         payload.labels = value.labels;
       } else {
         payload[field] = value;
       }
-      await fetch(`/api/custom/todos/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      renderUnifiedList();
+
+      try {
+        const response = await fetch(`/api/custom/todos/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.ok === false) {
+          throw new Error(data.error || `保存失败（${response.status}）`);
+        }
+        if (item && data.todo?.updated_at) {
+          item.updated_at = data.todo.updated_at;
+        }
+        if (typeof notifyCrossTabChange === 'function') notifyCrossTabChange('custom');
+        if (typeof refreshWorkspaceSurfaces === 'function') {
+          await refreshWorkspaceSurfaces();
+        } else {
+          await fetchCustomTodos();
+          if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+        }
+      } catch (err) {
+        if (item) {
+          item.text = prevText;
+          item.due_date = prevDue;
+          item.labels = prevLabels;
+        }
+        renderUnifiedList();
+        alert('修改未保存：' + (err.message || '网络或服务异常'));
+      }
     }
 
     function startInlineEdit(spanEl, field) {
@@ -4133,6 +4399,69 @@
       setInterval(fetchTerm, 60 * 1000);
       setInterval(fetchWeather, 60 * 60 * 1000);
     }
+
+    // LINK-09: Cross-tab sync and cross-midnight date change detection
+    let syncChannel = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        syncChannel = new BroadcastChannel('canvas_dashboard_sync');
+        syncChannel.onmessage = (event) => {
+          if (event?.data?.type === 'data_changed') {
+            debounceRefreshAll();
+          }
+        };
+      }
+    } catch (_) {}
+
+    function notifyCrossTabChange(source = 'general') {
+      try {
+        if (syncChannel) {
+          syncChannel.postMessage({ type: 'data_changed', source, timestamp: Date.now() });
+        }
+        localStorage.setItem('cda_sync_signal', `${Date.now()}_${source}`);
+      } catch (_) {}
+    }
+    window.notifyCrossTabChange = notifyCrossTabChange;
+
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'cda_sync_signal' && e.newValue) {
+        debounceRefreshAll();
+      }
+    });
+
+    let debounceTimer = null;
+    function debounceRefreshAll() {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (typeof refreshWorkspaceSurfaces === 'function') {
+          refreshWorkspaceSurfaces();
+        } else {
+          fetchCustomTodos();
+          if (typeof fetchProjectTodos === 'function') fetchProjectTodos();
+          if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+        }
+      }, 300);
+    }
+
+    let lastKnownShanghaiDay = new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'}).format(new Date());
+
+    function checkDateRollOver() {
+      const currentShanghaiDay = new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'}).format(new Date());
+      if (currentShanghaiDay !== lastKnownShanghaiDay) {
+        lastKnownShanghaiDay = currentShanghaiDay;
+        window.customToday = currentShanghaiDay;
+        if (typeof refreshWorkspaceSurfaces === 'function') {
+          refreshWorkspaceSurfaces();
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        checkDateRollOver();
+      }
+    });
+    window.addEventListener('focus', checkDateRollOver);
 </script>
   <script src="{{ url_for('static', filename='js/projects.js') }}"></script>
   <script src="{{ url_for('static', filename='js/features/todos.js') }}"></script>

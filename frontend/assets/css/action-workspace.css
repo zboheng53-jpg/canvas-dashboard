@@ -267,3 +267,47 @@ details[open] > summary .project-disclosure-chevron {
   user-select: none;
 }
 
+/* Schedule Modal - Linked Action & Checkbox Options */
+#schedule-form-error {
+  margin-bottom: 12px;
+}
+#schedule-form-error.hidden {
+  display: none !important;
+}
+.schedule-link-bar {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.schedule-link-hint {
+  font-size: 12px;
+}
+.schedule-link-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.schedule-btn-compact {
+  font-size: 12px !important;
+  padding: 2px 8px !important;
+}
+.schedule-btn-unlink {
+  font-size: 12px !important;
+  color: var(--text-muted, var(--ds-ink-3)) !important;
+  padding: 2px 6px !important;
+}
+.schedule-create-todo-wrap {
+  margin-bottom: 10px;
+}
+.schedule-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text-main, var(--ds-ink, #333));
+}
+
