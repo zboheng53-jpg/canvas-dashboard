@@ -245,3 +245,44 @@ details[open] > summary .project-disclosure-chevron {
 .project-trash-row { padding: 16px 0; border-bottom: 1px solid var(--color-border); }
 .project-trash-row > button { margin-left: 12px; }
 .project-trash-content { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* UX Enhancements: Next Upcoming Item, Collapsible Groups & Filters */
+.period-event.is-next-upcoming {
+  border-left: 3px solid var(--accent, #3b82f6);
+  background: var(--surface-hover, #f8fafc);
+}
+.next-upcoming-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent, #3b82f6);
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-right: 5px;
+  line-height: 1.2;
+}
+.todo-group-heading {
+  cursor: pointer;
+  user-select: none;
+}
+.todo-group-heading:hover {
+  opacity: 0.85;
+}
+.todo-time-filters {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.btn-inline-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted, #888);
+}
+.btn-inline-edit:hover {
+  color: var(--ink, #1c2330);
+}

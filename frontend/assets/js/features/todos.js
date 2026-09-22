@@ -2,6 +2,9 @@
   const byId = (id) => document.getElementById(id);
 
   byId('add-todo-form')?.addEventListener('submit', addTodo);
+  byId('new-todo-input')?.addEventListener('input', () => { if (typeof resetTodoRequestId === 'function') resetTodoRequestId(); });
+  byId('new-todo-due')?.addEventListener('change', () => { if (typeof resetTodoRequestId === 'function') resetTodoRequestId(); });
+  byId('new-todo-repeat')?.addEventListener('change', () => { if (typeof resetTodoRequestId === 'function') resetTodoRequestId(); });
   byId('btn-refresh')?.addEventListener('click', () => {
     fetchCanvasTodos();
     fetchHaokeTodos();
@@ -15,6 +18,10 @@
   byId('todo-source-filters')?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-todo-source]');
     if (button) setTodoSourceFilter(button.dataset.todoSource);
+  });
+  byId('todo-time-filters')?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-time-filter]');
+    if (button && typeof setTodoTimeFilter === 'function') setTodoTimeFilter(button.dataset.timeFilter);
   });
   byId('todo-source-visibility-options')?.addEventListener('change', (event) => {
     const input = event.target.closest('[data-todo-source-visibility]');
@@ -31,7 +38,7 @@
     const projectDueEl = event.target.closest('.project-due-editable');
     if (projectDueEl) { startProjectTodoDueEdit(projectDueEl); return; }
     const titleEl = event.target.closest('.editable-title');
-    if (titleEl) { startInlineEdit(titleEl, 'text'); return; }
+    if (titleEl && !titleEl.classList.contains('action-title-button')) { startInlineEdit(titleEl, 'text'); return; }
     const dueEl = event.target.closest('.editable-due');
     if (dueEl) startInlineEdit(dueEl, 'due_date');
   });

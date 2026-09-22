@@ -124,8 +124,9 @@
               <option value="weekly">每周</option>
               <option value="biweekly">隔周</option>
             </select>
-            <button type="submit" class="ui-button ui-button--primary btn-quiet">添加</button>
+            <button type="submit" class="ui-button ui-button--primary btn-quiet" id="btn-add-todo">添加</button>
           </form>
+          <p class="ui-feedback ui-feedback--danger add-todo-error" id="add-todo-error" role="alert" style="display: none; font-size: 13px; margin: 4px 0 8px 0;"></p>
 
           <select id="todo-source-select" class="ui-control todo-source-select" style="position: absolute; opacity: 0; pointer-events: auto; width: 1px; height: 1px; margin: -1px; overflow: hidden;" aria-label="按来源筛选待办">
             <option value="all">全部</option>
@@ -141,6 +142,13 @@
           <div class="stats-bar-under-add hidden" id="stats-bar" style="display:none;">
             <span class="ui-count-pill stat-pill">待完成 <b class="stat-count" id="stat-total">0</b> 项</span>
             <span class="ui-count-pill ui-count-pill--danger stat-pill urgent">即将到期 <b class="stat-count urgent" id="stat-urgent">0</b> 项</span>
+          </div>
+
+          <!-- 时间范围筛选 (Time Scope Filter) -->
+          <div class="src-filters todo-time-filters" id="todo-time-filters" role="group" aria-label="按时间范围筛选待办" style="display: flex; gap: 6px; margin-bottom: 8px;">
+            <button type="button" class="ui-button ui-button--choice f-chip todo-time-filter is-on" data-time-filter="all" aria-pressed="true">全部 <span class="n" id="time-count-all">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-time-filter" data-time-filter="today" aria-pressed="false">今天 <span class="n" id="time-count-today">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-time-filter" data-time-filter="overdue" aria-pressed="false">已逾期 <span class="n" id="time-count-overdue">0</span></button>
           </div>
 
           <!-- 来源筛选 Chips -->
@@ -1864,6 +1872,39 @@
       renderUnifiedList();
     }
 
+    let todoTimeFilter = 'all';
+    function setTodoTimeFilter(timeFilter) {
+      todoTimeFilter = timeFilter || 'all';
+      document.querySelectorAll('[data-time-filter]').forEach((element) => {
+        const val = element.dataset.timeFilter;
+        const isActive = val === todoTimeFilter;
+        element.classList.toggle('is-on', isActive);
+        element.classList.toggle('is-active', isActive);
+        if (element.tagName === 'BUTTON') {
+          element.setAttribute('aria-pressed', String(isActive));
+        }
+      });
+      renderUnifiedList();
+    }
+
+    let collapsedTodoGroups = new Set();
+    function toggleTodoGroup(key) {
+      if (collapsedTodoGroups.has(key)) {
+        collapsedTodoGroups.delete(key);
+      } else {
+        collapsedTodoGroups.add(key);
+      }
+      renderUnifiedList();
+    }
+
+    let deletingCustomIds = new Set();
+    function triggerCustomInlineEdit(id) {
+      const titleBtn = document.querySelector(`button[data-custom-title-id="${id}"]`);
+      if (titleBtn) {
+        startInlineEdit(titleBtn, 'text');
+      }
+    }
+
     function renderTodoSourceFilters(items) {
       const labels = {
         all: '全部',
@@ -2155,11 +2196,61 @@
         else { overviewEl.textContent = ''; overviewEl.hidden = true; }
       }
 
-      const filteredItems = todoSourceFilter === 'all'
-        ? unified
-        : unified.filter((item) => item.source === todoSourceFilter);
+      const todayStr = window.customToday || new Date().toISOString().split('T')[0];
+      const activeUnified = unified.filter((it) => !it.done && !it.hidden);
+      const isItemOverdue = (it) => {
+        if (it.done || it.hidden) return false;
+        const due = it.due_ts ? it.due_ts.slice(0, 10) : '';
+        return Boolean(due && due < todayStr);
+      };
+      const isItemToday = (it) => {
+        if (it.done || it.hidden) return false;
+        if (it.isTodayAction) return true;
+        const due = it.due_ts ? it.due_ts.slice(0, 10) : '';
+        return due === todayStr;
+      };
+
+      const sourceScope = todoSourceFilter === 'all'
+        ? activeUnified
+        : activeUnified.filter((it) => it.source === todoSourceFilter);
+
+      const timeCountAll = sourceScope.length;
+      const timeCountToday = sourceScope.filter(isItemToday).length;
+      const timeCountOverdue = sourceScope.filter(isItemOverdue).length;
+
+      const elTimeAll = document.getElementById('time-count-all');
+      if (elTimeAll) elTimeAll.textContent = timeCountAll;
+      const elTimeToday = document.getElementById('time-count-today');
+      if (elTimeToday) elTimeToday.textContent = timeCountToday;
+      const elTimeOverdue = document.getElementById('time-count-overdue');
+      if (elTimeOverdue) elTimeOverdue.textContent = timeCountOverdue;
+
+      const filteredItems = unified.filter((item) => {
+        if (todoSourceFilter !== 'all' && item.source !== todoSourceFilter) {
+          return false;
+        }
+        if (todoTimeFilter === 'today') {
+          return isItemToday(item);
+        }
+        if (todoTimeFilter === 'overdue') {
+          return isItemOverdue(item);
+        }
+        return true;
+      });
 
       if (filteredItems.length === 0) {
+        let emptyTitle = '没有待办事项';
+        let emptyDesc = '新的课程任务同步后会显示在这里。';
+        if (todoTimeFilter === 'today') {
+          emptyTitle = '今天暂无待办事项';
+          emptyDesc = '可切换到「全部」或查看后续日期安排。';
+        } else if (todoTimeFilter === 'overdue') {
+          emptyTitle = '暂无已逾期的待办事项';
+          emptyDesc = '所有任务都在截止时间之内。';
+        } else if (todoSourceFilter !== 'all') {
+          emptyTitle = '该来源暂无待办事项';
+          emptyDesc = '切换来源或清除筛选后可查看其他待办。';
+        }
         container.innerHTML = `
           <div class="ui-empty empty-state">
             <span class="ui-empty__art" aria-hidden="true">
@@ -2173,8 +2264,8 @@
                 <path d="M54 14L55 17L58 18L55 19L54 22L53 19L50 18L53 17L54 14Z" fill="#3B82F6"/>
               </svg>
             </span>
-            <strong>${unified.length ? '该来源暂无待办事项' : '没有待办事项'}</strong>
-            <p>${unified.length ? '切换来源或清除筛选后可查看其他待办。' : '新的课程任务同步后会显示在这里。'}</p>
+            <strong>${escapeHtml(emptyTitle)}</strong>
+            <p>${escapeHtml(emptyDesc)}</p>
           </div>`;
         return;
       }
@@ -2189,7 +2280,6 @@
 
         let urgencyClass = '';
         if (!isDismissed) {
-          const todayStr = window.customToday || new Date().toISOString().split('T')[0];
           const effectiveDueTs = item.due_ts || (item.plannedOn ? `${item.plannedOn}T23:59:59` : null);
           if (effectiveDueTs) {
             const dueStr = effectiveDueTs.split('T')[0];
@@ -2245,10 +2335,12 @@
               <button class="btn-delete" onclick="deleteRecurringSeries(${item.series_id})" title="删除重复待办">&#x1f5d1;</button>
             `;
           } else {
+            const isDeleting = deletingCustomIds.has(item.rawId);
             actionsHtml = `
+              <button class="todo-action-button btn-inline-edit" onclick="event.stopPropagation(); triggerCustomInlineEdit(${item.rawId})" title="编辑待办" aria-label="编辑待办" style="background:none; border:none; cursor:pointer; font-size:13px; color:var(--text-muted, #888); padding:0 4px;">✎</button>
               <button class="todo-action-button ${flagClass}" onclick="toggleCustomHighlight(${item.rawId}, ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
               <button class="btn-dismiss" onclick="toggleTodoCheck(${item.rawId}, ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
-              <button class="btn-delete" onclick="toggleCustomDelete(${item.rawId})" title="\u5220\u9664">&#x1f5d1;</button>
+              <button class="btn-delete" onclick="toggleCustomDelete(${item.rawId})" ${isDeleting ? 'disabled aria-busy="true"' : ''} title="\u5220\u9664">&#x1f5d1;</button>
             `;
           }
         } else if (item.source === 'zhixuemeng') {
@@ -2278,13 +2370,18 @@
         }
 
         const safeUrl = sanitizeExternalUrl(item.url);
-        const titleHtml = item.is_recurring
-          ? `<button type="button" class="ui-button ui-button--text ui-list-item__title item-title action-title-button" onclick="openActionDetail('${item.ref}')">${escapeHtml(item.title)}</button>`
-          : (item.source === 'custom'
-            ? `<span class="ui-list-item__title item-title item-title-plain editable-title" data-id="${item.rawId}" data-field="text">${escapeHtml(item.title)}</span>`
-            : (item.source === 'project'
-              ? `<button type="button" class="ui-button ui-button--text ui-list-item__title item-title action-title-button" onclick="openActionDetail('${item.taskId === null ? 'project_due:' + item.projectId : 'project:' + item.projectId + ':' + item.taskId}')">${escapeHtml(item.title)}</button>`
-              : (safeUrl ? `<a class="ui-list-item__title item-title" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</a>` : `<span class="ui-list-item__title item-title item-title-plain">${escapeHtml(item.title)}</span>`)));
+        if (safeUrl && item.source !== 'project' && item.source !== 'custom') {
+          actionsHtml = `<a class="todo-action-button btn-external-link" href="${safeUrl}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();" title="打开原始页面" aria-label="打开原始页面" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center; padding:0 4px; font-size:13px; color:var(--text-muted, #888);">↗</a>` + actionsHtml;
+        }
+
+        const actionRef = item.ref || (
+          item.source === 'project'
+            ? (item.taskId === null ? 'project_due:' + item.projectId : 'project:' + item.projectId + ':' + item.taskId)
+            : (item.source === 'custom'
+              ? (item.is_recurring ? item.ref : ('custom:' + item.rawId))
+              : (item.source + ':' + item.rawId))
+        );
+        const titleHtml = `<button type="button" class="ui-button ui-button--text ui-list-item__title item-title action-title-button" onclick="openActionDetail('${escapeHtml(actionRef)}')" data-custom-title-id="${item.source === 'custom' && !item.is_recurring ? item.rawId : ''}" data-id="${item.rawId}" data-field="text">${escapeHtml(item.title)}</button>`;
         const dueHtml = (item.source === 'custom' && !item.is_recurring)
           ? `<span class="ui-list-item__meta item-due editable-due" data-id="${item.rawId}" data-field="due_date">${item.due_str}</span>`
           : item.source === 'project'
@@ -2370,15 +2467,21 @@
         `;
       };
 
-      container.innerHTML = buildTodoGroups(filteredItems).map((group) => `
-        <section class="todo-group ${group.key === 'overdue' ? 'is-overdue' : ''} ${group.key === 'completed' ? 'is-completed' : ''}">
-          <div class="todo-group-heading">
-            <h3 class="ui-card__title">${escapeHtml(group.title)}</h3>
+      container.innerHTML = buildTodoGroups(filteredItems).map((group) => {
+        const isCollapsed = collapsedTodoGroups.has(group.key);
+        return `
+        <section class="todo-group ${group.key === 'overdue' ? 'is-overdue' : ''} ${group.key === 'completed' ? 'is-completed' : ''} ${isCollapsed ? 'is-collapsed' : ''}" data-group-key="${group.key}">
+          <div class="todo-group-heading" onclick="toggleTodoGroup('${group.key}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTodoGroup('${group.key}');}" role="button" tabindex="0" aria-expanded="${!isCollapsed}" style="cursor: pointer; user-select: none;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="todo-group-chevron" style="display: inline-block; font-size: 10px; color: var(--text-muted, #888); transition: transform 0.15s ease; transform: ${isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)'};" aria-hidden="true">▼</span>
+              <h3 class="ui-card__title" style="margin: 0;">${escapeHtml(group.title)}</h3>
+            </div>
             <span class="ui-count-pill">${group.items.length}</span>
           </div>
-          <div class="todo-group-items">${group.items.map(renderTodoItem).join('')}</div>
+          <div class="todo-group-items" style="${isCollapsed ? 'display: none;' : ''}">${group.items.map(renderTodoItem).join('')}</div>
         </section>
-      `).join('');
+        `;
+      }).join('');
 
       container.scrollTop = savedScrollTop;
 
@@ -2924,13 +3027,33 @@
       input.addEventListener('blur', () => finish(true));
     }
 
+    let isSubmittingTodo = false;
+    let currentTodoRequestId = null;
+
+    function resetTodoRequestId() {
+      currentTodoRequestId = null;
+      const errEl = document.getElementById('add-todo-error');
+      if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
+    }
+
     async function addTodo(e) {
-      e.preventDefault();
+      if (e && e.preventDefault) e.preventDefault();
+      if (isSubmittingTodo) return;
+
       const input = document.getElementById('new-todo-input');
       const dueInput = document.getElementById('new-todo-due');
       const repeatSelect = document.getElementById('new-todo-repeat');
-      const text = input.value.trim();
+      const submitBtn = document.getElementById('btn-add-todo') || document.querySelector('#add-todo-form button[type="submit"]');
+      const errEl = document.getElementById('add-todo-error');
+
+      const text = input ? input.value.trim() : '';
       if (!text) return;
+
+      if (!currentTodoRequestId) {
+        currentTodoRequestId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : ('req-' + Date.now() + '-' + Math.random().toString(36).slice(2));
+      }
 
       let labels = [];
       const parts = text.split(/\s+(#[^#\s]+)/);
@@ -2941,39 +3064,83 @@
       }
 
       const repeatVal = repeatSelect ? repeatSelect.value : 'none';
-      let resp;
-      if (repeatVal === 'weekly' || repeatVal === 'biweekly') {
-        resp = await fetch('/api/recurring-todos', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: taskText,
-            first_due_date: dueInput.value || (window.customToday || new Date().toISOString().split('T')[0]),
-            interval_weeks: repeatVal === 'weekly' ? 1 : 2,
-            details: labels.length ? ('标签: ' + labels.join(', ')) : ''
-          }),
-        });
-      } else {
-        resp = await fetch('/api/custom/todos', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: taskText,
-            due_date: dueInput.value,
-            labels: labels
-          }),
-        });
+      const origBtnText = submitBtn ? submitBtn.textContent : '添加';
+
+      isSubmittingTodo = true;
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.setAttribute('aria-busy', 'true');
+        submitBtn.textContent = '添加中…';
       }
-      if (resp.ok) {
-        input.value = '';
-        dueInput.value = '';
-        if (repeatSelect) repeatSelect.value = 'none';
-        setNewTodoDueDefault(window.customToday || new Date().toISOString().split('T')[0]);
-        await fetchCustomTodos();
-        if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
-      } else {
-        const err = await resp.json().catch(() => ({}));
-        alert('add failed: ' + (err.error || 'unknown error'));
+      if (errEl) {
+        errEl.textContent = '';
+        errEl.style.display = 'none';
+      }
+
+      try {
+        let resp;
+        const headers = {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': currentTodoRequestId,
+        };
+        if (repeatVal === 'weekly' || repeatVal === 'biweekly') {
+          resp = await fetch('/api/recurring-todos', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              title: taskText,
+              first_due_date: dueInput.value || (window.customToday || new Date().toISOString().split('T')[0]),
+              interval_weeks: repeatVal === 'weekly' ? 1 : 2,
+              details: labels.length ? ('标签: ' + labels.join(', ')) : '',
+              request_id: currentTodoRequestId,
+            }),
+          });
+        } else {
+          resp = await fetch('/api/custom/todos', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              text: taskText,
+              due_date: dueInput.value,
+              labels: labels,
+              request_id: currentTodoRequestId,
+            }),
+          });
+        }
+
+        if (resp.ok) {
+          input.value = '';
+          dueInput.value = '';
+          if (repeatSelect) repeatSelect.value = 'none';
+          currentTodoRequestId = null;
+          setNewTodoDueDefault(window.customToday || new Date().toISOString().split('T')[0]);
+          await fetchCustomTodos();
+          if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+          if (typeof loadForwardAgenda === 'function') loadForwardAgenda();
+        } else {
+          const err = await resp.json().catch(() => ({}));
+          const errMsg = err.error || err.message || ('服务端错误（' + resp.status + '）');
+          if (errEl) {
+            errEl.textContent = '添加失败：' + errMsg;
+            errEl.style.display = 'block';
+          } else {
+            alert('添加失败：' + errMsg);
+          }
+        }
+      } catch (networkErr) {
+        if (errEl) {
+          errEl.textContent = '网络连接失败，请检查网络后重试。';
+          errEl.style.display = 'block';
+        } else {
+          alert('网络连接失败，请检查网络后重试。');
+        }
+      } finally {
+        isSubmittingTodo = false;
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.removeAttribute('aria-busy');
+          submitBtn.textContent = origBtnText;
+        }
       }
     }
 
@@ -3085,8 +3252,34 @@
     }
 
     async function toggleCustomDelete(id) {
-      await fetch(`/api/custom/todos/${id}`, { method: 'DELETE' });
-      fetchCustomTodos();
+      if (deletingCustomIds.has(id)) return;
+      const item = customItems.find(t => t.id === id);
+      const title = item ? item.text : '此待办';
+      const subtaskCount = item && Array.isArray(item.subtasks) ? item.subtasks.length : 0;
+      const subtaskWarning = subtaskCount > 0 ? `\n将同时删除其包含的 ${subtaskCount} 个子任务。` : '';
+      if (!window.confirm(`确定永久删除待办「${title}」吗？${subtaskWarning}\n此操作不可撤销。`)) {
+        return;
+      }
+
+      deletingCustomIds.add(id);
+      renderUnifiedList();
+      try {
+        const resp = await fetch(`/api/custom/todos/${id}`, { method: 'DELETE' });
+        if (resp.ok) {
+          await fetchCustomTodos();
+          if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+          if (typeof loadForwardAgenda === 'function') loadForwardAgenda();
+        } else {
+          const err = await resp.json().catch(() => ({}));
+          const errMsg = err.error || err.message || ('服务端状态 ' + resp.status);
+          alert('删除待办失败：' + errMsg);
+        }
+      } catch (err) {
+        alert('删除待办失败，网络连接异常，请重试。');
+      } finally {
+        deletingCustomIds.delete(id);
+        renderUnifiedList();
+      }
     }
 
     async function saveInlineEdit(id, field, value) {

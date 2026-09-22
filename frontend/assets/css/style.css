@@ -1033,15 +1033,12 @@ a:hover { color: var(--accent-hover); }
   .section-header { flex-wrap: wrap; align-items: flex-start; gap: 8px; }
   .section-header h2 { align-self: center; }
   .header-right { margin-left: auto; }
-  .add-todo-form { display: flex; align-items: flex-start; flex-wrap: nowrap; }
-  .add-todo-form #new-todo-input { flex: 1; min-width: 0; }
+  .add-todo-form { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 6px; }
+  .add-todo-form #new-todo-input { width: 100%; flex: 1 1 100%; min-width: 0; }
   .add-todo-form .date-input {
-    flex: 0 0 44px;
-    width: 44px;
-    min-width: 44px;
-
-
-
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 110px;
   }
   .add-todo-form button:not(.btn-wide):not(.btn-primary):not(.btn-secondary):not(.btn-accent):not(.btn-submit):not(.btn-auth-inline):not(.btn-auth-primary):not(.btn-auth-secondary) { width: 44px; }
   .add-todo-form .btn-wide,

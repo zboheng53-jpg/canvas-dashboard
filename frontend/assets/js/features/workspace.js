@@ -222,13 +222,21 @@ function isCoursePast(event) {
 
 function agendaEventButton(event) {
   const isDone = Boolean(event.done || event.occurrence_done || isCoursePast(event));
-  const button = wNode('button', `period-event period-event--${event.kind} ${isDone ? 'is-done' : ''}`);
+  const nextClass = event._isNextUpcoming ? ' is-next-upcoming' : '';
+  const button = wNode('button', `period-event period-event--${event.kind} ${isDone ? 'is-done' : ''}${nextClass}`);
   button.type = 'button';
   const time = event.kind === 'deadline' ? `${event.deadline_time || '全天'} 截止` : event.kind === 'planned' ? '计划推进 · 未定时间' : `${event.start_time}–${event.end_time}`;
-  button.append(wNode('span', 'period-event-time', time), wNode('strong', 'period-event-title', event.title));
+  const timeEl = wNode('span', 'period-event-time');
+  if (event._isNextUpcoming) {
+    const badge = wNode('span', 'next-upcoming-tag', '下一项');
+    badge.style.cssText = 'background: var(--accent, #3b82f6); color: #fff; font-size: 10px; padding: 1px 4px; border-radius: 3px; margin-right: 4px; font-weight: 600; display: inline-block;';
+    timeEl.append(badge);
+  }
+  timeEl.append(document.createTextNode(time));
+  button.append(timeEl, wNode('strong', 'period-event-title', event.title));
   const meta = [event.location, event.link_missing ? '原事项已移除' : '', event.occurrence_done ? '本次已完成' : ''].filter(Boolean).join(' · ');
   if (meta) button.append(wNode('small', '', meta));
-  const tooltip = [event.title, time, meta].filter(Boolean).join('\n');
+  const tooltip = [(event._isNextUpcoming ? '【下一项】' : '') + event.title, time, meta].filter(Boolean).join('\n');
   button.title = tooltip;
   button.addEventListener('click', () => openAgendaEntry(event));
   return button;
@@ -347,37 +355,92 @@ function renderForwardAgenda() {
   container.setAttribute('aria-busy', 'false'); container.replaceChildren();
   const capacity = Math.min(9, Math.max(5, Math.floor((container.clientHeight || 420) / 68)));
   let count = 0; let shownDays = 0;
+  const currentTime = new Intl.DateTimeFormat('en-GB', {timeZone:'Asia/Shanghai', hour:'2-digit', minute:'2-digit'}).format(new Date());
+
   data.days.forEach((day, index) => {
+    if (index === 0) {
+      const group = wNode('section', 'forward-day');
+      group.append(wNode('h3', '', workspaceDateLabel(day.date)));
+
+      const timed = [...day.timed].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
+      const nextUpcoming = timed.find(t => t.end_time > currentTime && !t.done && !t.occurrence_done);
+      if (nextUpcoming) nextUpcoming._isNextUpcoming = true;
+
+      const allday = [...day.deadlines, ...day.planned.filter(p => !day.deadlines.some(d => d.ref === p.ref))];
+
+      if (!timed.length && !allday.length) {
+        group.append(wNode('p', 'muted', '今天暂无安排，可以提前规划后续事项。'));
+      } else {
+        if (timed.length) {
+          const timedHead = wNode('div', 'agenda-section-label', '时段安排');
+          timedHead.style.cssText = 'font-size: 11px; font-weight: 600; color: var(--text-muted, #888); margin: 6px 0 4px 2px;';
+          group.append(timedHead);
+          timed.forEach(event => group.append(agendaEventButton(event)));
+        }
+        if (allday.length) {
+          const alldayHead = wNode('div', 'agenda-section-label', '全天截止与计划');
+          alldayHead.style.cssText = 'font-size: 11px; font-weight: 600; color: var(--text-muted, #888); margin: 10px 0 4px 2px;';
+          group.append(alldayHead);
+          allday.forEach(event => group.append(agendaEventButton(event)));
+        }
+      }
+      container.append(group);
+      count += timed.length + allday.length;
+      shownDays++;
+      return;
+    }
+
     const entries = [...day.deadlines, ...day.timed, ...day.planned.filter(p => !day.deadlines.some(d => d.ref === p.ref))];
-    if (index > 0 && (!entries.length || count >= capacity)) return;
-    const group = wNode('section', 'forward-day'); group.append(wNode('h3', '', workspaceDateLabel(day.date)));
-    if (!entries.length) group.append(wNode('p', 'muted', '今天暂无安排，可以提前规划后续事项。'));
+    if (count >= capacity || !entries.length) return;
+    const group = wNode('section', 'forward-day');
+    group.append(wNode('h3', '', workspaceDateLabel(day.date)));
     entries.forEach(event => group.append(agendaEventButton(event)));
-    container.append(group); count += entries.length; shownDays++;
+    container.append(group);
+    count += entries.length;
+    shownDays++;
   });
+
   const todayCount = data.days[0].timed.length + data.days[0].deadlines.length + data.days[0].planned.length;
   document.getElementById('today-schedule-sub').textContent = shownDays > 1 ? '含未来安排' : `${todayCount} 项`;
   const footer = wNode('div', 'forward-footer');
   const full = wNode('button', 'ui-button ui-button--text', '查看完整周排程 →'); full.type = 'button'; full.onclick = () => switchDashboardView('schedule');
-  const search = wNode('button', 'ui-button ui-button--text', '查找所有事项'); search.type = 'button'; search.onclick = openActionSearch;
+  const search = wNode('button', 'ui-button ui-button--text', '查找事项'); search.type = 'button'; search.onclick = openActionSearch;
   footer.append(full, search); container.append(footer);
 }
+
+let workspaceSearchOpener = null;
 async function openActionSearch() {
-  const dialog = document.getElementById('action-search-dialog'); dialog.showModal();
+  const dialog = document.getElementById('action-search-dialog');
+  if (!dialog) return;
+  workspaceSearchOpener = document.activeElement;
+  if (!dialog.open) dialog.showModal();
   const list = document.getElementById('action-search-list'); list.textContent = '正在加载…';
   const input = document.getElementById('action-search-input'); input.value = ''; input.focus();
   try {
     const {actions} = await workspaceRequest('/api/actions');
     const render = () => {
-      list.replaceChildren(); const q = input.value.toLocaleLowerCase();
-      actions.filter(a => [a.title,a.details,a.project_name].join(' ').toLocaleLowerCase().includes(q)).forEach(a => {
-        const b = wNode('button', 'action-pool-item'); b.type = 'button'; b.append(wNode('strong', '', a.title), wNode('small', '', [a.project_name, a.planned_on ? `计划 ${a.planned_on}` : '', a.due_date ? `截止 ${a.due_date}` : ''].filter(Boolean).join(' · ')));
-        b.onclick = () => { dialog.close(); openActionDetail(a.ref); }; list.append(b);
+      list.replaceChildren();
+      const q = input.value.trim().toLocaleLowerCase();
+      const matched = actions.filter(a => [a.title, a.details, a.project_name].filter(Boolean).join(' ').toLocaleLowerCase().includes(q));
+      matched.forEach(a => {
+        const b = wNode('button', 'action-pool-item'); b.type = 'button';
+        b.append(wNode('strong', '', a.title), wNode('small', '', [a.project_name, a.planned_on ? `计划 ${a.planned_on}` : '', a.due_date ? `截止 ${a.due_date}` : ''].filter(Boolean).join(' · ')));
+        b.onclick = () => { closeActionSearch(); openActionDetail(a.ref); }; list.append(b);
       });
-      if (!list.children.length) list.textContent = '没有找到事项';
+      if (!matched.length) {
+        list.innerHTML = '<p class="muted" style="text-align: center; padding: 20px 0;">未找到匹配的事项（仅搜索当前未完成的待办与项目行动）</p>';
+      }
     };
     input.oninput = render; render();
   } catch (error) { list.textContent = error.message; }
+}
+
+function closeActionSearch() {
+  const dialog = document.getElementById('action-search-dialog');
+  if (dialog?.open) dialog.close();
+  if (workspaceSearchOpener?.isConnected) {
+    workspaceSearchOpener.focus();
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -390,5 +453,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const height = Math.round(entries[0].contentRect.height);
       if (height !== lastHeight && height > 0) { lastHeight = height; renderForwardAgenda(); }
     }).observe(container);
+  }
+  const searchDialog = document.getElementById('action-search-dialog');
+  if (searchDialog) {
+    searchDialog.addEventListener('close', () => {
+      if (workspaceSearchOpener?.isConnected) workspaceSearchOpener.focus();
+    });
   }
 });
