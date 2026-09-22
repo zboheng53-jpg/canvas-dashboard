@@ -1022,8 +1022,23 @@
 .sidebar-collapsed .sidebar-brand-copy,
 .sidebar-collapsed .sidebar-label,
 .sidebar-collapsed .sidebar-section-label,
-.sidebar-collapsed .sidebar-user-copy {
-  display: none;
+.sidebar-collapsed .sidebar-user-copy,
+.sidebar-collapsed .up-info,
+.sidebar-collapsed .nav-count,
+.sidebar-collapsed [data-nav-count] {
+  display: none !important;
+}
+
+.sidebar-collapsed .user-profile {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0 10px;
+  gap: 8px;
+}
+
+.sidebar-collapsed .user-profile .up-collapse {
+  margin: 0 auto;
 }
 
 .sidebar-collapsed .sidebar-nav {

@@ -928,8 +928,9 @@ def test_frontend_mobile_todo_layout_is_compact_and_tappable(live_app, browser, 
     assert todo_input_box is not None
     assert date_input_box is not None
     assert add_button_box is not None
-    assert abs(todo_input_box["y"] - date_input_box["y"]) < 1
-    assert abs(todo_input_box["y"] - add_button_box["y"]) < 1
+    assert date_input_box["y"] > todo_input_box["y"]
+    assert add_button_box["y"] > todo_input_box["y"]
+    assert todo_input_box["width"] >= 200
     expect(todo.locator(".item-course")).to_be_hidden()
 
     trigger = todo.locator(".mobile-action-trigger")
@@ -1099,8 +1100,9 @@ def test_frontend_mobile_compact_controls_and_action_menu(live_app, browser, wid
     assert title_box is not None
     assert date_box is not None
     assert add_box is not None
-    assert abs(title_box["y"] - date_box["y"]) < 1
-    assert abs(title_box["y"] - add_box["y"]) < 1
+    assert date_box["y"] > title_box["y"]
+    assert add_box["y"] > title_box["y"]
+    assert title_box["width"] >= 200
     assert page.evaluate("document.documentElement.scrollWidth") <= width
 
     items = page.locator(".todo-row")
@@ -1220,6 +1222,7 @@ def test_frontend_v2_preserves_core_todo_actions(live_app, browser):
     expect(custom_item.locator(".todo-row")).to_have_class(re.compile(r"\bdismissed\b"))
     custom_item.locator(".item-desktop-actions .btn-dismiss").click()
     expect(custom_item.locator(".todo-row")).not_to_have_class(re.compile(r"\bdismissed\b"))
+    page.once("dialog", lambda dialog: dialog.accept())
     custom_item.locator(".item-desktop-actions .btn-delete").click()
     expect(custom_item).to_have_count(0)
 

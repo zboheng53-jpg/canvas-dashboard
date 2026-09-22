@@ -1166,6 +1166,20 @@ async function fetchProjectTodos() {
     ]);
     if (requestId !== projectTodosRequest) return;
     const byId = new Map((data.items || []).map(item => [item.id, item]));
+    window.projectFocusData = focus;
+    window.projectPreviousActions = (focus.previous || []).map(action => ({
+      id: `task-${action.project_id}-${action.task_id}`,
+      kind: 'project_task',
+      project_id: action.project_id,
+      task_id: action.task_id,
+      title: action.title,
+      project_name: action.project_name,
+      due_date: action.due_date,
+      planned_on: action.planned_on,
+      flagged: action.highlighted,
+      is_previous: true,
+      ref: action.ref,
+    }));
     const todayRefs = new Set(focus.today.map(action => action.ref));
     for (const action of [...focus.overdue, ...focus.today]) {
       const id = `task-${action.project_id}-${action.task_id}`;

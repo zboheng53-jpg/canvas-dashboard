@@ -160,9 +160,10 @@
         <span class="schedule-week-label" id="schedule-week-label"></span>
       </div>
       <div class="schedule-legend">
+        <button type="button" class="ui-button ui-button--secondary schedule-nav-btn" id="schedule-header-search-btn" onclick="openActionSearch()" title="查找事项">🔍 查找事项</button>
         <span class="legend-item legend-course"><i class="legend-dot"></i>课表</span>
         <span class="legend-item legend-recurring"><i class="legend-dot"></i>每周重复</span>
-        <span class="legend-item legend-weekly"><i class="legend-dot"></i>单次事项</span><button type="button" class="ui-button ui-button--text" onclick="openActionSearch()">查找所有事项</button>
+        <span class="legend-item legend-weekly"><i class="legend-dot"></i>单次事项</span>
       </div>
     </div>
 
@@ -186,7 +187,22 @@
       <button type="button" class="ui-icon-button schedule-modal-close" onclick="closeScheduleItemModal()" aria-label="关闭">×</button>
     </div>
     <form class="schedule-modal-form" id="schedule-modal-form">
-      <p id="schedule-form-error" class="ui-error" role="alert"></p><input type="hidden" name="id" id="schedule-form-id"><input type="hidden" name="action_ref" id="schedule-form-action-ref"><p id="schedule-link-hint" class="muted"></p>
+      <p id="schedule-form-error" class="ui-error hidden" role="alert"></p>
+      <input type="hidden" name="id" id="schedule-form-id">
+      <input type="hidden" name="action_ref" id="schedule-form-action-ref">
+      <div class="schedule-link-bar" id="schedule-link-bar">
+        <span id="schedule-link-hint" class="muted schedule-link-hint">当前为独立日程，仅在日程中显示。</span>
+        <div class="schedule-link-actions">
+          <button type="button" id="schedule-btn-pick-action" class="ui-button ui-button--secondary ui-button--sm schedule-btn-compact" onclick="openScheduleActionPicker()">安排已有待办…</button>
+          <button type="button" id="schedule-btn-unlink-action" class="ui-button ui-button--text ui-button--sm schedule-btn-unlink hidden" onclick="unlinkScheduleAction()">解除关联</button>
+        </div>
+      </div>
+      <div class="form-group schedule-create-todo-wrap" id="field-schedule-create-todo-wrap">
+        <label class="schedule-checkbox-label ui-checkbox-label">
+          <input type="checkbox" name="create_todo" id="schedule-form-create-todo" class="ui-checkbox">
+          <span>同时加入待办清单</span>
+        </label>
+      </div>
       <div class="form-group">
         <label for="schedule-form-title" class="ui-label">事项名称</label>
         <input name="title" id="schedule-form-title" required maxlength="40" placeholder="例如：蓝桥杯讨论" class="ui-control">

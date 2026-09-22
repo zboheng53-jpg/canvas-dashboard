@@ -7,7 +7,13 @@
   <div class="period-entries-list" id="period-entries-list"></div>
 </dialog>
 <dialog class="action-dialog" id="action-search-dialog" aria-labelledby="action-search-title">
-  <div class="action-dialog-head"><h2 id="action-search-title">查找所有事项</h2><button type="button" class="ui-icon-button" aria-label="关闭事项查找" onclick="this.closest('dialog').close()">×</button></div>
-  <input type="search" class="ui-control" id="action-search-input" aria-label="查找标题、详情或项目" placeholder="查找标题、详情或项目…">
+  <div class="action-dialog-head">
+    <div>
+      <h2 id="action-search-title">查找事项</h2>
+      <p class="muted" style="font-size: 12px; margin: 2px 0 0 0;">可检索当前未完成的待办事项与长期项目行动</p>
+    </div>
+    <button type="button" class="ui-icon-button" aria-label="关闭事项查找" onclick="closeActionSearch()">×</button>
+  </div>
+  <input type="search" class="ui-control" id="action-search-input" aria-label="查找标题、详情或项目" placeholder="输入关键词查找待办或项目…">
   <div class="action-search-list" id="action-search-list"></div>
 </dialog>

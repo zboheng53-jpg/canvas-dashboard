@@ -2,7 +2,8 @@
   <div class="card-head">
     <h2 id="today-schedule-title" style="font-size: 20px;">今日日程</h2>
     <span class="muted" id="today-schedule-sub">日程</span>
-    <div class="right">
+    <div class="right" style="display: flex; align-items: center; gap: 4px;">
+      <button type="button" class="ui-icon-button icon-btn" id="btn-search-actions" title="查找事项" aria-label="查找事项" onclick="openActionSearch()"><svg viewBox="0 0 24 24" aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></button>
       <button type="button" class="ui-icon-button icon-btn" title="添加日程" aria-label="添加日程" onclick="switchDashboardView('schedule').then(() => openScheduleItemModal('one-off'))"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14m-7-7h14"></path></svg></button>
     </div>
   </div>

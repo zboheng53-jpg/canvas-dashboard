@@ -2,11 +2,11 @@
    Canvas Dashboard 鈥?Optimized Design
    ======================================== */
 
-/* ---- Page Enter Animation ---- */
-@keyframes fadeInUp {
+/* ---- Page Enter Animation (Smooth, Layered & Calm) ---- */
+@keyframes dashboardFadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(0);
   }
   to {
     opacity: 1;
@@ -14,14 +14,47 @@
   }
 }
 
-.enter-sidebar { animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.enter-top-bar { animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.enter-kpis { animation: fadeInUp 0.4s 0.04s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.enter-main-card { animation: fadeInUp 0.4s 0.08s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.enter-right-card { animation: fadeInUp 0.4s 0.12s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.enter-sidebar,
+.enter-top-bar,
+.enter-kpis,
+.enter-main-card,
+.enter-right-card,
+.enter-item {
+  transform: translateY(0);
+}
+
+/* 层次渐入：侧边栏 -> 顶部栏 -> KPI数据 -> 中央核心待办 -> 右侧长期项目与日程 */
+.enter-sidebar {
+  animation: dashboardFadeIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.enter-top-bar {
+  animation: dashboardFadeIn 0.46s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both;
+}
+
+.enter-kpis {
+  animation: dashboardFadeIn 0.46s cubic-bezier(0.16, 1, 0.3, 1) 0.10s both;
+}
+
+.enter-main-card {
+  animation: dashboardFadeIn 0.50s cubic-bezier(0.16, 1, 0.3, 1) 0.16s both;
+}
+
+.enter-right-card {
+  animation: dashboardFadeIn 0.50s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both;
+}
+
+/* 右侧栏卡片细化层次：长期项目先于今日日程 */
+#long-term-projects-card.enter-right-card {
+  animation-delay: 0.20s;
+}
+
+#today-schedule-card.enter-right-card {
+  animation-delay: 0.26s;
+}
 
 .enter-item {
-  animation: fadeInUp 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1033,15 +1066,12 @@ a:hover { color: var(--accent-hover); }
   .section-header { flex-wrap: wrap; align-items: flex-start; gap: 8px; }
   .section-header h2 { align-self: center; }
   .header-right { margin-left: auto; }
-  .add-todo-form { display: flex; align-items: flex-start; flex-wrap: nowrap; }
-  .add-todo-form #new-todo-input { flex: 1; min-width: 0; }
+  .add-todo-form { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 6px; }
+  .add-todo-form #new-todo-input { width: 100%; flex: 1 1 100%; min-width: 0; }
   .add-todo-form .date-input {
-    flex: 0 0 44px;
-    width: 44px;
-    min-width: 44px;
-
-
-
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 110px;
   }
   .add-todo-form button:not(.btn-wide):not(.btn-primary):not(.btn-secondary):not(.btn-accent):not(.btn-submit):not(.btn-auth-inline):not(.btn-auth-primary):not(.btn-auth-secondary) { width: 44px; }
   .add-todo-form .btn-wide,
