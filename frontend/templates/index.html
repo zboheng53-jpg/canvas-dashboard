@@ -2607,17 +2607,17 @@
         if (item.groupName) metaParts.push(escapeHtml(item.groupName));
         if (item.plannedOn && item.due_str) metaParts.push(`计划 ${escapeHtml(item.plannedOn)}`);
         if (item.occurrences?.length) metaParts.push(item.occurrences.map(e => `${escapeHtml(e.start_time)}–${escapeHtml(e.end_time)}`).join('、'));
-        if (item.type && !item.course) metaParts.push(escapeHtml(item.type));
+        if (item.type && !item.course && item.type !== tagLabel && item.source !== 'custom') metaParts.push(escapeHtml(item.type));
         if (!item.course && item.labels && item.labels.length) metaParts.push(escapeHtml(item.labels[0]));
         const metaText = metaParts.join(' · ');
-        const metaHtml = metaText ? `<div class="biz-todo__meta">${metaText}</div>` : '';
+        const metaHtml = (tagHtml || metaText) ? `<div class="biz-todo__meta">${tagHtml}${metaText ? `<span class="biz-todo__meta-text">${metaText}</span>` : ''}</div>` : '';
 
         const projectMainClass = item.isMainProject ? ' is-project-main' : '';
 
         const rowHtml = `
           <div class="ui-list-item ui-list-item--interactive todo-row${uiListStateClass}${uiListMutedClass}${projectMainClass} ${urgencyClass} ${manualFlag ? 'manual-flagged' : ''} ${isDismissed ? 'dismissed' : ''}">
             <div class="biz-todo__body">
-              <div class="biz-todo__title">${tagHtml}${titleHtml}</div>
+              <div class="biz-todo__title">${titleHtml}</div>
               ${metaHtml}
             </div>
             <div class="biz-todo__right">
