@@ -20,6 +20,7 @@ import auth
 import apple_calendar
 import agent_auth
 import settings
+from external_subtasks import attach_subtasks, save_subtasks
 from platform_state import build_platform_todos_response
 from storage import JsonFileCorruptionError, locked_json_update, read_json_file, write_json_file
 from user_paths import DATA_DIR, user_dir
@@ -1234,6 +1235,7 @@ def api_canvas_todos():
         save_state=lambda changed_state: save_state(username, changed_state),
         now=datetime.now(CST),
     )
+    result = attach_subtasks(username, "canvas", result)
     state_name = "connected" if has_feed_url(username) else platform_sync.get(username, "canvas")["connection_state"]
     return jsonify(_attach_sync(result, "canvas", connection_state=state_name))
 
@@ -1314,6 +1316,7 @@ def api_haoke_todos():
         save_state=lambda changed_state: save_haoke_state(username, changed_state),
         now=datetime.now(CST),
     )
+    result = attach_subtasks(username, "haoke", result)
     connection_state = "connected" if has_credentials else platform_sync.get(username, "haoke")["connection_state"]
     return jsonify(_attach_sync(result, "haoke", connection_state=connection_state, refreshing=result.get("refreshing", False)))
 
@@ -1439,6 +1442,7 @@ def api_zxm_todos():
         save_state=lambda changed_state: save_zxm_state(username, changed_state),
         now=datetime.now(CST),
     )
+    result = attach_subtasks(username, "zhixuemeng", result)
     connection_state = "connected" if has_zxm_token(username) else platform_sync.get(username, "zhixuemeng")["connection_state"]
     return jsonify(_attach_sync(result, "zhixuemeng", connection_state=connection_state))
 
@@ -1560,6 +1564,7 @@ def api_ktp_todos():
         save_state=lambda changed_state: save_ktp_state(username, changed_state),
         now=datetime.now(CST),
     )
+    result = attach_subtasks(username, "ketangpai", result)
     connection_state = "connected" if has_ktp_token(username) else platform_sync.get(username, "ketangpai")["connection_state"]
     return jsonify(_attach_sync(result, "ketangpai", connection_state=connection_state))
 
@@ -1636,8 +1641,28 @@ def api_zhihuishu_todos():
         "status": status,
     }
     result = build_platform_todos_response(result, state, auto_delete_expired_hidden=False)
+    result = attach_subtasks(username, "zhihuishu", result)
     state_name = "connected" if status.get("session") == "active" else platform_sync.get(username, "zhihuishu")["connection_state"]
     return jsonify(_attach_sync(result, "zhihuishu", connection_state=state_name))
+
+
+@app.route("/api/external-subtasks", methods=["PUT"])
+def api_external_subtasks():
+    username = session["username"]
+    data = read_json_request()
+    if data is None:
+        return invalid_request_response()
+    source = data.get("source")
+    item_id = data.get("item_id")
+    subtasks = data.get("subtasks")
+    if not source or item_id is None or not isinstance(subtasks, list):
+        return jsonify({"ok": False, "error": "source, item_id and subtasks are required"}), 400
+    try:
+        saved = save_subtasks(username, source, item_id, subtasks)
+        return jsonify({"ok": True, "subtasks": saved})
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
 
 
 @app.route("/api/platform/<platform>/data", methods=["DELETE"])

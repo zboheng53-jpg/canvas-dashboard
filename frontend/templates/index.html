@@ -1689,7 +1689,11 @@
     let canvasItems = [];
     let customItems = [];
     let projectItems = [];
-    let expandedCustomTodoIds = [];
+    let expandedTodoKeys = [];
+    let expandedCustomTodoIds = expandedTodoKeys;
+    function todoKey(source, todoId) {
+      return `${source}:${todoId}`;
+    }
     let openMobileActionItemId = null;
     let hiddenIds = [];
     let highlightedIds = [];
@@ -1898,6 +1902,14 @@
         }
 
         canvasItems = result.data || [];
+        canvasItems.forEach(item => {
+          if (item.subtasks) {
+            item.subtasks.forEach((subtask, idx) => {
+              if (subtask.id == null) subtask.id = idx + 1;
+            });
+            item.subtasks = sortSubtasks(item.subtasks);
+          }
+        });
         hiddenIds = result.hidden || [];
         highlightedIds = result.highlighted || [];
         canvasDeletedIds = result.deleted || [];
@@ -2198,6 +2210,7 @@
           highlighted: isHighlighted,
           rawId: item.id,
           manualHighlighted: isHighlighted,
+          subtasks: item.subtasks || [],
           disconnected: platformSyncs.canvas?.connection_state === 'disconnected',
           isTodayAction: todayScheduledRefs.has(`canvas:${item.id}`),
         });
@@ -2221,6 +2234,7 @@
           highlighted: isHighlighted,
           rawId: item.id,
           manualHighlighted: isHighlighted,
+          subtasks: item.subtasks || [],
           disconnected: platformSyncs.haoke?.connection_state === 'disconnected',
           isTodayAction: todayScheduledRefs.has(`haoke:${item.id}`),
         });
@@ -2244,6 +2258,7 @@
           highlighted: isHighlighted,
           rawId: item.id,
           manualHighlighted: isHighlighted,
+          subtasks: item.subtasks || [],
           disconnected: platformSyncs.zhixuemeng?.connection_state === 'disconnected',
           isTodayAction: todayScheduledRefs.has(`zhixuemeng:${item.id}`),
         });
@@ -2267,6 +2282,7 @@
           highlighted: isHighlighted,
           rawId: item.id,
           manualHighlighted: isHighlighted,
+          subtasks: item.subtasks || [],
           disconnected: platformSyncs.zhihuishu?.connection_state === 'disconnected',
           isTodayAction: todayScheduledRefs.has(`zhihuishu:${item.id}`),
         });
@@ -2290,6 +2306,7 @@
           highlighted: isHighlighted,
           rawId: item.id,
           manualHighlighted: isHighlighted,
+          subtasks: item.subtasks || [],
           disconnected: platformSyncs.ketangpai?.connection_state === 'disconnected',
           isTodayAction: todayScheduledRefs.has(`ketangpai:${item.id}`),
         });
@@ -2545,6 +2562,10 @@
             ? `<button class="ui-button ui-button--text ui-list-item__meta item-due project-due-editable" onclick="startProjectTodoDueEdit(this)" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" data-date-field="${!item.due_str && item.isTodayAction ? 'planned_on' : 'due_date'}" data-date-value="${item.due_str || item.plannedOn}" aria-label="${!item.due_str && item.isTodayAction ? '修改计划日期' : '修改截止日期'}" title="${!item.due_str && item.isTodayAction ? '计划推进：' + (item.plannedOn || '') + '（点击修改）' : '截止日期：' + (item.due_str || item.plannedOn || '') + '（点击修改）'}">${item.due_str || item.plannedOn || ''}</button>`
             : `<span class="ui-list-item__meta item-due">${item.due_str}</span>`;
 
+        const srcLabels = { canvas: 'Canvas', haoke: '好课', zhixuemeng: '智学盟', zhihuishu: '智慧树', ketangpai: '课堂派', project: '项目', custom: '自定义' };
+        const tagLabel = srcLabels[item.source] || item.type || '';
+        const tagHtml = tagLabel ? `<span class="ui-source-tag ui-source-tag--${item.source}">${escapeHtml(tagLabel)}</span>` : '';
+
         // courseHtml 改为整合进副标题，详见下方 rowHtml 重构
         let courseHtml = '';
         if (item.source === 'project') {
@@ -2559,11 +2580,15 @@
         const labelsHtml = '';
 
         const subtasks = item.subtasks || [];
-        const isSubtaskExpanded = item.source === 'custom' && expandedCustomTodoIds.includes(item.rawId);
+        const supportsSubtasks = ['custom', 'canvas', 'haoke', 'zhixuemeng', 'zhihuishu', 'ketangpai'].includes(item.source) && !item.is_recurring;
+        const itemKey = todoKey(item.source, item.rawId);
+        const isSubtaskExpanded = supportsSubtasks && (expandedTodoKeys.includes(itemKey) || (item.source === 'custom' && expandedCustomTodoIds.includes(item.rawId)));
         const subtaskToggleLabel = isSubtaskExpanded ? '\u6536\u8d77\u5b50\u4efb\u52a1' : '\u5c55\u5f00\u5b50\u4efb\u52a1';
         const subtaskToggleIcon = isSubtaskExpanded ? '&#x25be;' : '&#x25b8;';
-        const subtaskToggleHtml = (item.source === 'custom' && !item.is_recurring)
-          ? `<button class="subtask-toggle" onclick="toggleSubtasks(${item.rawId})" title="${subtaskToggleLabel}" aria-label="${subtaskToggleLabel}">${subtaskToggleIcon}</button>`
+        const sourceArg = JSON.stringify(item.source);
+        const rawIdArg = JSON.stringify(String(item.rawId));
+        const subtaskToggleHtml = supportsSubtasks
+          ? `<button class="subtask-toggle" onclick='toggleSubtasks(${sourceArg}, ${rawIdArg})' title="${subtaskToggleLabel}" aria-label="${subtaskToggleLabel}">${subtaskToggleIcon}</button>`
           : '<span class="subtask-toggle subtask-toggle-placeholder" aria-hidden="true"></span>';
         const mobileActionsOpen = openMobileActionItemId === item.id;
 
@@ -2592,7 +2617,7 @@
         const rowHtml = `
           <div class="ui-list-item ui-list-item--interactive todo-row${uiListStateClass}${uiListMutedClass}${projectMainClass} ${urgencyClass} ${manualFlag ? 'manual-flagged' : ''} ${isDismissed ? 'dismissed' : ''}">
             <div class="biz-todo__body">
-              <div class="biz-todo__title">${titleHtml}</div>
+              <div class="biz-todo__title">${tagHtml}${titleHtml}</div>
               ${metaHtml}
             </div>
             <div class="biz-todo__right">
@@ -2609,11 +2634,11 @@
           </div>
         `;
 
-        if (item.source !== 'custom') {
+        if (!supportsSubtasks) {
           return rowHtml;
         }
 
-        const panelHtml = isSubtaskExpanded ? renderSubtaskPanel(item.rawId, subtasks) : '';
+        const panelHtml = isSubtaskExpanded ? renderSubtaskPanel(item.source, item.rawId, subtasks) : '';
         const previewHtml = '';
         return `
           <div class="todo-row-wrap">
@@ -2717,17 +2742,24 @@
       if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
     }
 
-    function renderSubtaskPanel(todoId, subtasks) {
+    function renderSubtaskPanel(source, todoId, subtasks) {
+      if (typeof source === 'number' || (typeof source === 'string' && subtasks === undefined)) {
+        subtasks = todoId;
+        todoId = source;
+        source = 'custom';
+      }
       const todayStr = getTodayDateString();
-      const rowsHtml = subtasks.map((subtask, idx) => {
+      const sourceArg = JSON.stringify(source);
+      const todoIdArg = JSON.stringify(String(todoId));
+      const rowsHtml = (subtasks || []).map((subtask, idx) => {
         const sid = subtask.id != null ? subtask.id : idx;
         const dueDateVal = subtask.due_date || todayStr;
         return `
         <div class="ui-list-item todo-subtask-row">
-          <input type="checkbox" ${subtask.done ? 'checked' : ''} onchange="toggleSubtaskDone(${todoId}, ${sid})" class="ui-checkbox">
-          <span class="ui-list-item__title subtask-text ${subtask.done ? 'done' : ''}" title="${escapeHtml(subtask.text)}" onclick="startSubtaskEdit(${todoId}, ${sid}, this)">${escapeHtml(subtask.text)}</span>
-          <input type="date" class="ui-control subtask-due-input" value="${dueDateVal}" onchange="handleSubtaskDueChange(${todoId}, ${sid}, this.value)" title="截止日期">
-          <button class="ui-icon-button ui-icon-button--danger subtask-delete" onclick="deleteSubtask(${todoId}, ${sid})" title="delete subtask">x</button>
+          <input type="checkbox" ${subtask.done ? 'checked' : ''} onchange='toggleSubtaskDone(${sourceArg}, ${todoIdArg}, ${sid})' class="ui-checkbox">
+          <span class="ui-list-item__title subtask-text ${subtask.done ? 'done' : ''}" title="${escapeHtml(subtask.text)}" onclick='startSubtaskEdit(${sourceArg}, ${todoIdArg}, ${sid}, this)'>${escapeHtml(subtask.text)}</span>
+          <input type="date" class="ui-control subtask-due-input" value="${dueDateVal}" onchange='handleSubtaskDueChange(${sourceArg}, ${todoIdArg}, ${sid}, this.value)' title="截止日期">
+          <button class="ui-icon-button ui-icon-button--danger subtask-delete" onclick='deleteSubtask(${sourceArg}, ${todoIdArg}, ${sid})' title="delete subtask">x</button>
         </div>
       `;
       }).join('');
@@ -2736,9 +2768,9 @@
         <div class="ui-card ui-card--subtle todo-subtask-panel">
           ${rowsHtml || '<div class="ui-empty ui-empty--compact subtask-empty"><strong>还没有子任务</strong></div>'}
           <div class="subtask-add-row">
-            <input class="ui-control subtask-add-input" id="subtask-add-text-${todoId}" placeholder="添加子任务..." onkeydown="handleSubtaskAddKey(event, ${todoId})">
-            <input type="date" class="ui-control subtask-add-due-input" id="subtask-add-due-${todoId}" value="${todayStr}" onkeydown="handleSubtaskAddKey(event, ${todoId})" title="截止日期">
-            <button type="button" class="ui-button ui-button--primary subtask-add-btn" onclick="submitSubtaskAdd(${todoId})" title="添加子任务">添加</button>
+            <input class="ui-control subtask-add-input" id="subtask-add-text-${source}-${todoId}" placeholder="添加子任务..." onkeydown='handleSubtaskAddKey(event, ${sourceArg}, ${todoIdArg})'>
+            <input type="date" class="ui-control subtask-add-due-input" id="subtask-add-due-${source}-${todoId}" value="${todayStr}" onkeydown='handleSubtaskAddKey(event, ${sourceArg}, ${todoIdArg})' title="截止日期">
+            <button type="button" class="ui-button ui-button--primary subtask-add-btn" onclick='submitSubtaskAdd(${sourceArg}, ${todoIdArg})' title="添加子任务">添加</button>
           </div>
         </div>
       `;
@@ -2799,6 +2831,14 @@
         }
 
         haokeItems = result.data || [];
+        haokeItems.forEach(item => {
+          if (item.subtasks) {
+            item.subtasks.forEach((subtask, idx) => {
+              if (subtask.id == null) subtask.id = idx + 1;
+            });
+            item.subtasks = sortSubtasks(item.subtasks);
+          }
+        });
         haokeHiddenIds = result.hidden || [];
         haokeHighlightedIds = result.highlighted || [];
         haokeDeletedIds = result.deleted || [];
@@ -2863,6 +2903,14 @@
         }
 
         zhixuemengItems = result.data || [];
+        zhixuemengItems.forEach(item => {
+          if (item.subtasks) {
+            item.subtasks.forEach((subtask, idx) => {
+              if (subtask.id == null) subtask.id = idx + 1;
+            });
+            item.subtasks = sortSubtasks(item.subtasks);
+          }
+        });
         zhixuemengHiddenIds = result.hidden || [];
         zhixuemengHighlightedIds = result.highlighted || [];
         zhixuemengDeletedIds = result.deleted || [];
@@ -2926,6 +2974,14 @@
         }
 
         ketangpaiItems = result.data || [];
+        ketangpaiItems.forEach(item => {
+          if (item.subtasks) {
+            item.subtasks.forEach((subtask, idx) => {
+              if (subtask.id == null) subtask.id = idx + 1;
+            });
+            item.subtasks = sortSubtasks(item.subtasks);
+          }
+        });
         ketangpaiHiddenIds = result.hidden || [];
         ketangpaiHighlightedIds = result.highlighted || [];
         ketangpaiDeletedIds = result.deleted || [];
@@ -2983,6 +3039,14 @@
         }
 
         zhihuishuItems = result.data || [];
+        zhihuishuItems.forEach(item => {
+          if (item.subtasks) {
+            item.subtasks.forEach((subtask, idx) => {
+              if (subtask.id == null) subtask.id = idx + 1;
+            });
+            item.subtasks = sortSubtasks(item.subtasks);
+          }
+        });
         zhihuishuHiddenIds = result.hidden || [];
         zhihuishuHighlightedIds = result.highlighted || [];
         zhihuishuDeletedIds = result.deleted || [];
@@ -3024,26 +3088,58 @@
       renderUnifiedList();
     }
 
-    // ---- Custom Todos CRUD ----
-    function findCustomTodo(todoId) {
-      return customItems.find(item => item.id === todoId);
+    // ---- Unified Todos Subtasks & CRUD ----
+    function findTodo(source, todoId) {
+      if (todoId === undefined) {
+        todoId = source;
+        source = 'custom';
+      }
+      const idStr = String(todoId);
+      if (source === 'custom') {
+        return customItems.find(item => String(item.id) === idStr);
+      } else if (source === 'canvas') {
+        return canvasItems.find(item => String(item.id) === idStr);
+      } else if (source === 'haoke') {
+        return haokeItems.find(item => String(item.id) === idStr);
+      } else if (source === 'zhixuemeng') {
+        return zhixuemengItems.find(item => String(item.id) === idStr);
+      } else if (source === 'zhihuishu') {
+        return zhihuishuItems.find(item => String(item.id) === idStr);
+      } else if (source === 'ketangpai') {
+        return ketangpaiItems.find(item => String(item.id) === idStr);
+      }
+      return null;
     }
 
-    function toggleSubtasks(todoId) {
-      if (expandedCustomTodoIds.includes(todoId)) {
-        expandedCustomTodoIds = expandedCustomTodoIds.filter(id => id !== todoId);
-      } else {
-        expandedCustomTodoIds.push(todoId);
+    function findCustomTodo(todoId) {
+      return findTodo('custom', todoId);
+    }
+
+    function toggleSubtasks(source, todoId) {
+      if (todoId === undefined) {
+        todoId = source;
+        source = 'custom';
       }
+      const key = todoKey(source, todoId);
+      if (expandedTodoKeys.includes(key)) {
+        expandedTodoKeys = expandedTodoKeys.filter(k => k !== key);
+      } else {
+        expandedTodoKeys.push(key);
+      }
+      expandedCustomTodoIds = expandedTodoKeys;
       renderUnifiedList();
     }
 
-    function handleSubtaskAddKey(event, todoId) {
+    function handleSubtaskAddKey(event, source, todoId) {
+      if (todoId === undefined) {
+        todoId = source;
+        source = 'custom';
+      }
       if (event.key === 'Enter') {
         event.preventDefault();
-        submitSubtaskAdd(todoId);
+        submitSubtaskAdd(source, todoId);
       } else if (event.key === 'Escape') {
-        const textInput = document.getElementById(`subtask-add-text-${todoId}`);
+        const textInput = document.getElementById(`subtask-add-text-${source}-${todoId}`) || document.getElementById(`subtask-add-text-${todoId}`) || event.target;
         if (textInput) {
           textInput.value = '';
           textInput.blur();
@@ -3051,45 +3147,81 @@
       }
     }
 
-    async function submitSubtaskAdd(todoId) {
-      const textInput = document.getElementById(`subtask-add-text-${todoId}`);
-      const dueInput = document.getElementById(`subtask-add-due-${todoId}`);
+    async function submitSubtaskAdd(source, todoId) {
+      if (todoId === undefined) {
+        todoId = source;
+        source = 'custom';
+      }
+      const textInput = document.getElementById(`subtask-add-text-${source}-${todoId}`) || document.getElementById(`subtask-add-text-${todoId}`) || document.querySelector('.subtask-add-input');
+      const dueInput = document.getElementById(`subtask-add-due-${source}-${todoId}`) || document.getElementById(`subtask-add-due-${todoId}`) || document.querySelector('.subtask-add-due-input');
       if (!textInput) return;
       const text = textInput.value.trim();
       const dueDate = dueInput ? dueInput.value : getTodayDateString();
       if (!text) return;
-      await addSubtask(todoId, text, dueDate);
+      await addSubtask(source, todoId, text, dueDate);
     }
 
-    async function saveCustomSubtasks(todoId, subtasks) {
+    async function saveSubtasks(source, todoId, subtasks) {
+      if (subtasks === undefined) {
+        subtasks = todoId;
+        todoId = source;
+        source = 'custom';
+      }
       try {
-        const todo = findCustomTodo(todoId);
-        const payload = { subtasks };
-        if (todo && todo.updated_at) payload.updated_at = todo.updated_at;
-        const resp = await fetch(`/api/custom/todos/${todoId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (!resp.ok) throw new Error('save failed');
-
-        const data = await resp.json();
-        if (todo) {
-          todo.subtasks = subtasks;
-          if (data.todo && data.todo.updated_at) todo.updated_at = data.todo.updated_at;
+        const todo = findTodo(source, todoId);
+        if (source === 'custom') {
+          const payload = { subtasks };
+          if (todo && todo.updated_at) payload.updated_at = todo.updated_at;
+          const resp = await fetch(`/api/custom/todos/${todoId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (!resp.ok) throw new Error('save failed');
+          const data = await resp.json();
+          if (todo) {
+            todo.subtasks = subtasks;
+            if (data.todo && data.todo.updated_at) todo.updated_at = data.todo.updated_at;
+          }
+        } else {
+          const resp = await fetch('/api/external-subtasks', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ source, item_id: String(todoId), subtasks }),
+          });
+          if (!resp.ok) throw new Error('save failed');
+          const data = await resp.json();
+          if (todo) {
+            todo.subtasks = data.subtasks || subtasks;
+          }
         }
         renderUnifiedList();
       } catch (e) {
         alert('保存失败');
-        fetchCustomTodos();
+        if (source === 'custom') fetchCustomTodos();
+        else if (source === 'canvas') fetchCanvasTodos();
+        else if (source === 'haoke') fetchHaokeTodos();
+        else if (source === 'zhixuemeng') fetchZhixuemengTodos();
+        else if (source === 'zhihuishu') fetchZhihuishuTodos();
+        else if (source === 'ketangpai') fetchKetangpaiTodos();
       }
     }
 
-    async function addSubtask(todoId, text, dueDate) {
+    function saveCustomSubtasks(todoId, subtasks) {
+      return saveSubtasks('custom', todoId, subtasks);
+    }
+
+    async function addSubtask(source, todoId, text, dueDate) {
+      if (dueDate === undefined) {
+        dueDate = text;
+        text = todoId;
+        todoId = source;
+        source = 'custom';
+      }
       const trimmed = text.trim();
       if (!trimmed) return;
 
-      const todo = findCustomTodo(todoId);
+      const todo = findTodo(source, todoId);
       if (!todo) return;
 
       const currentSubtasks = todo.subtasks || [];
@@ -3099,11 +3231,16 @@
         ...currentSubtasks,
         { id: newId, text: trimmed, done: false, due_date: finalDueDate },
       ];
-      await saveCustomSubtasks(todoId, sortSubtasks(subtasks));
+      await saveSubtasks(source, todoId, sortSubtasks(subtasks));
     }
 
-    async function toggleSubtaskDone(todoId, subtaskId) {
-      const todo = findCustomTodo(todoId);
+    async function toggleSubtaskDone(source, todoId, subtaskId) {
+      if (subtaskId === undefined) {
+        subtaskId = todoId;
+        todoId = source;
+        source = 'custom';
+      }
+      const todo = findTodo(source, todoId);
       if (!todo) return;
 
       const sid = Number(subtaskId);
@@ -3122,11 +3259,16 @@
         return subtask;
       });
 
-      await saveCustomSubtasks(todoId, sortSubtasks(subtasks));
+      await saveSubtasks(source, todoId, sortSubtasks(subtasks));
     }
 
-    async function deleteSubtask(todoId, subtaskId) {
-      const todo = findCustomTodo(todoId);
+    async function deleteSubtask(source, todoId, subtaskId) {
+      if (subtaskId === undefined) {
+        subtaskId = todoId;
+        todoId = source;
+        source = 'custom';
+      }
+      const todo = findTodo(source, todoId);
       if (!todo) return;
 
       const sid = Number(subtaskId);
@@ -3134,11 +3276,17 @@
         const id = subtask.id != null ? subtask.id : idx;
         return id !== sid;
       });
-      await saveCustomSubtasks(todoId, sortSubtasks(subtasks));
+      await saveSubtasks(source, todoId, sortSubtasks(subtasks));
     }
 
-    async function handleSubtaskDueChange(todoId, subtaskId, dueDate) {
-      const todo = findCustomTodo(todoId);
+    async function handleSubtaskDueChange(source, todoId, subtaskId, dueDate) {
+      if (dueDate === undefined) {
+        dueDate = subtaskId;
+        subtaskId = todoId;
+        todoId = source;
+        source = 'custom';
+      }
+      const todo = findTodo(source, todoId);
       if (!todo) return;
 
       const sid = Number(subtaskId);
@@ -3146,11 +3294,17 @@
         const id = subtask.id != null ? subtask.id : idx;
         return id === sid ? { ...subtask, due_date: dueDate || null } : subtask;
       });
-      await saveCustomSubtasks(todoId, sortSubtasks(subtasks));
+      await saveSubtasks(source, todoId, sortSubtasks(subtasks));
     }
 
-    function startSubtaskEdit(todoId, subtaskId, spanEl) {
-      const todo = findCustomTodo(todoId);
+    function startSubtaskEdit(source, todoId, subtaskId, spanEl) {
+      if (spanEl === undefined) {
+        spanEl = subtaskId;
+        subtaskId = todoId;
+        todoId = source;
+        source = 'custom';
+      }
+      const todo = findTodo(source, todoId);
       if (!todo) return;
 
       const sid = Number(subtaskId);
@@ -3180,7 +3334,7 @@
           const id = item.id != null ? item.id : idx;
           return id === sid ? { ...item, text: nextText } : item;
         });
-        await saveCustomSubtasks(todoId, sortSubtasks(subtasks));
+        await saveSubtasks(source, todoId, sortSubtasks(subtasks));
       }
 
       input.addEventListener('keydown', event => {
@@ -3279,7 +3433,6 @@
           setNewTodoDueDefault(window.customToday || new Date().toISOString().split('T')[0]);
           await fetchCustomTodos();
           if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
-          if (typeof loadForwardAgenda === 'function') loadForwardAgenda();
         } else {
           const err = await resp.json().catch(() => ({}));
           const errMsg = err.error || err.message || ('服务端错误（' + resp.status + '）');
