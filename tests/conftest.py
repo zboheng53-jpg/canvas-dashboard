@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import tempfile
 import threading
 from datetime import datetime, timezone, timedelta
@@ -190,6 +191,10 @@ def browser(chromium, request, test_now):
                     static now() { return now; }
                 };
             })();""" % int(test_now.timestamp() * 1000))
+            context.route(
+                re.compile(r"^https?://fonts\.(?:googleapis|gstatic)\.com/.*"),
+                lambda route: route.fulfill(status=200, content_type="text/css", body=""),
+            )
             context.tracing.start(screenshots=True, snapshots=True, sources=True)
             def observe(page):
                 page.on("pageerror", lambda error: errors.append(str(error)))

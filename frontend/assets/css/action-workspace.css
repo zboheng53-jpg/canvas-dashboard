@@ -259,6 +259,9 @@ details[open] > summary .project-disclosure-chevron {
 #schedule-form-error.hidden {
   display: none !important;
 }
+.schedule-modal-backdrop.hidden {
+  display: none !important;
+}
 .schedule-link-bar {
   margin-bottom: 12px;
   display: flex;
