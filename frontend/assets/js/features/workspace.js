@@ -239,21 +239,14 @@ function isCoursePast(event) {
 
 function agendaEventButton(event) {
   const isDone = Boolean(event.done || event.occurrence_done || isCoursePast(event));
-  const nextClass = event._isNextUpcoming ? ' is-next-upcoming' : '';
-  const button = wNode('button', `period-event period-event--${event.kind} ${isDone ? 'is-done' : ''}${nextClass}`);
+  const button = wNode('button', `period-event period-event--${event.kind} ${isDone ? 'is-done' : ''}`);
   button.type = 'button';
   const time = event.kind === 'deadline' ? `${event.deadline_time || '全天'} 截止` : event.kind === 'planned' ? '计划推进 · 未定时间' : `${event.start_time}–${event.end_time}`;
-  const timeEl = wNode('span', 'period-event-time');
-  if (event._isNextUpcoming) {
-    const badge = wNode('span', 'next-upcoming-tag', '下一项');
-    badge.style.cssText = 'background: var(--accent, #3b82f6); color: #fff; font-size: 10px; padding: 1px 4px; border-radius: 3px; margin-right: 4px; font-weight: 600; display: inline-block;';
-    timeEl.append(badge);
-  }
-  timeEl.append(document.createTextNode(time));
+  const timeEl = wNode('span', 'period-event-time', time);
   button.append(timeEl, wNode('strong', 'period-event-title', event.title));
   const meta = [event.location, event.link_missing ? '原事项已移除' : '', event.occurrence_done ? '本次已完成' : ''].filter(Boolean).join(' · ');
   if (meta) button.append(wNode('small', '', meta));
-  const tooltip = [(event._isNextUpcoming ? '【下一项】' : '') + event.title, time, meta].filter(Boolean).join('\n');
+  const tooltip = [event.title, time, meta].filter(Boolean).join('\n');
   button.title = tooltip;
   button.addEventListener('click', () => openAgendaEntry(event));
   return button;
@@ -381,9 +374,6 @@ function renderForwardAgenda() {
       group.append(wNode('h3', '', workspaceDateLabel(day.date)));
 
       const timed = [...day.timed].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
-      const nextUpcoming = timed.find(t => t.end_time > currentTime && !t.done && !t.occurrence_done);
-      if (nextUpcoming) nextUpcoming._isNextUpcoming = true;
-
       const allday = [...day.deadlines, ...day.planned.filter(p => !day.deadlines.some(d => d.ref === p.ref))];
 
       if (!timed.length && !allday.length) {
