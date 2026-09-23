@@ -43,7 +43,7 @@ def test_haoke_todos_returns_stale_cache_and_starts_refresh(client_with_user, mo
 
     assert resp.status_code == 200
     assert data["ok"] is True
-    assert data["data"] == [{"id": 7, "title": "cached"}]
+    assert data["data"] == [{"id": 7, "title": "cached", "subtasks": []}]
     assert data["cached"] is True
     assert data["stale"] is True
     assert data["refreshing"] is True
@@ -122,7 +122,7 @@ def test_haoke_todos_fetches_synchronously_when_cache_missing(client_with_user, 
 
     assert resp.status_code == 200
     assert data["ok"] is True
-    assert data["data"] == [{"id": 9, "title": "live"}]
+    assert data["data"] == [{"id": 9, "title": "live", "subtasks": []}]
     assert data["cached"] is False
     assert data["refreshing"] is False
     assert fetched == ["alice"]

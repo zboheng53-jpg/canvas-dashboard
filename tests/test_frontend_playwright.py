@@ -1227,6 +1227,51 @@ def test_frontend_v2_preserves_core_todo_actions(live_app, browser):
     expect(custom_item).to_have_count(0)
 
 
+def test_frontend_external_platform_subtasks_lifecycle_and_badge(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "externalsubtaskuser")
+
+    item = page.locator(".todo-row-wrap").filter(has_text="Canvas seeded")
+    expect(item).to_be_visible()
+
+    # Verify Scheme 3 micro-badge is present in the title
+    source_badge = item.locator(".ui-source-tag--canvas")
+    expect(source_badge).to_be_visible()
+    expect(source_badge).to_have_text("Canvas")
+
+    # Toggle subtasks
+    toggle = item.locator(".subtask-toggle")
+    expect(toggle).to_be_visible()
+    expect(toggle).to_have_text("\u25b8")
+    toggle.click()
+    expect(toggle).to_have_text("\u25be")
+
+    # Add a subtask
+    item.locator(".subtask-add-input").fill("Canvas subtask step 1")
+    item.locator(".subtask-add-input").press("Enter")
+    expect(item.locator(".subtask-text")).to_have_text("Canvas subtask step 1")
+
+    # Check the subtask checkbox
+    checkbox = item.locator(".todo-subtask-row input[type='checkbox']")
+    expect(checkbox).not_to_be_checked()
+    checkbox.check()
+    expect(checkbox).to_be_checked()
+
+    # Reload and verify persistence
+    page.reload()
+    restored = page.locator(".todo-row-wrap").filter(has_text="Canvas seeded")
+    expect(restored).to_be_visible()
+    restored_toggle = restored.locator(".subtask-toggle")
+    expect(restored_toggle).to_have_text("\u25b8")
+    restored_toggle.click()
+    expect(restored.locator(".subtask-text")).to_have_text("Canvas subtask step 1")
+    expect(restored.locator(".todo-subtask-row input[type='checkbox']")).to_be_checked()
+
+    # Delete subtask
+    restored.locator(".subtask-delete").click()
+    expect(restored.locator(".subtask-text")).to_have_count(0)
+
+
 def test_account_deletion_confirmation_panel_has_clear_inputs_and_guard(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "deletepanel")

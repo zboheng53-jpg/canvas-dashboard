@@ -46,6 +46,7 @@ canvas-dashboard/
 ├── zhihuishu_browser.py           # 智慧树 Playwright 浏览器自动化
 ├── zhihuishu_login_sessions.py    # 智慧树短时 noVNC 登录窗口
 ├── recurring_todo_store.py        # 原生重复待办系列、周期展开与独立完成状态
+├── external_subtasks.py           # 外部平台作业子任务持久化与装配
 ├── ketangpai_client.py            # 课堂派客户端 (短信/密码/课程/作业)
 ├── agent_auth.py                  # Agent API 独立安全凭据与 Token 管理
 ├── agent_mcp.py                   # 零依赖通用 MCP Server 脚本 (JSON-RPC stdio)
@@ -100,6 +101,9 @@ canvas-dashboard/
   - 生产 Session 必须校验不可变 `account_id` 与 `session_version`；永久删除必须经 `auth.delete_account()`，并保留不参与常规备份的删除账本以防旧备份复活账户。
 - **统一待办状态**：
   - 平台缓存不得被本地完成、隐藏、标红、删除或标题/截止时间覆盖直接改写；统一通过各平台 `PlatformStateStore` 状态文件叠加，并允许恢复上游显示值。
+- **外部作业子任务 (`external_subtasks.py`)**：
+  - 存储位于 `data/users/<username>/external_subtasks.json`，以 `source:item_id` 为稳定键，采用锁 + 原子写。
+  - 支持 `canvas`、`haoke`、`zhixuemeng`、`zhihuishu`、`ketangpai` 5 大平台。各平台 `/api/<platform>/todos` 自动装配本地持久化子任务；提供 `PUT /api/external-subtasks` 供子任务增删改查。前端所有作业均共享子任务增删改、勾选、改期与展开交互，展开状态仅保留在前端内存。
 - **平台同步元数据**：
   - `platform_sync_status.json` 只保存非敏感的连接、刷新、失败与日历资格状态；必须继续使用锁与原子写，并在损坏时 fail-closed。不得写入密码、Token、Cookie 或订阅地址。
 - **长期项目 (`project_store.py`)**：
