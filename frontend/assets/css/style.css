@@ -429,7 +429,8 @@ a:hover { color: var(--accent-hover); }
   line-height: 1.25;
 }
 
-.todo-group-heading span {
+.todo-group-heading > span.todo-group-count,
+.todo-group-heading .ui-count-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;

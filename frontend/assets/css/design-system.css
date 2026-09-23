@@ -615,6 +615,11 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   justify-content: center;
   width: 14px;
   height: 14px;
+  min-width: 14px !important;
+  min-height: 14px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
   color: var(--ds-ink-3, #7d8694);
   transition: color 0.15s ease;
 }

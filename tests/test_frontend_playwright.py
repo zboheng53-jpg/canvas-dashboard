@@ -1400,14 +1400,13 @@ def test_frontend_today_and_overdue_visual_consistency(live_app, browser):
     page.fill("#new-todo-input", "今日正常待办")
     page.fill("#new-todo-due", today_str)
     page.click("#add-todo-form button")
+    today_row = page.locator(".todo-row").filter(has_text="今日正常待办")
+    expect(today_row).to_be_visible()
 
     page.fill("#new-todo-input", "已逾期待办事项")
     page.fill("#new-todo-due", "2026-07-01")
     page.click("#add-todo-form button")
-
-    today_row = page.locator(".todo-row").filter(has_text="今日正常待办")
     overdue_row = page.locator(".todo-row").filter(has_text="已逾期待办事项")
-    expect(today_row).to_be_visible()
     expect(overdue_row).to_be_visible()
 
     # 3. 验证逾期行有 ui-list-item--danger，而今天行绝不应带有 ui-list-item--danger

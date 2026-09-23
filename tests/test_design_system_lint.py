@@ -103,3 +103,11 @@ def test_empty_art_not_hidden():
     hidden_rule = ".todo-list .ui-empty__art,\n.rail-card .ui-empty__art { display: none !important; }"
     assert hidden_rule not in content, "Empty art is still hidden with display: none !important in design-system.css"
 
+
+def test_todo_group_heading_has_no_redundant_dot():
+    """Ensure index.html template does not contain redundant separator dot in todo group heading."""
+    template = Path("frontend/templates/index.html").read_text(encoding="utf-8")
+    assert "todo-group-count-dot" not in template, "Found todo-group-count-dot in index.html"
+    heading_section = template.split("todo-group-heading-left")[1].split("ui-count-pill")[0]
+    assert "·" not in heading_section, "Found separator dot in todo-group-heading-left"
+
