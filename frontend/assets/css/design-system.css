@@ -842,6 +842,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
 .todo-row .ui-source--zhixuemeng::before { background: var(--src-zxm, #4078c8) !important; }
 .todo-row .ui-source--zhihuishu::before { background: var(--src-zhs, #c48a2c) !important; }
 .todo-row .ui-source--ketangpai::before { background: var(--src-ketangpai, #2e7bee) !important; }
+.todo-row .ui-source--tongjioj::before { background: var(--src-tongjioj, #0d9488) !important; }
 .todo-row .ui-source--project::before { background: var(--src-project, #8068c5) !important; }
 .todo-row .ui-source--custom::before { background: var(--src-custom, #8a94a3) !important; }
 
@@ -2522,6 +2523,7 @@ section.card.listcard,
 .connection-platform-item.ui-source--zhixuemeng::before { background: var(--ds-src-zxm, #4078c8) !important; }
 .connection-platform-item.ui-source--zhihuishu::before { background: var(--ds-src-zhs, #c48a2c) !important; }
 .connection-platform-item.ui-source--ketangpai::before { background: var(--ds-src-ktp, #2e7bee) !important; }
+.connection-platform-item.ui-source--tongjioj::before { background: var(--src-tongjioj, #0d9488) !important; }
 .connection-platform-title {
   font-size: 13px !important;
   font-weight: 600 !important;
@@ -2603,6 +2605,7 @@ section.card.listcard,
 #detail-zhixuemeng .detail-platform-icon-circle { background: rgba(64, 120, 200, 0.12) !important; color: var(--ds-src-zxm, #4078c8) !important; }
 #detail-zhihuishu .detail-platform-icon-circle { background: rgba(196, 138, 44, 0.14) !important; color: var(--ds-src-zhs, #c48a2c) !important; }
 #detail-ketangpai .detail-platform-icon-circle { background: rgba(46, 123, 238, 0.12) !important; color: var(--ds-src-ktp, #2e7bee) !important; }
+#detail-tongjioj .detail-platform-icon-circle { background: rgba(13, 148, 136, 0.12) !important; color: var(--src-tongjioj, #0d9488) !important; }
 .detail-platform-title {
   font-family: var(--font-serif) !important;
   font-size: 16px !important;
@@ -3330,6 +3333,7 @@ section.card.listcard,
   letter-spacing: 0 !important;
 }
 .ui-source-tag--ketangpai { background: var(--src-ketangpai-bg, rgba(46, 123, 238, 0.10)) !important; color: var(--src-ketangpai, #2e7bee) !important; border-color: rgba(46, 123, 238, 0.20) !important; }
+.ui-source-tag--tongjioj { background: var(--src-tongjioj-bg, rgba(13, 148, 136, 0.10)) !important; color: var(--src-tongjioj, #0d9488) !important; border-color: rgba(13, 148, 136, 0.20) !important; }
 .ui-source-tag--canvas { background: var(--src-canvas-bg, rgba(196, 91, 85, 0.10)) !important; color: var(--src-canvas, #c4564f) !important; border-color: rgba(196, 91, 85, 0.20) !important; }
 .ui-source-tag--project { background: var(--src-project-bg, rgba(128, 104, 197, 0.10)) !important; color: var(--src-project, #8068c5) !important; border-color: rgba(128, 104, 197, 0.20) !important; }
 .ui-source-tag--custom { background: var(--src-custom-bg, rgba(105, 117, 134, 0.10)) !important; color: var(--src-custom, #64748b) !important; border-color: rgba(105, 117, 134, 0.20) !important; }

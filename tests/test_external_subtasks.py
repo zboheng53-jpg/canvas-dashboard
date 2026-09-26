@@ -9,14 +9,17 @@ def test_subtasks_are_isolated_by_source_and_item_id(tmp_path, monkeypatch):
     canvas = [{"id": 1, "text": "Canvas task", "done": False, "due_date": None}]
     haoke = [{"id": 1, "text": "Haoke task", "done": True, "due_date": "2026-09-30"}]
     ketangpai = [{"id": 1, "text": "Ktp task", "done": False, "due_date": None}]
+    tongjioj = [{"id": 1, "text": "OJ task", "done": False, "due_date": "2026-10-08"}]
 
     external_subtasks.save_subtasks("alice", "canvas", 101, canvas)
     external_subtasks.save_subtasks("alice", "haoke", 101, haoke)
     external_subtasks.save_subtasks("alice", "ketangpai", 101, ketangpai)
+    external_subtasks.save_subtasks("alice", "tongjioj", "tjoj_590", tongjioj)
 
     assert external_subtasks.load_subtasks("alice", "canvas", 101) == canvas
     assert external_subtasks.load_subtasks("alice", "haoke", 101) == haoke
     assert external_subtasks.load_subtasks("alice", "ketangpai", 101) == ketangpai
+    assert external_subtasks.load_subtasks("alice", "tongjioj", "tjoj_590") == tongjioj
 
 
 def test_attach_subtasks_includes_empty_lists(tmp_path, monkeypatch):

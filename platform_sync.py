@@ -8,7 +8,7 @@ import settings
 from storage import locked_json_update, read_json_file
 from user_paths import user_dir
 
-PLATFORMS = ("canvas", "haoke", "zhixuemeng", "zhihuishu", "ketangpai")
+PLATFORMS = ("canvas", "haoke", "zhixuemeng", "zhihuishu", "ketangpai", "tongjioj")
 CONNECTION_STATES = {"unconfigured", "connected", "disconnected", "needs_reauth"}
 DATA_STATES = {"unavailable", "fresh", "cached", "stale"}
 CST = timezone(timedelta(hours=8))

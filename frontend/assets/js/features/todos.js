@@ -15,6 +15,7 @@
       if (typeof fetchZhixuemengTodos === 'function') fetchZhixuemengTodos();
       if (typeof fetchZhihuishuTodos === 'function') fetchZhihuishuTodos();
       if (typeof fetchKetangpaiTodos === 'function') fetchKetangpaiTodos();
+      if (typeof fetchTongjiojTodos === 'function') fetchTongjiojTodos();
       if (typeof refreshWorkspaceSurfaces === 'function') {
         await refreshWorkspaceSurfaces();
       } else {

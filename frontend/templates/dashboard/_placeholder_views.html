@@ -386,6 +386,10 @@
             <span class="connection-platform-title">课堂派</span>
             <span class="ui-status ui-status--info connection-platform-status" id="card-status-ketangpai">检查中...</span>
           </button>
+          <button type="button" class="ui-nav-item ui-nav-item--source ui-source--tongjioj connection-platform-item" data-od-id="connection-platform-tongjioj" data-platform="tongjioj" aria-pressed="false" aria-controls="detail-tongjioj" onclick="selectConnectionPlatform('tongjioj')">
+            <span class="connection-platform-title">同济OJ</span>
+            <span class="ui-status ui-status--info connection-platform-status" id="card-status-tongjioj">检查中...</span>
+          </button>
         </div>
       </section>
 
@@ -624,6 +628,83 @@
           <div class="ui-alert ui-alert--danger ui-alert--compact error-banner connection-error hidden" id="ketangpai-error-inline" role="alert"></div>
         </div>
         <div class="connection-data-actions" data-platform-actions="ketangpai"><button type="button" class="ui-button ui-button--secondary btn-secondary" onclick="disconnectPlatform('ketangpai')">断开连接</button><button type="button" class="ui-button ui-button--danger btn-secondary connection-clear-button" onclick="showClearPlatformData('ketangpai')">清除平台数据</button></div>
+      </div>
+      <!-- 同济OJ Details -->
+      <div class="connection-detail-section hidden" id="detail-tongjioj">
+        <div class="detail-platform-header">
+          <div class="detail-platform-title-wrap">
+            <div class="detail-platform-icon-circle">OJ</div>
+            <div>
+              <h2 class="detail-platform-title">同济OJ</h2>
+              <span class="ui-status ui-status--info status-badge" id="detail-status-badge-tongjioj">检查中...</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="ui-section-label detail-section-title">数据说明</div>
+        <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note"><strong>为自动同步竞教融合实训平台作业，网站会加密保存你的登录凭证与会话状态。</strong><span>同步过程仅读取作业列表与最终提交记录，不会打开题目详情或提交任何代码。每次作业会作为一条待办事项导入。</span></div>
+        <div class="ui-section-label detail-section-title">连接配置</div>
+        <div class="ui-card detail-content-box">
+          <!-- Logged in state -->
+          <div id="tjoj-logged-in-inline" class="hidden connection-stack">
+            <div class="connection-session-row">
+              <span class="ui-status ui-status--success connection-state-connected">已登录</span>
+              <button type="button" onclick="logoutTongjiojInline()" class="ui-button ui-button--danger ui-button--block ui-button--sm btn-sm btn-wide connection-danger-quiet action-button" data-od-id="tongjioj-logout">登出</button>
+            </div>
+            <div class="form-group">
+              <label for="tjoj-course-select-inline" class="ui-label connection-field-label">课程筛选</label>
+              <select id="tjoj-course-select-inline" onchange="changeTongjiojCourseInline()" class="ui-control logged-in-select"></select>
+            </div>
+          </div>
+
+          <!-- Setup state -->
+          <div id="tjoj-setup-inline" class="connection-stack">
+            <div class="ktp-auth-tabs" role="tablist" aria-label="同济OJ登录方式切换">
+              <button type="button" class="ui-button ui-button--choice ktp-auth-tab is-active" id="tjoj-tab-btn-iam" data-od-id="tongjioj-tab-iam" role="tab" aria-selected="true" onclick="switchTjojAuthTab('iam')">
+                统一身份认证登录
+              </button>
+              <button type="button" class="ui-button ui-button--choice ktp-auth-tab" id="tjoj-tab-btn-local" data-od-id="tongjioj-tab-local" role="tab" aria-selected="false" onclick="switchTjojAuthTab('local')">
+                OJ 账号密码登录
+              </button>
+            </div>
+
+            <!-- 统一身份认证登录面板 -->
+            <div id="tjoj-iam-login-panel">
+              <form id="tjoj-iam-form-inline" onsubmit="doTongjiojIamLoginInline(event); return false;">
+                <div class="ktp-field-group">
+                  <label class="ui-label connection-field-label" for="tjoj-student-id-inline">同济大学学号</label>
+                  <input type="text" id="tjoj-student-id-inline" placeholder="请输入同济大学学号" autocomplete="username" class="ui-control">
+                </div>
+                <div class="ktp-field-group">
+                  <label class="ui-label connection-field-label" for="tjoj-iam-password-inline">统一身份认证密码</label>
+                  <input type="password" id="tjoj-iam-password-inline" placeholder="请输入统一身份认证密码" autocomplete="current-password" class="ui-control">
+                </div>
+                <div class="ktp-submit-wrap">
+                  <button type="submit" class="ui-button ui-button--primary ui-button--block ktp-submit-btn connection-primary-action action-button" data-od-id="tongjioj-iam-login">统一身份认证登录</button>
+                </div>
+              </form>
+            </div>
+
+            <!-- OJ 账号密码登录面板 -->
+            <div id="tjoj-local-login-panel" class="hidden">
+              <form id="tjoj-local-form-inline" onsubmit="doTongjiojLocalLoginInline(event); return false;">
+                <div class="ktp-field-group">
+                  <label class="ui-label connection-field-label" for="tjoj-username-inline">OJ 用户名</label>
+                  <input type="text" id="tjoj-username-inline" placeholder="请输入 oj.tongji.edu.cn 账号" autocomplete="username" class="ui-control">
+                </div>
+                <div class="ktp-field-group">
+                  <label class="ui-label connection-field-label" for="tjoj-local-password-inline">OJ 密码</label>
+                  <input type="password" id="tjoj-local-password-inline" placeholder="请输入 OJ 密码" autocomplete="current-password" class="ui-control">
+                </div>
+                <div class="ktp-submit-wrap">
+                  <button type="submit" class="ui-button ui-button--primary ui-button--block ktp-submit-btn action-button" data-od-id="tongjioj-local-login">登录同济OJ</button>
+                </div>
+              </form>
+            </div>
+          </div>
+          <div class="ui-alert ui-alert--danger ui-alert--compact error-banner connection-error hidden" id="tongjioj-error-inline" role="alert"></div>
+        </div>
+        <div class="connection-data-actions" data-platform-actions="tongjioj"><button type="button" class="ui-button ui-button--secondary btn-secondary" onclick="disconnectPlatform('tongjioj')">断开连接</button><button type="button" class="ui-button ui-button--danger btn-secondary connection-clear-button" onclick="showClearPlatformData('tongjioj')">清除平台数据</button></div>
       </div>
     </div>
   </div>

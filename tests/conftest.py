@@ -27,6 +27,8 @@ import zhihuishu_store
 import zhihuishu_worker
 import zhihuishu_login_sessions
 import tongji_login_sessions
+import ketangpai_client
+import tongji_oj_client
 
 FIXED_NOW = datetime(2026, 7, 9, 12, 0, tzinfo=timezone(timedelta(hours=8)))
 
@@ -75,13 +77,14 @@ def pytest_unconfigure(config):
 def isolated_data(tmp_path, monkeypatch):
     for module in (dashboard_app, user_paths, auth, agent_auth, apple_calendar,
                    haoke_client, zhixuemeng_client, zhihuishu_store,
-                   zhihuishu_login_sessions, tongji_login_sessions):
+                   zhihuishu_login_sessions, tongji_login_sessions,
+                   ketangpai_client, tongji_oj_client):
         monkeypatch.setattr(module, "DATA_DIR", tmp_path)
     for name, filename in (("USERS_FILE", "users.json"), ("SECRET_KEY_FILE", ".flask_secret_key"),
                            ("DELETION_LEDGER_FILE", ".account_deletion_ledger.json"),
                            ("ADMIN_AUDIT_FILE", "account_admin_audit.json")):
         monkeypatch.setattr(auth, name, tmp_path / filename)
-    for module in (haoke_client, zhixuemeng_client):
+    for module in (haoke_client, zhixuemeng_client, ketangpai_client, tongji_oj_client):
         monkeypatch.setattr(module, "KEY_FILE", tmp_path / ".encryption_key")
     monkeypatch.setattr(zhihuishu_worker, "LOCK_FILE", tmp_path / "zhihuishu_worker.lock")
     monkeypatch.setattr(dashboard_app, "_TERM_CONFIG_FILE", tmp_path / "term_config.json")

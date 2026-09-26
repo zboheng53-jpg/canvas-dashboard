@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>同济OJ接入 · Canvas Dashboard</title>
+  {% include "_favicon.html" %}
+  {% include "_font_assets.html" %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <script>window.CSRF_TOKEN = "{{ csrf_token() }}";</script>
+  <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
+</head>
+<body>
+  <div class="dashboard">
+    <a href="/" class="login-page-back">&#x2190; 返回看板</a>
+    <div class="card enter-main-card">
+      <div class="section-header">
+        <h2>同济大学竞教融合实训平台 (同济OJ)</h2>
+      </div>
+
+      <p class="ui-feedback ui-feedback--info setup-hint" id="status-line" role="status" aria-live="polite">检查中...</p>
+
+      <div class="login-body" id="form-body">
+        <div id="tongjioj-logged-in" class="hidden logged-in-row">
+          <span class="logged-in-label">已登录</span>
+          <select id="tjoj-course-select" class="ui-control logged-in-select"></select>
+          <a href="#" onclick="logoutTongjioj();return false;" class="logged-in-link">登出</a>
+        </div>
+
+        <div id="tongjioj-setup" class="hidden">
+          <p class="ui-help setup-hint">推荐使用同济大学统一身份认证学号和密码登录：</p>
+          <form class="add-todo-form mb-s" id="tjoj-iam-form" onsubmit="doTongjiojIamLogin(event); return false;">
+            <input type="text" id="tjoj-student-id" placeholder="同济大学学号" autocomplete="username" class="ui-control">
+            <input type="password" id="tjoj-iam-password" placeholder="统一身份认证密码" autocomplete="current-password" class="ui-control">
+            <button type="submit" class="ui-button ui-button--primary ui-button--block btn-wide btn-accent">统一身份认证登录</button>
+          </form>
+          <div class="ui-help form-note">
+            <a href="#" onclick="showTjojLocalLogin();return false;">使用 OJ 账号密码登录</a>
+          </div>
+          <div id="tjoj-local-login" class="hidden mt-s">
+            <form class="add-todo-form" id="tjoj-local-form" onsubmit="doTongjiojLocalLogin(event); return false;">
+              <input type="text" id="tjoj-username" placeholder="OJ 用户名" autocomplete="username" class="ui-control">
+              <input type="password" id="tjoj-local-password" placeholder="OJ 密码" autocomplete="current-password" class="ui-control">
+              <button type="submit" class="ui-button ui-button--primary ui-button--block btn-wide">登录</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="ui-alert ui-alert--danger ui-alert--compact error-banner hidden" id="tongjioj-error" role="alert"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function populateTongjiojCourseSelect(select, courses, selectedCourse) {
+      select.replaceChildren(new Option('全部课程 (' + (courses ? courses.length : 0) + ')', ''));
+      (Array.isArray(courses) ? courses : []).forEach((course) => {
+        const option = document.createElement('option');
+        option.value = String(course.id || '');
+        option.textContent = course.name || `课程 ${course.id}`;
+        select.append(option);
+      });
+      select.value = selectedCourse || '';
+    }
+
+    function setTongjiojPageStatus(text, semantic = 'neutral') {
+      const statusLine = document.getElementById('status-line');
+      statusLine.textContent = text;
+      statusLine.className = `ui-feedback ui-feedback--${semantic} setup-hint`;
+    }
+
+    function showTongjiojError(message) {
+      const error = document.getElementById('tongjioj-error');
+      error.textContent = message;
+      error.classList.remove('hidden');
+    }
+
+    function hideTongjiojError() {
+      const error = document.getElementById('tongjioj-error');
+      error.classList.add('hidden');
+    }
+
+    async function checkTongjiojConfig() {
+      try {
+        const resp = await fetch('/api/tongjioj/config');
+        const result = await resp.json();
+        if (result.ok && result.has_token) {
+          setTongjiojPageStatus('当前状态：已登录', 'success');
+          document.getElementById('tongjioj-setup').classList.add('hidden');
+          document.getElementById('tongjioj-logged-in').classList.remove('hidden');
+          if (result.courses) {
+            const select = document.getElementById('tjoj-course-select');
+            populateTongjiojCourseSelect(select, result.courses, result.selected_course || '');
+          }
+        } else {
+          setTongjiojPageStatus('当前状态：未登录', 'neutral');
+          document.getElementById('tongjioj-setup').classList.remove('hidden');
+          document.getElementById('tongjioj-logged-in').classList.add('hidden');
+        }
+      } catch (e) {
+        setTongjiojPageStatus('状态获取失败', 'danger');
+        document.getElementById('tongjioj-setup').classList.remove('hidden');
+      }
+    }
+
+    function showTjojLocalLogin() {
+      document.getElementById('tjoj-local-login').classList.toggle('hidden');
+    }
+
+    async function doTongjiojIamLogin(e) {
+      if (e) e.preventDefault();
+      const studentId = document.getElementById('tjoj-student-id').value.trim();
+      const password = document.getElementById('tjoj-iam-password').value.trim();
+      if (!studentId || !password) {
+        showTongjiojError('请输入同济大学学号和统一身份认证密码');
+        return;
+      }
+      hideTongjiojError();
+
+      try {
+        const resp = await fetch('/api/tongjioj/login-iam', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ student_id: studentId, password }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          checkTongjiojConfig();
+        } else {
+          showTongjiojError(result.error || '统一身份认证登录失败');
+        }
+      } catch (e) {
+        showTongjiojError('网络错误');
+      }
+    }
+
+    async function doTongjiojLocalLogin(e) {
+      if (e) e.preventDefault();
+      const account = document.getElementById('tjoj-username').value.trim();
+      const password = document.getElementById('tjoj-local-password').value.trim();
+      if (!account || !password) {
+        showTongjiojError('请输入 OJ 用户名和密码');
+        return;
+      }
+      hideTongjiojError();
+
+      try {
+        const resp = await fetch('/api/tongjioj/login-local', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ account, password }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          checkTongjiojConfig();
+        } else {
+          showTongjiojError(result.error || '登录失败');
+        }
+      } catch (e) {
+        showTongjiojError('网络错误');
+      }
+    }
+
+    async function logoutTongjioj() {
+      try {
+        await fetch('/api/tongjioj/logout', { method: 'POST' });
+      } catch (e) { /* ignore */ }
+      setTongjiojPageStatus('当前状态：未登录', 'neutral');
+      document.getElementById('tongjioj-setup').classList.remove('hidden');
+      document.getElementById('tongjioj-logged-in').classList.add('hidden');
+      hideTongjiojError();
+      document.getElementById('tjoj-local-login').classList.add('hidden');
+    }
+
+    checkTongjiojConfig();
+  </script>
+</body>
+</html>

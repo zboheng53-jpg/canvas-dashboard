@@ -1737,6 +1737,10 @@
   --connection-platform-accent: #2e7bee;
 }
 
+.connections-list-panel .login-card[data-platform="tongjioj"] {
+  --connection-platform-accent: #0d9488;
+}
+
 .connections-list-panel .login-card::before,
 .connections-list-panel .login-card::after {
   display: none;

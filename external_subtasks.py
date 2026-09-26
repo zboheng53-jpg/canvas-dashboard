@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from storage import locked_json_update, read_json_file
 from user_paths import user_dir
 
-SUPPORTED_SOURCES = frozenset({"canvas", "haoke", "zhixuemeng", "zhihuishu", "ketangpai"})
+SUPPORTED_SOURCES = frozenset({"canvas", "haoke", "zhixuemeng", "zhihuishu", "ketangpai", "tongjioj"})
 DEFAULT_SUBTASKS = {}
 
 

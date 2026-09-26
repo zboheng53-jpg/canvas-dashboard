@@ -9,4 +9,7 @@
   document.getElementById('zxm-course-select-inline')?.addEventListener('change', changeZhixuemengCourseInline);
   bindSubmit('ktp-pwd-form-inline', doKetangpaiPasswordLoginInline);
   document.getElementById('ktp-course-select-inline')?.addEventListener('change', changeKetangpaiCourseInline);
+  bindSubmit('tjoj-iam-form-inline', doTongjiojIamLoginInline);
+  bindSubmit('tjoj-local-form-inline', doTongjiojLocalLoginInline);
+  document.getElementById('tjoj-course-select-inline')?.addEventListener('change', changeTongjiojCourseInline);
 })();

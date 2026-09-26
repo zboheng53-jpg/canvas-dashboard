@@ -135,6 +135,7 @@
             <option value="zhixuemeng" hidden disabled>智学盟</option>
             <option value="zhihuishu" hidden disabled>智慧树</option>
             <option value="ketangpai" hidden disabled>课堂派</option>
+            <option value="tongjioj" hidden disabled>同济OJ</option>
             <option value="project">项目</option>
             <option value="custom">自定义</option>
           </select>
@@ -152,6 +153,7 @@
             <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter hidden" data-todo-source="zhixuemeng" aria-pressed="false"><span class="dot" style="background:var(--src-zxm)"></span>智学盟 <span class="n" id="src-count-zhixuemeng">0</span></button>
             <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter hidden" data-todo-source="zhihuishu" aria-pressed="false"><span class="dot" style="background:var(--src-zhs)"></span>智慧树 <span class="n" id="src-count-zhihuishu">0</span></button>
             <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter hidden" data-todo-source="ketangpai" aria-pressed="false"><span class="dot" style="background:var(--src-ketangpai)"></span>课堂派 <span class="n" id="src-count-ketangpai">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter hidden" data-todo-source="tongjioj" aria-pressed="false"><span class="dot" style="background:var(--src-tongjioj)"></span>同济OJ <span class="n" id="src-count-tongjioj">0</span></button>
             <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="project" aria-pressed="false"><span class="dot" style="background:var(--src-project)"></span>项目 <span class="n" id="src-count-project">0</span></button>
             <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="custom" aria-pressed="false"><span class="dot" style="background:var(--src-custom)"></span>自定义 <span class="n" id="src-count-custom">0</span></button>
             <details class="todo-source-manager" id="todo-source-manager">
@@ -170,6 +172,7 @@
                   <label class="todo-source-visibility-option hidden" data-todo-source-option="zhixuemeng"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="zhixuemeng" checked><span class="dot" style="background:var(--src-zxm)"></span><span>智学盟</span><small>来自连接与同步</small></label>
                   <label class="todo-source-visibility-option hidden" data-todo-source-option="zhihuishu"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="zhihuishu" checked><span class="dot" style="background:var(--src-zhs)"></span><span>智慧树</span><small>来自连接与同步</small></label>
                   <label class="todo-source-visibility-option hidden" data-todo-source-option="ketangpai"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="ketangpai" checked><span class="dot" style="background:var(--src-ketangpai)"></span><span>课堂派</span><small>来自连接与同步</small></label>
+                  <label class="todo-source-visibility-option hidden" data-todo-source-option="tongjioj"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="tongjioj" checked><span class="dot" style="background:var(--src-tongjioj)"></span><span>同济OJ</span><small>来自连接与同步</small></label>
                   <label class="todo-source-visibility-option" data-todo-source-option="project"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="project" checked><span class="dot" style="background:var(--src-project)"></span><span>项目</span><small>长期项目</small></label>
                   <label class="todo-source-visibility-option" data-todo-source-option="custom"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="custom" checked><span class="dot" style="background:var(--src-custom)"></span><span>自定义</span><small>手动添加</small></label>
                 </div>
@@ -1711,11 +1714,15 @@
     let ketangpaiItems = [];
     let ketangpaiHiddenIds = [];
     let ketangpaiHighlightedIds = [];
+    let tongjiojItems = [];
+    let tongjiojHiddenIds = [];
+    let tongjiojHighlightedIds = [];
     let canvasDeletedIds = [];
     let haokeDeletedIds = [];
     let zhixuemengDeletedIds = [];
     let zhihuishuDeletedIds = [];
     let ketangpaiDeletedIds = [];
+    let tongjiojDeletedIds = [];
 
     let firstItemRender = true;
     setTimeout(() => { firstItemRender = false; }, 2800);
@@ -1794,6 +1801,7 @@
           fetchZhixuemengTodos(),
           fetchZhihuishuTodos(),
           fetchKetangpaiTodos(),
+          fetchTongjiojTodos(),
         ]);
         const failures = [...document.querySelectorAll('#login-cards .login-card-status.attention')]
           .filter((item) => /失败|错误|重新|不可用/.test(item.textContent)).length;
@@ -1822,7 +1830,7 @@
     }
 
     const platformSyncs = {};
-    const platformLabels = {canvas: 'Canvas', haoke: '好课', zhixuemeng: '智学盟', zhihuishu: '智慧树', ketangpai: '课堂派'};
+    const platformLabels = {canvas: 'Canvas', haoke: '好课', zhixuemeng: '智学盟', zhihuishu: '智慧树', ketangpai: '课堂派', tongjioj: '同济OJ'};
     function recordPlatformSync(platform, result) {
       if (!result || !result.sync) return;
       const sync = {...result.sync};
@@ -1970,8 +1978,8 @@
       }
     }
 
-    const TODO_SOURCE_ORDER = ['canvas', 'haoke', 'zhixuemeng', 'zhihuishu', 'ketangpai', 'project', 'custom'];
-    const TODO_PLATFORM_SOURCES = new Set(['canvas', 'haoke', 'zhixuemeng', 'zhihuishu', 'ketangpai']);
+    const TODO_SOURCE_ORDER = ['canvas', 'haoke', 'zhixuemeng', 'zhihuishu', 'ketangpai', 'tongjioj', 'project', 'custom'];
+    const TODO_PLATFORM_SOURCES = new Set(['canvas', 'haoke', 'zhixuemeng', 'zhihuishu', 'ketangpai', 'tongjioj']);
     let visibleTodoSources = new Set(TODO_SOURCE_ORDER);
     let todoSourcePreferenceRevision = 0;
     let todoSourcePreferenceSaveTimer = null;
@@ -2076,10 +2084,11 @@
         zhixuemeng: '智学盟',
         zhihuishu: '智慧树',
         ketangpai: '课堂派',
+        tongjioj: '同济OJ',
         project: '项目',
         custom: '自定义',
       };
-      const counts = { all: items.filter(it => !it.is_previous).length, canvas: 0, haoke: 0, zhixuemeng: 0, zhihuishu: 0, ketangpai: 0, project: 0, custom: 0 };
+      const counts = { all: items.filter(it => !it.is_previous).length, canvas: 0, haoke: 0, zhixuemeng: 0, zhihuishu: 0, ketangpai: 0, tongjioj: 0, project: 0, custom: 0 };
       items.forEach((item) => {
         if (item.is_previous) return;
         if (counts[item.source] !== undefined) counts[item.source] += 1;
@@ -2312,6 +2321,30 @@
         });
       });
 
+      tongjiojItems.forEach(item => {
+        if (tongjiojDeletedIds.includes(item.id)) return;
+        const isHidden = tongjiojHiddenIds.includes(item.id);
+        const isHighlighted = tongjiojHighlightedIds.includes(item.id);
+        unified.push({
+          id: `t${item.id}`,
+          source: 'tongjioj',
+          title: item.title,
+          course: item.course,
+          due_str: item.due_str,
+          due_ts: item.due_ts,
+          type: item.type || '同济OJ',
+          url: item.url,
+          done: Boolean(item.done) || isHidden,
+          hidden: isHidden,
+          highlighted: isHighlighted,
+          rawId: item.id,
+          manualHighlighted: isHighlighted,
+          subtasks: item.subtasks || [],
+          disconnected: platformSyncs.tongjioj?.connection_state === 'disconnected',
+          isTodayAction: todayScheduledRefs.has(`tongjioj:${item.id}`),
+        });
+      });
+
       projectItems.forEach(item => {
         const category = item.project_category || '项目';
         unified.push({
@@ -2540,6 +2573,12 @@
             <button class="btn-dismiss" onclick="togglePlatformCompletion('ketangpai', '${item.rawId}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="btn-delete" onclick="toggleKetangpaiDelete('${item.rawId}')" title="\u5220\u9664">&#x1f5d1;</button>
           `;
+        } else if (item.source === 'tongjioj') {
+          actionsHtml = `
+            <button class="todo-action-button ${flagClass}" onclick="toggleTongjiojHighlight('${item.rawId}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
+            <button class="btn-dismiss" onclick="togglePlatformCompletion('tongjioj', '${item.rawId}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
+            <button class="btn-delete" onclick="toggleTongjiojDelete('${item.rawId}')" title="\u5220\u9664">&#x1f5d1;</button>
+          `;
         } else if (item.source === 'project') {
           actionsHtml = `
             <button class="todo-action-button ${flagClass}" onclick="toggleProjectTodoFlag(${item.projectId}, ${item.taskId === null ? 'null' : item.taskId}, '${item.projectKind}', ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
@@ -2562,7 +2601,7 @@
             ? `<button class="ui-button ui-button--text ui-list-item__meta item-due project-due-editable" onclick="startProjectTodoDueEdit(this)" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" data-date-field="${!item.due_str && item.isTodayAction ? 'planned_on' : 'due_date'}" data-date-value="${item.due_str || item.plannedOn}" aria-label="${!item.due_str && item.isTodayAction ? '修改计划日期' : '修改截止日期'}" title="${!item.due_str && item.isTodayAction ? '计划推进：' + (item.plannedOn || '') + '（点击修改）' : '截止日期：' + (item.due_str || item.plannedOn || '') + '（点击修改）'}">${item.due_str || item.plannedOn || ''}</button>`
             : `<span class="ui-list-item__meta item-due">${item.due_str}</span>`;
 
-        const srcLabels = { canvas: 'Canvas', haoke: '好课', zhixuemeng: '智学盟', zhihuishu: '智慧树', ketangpai: '课堂派', project: '项目', custom: '自定义' };
+        const srcLabels = { canvas: 'Canvas', haoke: '好课', zhixuemeng: '智学盟', zhihuishu: '智慧树', ketangpai: '课堂派', tongjioj: '同济OJ', project: '项目', custom: '自定义' };
         const tagLabel = srcLabels[item.source] || item.type || '';
         const tagHtml = tagLabel ? `<span class="ui-source-tag ui-source-tag--${item.source}">${escapeHtml(tagLabel)}</span>` : '';
 
@@ -2580,7 +2619,7 @@
         const labelsHtml = '';
 
         const subtasks = item.subtasks || [];
-        const supportsSubtasks = ['custom', 'canvas', 'haoke', 'zhixuemeng', 'zhihuishu', 'ketangpai'].includes(item.source) && !item.is_recurring;
+        const supportsSubtasks = ['custom', 'canvas', 'haoke', 'zhixuemeng', 'zhihuishu', 'ketangpai', 'tongjioj'].includes(item.source) && !item.is_recurring;
         const itemKey = todoKey(item.source, item.rawId);
         const isSubtaskExpanded = supportsSubtasks && (expandedTodoKeys.includes(itemKey) || (item.source === 'custom' && expandedCustomTodoIds.includes(item.rawId)));
         const subtaskToggleLabel = isSubtaskExpanded ? '\u6536\u8d77\u5b50\u4efb\u52a1' : '\u5c55\u5f00\u5b50\u4efb\u52a1';
@@ -2734,7 +2773,7 @@
         body: JSON.stringify({action: done ? 'uncomplete' : 'complete', id}),
       });
       if (!response.ok) return;
-      const collections = {canvas: canvasItems, haoke: haokeItems, zhixuemeng: zhixuemengItems, zhihuishu: zhihuishuItems, ketangpai: ketangpaiItems};
+      const collections = {canvas: canvasItems, haoke: haokeItems, zhixuemeng: zhixuemengItems, zhihuishu: zhihuishuItems, ketangpai: ketangpaiItems, tongjioj: tongjiojItems};
       const item = (collections[platform] || []).find((entry) => String(entry.id) === String(id));
       if (item) item.done = !done;
       renderUnifiedList();
@@ -3020,6 +3059,77 @@
       renderUnifiedList();
     }
 
+    // ---- Tongji OJ Todos ----
+    async function fetchTongjiojTodos(courseId = '') {
+      try {
+        const url = courseId ? `/api/tongjioj/todos?course_id=${encodeURIComponent(courseId)}` : '/api/tongjioj/todos';
+        const resp = await fetch(url);
+        const result = await resp.json();
+        recordPlatformSync('tongjioj', result);
+
+        if (result.need_setup && result.sync?.connection_state !== 'disconnected') {
+          setCardStatus('tongjioj', '未关联', 'attention');
+          tongjiojItems = [];
+          tongjiojHiddenIds = [];
+          tongjiojHighlightedIds = [];
+          renderUnifiedList();
+          return;
+        }
+
+        if (!result.ok) {
+          setCardStatus('tongjioj', result.error || '获取失败', 'attention');
+        } else {
+          setCardStatus('tongjioj', '已连接', 'connected');
+        }
+
+        tongjiojItems = result.data || [];
+        tongjiojItems.forEach(item => {
+          if (item.subtasks) {
+            item.subtasks.forEach((subtask, idx) => {
+              if (subtask.id == null) subtask.id = idx + 1;
+            });
+            item.subtasks = sortSubtasks(item.subtasks);
+          }
+        });
+        tongjiojHiddenIds = result.hidden || [];
+        tongjiojHighlightedIds = result.highlighted || [];
+        tongjiojDeletedIds = result.deleted || [];
+        renderUnifiedList();
+      } catch (e) {
+        setCardStatus('tongjioj', '网络错误', 'attention');
+      }
+    }
+
+    async function toggleTongjiojHide(itemId, current) {
+      const action = current ? 'unhide' : 'hide';
+      await fetch('/api/tongjioj/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, id: itemId }),
+      });
+      if (current) {
+        tongjiojHiddenIds = tongjiojHiddenIds.filter(id => id !== itemId);
+      } else {
+        tongjiojHiddenIds.push(itemId);
+      }
+      renderUnifiedList();
+    }
+
+    async function toggleTongjiojHighlight(itemId, current) {
+      const action = current ? 'unhighlight' : 'highlight';
+      await fetch('/api/tongjioj/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, id: itemId }),
+      });
+      if (current) {
+        tongjiojHighlightedIds = tongjiojHighlightedIds.filter(id => id !== itemId);
+      } else {
+        tongjiojHighlightedIds.push(itemId);
+      }
+      renderUnifiedList();
+    }
+
     // ---- Zhihuishu Todos ----
     async function fetchZhihuishuTodos() {
       try {
@@ -3106,6 +3216,8 @@
         return zhihuishuItems.find(item => String(item.id) === idStr);
       } else if (source === 'ketangpai') {
         return ketangpaiItems.find(item => String(item.id) === idStr);
+      } else if (source === 'tongjioj') {
+        return tongjiojItems.find(item => String(item.id) === idStr);
       }
       return null;
     }
@@ -3203,6 +3315,7 @@
         else if (source === 'zhixuemeng') fetchZhixuemengTodos();
         else if (source === 'zhihuishu') fetchZhihuishuTodos();
         else if (source === 'ketangpai') fetchKetangpaiTodos();
+        else if (source === 'tongjioj') fetchTongjiojTodos();
       }
     }
 
@@ -3566,6 +3679,17 @@
       renderUnifiedList();
     }
 
+    async function toggleTongjiojDelete(id) {
+      const resp = await fetch('/api/tongjioj/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id }),
+      });
+      if (!resp.ok) return;
+      tongjiojDeletedIds.push(id);
+      renderUnifiedList();
+    }
+
     async function toggleCustomDelete(id) {
       if (deletingCustomIds.has(id)) return;
       const item = customItems.find(t => t.id === id);
@@ -3768,6 +3892,7 @@
       if (platform === 'zhixuemeng') await loadZhixuemengStatusInline();
       if (platform === 'zhihuishu') await loadZhihuishuStatusInline();
       if (platform === 'ketangpai') await loadKetangpaiStatusInline();
+      if (platform === 'tongjioj') await loadTongjiojStatusInline();
     }
 
     // --- Canvas Detail Panel ---
@@ -4421,14 +4546,175 @@
       await fetchKetangpaiTodos();
     }
 
+    // --- 同济OJ Detail Panel ---
+    function populateTongjiojCourseSelectInline(select, courses, selectedCourse) {
+      if (!select) return;
+      select.replaceChildren(new Option('全部课程 (' + (courses ? courses.length : 0) + ')', ''));
+      (Array.isArray(courses) ? courses : []).forEach((course) => {
+        const option = document.createElement('option');
+        option.value = String(course.id || '');
+        option.textContent = course.name || `课程 ${course.id}`;
+        select.append(option);
+      });
+      select.value = selectedCourse || '';
+    }
+
+    async function loadTongjiojStatusInline() {
+      const badge = document.getElementById('detail-status-badge-tongjioj');
+      const setupDiv = document.getElementById('tjoj-setup-inline');
+      const loggedInDiv = document.getElementById('tjoj-logged-in-inline');
+      try {
+        const resp = await fetch('/api/tongjioj/config');
+        if (!resp.ok) {
+          throw new Error('HTTP ' + resp.status);
+        }
+        const result = await resp.json();
+        if (result.ok && result.has_token) {
+          if (badge) { badge.textContent = '已登录'; badge.className = 'ui-status ui-status--success status-badge'; }
+          setCardStatus('tongjioj', '已连接', 'connected');
+          if (setupDiv) setupDiv.classList.add('hidden');
+          if (loggedInDiv) loggedInDiv.classList.remove('hidden');
+          if (result.courses) {
+            const select = document.getElementById('tjoj-course-select-inline');
+            populateTongjiojCourseSelectInline(select, result.courses, result.selected_course || '');
+          }
+        } else {
+          if (badge) { badge.textContent = '未登录'; badge.className = 'ui-status ui-status--neutral status-badge'; }
+          setCardStatus('tongjioj', '未关联', 'attention');
+          if (setupDiv) setupDiv.classList.remove('hidden');
+          if (loggedInDiv) loggedInDiv.classList.add('hidden');
+        }
+      } catch (e) {
+        if (badge) { badge.textContent = '未登录'; badge.className = 'ui-status ui-status--neutral status-badge'; }
+        setCardStatus('tongjioj', '未关联', 'attention');
+        if (setupDiv) setupDiv.classList.remove('hidden');
+        if (loggedInDiv) loggedInDiv.classList.add('hidden');
+      }
+    }
+
+    function switchTjojAuthTab(tab) {
+      const iamPanel = document.getElementById('tjoj-iam-login-panel');
+      const localPanel = document.getElementById('tjoj-local-login-panel');
+      const iamTab = document.getElementById('tjoj-tab-btn-iam');
+      const localTab = document.getElementById('tjoj-tab-btn-local');
+      hideTongjiojErrorInline();
+
+      if (tab === 'local') {
+        if (iamPanel) iamPanel.classList.add('hidden');
+        if (localPanel) localPanel.classList.remove('hidden');
+        if (iamTab) {
+          iamTab.classList.remove('is-active');
+          iamTab.setAttribute('aria-selected', 'false');
+        }
+        if (localTab) {
+          localTab.classList.add('is-active');
+          localTab.setAttribute('aria-selected', 'true');
+        }
+      } else {
+        if (iamPanel) iamPanel.classList.remove('hidden');
+        if (localPanel) localPanel.classList.add('hidden');
+        if (iamTab) {
+          iamTab.classList.add('is-active');
+          iamTab.setAttribute('aria-selected', 'true');
+        }
+        if (localTab) {
+          localTab.classList.remove('is-active');
+          localTab.setAttribute('aria-selected', 'false');
+        }
+      }
+    }
+
+    async function doTongjiojIamLoginInline(e) {
+      if (e) e.preventDefault();
+      const studentId = (document.getElementById('tjoj-student-id-inline')?.value || '').trim();
+      const password = (document.getElementById('tjoj-iam-password-inline')?.value || '').trim();
+      if (!studentId || !password) { showTongjiojErrorInline('请输入同济大学学号和统一身份认证密码'); return; }
+      hideTongjiojErrorInline();
+
+      try {
+        const resp = await fetch('/api/tongjioj/login-iam', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ student_id: studentId, password }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          await loadTongjiojStatusInline();
+          await fetchTongjiojTodos();
+        } else {
+          showTongjiojErrorInline(result.error || '统一身份认证登录失败');
+        }
+      } catch (e) {
+        showTongjiojErrorInline('网络错误');
+      }
+    }
+
+    async function doTongjiojLocalLoginInline(e) {
+      if (e) e.preventDefault();
+      const account = (document.getElementById('tjoj-username-inline')?.value || '').trim();
+      const password = (document.getElementById('tjoj-local-password-inline')?.value || '').trim();
+      if (!account || !password) { showTongjiojErrorInline('请输入 OJ 用户名和密码'); return; }
+      hideTongjiojErrorInline();
+
+      try {
+        const resp = await fetch('/api/tongjioj/login-local', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ account, password }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          await loadTongjiojStatusInline();
+          await fetchTongjiojTodos();
+        } else {
+          showTongjiojErrorInline(result.error || '登录失败');
+        }
+      } catch (e) {
+        showTongjiojErrorInline('网络错误');
+      }
+    }
+
+    function showTongjiojErrorInline(msg) {
+      const el = document.getElementById('tongjioj-error-inline');
+      if (el) { el.textContent = msg; el.classList.remove('hidden'); }
+    }
+
+    function hideTongjiojErrorInline() {
+      const el = document.getElementById('tongjioj-error-inline');
+      if (el) el.classList.add('hidden');
+    }
+
+    async function changeTongjiojCourseInline() {
+      const select = document.getElementById('tjoj-course-select-inline');
+      const courseId = select ? select.value : '';
+      try {
+        await fetch('/api/tongjioj/course', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ course_id: courseId }),
+        });
+      } catch (e) { /* ignore */ }
+      await fetchTongjiojTodos(courseId);
+    }
+
+    async function logoutTongjiojInline() {
+      try {
+        await fetch('/api/tongjioj/logout', { method: 'POST' });
+      } catch (e) { /* ignore */ }
+      switchTjojAuthTab('iam');
+      hideTongjiojErrorInline();
+      await loadTongjiojStatusInline();
+      await fetchTongjiojTodos();
+    }
+
     let platformPendingClear = null;
     const platformDisconnectEndpoints = {
       canvas: ['/api/config', 'DELETE'], haoke: ['/api/haoke/config', 'DELETE'],
       zhixuemeng: ['/api/zhixuemeng/logout', 'POST'], zhihuishu: ['/api/zhihuishu/config', 'DELETE'],
-      ketangpai: ['/api/ketangpai/logout', 'POST'],
+      ketangpai: ['/api/ketangpai/logout', 'POST'], tongjioj: ['/api/tongjioj/logout', 'POST'],
     };
     async function refreshOnePlatform(platform) {
-      const loaders = {canvas: fetchCanvasTodos, haoke: fetchHaokeTodos, zhixuemeng: fetchZhixuemengTodos, zhihuishu: fetchZhihuishuTodos, ketangpai: fetchKetangpaiTodos};
+      const loaders = {canvas: fetchCanvasTodos, haoke: fetchHaokeTodos, zhixuemeng: fetchZhixuemengTodos, zhihuishu: fetchZhihuishuTodos, ketangpai: fetchKetangpaiTodos, tongjioj: fetchTongjiojTodos};
       if (loaders[platform]) await loaders[platform]();
       if (typeof selectConnectionPlatform === 'function') selectConnectionPlatform(platform);
     }
@@ -4482,6 +4768,7 @@
       fetchZhixuemengTodos();
       fetchZhihuishuTodos();
       fetchKetangpaiTodos();
+      fetchTongjiojTodos();
       refreshSessionActivity();
     } else {
       window.customToday = '2026-07-25';
@@ -4526,6 +4813,13 @@
       ketangpaiHiddenIds = [];
       ketangpaiDeletedIds = [];
 
+      tongjiojItems = [
+        { id: 'tjoj_590', title: 'HW1线性表', course: '2026秋数据结构与算法设计（刘春梅）', type: '编程作业 (0/5)', due_str: '2026-10-08 23:59', due_ts: '2026-10-08T23:59:59+08:00', url: 'https://oj.tongji.edu.cn/index.php/assignments#1' },
+      ];
+      tongjiojHighlightedIds = [];
+      tongjiojHiddenIds = [];
+      tongjiojDeletedIds = [];
+
       projectItems = [
         { id: 101, project_id: 1, task_id: 11, kind: 'task', title: '全国大学生数学建模竞赛 · 选题与组内分工', project_name: '数学建模竞赛', due_date: '2026-07-27', flagged: false },
       ];
@@ -4548,6 +4842,7 @@
       setInterval(fetchZhixuemengTodos, 30 * 60 * 1000);
       setInterval(fetchZhihuishuTodos, 30 * 60 * 1000);
       setInterval(fetchKetangpaiTodos, 30 * 60 * 1000);
+      setInterval(fetchTongjiojTodos, 30 * 60 * 1000);
       setInterval(fetchTerm, 60 * 1000);
       setInterval(fetchWeather, 60 * 60 * 1000);
     }

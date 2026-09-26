@@ -100,7 +100,7 @@ function renderActionDetail() {
   if (!a.done && a.active !== false && canCompleteOrReopen) {
     button('安排时间', () => scheduleAction(a));
     button(a.source === 'recurring' ? '完成本次待办' : '完成事项', () => saveActionCompletion(true), true);
-  } else if (a.done && canCompleteOrReopen && (a.editable || ['canvas', 'haoke', 'zhixuemeng', 'zhihuishu', 'ketangpai', 'project', 'custom', 'recurring'].includes(a.source))) {
+  } else if (a.done && canCompleteOrReopen && (a.editable || ['canvas', 'haoke', 'zhixuemeng', 'zhihuishu', 'ketangpai', 'tongjioj', 'project', 'custom', 'recurring'].includes(a.source))) {
     button(a.source === 'recurring' ? '撤销本次完成' : '重新开启事项', () => saveActionCompletion(false));
   }
   if (a.project_id) button('进入项目', () => { closeActionDetail(); openProjectsView(a.project_id); });
@@ -205,7 +205,7 @@ async function saveActionCompletion(done) {
   const a = workspaceDetail.action;
   try {
     await workspaceWrite(`/api/actions/${encodeURIComponent(a.ref)}`, {done, ...(a.editable ? {expected_updated_at: a.updated_at} : {})});
-    const reloadSource = {canvas: fetchCanvasTodos, haoke: fetchHaokeTodos, zhixuemeng: fetchZhixuemengTodos, zhihuishu: fetchZhihuishuTodos, ketangpai: fetchKetangpaiTodos}[a.source];
+    const reloadSource = {canvas: fetchCanvasTodos, haoke: fetchHaokeTodos, zhixuemeng: fetchZhixuemengTodos, zhihuishu: fetchZhihuishuTodos, ketangpai: fetchKetangpaiTodos, tongjioj: fetchTongjiojTodos}[a.source];
     if (reloadSource) await reloadSource();
     await refreshWorkspaceSurfaces(); await openActionDetail(a.ref);
   } catch (error) { document.getElementById('action-detail-error').textContent = error.message; }

@@ -59,10 +59,11 @@ def test_application_import_resolves_every_data_path_inside_override(tmp_path):
     env = dict(os.environ, CANVAS_DASHBOARD_DATA_DIR=str(target))
     code = '''
 import json
-import app, auth, user_paths, haoke_client, zhixuemeng_client, zhihuishu_store
+import app, auth, user_paths, haoke_client, zhixuemeng_client, zhihuishu_store, tongji_oj_client
 import zhihuishu_worker, zhihuishu_login_sessions, tongji_login_sessions, serve
 paths = [app.DATA_DIR, auth.USERS_FILE, auth.SECRET_KEY_FILE, auth.DELETION_LEDGER_FILE,
          user_paths.DATA_DIR, haoke_client.KEY_FILE, zhixuemeng_client.KEY_FILE,
+         tongji_oj_client.KEY_FILE,
          zhihuishu_store.DATA_DIR, zhihuishu_worker.LOCK_FILE,
          zhihuishu_login_sessions.DATA_DIR, tongji_login_sessions.DATA_DIR, serve.LOG_FILE]
 print(json.dumps([str(p) for p in paths]))

@@ -140,6 +140,7 @@
   --color-source-zhixuemeng: #4078c8;
   --color-source-zhihuishu: #c48a2c;
   --color-source-ketangpai: #2e7bee;
+  --color-source-tongjioj: #0d9488;
   --color-source-project: #8068c5;
   --color-source-custom: #697586;
 
@@ -267,6 +268,8 @@
   --src-zhihuishu-bg: rgba(196, 138, 44, 0.08);
   --src-ketangpai: var(--color-source-ketangpai);
   --src-ketangpai-bg: rgba(46, 123, 238, 0.08);
+  --src-tongjioj: var(--color-source-tongjioj);
+  --src-tongjioj-bg: rgba(13, 148, 136, 0.08);
   --src-custom-bg: rgba(105, 117, 134, 0.08);
 
   --btn-primary-bg: var(--color-primary);

@@ -24,6 +24,7 @@ def test_dashboard_source_preferences_default_persist_and_stay_account_scoped(tm
         "zhixuemeng",
         "zhihuishu",
         "ketangpai",
+        "tongjioj",
         "project",
         "custom",
     ]
@@ -44,6 +45,7 @@ def test_dashboard_source_preferences_default_persist_and_stay_account_scoped(tm
         "zhixuemeng",
         "zhihuishu",
         "ketangpai",
+        "tongjioj",
         "project",
         "custom",
     ]

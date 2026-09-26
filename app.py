@@ -48,6 +48,15 @@ from ketangpai_client import (
     update_state as update_ktp_state, save_state as save_ktp_state,
     logout as ktp_logout, update_override as update_ktp_override,
 )
+import tongji_oj_client
+from tongji_oj_client import (
+    iam_login as tjoj_iam_login, local_login as tjoj_local_login,
+    has_credentials as has_tjoj_credentials, fetch_assignments as fetch_tjoj_assignments,
+    fetch_courses as fetch_tjoj_courses, load_state as load_tjoj_state,
+    update_state as update_tjoj_state, save_state as save_tjoj_state,
+    get_selected_course as get_tjoj_selected_course, set_selected_course as set_tjoj_selected_course,
+    logout as tjoj_logout, update_override as update_tjoj_override,
+)
 import zhihuishu_store
 import zhihuishu_login_sessions
 import zhihuishu_worker
@@ -319,6 +328,7 @@ def _platform_cache_path(username: str, platform: str) -> Path:
         "zhixuemeng": "zhixuemeng_cache.json",
         "zhihuishu": "zhihuishu_cache.json",
         "ketangpai": "ketangpai_cache.json",
+        "tongjioj": "tongjioj_cache.json",
     }[platform]
 
 
@@ -616,6 +626,8 @@ def _calendar_items(username, category=None):
                 return True
             if platform == "ketangpai" and has_ktp_token(username):
                 return True
+            if platform == "tongjioj" and has_tjoj_credentials(username):
+                return True
             return status.get("connection_state") == "connected"
 
         def add_cached(source, platform, cached_items, state, legacy_connected):
@@ -663,6 +675,8 @@ def _calendar_items(username, category=None):
         add_cached("Zhihuishu", "zhihuishu", zhs_cache["items"], zhihuishu_store.load_state(username), True)
         ktp_cache = read_json_file(user_dir(username) / "ketangpai_cache.json", {})
         add_cached("Ketangpai", "ketangpai", ktp_cache.get("items", []) if isinstance(ktp_cache, dict) else [], load_ktp_state(username), True)
+        tjoj_cache = read_json_file(user_dir(username) / "tongjioj_cache.json", {})
+        add_cached("TongjiOJ", "tongjioj", tjoj_cache.get("items", []) if isinstance(tjoj_cache, dict) else [], load_tjoj_state(username), True)
 
     if cat_key in ("all", "projects"):
         for item in project_store.calendar_items(username):
@@ -907,7 +921,7 @@ def api_dashboard_preferences():
 
 @app.route("/login/<platform>")
 def login_page(platform):
-    if platform not in ("canvas", "haoke", "zhixuemeng", "zhihuishu", "ketangpai"):
+    if platform not in ("canvas", "haoke", "zhixuemeng", "zhihuishu", "ketangpai", "tongjioj"):
         return "Not Found", 404
     return render_template(f"login_{platform}.html", username=session.get("username"))
 
@@ -1122,6 +1136,10 @@ def api_account():
         ktp_logout(username)
     except Exception:
         logger.warning("Could not clear in-memory 课堂派 state for account deletion")
+    try:
+        tjoj_logout(username)
+    except Exception:
+        logger.warning("Could not clear in-memory 同济OJ state for account deletion")
     ok, error = auth.delete_account(username, data.get("password") or "", data.get("confirmation") or "")
     if not ok:
         return jsonify({"ok": False, "error": error}), 400
@@ -1585,6 +1603,122 @@ def api_ktp_state():
     return jsonify({"ok": True, "state": load_ktp_state(username)})
 
 
+# ---- Tongji OJ Platform (同济大学竞教融合实训平台) ----
+
+
+@app.route("/api/tongjioj/login", methods=["POST"])
+@app.route("/api/tongjioj/login-iam", methods=["POST"])
+def api_tjoj_login_iam():
+    username = session["username"]
+    data = read_json_request()
+    if data is None:
+        return invalid_request_response()
+    student_id = (data.get("username") or data.get("student_id") or data.get("account") or "").strip()
+    password = (data.get("password") or "").strip()
+    if not student_id or not password:
+        return jsonify({"ok": False, "error": "请输入学号/工号和统一身份认证密码"}), 400
+    result = tjoj_iam_login(username, student_id, password)
+    if result.get("ok"):
+        platform_sync.mark_connected(username, "tongjioj")
+    return jsonify(result)
+
+
+@app.route("/api/tongjioj/login-local", methods=["POST"])
+def api_tjoj_login_local():
+    username = session["username"]
+    data = read_json_request()
+    if data is None:
+        return invalid_request_response()
+    account = (data.get("username") or data.get("account") or "").strip()
+    password = (data.get("password") or "").strip()
+    if not account or not password:
+        return jsonify({"ok": False, "error": "请输入实训平台用户名和密码"}), 400
+    result = tjoj_local_login(username, account, password)
+    if result.get("ok"):
+        platform_sync.mark_connected(username, "tongjioj")
+    return jsonify(result)
+
+
+@app.route("/api/tongjioj/logout", methods=["POST"])
+def api_tjoj_logout():
+    username = session["username"]
+    tjoj_logout(username)
+    platform_sync.mark_disconnected(username, "tongjioj", _platform_cache_path(username, "tongjioj").exists())
+    return jsonify({"ok": True})
+
+
+@app.route("/api/tongjioj/config")
+def api_tjoj_config():
+    username = session["username"]
+    has_creds = has_tjoj_credentials(username)
+    result = {
+        "ok": True,
+        "has_credentials": has_creds,
+        "has_token": has_creds,
+        "selected_course": get_tjoj_selected_course(username) or "",
+    }
+    if has_creds:
+        courses_result = fetch_tjoj_courses(username)
+        if courses_result.get("ok"):
+            result["courses"] = courses_result["courses"]
+    return jsonify(result)
+
+
+@app.route("/api/tongjioj/course", methods=["POST"])
+def api_tjoj_course():
+    username = session["username"]
+    data = read_json_request()
+    if data is None:
+        return invalid_request_response()
+    course_id = (data.get("course_id") or "").strip()
+    set_tjoj_selected_course(username, course_id)
+    return jsonify({"ok": True, "selected_course": course_id})
+
+
+@app.route("/api/tongjioj/todos")
+def api_tjoj_todos():
+    username = session["username"]
+    course_id = request.args.get("course_id")
+    if course_id is not None:
+        course_id = course_id.strip() or None
+    had_creds = has_tjoj_credentials(username)
+    result = fetch_tjoj_assignments(username, course_id=course_id)
+    if had_creds and not result.get("cached"):
+        platform_sync.record_result(
+            username, "tongjioj", ok=bool(result.get("ok")),
+            has_cache=_platform_cache_path(username, "tongjioj").exists(), cached=False,
+            error_code=result.get("code"),
+            error_message=result.get("error"),
+        )
+    state = load_tjoj_state(username)
+    result = build_platform_todos_response(
+        result,
+        state,
+        items_key="items",
+        save_state=lambda changed_state: save_tjoj_state(username, changed_state),
+        now=datetime.now(CST),
+    )
+    result = attach_subtasks(username, "tongjioj", result)
+    connection_state = "connected" if has_tjoj_credentials(username) else platform_sync.get(username, "tongjioj")["connection_state"]
+    return jsonify(_attach_sync(result, "tongjioj", connection_state=connection_state))
+
+
+@app.route("/api/tongjioj/state", methods=["GET", "POST"])
+def api_tjoj_state():
+    username = session["username"]
+    if request.method == "POST":
+        data = read_json_request()
+        if data is None:
+            return invalid_request_response()
+        action = data.get("action", "")
+        item_id = data.get("id")
+        if action not in ("hide", "unhide", "highlight", "unhighlight", "delete", "undelete", "complete", "uncomplete") or item_id is None:
+            return invalid_request_response()
+        state = update_tjoj_state(username, action, item_id)
+        return jsonify({"ok": True, "state": state})
+    return jsonify({"ok": True, "state": load_tjoj_state(username)})
+
+
 # ---- Zhihuishu Platform ----
 
 
@@ -1692,6 +1826,11 @@ def api_clear_platform_data(platform):
             read_json_file(directory / "config.json", {})
         ktp_logout(username)
         paths = (directory / "ketangpai_cache.json", directory / "ketangpai_state.json")
+    elif platform == "tongjioj":
+        if (directory / "config.json").exists():
+            read_json_file(directory / "config.json", {})
+        tjoj_logout(username)
+        paths = (directory / "tongjioj_cache.json", directory / "tongjioj_state.json")
     else:
         zhihuishu_login_sessions.stop_session(username)
         profile = directory / "zhihuishu_chromium_profile"
@@ -1732,6 +1871,7 @@ def api_platform_override(platform):
         "zhixuemeng": update_zxm_override,
         "zhihuishu": zhihuishu_store.update_override,
         "ketangpai": update_ktp_override,
+        "tongjioj": update_tjoj_override,
     }
     update = stores.get(platform)
     if update is None:
@@ -3307,7 +3447,7 @@ def _workspace_action_response(username, ref):
                             todo["completed_at"] = _todo_timestamp() if changes["done"] else None
                 return current
             locked_json_update(_todos_file(username), [], update)
-        elif action["source"] in {"canvas", "haoke", "zhixuemeng", "zhihuishu", "ketangpai"} and "done" in data:
+        elif action["source"] in {"canvas", "haoke", "zhixuemeng", "zhihuishu", "ketangpai", "tongjioj"} and "done" in data:
             if type(data["done"]) is not bool:
                 return invalid_request_response()
             target_state = "complete" if data["done"] else "uncomplete"
@@ -3321,6 +3461,8 @@ def _workspace_action_response(username, ref):
                 zhihuishu_store.update_state(username, target_state, action["id"])
             elif action["source"] == "ketangpai":
                 update_ktp_state(username, target_state, action["id"])
+            elif action["source"] == "tongjioj":
+                update_tjoj_state(username, target_state, action["id"])
         elif action["source"] == "recurring":
             changes = action_fields(data)
             series_id = action["series_id"]
@@ -3481,7 +3623,7 @@ def _aggregate_agent_todos(username: str, source: str = "all", status: str = "pe
         cache_path = user_dir(username) / cache_file
         if not cache_path.exists():
             return
-        cached = read_json_file(cache_path, [] if platform_name != "zhixuemeng" else {})
+        cached = read_json_file(cache_path, [] if platform_name not in ("zhixuemeng", "ketangpai", "tongjioj") else {})
         items = cached.get("items", []) if isinstance(cached, dict) else (cached if isinstance(cached, list) else [])
         state = state_loader(username)
         completed_set = set(state.get("completed", []))
@@ -3514,6 +3656,7 @@ def _aggregate_agent_todos(username: str, source: str = "all", status: str = "pe
     add_platform_items("zhixuemeng", "zhixuemeng_cache.json", load_zxm_state)
     add_platform_items("zhihuishu", "zhihuishu_cache.json", zhihuishu_store.load_state)
     add_platform_items("ketangpai", "ketangpai_cache.json", load_ktp_state)
+    add_platform_items("tongjioj", "tongjioj_cache.json", load_tjoj_state)
 
     # 3. Project tasks
     seen_project_refs = set()
@@ -3585,7 +3728,7 @@ def _platform_item_exists(username: str, platform_name: str, cache_file: str, it
     cache_path = user_dir(username) / cache_file
     if not cache_path.exists():
         return False
-    cached = read_json_file(cache_path, [] if platform_name not in ("zhixuemeng", "ketangpai") else {})
+    cached = read_json_file(cache_path, [] if platform_name not in ("zhixuemeng", "ketangpai", "tongjioj") else {})
     items = cached.get("items", []) if isinstance(cached, dict) else (cached if isinstance(cached, list) else [])
     str_id = str(item_id)
     return any(str(item.get("id")) == str_id for item in items if isinstance(item, dict))
@@ -3656,6 +3799,11 @@ def _complete_agent_todo(username: str, todo_id: str, source: str = "custom") ->
         if not _platform_item_exists(username, "ketangpai", "ketangpai_cache.json", todo_id):
             return False
         update_ktp_state(username, "complete", todo_id)
+        return True
+    elif source == "tongjioj":
+        if not _platform_item_exists(username, "tongjioj", "tongjioj_cache.json", todo_id):
+            return False
+        update_tjoj_state(username, "complete", todo_id)
         return True
     elif source == "recurring" or str(todo_id).startswith("recurring_"):
         parts = str(todo_id).split("_")
