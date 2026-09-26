@@ -4597,7 +4597,9 @@
       const localPanel = document.getElementById('tjoj-local-login-panel');
       const iamTab = document.getElementById('tjoj-tab-btn-iam');
       const localTab = document.getElementById('tjoj-tab-btn-local');
+      const secondAuthBox = document.getElementById('tjoj-second-auth-box-inline');
       hideTongjiojErrorInline();
+      if (secondAuthBox) secondAuthBox.classList.add('hidden');
 
       if (tab === 'local') {
         if (iamPanel) iamPanel.classList.add('hidden');
@@ -4624,6 +4626,21 @@
       }
     }
 
+    function populateTjojSecondAuthMethodsInline(result) {
+      const select = document.getElementById('tjoj-second-auth-type-inline');
+      if (!select) return;
+      select.replaceChildren();
+      const methods = Array.isArray(result.auth_methods) && result.auth_methods.length
+        ? result.auth_methods
+        : [{ type: 'sms', label: result.mobile ? `手机短信 (${result.mobile})` : '手机短信验证' }];
+      methods.forEach((m) => {
+        const opt = document.createElement('option');
+        opt.value = m.type || 'sms';
+        opt.textContent = m.label || (m.type === 'email' ? '电子邮箱验证' : '手机短信验证');
+        select.append(opt);
+      });
+    }
+
     async function doTongjiojIamLoginInline(e) {
       if (e) e.preventDefault();
       const studentId = (document.getElementById('tjoj-student-id-inline')?.value || '').trim();
@@ -4639,10 +4656,85 @@
         });
         const result = await resp.json();
         if (result.ok) {
+          const secondAuthBox = document.getElementById('tjoj-second-auth-box-inline');
+          if (secondAuthBox) secondAuthBox.classList.add('hidden');
+          await loadTongjiojStatusInline();
+          await fetchTongjiojTodos();
+        } else if (result.need_second_auth) {
+          populateTjojSecondAuthMethodsInline(result);
+          const secondAuthBox = document.getElementById('tjoj-second-auth-box-inline');
+          if (secondAuthBox) secondAuthBox.classList.remove('hidden');
+          showTongjiojErrorInline(result.error || '统一身份认证要求陌生设备加强认证，请点击“发送验证码”完成验证');
+        } else {
+          showTongjiojErrorInline(result.error || '统一身份认证登录失败');
+        }
+      } catch (e) {
+        showTongjiojErrorInline('网络错误');
+      }
+    }
+
+    let tjojSecondAuthCountdownTimer = null;
+    async function sendTongjiojSecondAuthCodeInline() {
+      const select = document.getElementById('tjoj-second-auth-type-inline');
+      const btn = document.getElementById('tjoj-send-code-btn-inline');
+      const authType = select ? select.value : 'sms';
+      hideTongjiojErrorInline();
+      if (btn) btn.disabled = true;
+
+      try {
+        const resp = await fetch('/api/tongjioj/iam-send-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: authType }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          let remain = 60;
+          if (tjojSecondAuthCountdownTimer) clearInterval(tjojSecondAuthCountdownTimer);
+          if (btn) btn.textContent = `${remain}s`;
+          tjojSecondAuthCountdownTimer = setInterval(() => {
+            remain -= 1;
+            if (remain <= 0) {
+              clearInterval(tjojSecondAuthCountdownTimer);
+              tjojSecondAuthCountdownTimer = null;
+              if (btn) { btn.disabled = false; btn.textContent = '发送验证码'; }
+            } else if (btn) {
+              btn.textContent = `${remain}s`;
+            }
+          }, 1000);
+        } else {
+          if (btn) btn.disabled = false;
+          showTongjiojErrorInline(result.error || '发送验证码失败');
+        }
+      } catch (e) {
+        if (btn) btn.disabled = false;
+        showTongjiojErrorInline('网络错误');
+      }
+    }
+
+    async function verifyTongjiojSecondAuthCodeInline() {
+      const select = document.getElementById('tjoj-second-auth-type-inline');
+      const codeInput = document.getElementById('tjoj-second-auth-code-inline');
+      const authType = select ? select.value : 'sms';
+      const code = (codeInput?.value || '').trim();
+      if (!code) { showTongjiojErrorInline('请输入收到的安全验证码'); return; }
+      hideTongjiojErrorInline();
+
+      try {
+        const resp = await fetch('/api/tongjioj/iam-verify-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: authType, code }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          const secondAuthBox = document.getElementById('tjoj-second-auth-box-inline');
+          if (secondAuthBox) secondAuthBox.classList.add('hidden');
+          if (codeInput) codeInput.value = '';
           await loadTongjiojStatusInline();
           await fetchTongjiojTodos();
         } else {
-          showTongjiojErrorInline(result.error || '统一身份认证登录失败');
+          showTongjiojErrorInline(result.error || '加强认证验证失败');
         }
       } catch (e) {
         showTongjiojErrorInline('网络错误');

@@ -11,11 +11,14 @@ Supports:
 """
 
 import base64
+import html as html_module
 from html.parser import HTMLParser
 import json
 import logging
 import re
+import time
 from datetime import datetime, timedelta, timezone
+from xml.etree import ElementTree
 
 import requests
 from cryptography.fernet import Fernet
@@ -60,8 +63,12 @@ DEFAULT_HEADERS = {
     "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
 }
 
+IAM_AJAX_ACCEPT = "application/json, text/javascript, */*; q=0.01"
+
 # In-memory session cookie cache per username
 _cookie_cache: dict[str, dict[str, str]] = {}
+# Short-lived pending IAM second-factor (加强认证) sessions per username
+_pending_iam_sessions: dict[str, dict] = {}
 
 
 def _config_file(username: str):
@@ -261,9 +268,38 @@ def _extract_iam_page_params(html: str, current_url: str) -> tuple[str | None, s
     # spAuthChainCode1 is injected via inline script: $("#spAuthChainCode1").val('4c1eb8...');
     m_chain = re.search(r'\$\(["\']#spAuthChainCode1?["\']\)\.val\(["\']([A-Za-z0-9]+)["\']\)', html)
     if not m_chain:
-        m_chain = re.search(r'id=["\']spAuthChainCode1?["\'][^>]*value=["\']([A-Za-z0-9]+)["\']', html)
+        m_chain = re.search(r'id=["\']spAuthChainCode(?:1|24)?["\'][^>]*value=["\']([A-Za-z0-9]+)["\']', html)
     sp_chain_code = m_chain.group(1) if m_chain else None
     return authn_lc_key, sp_chain_code
+
+
+def _parse_iam_ajax_response(resp) -> dict | None:
+    """Parse IAM AJAX response as JSON, or fall back to <JSONObject> XML if returned."""
+    try:
+        data = resp.json()
+        if isinstance(data, dict):
+            return data
+    except Exception:
+        pass
+
+    text = (getattr(resp, "text", "") or "").strip()
+    if text.startswith("<JSONObject"):
+        try:
+            root = ElementTree.fromstring(text)
+            return {child.tag: (child.text or "") for child in root}
+        except Exception:
+            pass
+    return None
+
+
+def _clean_iam_error(raw_msg: str | None, fallback: str = "学号或统一身份认证密码错误") -> str:
+    if not raw_msg:
+        return fallback
+    text = html_module.unescape(str(raw_msg))
+    text = re.sub(r"<br\s*/?>", "；", text, flags=re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", "", text)
+    text = re.sub(r"[；;\s]+$", "", text.strip())
+    return text or fallback
 
 
 def _is_oj_authenticated_response(resp) -> bool:
@@ -327,6 +363,7 @@ def iam_login(username: str, student_id: str, password: str) -> dict:
                     "spAuthChainCode": sp_chain_code,
                 },
                 headers={
+                    "Accept": IAM_AJAX_ACCEPT,
                     "Referer": str(r1.url),
                     "X-Requested-With": "XMLHttpRequest",
                 },
@@ -354,30 +391,63 @@ def iam_login(username: str, student_id: str, password: str) -> dict:
             action_url,
             data=form_payload,
             headers={
+                "Accept": IAM_AJAX_ACCEPT,
                 "Referer": str(r1.url),
                 "Origin": IAM_BASE_URL,
                 "X-Requested-With": "XMLHttpRequest",
             },
             timeout=15,
         )
-        try:
-            auth_res = r2.json()
-        except Exception:
+        auth_res = _parse_iam_ajax_response(r2)
+        if not auth_res:
             return {"ok": False, "error": "统一身份认证返回格式异常，请稍后重试"}
 
         if str(auth_res.get("loginFailed")).lower() != "false":
             view = str(auth_res.get("view") or "")
-            if view in ("biometrics", "4"):
+            auth_list = str(auth_res.get("authList") or "")
+            if view in ("biometrics", "4") or auth_list in ("sms", "email"):
+                show_username = str(
+                    auth_res.get("show_username")
+                    or auth_res.get("showViewExcepUsername")
+                    or auth_res.get("j_username")
+                    or student_id
+                )
+                mobile = str(auth_res.get("mobile") or "")
+                email = str(auth_res.get("email") or "")
+                chain_code_24 = str(auth_res.get("currentAuChainCodeEx") or sp_chain_code)
+                _pending_iam_sessions[username] = {
+                    "session": sess,
+                    "student_id": student_id,
+                    "password": password,
+                    "show_username": show_username,
+                    "authn_lc_key": authn_lc_key,
+                    "sp_chain_code": chain_code_24,
+                    "referer": str(r1.url),
+                    "mobile": mobile,
+                    "email": email,
+                    "created_at": time.time(),
+                }
+                auth_methods = []
+                if mobile:
+                    auth_methods.append({"type": "sms", "label": f"手机短信 ({mobile})"})
+                if email:
+                    auth_methods.append({"type": "email", "label": f"电子邮箱 ({email})"})
+                if not auth_methods:
+                    auth_methods.append({"type": "sms", "label": "手机短信验证码"})
                 return {
                     "ok": False,
-                    "error": "统一身份认证触发了二次短信/人脸增强校验，请稍后再试或使用 OJ 平台本地密码登录",
+                    "need_second_auth": True,
+                    "mobile": mobile,
+                    "email": email,
+                    "auth_methods": auth_methods,
+                    "error": "陌生设备首次登录需进行加强认证，请点击「发送验证码」并输入收到的验证码完成登录",
                 }
-            err_msg = (
-                auth_res.get("message")
+            raw_err = (
+                auth_res.get("authnErrorTip")
+                or auth_res.get("message")
                 or auth_res.get("errorMsg")
-                or "学号或统一身份认证密码错误"
             )
-            return {"ok": False, "error": str(err_msg)}
+            return {"ok": False, "error": _clean_iam_error(raw_err)}
 
         resolved_user = str(auth_res.get("j_username") or student_id)
 
@@ -407,6 +477,7 @@ def iam_login(username: str, student_id: str, password: str) -> dict:
 
         cookies = _session_cookies_dict(sess)
         save_credentials(username, student_id, password, login_mode="iam", cookies=cookies)
+        _pending_iam_sessions.pop(username, None)
         return {"ok": True}
     except requests.RequestException as e:
         logger.warning(f"Tongji OJ IAM login network error for {username}: {e}")
@@ -414,6 +485,130 @@ def iam_login(username: str, student_id: str, password: str) -> dict:
     except Exception as e:
         logger.warning(f"Tongji OJ IAM login unexpected error for {username}: {e}")
         return {"ok": False, "error": f"登录失败: {e}"}
+
+
+def iam_send_second_auth_code(username: str, auth_type: str = "sms") -> dict:
+    """Send SMS or email verification code for pending Tongji IAM enhanced authentication."""
+    pending = _pending_iam_sessions.get(username)
+    if not pending or (time.time() - pending.get("created_at", 0)) > 600:
+        _pending_iam_sessions.pop(username, None)
+        return {"ok": False, "error": "加强认证会话已过期，请重新点击「统一身份认证登录」"}
+
+    sess: requests.Session = pending["session"]
+    method = "email" if auth_type == "email" else "sms"
+    try:
+        resp = sess.post(
+            f"{IAM_BASE_URL}/idp/sendCheckCode.do",
+            data={
+                "j_username": pending["show_username"],
+                "type": method,
+            },
+            headers={
+                "Accept": IAM_AJAX_ACCEPT,
+                "Referer": pending["referer"],
+                "Origin": IAM_BASE_URL,
+                "X-Requested-With": "XMLHttpRequest",
+            },
+            timeout=15,
+        )
+        data = _parse_iam_ajax_response(resp) or {}
+        msg_key = str(data.get("message") or "")
+        if "sendSMSCheckCodeSuccessmsg" in msg_key:
+            valid_time = str(data.get("validTime") or "3")
+            return {"ok": True, "message": f"验证码已发送，有效期 {valid_time} 分钟"}
+        if "sendSMSCheckCodeTooFast" in msg_key or "smsVerificationTime" in msg_key:
+            return {"ok": False, "error": "获取验证码间隔过短（需间隔3分钟），请稍后再试或直接输入已收到的验证码"}
+        return {"ok": False, "error": _clean_iam_error(msg_key or resp.text[:100], "发送验证码失败，请稍后重试")}
+    except requests.RequestException as e:
+        return {"ok": False, "error": f"发送验证码网络错误: {e}"}
+
+
+def iam_verify_second_auth_code(username: str, code: str, auth_type: str = "sms") -> dict:
+    """Complete Tongji IAM enhanced authentication with the SMS/email verification code."""
+    pending = _pending_iam_sessions.get(username)
+    if not pending or (time.time() - pending.get("created_at", 0)) > 600:
+        _pending_iam_sessions.pop(username, None)
+        return {"ok": False, "error": "加强认证会话已过期，请重新点击「统一身份认证登录」"}
+
+    code = (code or "").strip()
+    if not re.fullmatch(r"\d{4,8}", code):
+        return {"ok": False, "error": "请输入收到的数字验证码"}
+
+    sess: requests.Session = pending["session"]
+    authn_lc_key = pending["authn_lc_key"]
+    method = "email" if auth_type == "email" else "sms"
+    form_4_payload = {
+        "j_username": pending["show_username"],
+        "type": method,
+        "sms_checkcode": code,
+        "popViewException": "Pop2",
+        "op": "login",
+        "spAuthChainCode": pending["sp_chain_code"],
+        "j_checkcode": "请输入验证码",
+    }
+    try:
+        action_url = f"{IAM_BASE_URL}/idp/authcenter/ActionAuthChain?authnLcKey={authn_lc_key}"
+        r2 = sess.post(
+            action_url,
+            data=form_4_payload,
+            headers={
+                "Accept": IAM_AJAX_ACCEPT,
+                "Referer": pending["referer"],
+                "Origin": IAM_BASE_URL,
+                "X-Requested-With": "XMLHttpRequest",
+            },
+            timeout=15,
+        )
+        auth_res = _parse_iam_ajax_response(r2)
+        if not auth_res:
+            return {"ok": False, "error": "加强认证响应格式异常，请重试"}
+
+        login_failed = str(auth_res.get("loginFailed")).lower()
+        view = str(auth_res.get("view") or "")
+        if login_failed not in ("false", "none", "") and view != "none":
+            raw_err = (
+                auth_res.get("authnErrorTip")
+                or auth_res.get("message")
+                or auth_res.get("errorMsg")
+                or "验证码错误或已过期，请重新输入"
+            )
+            return {"ok": False, "error": _clean_iam_error(raw_err, "验证码错误或已过期，请重新输入")}
+
+        engine_4_url = (
+            f"{IAM_BASE_URL}/idp/AuthnEngine?"
+            f"currentAuth=urn_oasis_names_tc_SAML_2.0_ac_classes_SMSUsernamePassword"
+            f"&authnLcKey={authn_lc_key}&entityId={IAM_ENTITY_ID}"
+        )
+        r3 = sess.post(
+            engine_4_url,
+            data=form_4_payload,
+            headers={
+                "Referer": pending["referer"],
+                "Origin": IAM_BASE_URL,
+            },
+            timeout=20,
+            allow_redirects=True,
+        )
+        if not _is_oj_authenticated_response(r3):
+            r_check = sess.get(OJ_DASHBOARD_URL, timeout=15, allow_redirects=True)
+            if not _is_oj_authenticated_response(r_check):
+                return {"ok": False, "error": "加强认证通过但未能建立实训平台会话，请稍后重试"}
+
+        cookies = _session_cookies_dict(sess)
+        save_credentials(
+            username,
+            pending["student_id"],
+            pending["password"],
+            login_mode="iam",
+            cookies=cookies,
+        )
+        _pending_iam_sessions.pop(username, None)
+        return {"ok": True}
+    except requests.RequestException as e:
+        return {"ok": False, "error": f"网络连接失败: {e}"}
+    except Exception as e:
+        return {"ok": False, "error": f"加强认证失败: {e}"}
+
 
 
 def local_login(username: str, oj_account: str, password: str) -> dict:

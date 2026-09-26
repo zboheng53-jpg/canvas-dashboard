@@ -51,6 +51,8 @@ from ketangpai_client import (
 import tongji_oj_client
 from tongji_oj_client import (
     iam_login as tjoj_iam_login, local_login as tjoj_local_login,
+    iam_send_second_auth_code as tjoj_iam_send_second_auth_code,
+    iam_verify_second_auth_code as tjoj_iam_verify_second_auth_code,
     has_credentials as has_tjoj_credentials, fetch_assignments as fetch_tjoj_assignments,
     fetch_courses as fetch_tjoj_courses, load_state as load_tjoj_state,
     update_state as update_tjoj_state, save_state as save_tjoj_state,
@@ -1618,6 +1620,36 @@ def api_tjoj_login_iam():
     if not student_id or not password:
         return jsonify({"ok": False, "error": "请输入学号/工号和统一身份认证密码"}), 400
     result = tjoj_iam_login(username, student_id, password)
+    if result.get("ok"):
+        platform_sync.mark_connected(username, "tongjioj")
+    return jsonify(result)
+
+
+@app.route("/api/tongjioj/iam-send-code", methods=["POST"])
+def api_tjoj_iam_send_code():
+    username = session["username"]
+    data = read_json_request() or {}
+    auth_type = (data.get("type") or "sms").strip().lower()
+    allowed, retry_after = _check_rate_limit(
+        "tongjioj-iam-send-code", username, SMS_RATE_LIMIT_ATTEMPTS, SMS_RATE_LIMIT_SECONDS
+    )
+    if not allowed:
+        return _rate_limited_response(retry_after)
+    result = tjoj_iam_send_second_auth_code(username, auth_type=auth_type)
+    return jsonify(result)
+
+
+@app.route("/api/tongjioj/iam-verify-code", methods=["POST"])
+def api_tjoj_iam_verify_code():
+    username = session["username"]
+    data = read_json_request()
+    if data is None:
+        return invalid_request_response()
+    code = (data.get("code") or "").strip()
+    auth_type = (data.get("type") or "sms").strip().lower()
+    if not code:
+        return jsonify({"ok": False, "error": "请输入验证码"}), 400
+    result = tjoj_iam_verify_second_auth_code(username, code=code, auth_type=auth_type)
     if result.get("ok"):
         platform_sync.mark_connected(username, "tongjioj")
     return jsonify(result)

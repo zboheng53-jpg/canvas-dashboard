@@ -443,6 +443,111 @@ def test_api_clear_platform_data_override_and_agent_complete(client_with_user, t
     assert not (user_p / "tongjioj_cache.json").exists()
 
 
+def test_iam_xml_response_and_second_auth_flow(monkeypatch, test_env):
+    user = "alice"
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=1024)
+    public_pem = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode("ascii")
+    b64_der = "".join(
+        line.strip() for line in public_pem.splitlines() if not line.startswith("-----")
+    )
+    monkeypatch.setattr(tongji_oj_client, "IAM_RSA_PUBLIC_KEY_B64", b64_der)
+
+    iam_page_html = """
+    <html>
+    <script>
+      $("#spAuthChainCode1").val('4c1eb805953c4f829ef0070c26dc29b0');
+      $("#spAuthChainCode24").val('81b76f3ebdc34fc4bb4dcffdf319cad7');
+    </script>
+    <form id="loginForm" action="/idp/authcenter/AuthnEngine">
+      <input id="spAuthChainCode" name="spAuthChainCode" value="4c1eb805953c4f829ef0070c26dc29b0" />
+      <input id="authnLcKey" name="authnLcKey" value="lckey_second_auth" />
+    </form>
+    </html>
+    """
+
+    class FakeJar(dict):
+        def get_dict(self):
+            return dict(self)
+
+    class FakeSession:
+        def __init__(self):
+            self.headers = {}
+            self.cookies = FakeJar({"shjsession": "iam_second_auth_cookie"})
+
+        def get(self, url, **kwargs):
+            resp = MagicMock()
+            resp.status_code = 200
+            if "Unified_Certification" in url:
+                resp.url = "https://iam.tongji.edu.cn/idp/authcenter/ActionAuthChain?entityId=SYS20240302&authnLcKey=lckey_second_auth"
+                resp.text = iam_page_html
+            else:
+                resp.url = "https://oj.tongji.edu.cn/index.php/dashboard#1"
+                resp.text = SAMPLE_ASSIGNMENTS_HTML
+            return resp
+
+        def post(self, url, **kwargs):
+            resp = MagicMock()
+            resp.status_code = 200
+            resp.url = url
+            data = kwargs.get("data") or {}
+            if "displayVerificationCode" in url:
+                resp.text = "false"
+            elif "sendCheckCode.do" in url:
+                assert kwargs.get("headers", {}).get("Accept") == tongji_oj_client.IAM_AJAX_ACCEPT
+                resp.json.return_value = {"message": "I18NMessage.sendSMSCheckCodeSuccessmsg", "validTime": "3"}
+                resp.text = '{"message":"I18NMessage.sendSMSCheckCodeSuccessmsg","validTime":"3"}'
+            elif "ActionAuthChain" in url:
+                assert kwargs.get("headers", {}).get("Accept") == tongji_oj_client.IAM_AJAX_ACCEPT
+                if data.get("popViewException") == "Pop2":
+                    assert data.get("sms_checkcode") == "654321"
+                    assert data.get("spAuthChainCode") == "81b76f3ebdc34fc4bb4dcffdf319cad7"
+                    resp.json.return_value = {"loginFailed": "false"}
+                    resp.text = '{"loginFailed":"false"}'
+                else:
+                    # Simulate XML <JSONObject> response for unfamiliar device secondary auth
+                    resp.json.side_effect = ValueError("No JSON")
+                    resp.text = (
+                        "<JSONObject>"
+                        "<loginFailed>true</loginFailed>"
+                        "<view>biometrics</view>"
+                        "<authList>sms</authList>"
+                        "<show_username>2559999</show_username>"
+                        "<mobile>138****1234</mobile>"
+                        "<currentAuChainCodeEx>81b76f3ebdc34fc4bb4dcffdf319cad7</currentAuChainCodeEx>"
+                        "</JSONObject>"
+                    )
+            elif "AuthnEngine" in url:
+                resp.url = "https://oj.tongji.edu.cn/index.php/dashboard#1"
+                resp.text = "<html><title>Dashboard - Tongji Online Judge</title></html>"
+            return resp
+
+    monkeypatch.setattr(tongji_oj_client.requests, "Session", FakeSession)
+
+    # Step 1: Primary IAM login triggers unfamiliar-device secondary verification
+    res1 = tongji_oj_client.iam_login(user, "2559999", "secret_iam_pass")
+    assert res1["ok"] is False
+    assert res1["need_second_auth"] is True
+    assert res1["mobile"] == "138****1234"
+    assert res1["auth_methods"] == [{"type": "sms", "label": "手机短信 (138****1234)"}]
+
+    # Step 2: Send SMS code
+    res_send = tongji_oj_client.iam_send_second_auth_code(user, auth_type="sms")
+    assert res_send["ok"] is True
+
+    # Step 3: Verify SMS code and complete OAuth2 login to oj.tongji.edu.cn
+    res_verify = tongji_oj_client.iam_verify_second_auth_code(user, code="654321", auth_type="sms")
+    assert res_verify["ok"] is True
+    assert tongji_oj_client.has_token(user)
+    assert tongji_oj_client.load_credentials(user) == {
+        "username": "2559999",
+        "password": "secret_iam_pass",
+        "login_mode": "iam",
+    }
+
+
 def test_tongjioj_frontend_login_entries():
     views_path = Path(__file__).parents[1] / "frontend" / "templates" / "dashboard" / "_placeholder_views.html"
     index_path = Path(__file__).parents[1] / "frontend" / "templates" / "index.html"
@@ -454,7 +559,13 @@ def test_tongjioj_frontend_login_entries():
     assert 'id="tjoj-setup-inline" class="connection-stack"' in views_html
     assert 'id="tjoj-student-id-inline"' in views_html
     assert 'id="tjoj-iam-password-inline"' in views_html
+    assert 'id="tjoj-second-auth-box-inline"' in views_html
     assert 'data-od-id="tongjioj-iam-login"' in views_html
+    assert 'data-od-id="tongjioj-iam-send-code"' in views_html
+    assert 'data-od-id="tongjioj-iam-verify-code"' in views_html
     assert 'data-od-id="tongjioj-local-login"' in views_html
     assert "loadTongjiojStatusInline" in index_html
+    assert "sendTongjiojSecondAuthCodeInline" in index_html
+    assert "verifyTongjiojSecondAuthCodeInline" in index_html
     assert "fetchTongjiojTodos" in index_html
+

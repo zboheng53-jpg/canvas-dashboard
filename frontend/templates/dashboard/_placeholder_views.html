@@ -683,6 +683,22 @@
                   <button type="submit" class="ui-button ui-button--primary ui-button--block ktp-submit-btn connection-primary-action action-button" data-od-id="tongjioj-iam-login">统一身份认证登录</button>
                 </div>
               </form>
+              <div id="tjoj-second-auth-box-inline" class="hidden connection-stack">
+                <div class="ktp-field-group">
+                  <label class="ui-label connection-field-label" for="tjoj-second-auth-type-inline">加强认证方式（陌生设备安全验证）</label>
+                  <select id="tjoj-second-auth-type-inline" class="ui-control logged-in-select"></select>
+                </div>
+                <div class="ktp-field-group">
+                  <label class="ui-label connection-field-label" for="tjoj-second-auth-code-inline">安全验证码</label>
+                  <div class="ktp-input-with-button">
+                    <input type="text" id="tjoj-second-auth-code-inline" placeholder="请输入短信或邮箱验证码" autocomplete="one-time-code" class="ui-control">
+                    <button type="button" id="tjoj-send-code-btn-inline" data-od-id="tongjioj-iam-send-code" onclick="sendTongjiojSecondAuthCodeInline()" class="ui-button ui-button--secondary ktp-action-btn action-button">发送验证码</button>
+                  </div>
+                </div>
+                <div class="ktp-submit-wrap">
+                  <button type="button" data-od-id="tongjioj-iam-verify-code" onclick="verifyTongjiojSecondAuthCodeInline()" class="ui-button ui-button--primary ui-button--block ktp-submit-btn action-button">完成加强认证并登录</button>
+                </div>
+              </div>
             </div>
 
             <!-- OJ 账号密码登录面板 -->

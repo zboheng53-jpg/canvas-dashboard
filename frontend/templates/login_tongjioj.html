@@ -34,6 +34,14 @@
             <input type="password" id="tjoj-iam-password" placeholder="统一身份认证密码" autocomplete="current-password" class="ui-control">
             <button type="submit" class="ui-button ui-button--primary ui-button--block btn-wide btn-accent">统一身份认证登录</button>
           </form>
+          <div id="tjoj-second-auth-box" class="hidden mb-s">
+            <select id="tjoj-second-auth-type" class="ui-control mb-s"></select>
+            <div class="add-todo-form mb-s">
+              <input type="text" id="tjoj-second-auth-code" placeholder="请输入短信或邮箱验证码" autocomplete="one-time-code" class="ui-control">
+              <button type="button" id="tjoj-send-code-btn" onclick="sendTongjiojSecondAuthCode()" class="ui-button ui-button--secondary">发送验证码</button>
+            </div>
+            <button type="button" onclick="verifyTongjiojSecondAuthCode()" class="ui-button ui-button--primary ui-button--block btn-wide">完成加强认证并登录</button>
+          </div>
           <div class="ui-help form-note">
             <a href="#" onclick="showTjojLocalLogin();return false;">使用 OJ 账号密码登录</a>
           </div>
@@ -125,9 +133,65 @@
         });
         const result = await resp.json();
         if (result.ok) {
+          document.getElementById('tjoj-second-auth-box').classList.add('hidden');
           checkTongjiojConfig();
+        } else if (result.need_second_auth) {
+          const select = document.getElementById('tjoj-second-auth-type');
+          select.replaceChildren();
+          const methods = Array.isArray(result.auth_methods) && result.auth_methods.length
+            ? result.auth_methods
+            : [{ type: 'sms', label: result.mobile ? `手机短信 (${result.mobile})` : '手机短信验证' }];
+          methods.forEach((m) => {
+            select.append(new Option(m.label || '手机短信验证', m.type || 'sms'));
+          });
+          document.getElementById('tjoj-second-auth-box').classList.remove('hidden');
+          showTongjiojError(result.error || '统一身份认证要求陌生设备加强认证，请发送并填写验证码');
         } else {
           showTongjiojError(result.error || '统一身份认证登录失败');
+        }
+      } catch (e) {
+        showTongjiojError('网络错误');
+      }
+    }
+
+    async function sendTongjiojSecondAuthCode() {
+      const authType = document.getElementById('tjoj-second-auth-type').value || 'sms';
+      hideTongjiojError();
+      try {
+        const resp = await fetch('/api/tongjioj/iam-send-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: authType }),
+        });
+        const result = await resp.json();
+        if (!result.ok) {
+          showTongjiojError(result.error || '发送验证码失败');
+        }
+      } catch (e) {
+        showTongjiojError('网络错误');
+      }
+    }
+
+    async function verifyTongjiojSecondAuthCode() {
+      const authType = document.getElementById('tjoj-second-auth-type').value || 'sms';
+      const code = document.getElementById('tjoj-second-auth-code').value.trim();
+      if (!code) {
+        showTongjiojError('请输入验证码');
+        return;
+      }
+      hideTongjiojError();
+      try {
+        const resp = await fetch('/api/tongjioj/iam-verify-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: authType, code }),
+        });
+        const result = await resp.json();
+        if (result.ok) {
+          document.getElementById('tjoj-second-auth-box').classList.add('hidden');
+          checkTongjiojConfig();
+        } else {
+          showTongjiojError(result.error || '加强认证失败');
         }
       } catch (e) {
         showTongjiojError('网络错误');
@@ -168,6 +232,7 @@
       setTongjiojPageStatus('当前状态：未登录', 'neutral');
       document.getElementById('tongjioj-setup').classList.remove('hidden');
       document.getElementById('tongjioj-logged-in').classList.add('hidden');
+      document.getElementById('tjoj-second-auth-box').classList.add('hidden');
       hideTongjiojError();
       document.getElementById('tjoj-local-login').classList.add('hidden');
     }
