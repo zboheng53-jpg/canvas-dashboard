@@ -129,6 +129,10 @@ def save_credentials(
         return cfg
 
     locked_json_update(_config_file(username), {}, _update)
+    try:
+        _cache_file(username).unlink(missing_ok=True)
+    except Exception:
+        pass
 
 
 def _save_cookies(username: str, cookies: dict[str, str]):
@@ -655,11 +659,15 @@ def local_login(username: str, oj_account: str, password: str) -> dict:
 # ---- HTML Parsing (Read-Only List Pages) ----
 
 class _TableTextParser(HTMLParser):
-    """Lightweight HTML table parser that extracts rows of (text, hrefs) per cell."""
+    """Lightweight HTML table parser that extracts rows of (text, hrefs) per cell.
+
+    Works both with and without an explicit `<tbody>` tag (since raw Sharif-Judge
+    PHP HTML omits `<tbody>` after `</thead>`).
+    """
 
     def __init__(self):
         super().__init__()
-        self.in_tbody = False
+        self.in_thead = False
         self.in_tr = False
         self.in_td = False
         self.rows: list[list[dict]] = []
@@ -669,12 +677,12 @@ class _TableTextParser(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         attrs_dict = dict(attrs)
-        if tag == "tbody":
-            self.in_tbody = True
-        elif tag == "tr" and self.in_tbody:
+        if tag == "thead":
+            self.in_thead = True
+        elif tag == "tr" and not self.in_thead:
             self.in_tr = True
             self._current_row = []
-        elif tag in ("td", "th") and self.in_tr:
+        elif tag == "td" and self.in_tr:
             self.in_td = True
             self._current_text = []
             self._current_hrefs = []
@@ -684,13 +692,13 @@ class _TableTextParser(HTMLParser):
                 self._current_hrefs.append(href)
 
     def handle_endtag(self, tag):
-        if tag == "tbody":
-            self.in_tbody = False
+        if tag == "thead":
+            self.in_thead = False
         elif tag == "tr" and self.in_tr:
             self.in_tr = False
             if self._current_row:
                 self.rows.append(self._current_row)
-        elif tag in ("td", "th") and self.in_td:
+        elif tag == "td" and self.in_td:
             self.in_td = False
             text = re.sub(r"\s+", " ", "".join(self._current_text)).strip()
             self._current_row.append({"text": text, "hrefs": list(self._current_hrefs)})
@@ -922,6 +930,9 @@ def build_unfinished_todos(
 
 # ---- Cache & Live Fetch ----
 
+CACHE_SCHEMA_VERSION = 2
+
+
 def _read_cache_payload(username: str) -> dict | None:
     cache_file = _cache_file(username)
     if not cache_file.exists():
@@ -933,7 +944,7 @@ def _read_cache_payload(username: str) -> dict | None:
 
 
 def _is_cache_fresh(cached: dict | None) -> bool:
-    if not cached or not cached.get("updated_at"):
+    if not cached or cached.get("version") != CACHE_SCHEMA_VERSION or not cached.get("updated_at"):
         return False
     try:
         updated_at = datetime.fromisoformat(cached["updated_at"])
@@ -946,6 +957,7 @@ def _save_cache_payload(username: str, items: list[dict], courses: list[dict]):
     write_json_file(
         _cache_file(username),
         {
+            "version": CACHE_SCHEMA_VERSION,
             "items": items,
             "courses": courses,
             "updated_at": datetime.now(CST).isoformat(),

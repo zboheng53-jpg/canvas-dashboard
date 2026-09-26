@@ -230,6 +230,77 @@ def test_parse_assignments_and_submissions_and_build_todos():
     assert todos_partial[0]["problem_count"] == 5
 
 
+def test_parse_raw_html_without_tbody_and_cache_version_upgrade(test_env):
+    raw_asg_html_no_tbody = """
+    <h2 id="course_btn" data-id="45"><a href="#">2026秋数据结构与算法设计（刘春梅）</a></h2>
+    <div id="course45" style="display:none">
+      <table class="sharif_table">
+        <thead>
+          <tr><th>Name</th><th>Plan</th><th>Problems</th><th>Submissions</th><th>Coefficient</th><th>Start Time</th><th>Finish Time</th><th>Status</th><th>PDF</th><th>Actions</th></tr>
+        </thead>
+        <tr>
+          <td dir="auto">HW1线性表</td>
+          <td> normal </td>
+          <td><a href="https://oj.tongji.edu.cn/index.php/assignments/problems_list/3815">5 problems</a></td>
+          <td>191 submissions</td>
+          <td>100 %</td>
+          <td>2026-09-22 00:00:00</td>
+          <td>2026-10-08 23:59:59</td>
+          <td><span style="color: green;">Open</span></td>
+          <td><a href="https://oj.tongji.edu.cn/index.php/assignments/pdf/3815">PDF</a></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td dir="auto">HW0编程基础 </td>
+          <td> normal </td>
+          <td><a href="https://oj.tongji.edu.cn/index.php/assignments/problems_list/3375">2 problems</a></td>
+          <td>263 submissions</td>
+          <td>100 %</td>
+          <td>2026-09-12 00:00:00</td>
+          <td>2026-12-31 00:00:00</td>
+          <td><span style="color: green;">Open</span></td>
+          <td><a href="https://oj.tongji.edu.cn/index.php/assignments/pdf/3375">PDF</a></td>
+          <td></td>
+        </tr>
+      </table>
+    </div>
+    """
+    raw_sub_html_no_tbody = """
+    <table class="sharif_table">
+      <thead>
+        <tr><th>Course</th><th>Assignment</th><th>Problem</th></tr>
+      </thead>
+      <tr data-u="2553904" data-a="3815" data-p="2">
+        <td>2026秋数据结构与算法设计（刘春梅）</td>
+        <td><a href="https://oj.tongji.edu.cn/index.php/assignments/problems_list/3815">HW1线性表</a></td>
+        <td><a href="https://oj.tongji.edu.cn/index.php/problems/2/3815">学生信息管理</a></td>
+      </tr>
+      <tr data-u="2553904" data-a="3375" data-p="1">
+        <td>2026秋数据结构与算法设计（刘春梅）</td>
+        <td><a href="https://oj.tongji.edu.cn/index.php/assignments/problems_list/3375">HW0编程基础</a></td>
+        <td><a href="https://oj.tongji.edu.cn/index.php/problems/1/3375">A+B</a></td>
+      </tr>
+      <tr data-u="2553904" data-a="3375" data-p="2">
+        <td>2026秋数据结构与算法设计（刘春梅）</td>
+        <td><a href="https://oj.tongji.edu.cn/index.php/assignments/problems_list/3375">HW0编程基础</a></td>
+        <td><a href="https://oj.tongji.edu.cn/index.php/problems/2/3375">最大公约数</a></td>
+      </tr>
+    </table>
+    """
+    courses, assignments = tongji_oj_client.parse_assignments_html(raw_asg_html_no_tbody)
+    assert courses == [{"id": "45", "name": "2026秋数据结构与算法设计（刘春梅）"}]
+    assert len(assignments) == 2
+    sub_info = tongji_oj_client.parse_final_submissions_html(raw_sub_html_no_tbody)
+    todos = tongji_oj_client.build_unfinished_todos(assignments, sub_info)
+    assert [t["id"] for t in todos] == ["tjoj_3815"]
+    assert todos[0]["title"] == "HW1线性表"
+    assert todos[0]["submitted_count"] == 1
+    assert todos[0]["problem_count"] == 5
+
+    # Unversioned legacy cache should not be treated as fresh
+    assert not tongji_oj_client._is_cache_fresh({"items": [], "updated_at": "2099-01-01T00:00:00+08:00"})
+
+
 def test_fetch_assignments_strictly_read_only_and_never_opens_problems(monkeypatch, test_env):
     user = "alice"
     tongji_oj_client._save_cookies(user, {"shjsession": "valid_sess"})

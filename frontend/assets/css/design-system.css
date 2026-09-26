@@ -2775,17 +2775,10 @@ section.card.listcard,
   margin-top: 18px !important;
 }
 .ktp-submit-btn {
-  height: 40px !important;
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  background: var(--ds-src-ktp, #2e7bee) !important;
-  border-color: var(--ds-src-ktp, #2e7bee) !important;
-  color: #ffffff !important;
+  height: 38px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
   border-radius: var(--ds-radius-sm, 7px) !important;
-}
-.ktp-submit-btn:hover {
-  background: #2368cc !important;
-  border-color: #2368cc !important;
 }
 .ktp-figure-preview-wrap {
   display: flex !important;

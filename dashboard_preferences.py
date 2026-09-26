@@ -15,7 +15,7 @@ TODO_SOURCES = (
     "custom",
 )
 _DEFAULTS = {
-    "version": 1,
+    "version": 2,
     "visible_todo_sources": list(TODO_SOURCES),
 }
 
@@ -32,10 +32,12 @@ def _normalized(data) -> dict:
         visible = list(TODO_SOURCES)
     else:
         visible_set = {source for source in visible if source in TODO_SOURCES}
+        if int(data.get("version") or 1) < 2:
+            visible_set.add("tongjioj")
         visible = [source for source in TODO_SOURCES if source in visible_set]
     return {
         **data,
-        "version": 1,
+        "version": 2,
         "visible_todo_sources": visible,
     }
 

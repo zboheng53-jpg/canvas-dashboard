@@ -4563,6 +4563,7 @@
       const badge = document.getElementById('detail-status-badge-tongjioj');
       const setupDiv = document.getElementById('tjoj-setup-inline');
       const loggedInDiv = document.getElementById('tjoj-logged-in-inline');
+      const secondAuthBox = document.getElementById('tjoj-second-auth-box-inline');
       try {
         const resp = await fetch('/api/tongjioj/config');
         if (!resp.ok) {
@@ -4572,6 +4573,8 @@
         if (result.ok && result.has_token) {
           if (badge) { badge.textContent = '已登录'; badge.className = 'ui-status ui-status--success status-badge'; }
           setCardStatus('tongjioj', '已连接', 'connected');
+          hideTongjiojErrorInline();
+          if (secondAuthBox) secondAuthBox.classList.add('hidden');
           if (setupDiv) setupDiv.classList.add('hidden');
           if (loggedInDiv) loggedInDiv.classList.remove('hidden');
           if (result.courses) {
@@ -4656,8 +4659,10 @@
         });
         const result = await resp.json();
         if (result.ok) {
+          hideTongjiojErrorInline();
           const secondAuthBox = document.getElementById('tjoj-second-auth-box-inline');
           if (secondAuthBox) secondAuthBox.classList.add('hidden');
+          if (typeof visibleTodoSources !== 'undefined') visibleTodoSources.add('tongjioj');
           await loadTongjiojStatusInline();
           await fetchTongjiojTodos();
         } else if (result.need_second_auth) {
@@ -4728,9 +4733,11 @@
         });
         const result = await resp.json();
         if (result.ok) {
+          hideTongjiojErrorInline();
           const secondAuthBox = document.getElementById('tjoj-second-auth-box-inline');
           if (secondAuthBox) secondAuthBox.classList.add('hidden');
           if (codeInput) codeInput.value = '';
+          if (typeof visibleTodoSources !== 'undefined') visibleTodoSources.add('tongjioj');
           await loadTongjiojStatusInline();
           await fetchTongjiojTodos();
         } else {
@@ -4756,6 +4763,8 @@
         });
         const result = await resp.json();
         if (result.ok) {
+          hideTongjiojErrorInline();
+          if (typeof visibleTodoSources !== 'undefined') visibleTodoSources.add('tongjioj');
           await loadTongjiojStatusInline();
           await fetchTongjiojTodos();
         } else {
