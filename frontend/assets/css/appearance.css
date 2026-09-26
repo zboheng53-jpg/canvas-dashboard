@@ -1,0 +1,25 @@
+/* Calm entry: opacity only, so cards never create transformed scroll containers. */
+@keyframes workspace-reveal {
+  from { opacity: 0.35; }
+  to { opacity: 1; }
+}
+
+.enter-top-bar,
+.enter-kpis,
+.enter-main-card,
+.enter-right-card {
+  animation: workspace-reveal var(--duration-enter) var(--ease-standard) backwards;
+}
+
+.enter-kpis { animation-delay: var(--delay-enter-step); }
+.enter-main-card { animation-delay: calc(var(--delay-enter-step) * 2); }
+.enter-right-card { animation-delay: calc(var(--delay-enter-step) * 3); }
+
+@media (prefers-reduced-motion: reduce) {
+  .enter-top-bar,
+  .enter-kpis,
+  .enter-main-card,
+  .enter-right-card {
+    animation: none;
+  }
+}

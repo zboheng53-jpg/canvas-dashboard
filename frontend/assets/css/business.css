@@ -697,6 +697,27 @@
   margin: 0 0 var(--space-1);
 }
 
+.appearance-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.mobile-add-toggle {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-add-toggle {
+    display: inline-flex;
+  }
+
+  .todo-composer.is-collapsed {
+    display: none;
+  }
+}
+
 .settings-secondary-divider {
   padding: var(--space-3) var(--space-6);
 }

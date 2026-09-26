@@ -103,6 +103,8 @@ def test_todo_delete_and_date_edit_for_project_task(live_app, browser):
         date_input = row_b.locator('input[type="date"]')
         next_day = (dashboard.datetime.now(dashboard.CST).date() + timedelta(days=1)).isoformat()
         date_input.fill(next_day)
+        page.evaluate('renderUnifiedList()')
+        expect(date_input).to_have_value(next_day)
         date_input.press('Enter')
         expect(row_b).to_have_count(0)
         changed = next(t for t in project_store.load_projects(username)[0]['tasks'] if t['id'] == b['id'])

@@ -1,5 +1,39 @@
 (function initializeTodoFeature() {
   const byId = (id) => document.getElementById(id);
+  byId('todo-list')?.addEventListener('click', (event) => {
+    const detail = event.target.closest('[data-mobile-detail]');
+    if (detail) openActionDetail(detail.dataset.mobileDetail);
+  });
+
+  const composer = byId('todo-composer');
+  const toggle = byId('mobile-add-toggle');
+  const mobile = window.matchMedia('(max-width: 768px)');
+  let composerOpen = false;
+  function updateComposer() {
+    composer?.classList.toggle('is-collapsed', mobile.matches && !composerOpen);
+    toggle?.setAttribute('aria-expanded', String(composerOpen));
+    if (toggle) toggle.textContent = composerOpen ? '收起' : '＋ 新增';
+  }
+  toggle?.addEventListener('click', () => {
+    composerOpen = !composerOpen;
+    updateComposer();
+    if (composerOpen) byId('new-todo-input')?.focus();
+  });
+  composer?.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && mobile.matches) {
+      composerOpen = false;
+      updateComposer();
+      toggle?.focus();
+    }
+  });
+  byId('add-todo-form')?.addEventListener('todo:created', () => {
+    if (!mobile.matches) return;
+    composerOpen = false;
+    updateComposer();
+    toggle?.focus({preventScroll: true});
+  });
+  mobile.addEventListener('change', updateComposer);
+  updateComposer();
 
   byId('add-todo-form')?.addEventListener('submit', addTodo);
   byId('new-todo-input')?.addEventListener('input', () => { if (typeof resetTodoRequestId === 'function') resetTodoRequestId(); });

@@ -1212,7 +1212,7 @@
     justify-content: space-between;
     margin: 0 -18px 18px;
     padding: 0 18px;
-    background: rgba(250,249,247,0.94);
+    background: var(--color-mobile-header);
     border-bottom: 1px solid var(--border);
     backdrop-filter: blur(12px);
   }

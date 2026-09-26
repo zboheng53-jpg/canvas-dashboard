@@ -24,7 +24,7 @@
   display: inline-block;
   flex: none;
   color: var(--ds-ink-3, #7d8694);
-  transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s ease;
+  transition: transform var(--duration-normal) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
 details[open] > summary .project-disclosure-chevron {
   transform: rotate(90deg);
@@ -46,7 +46,7 @@ details[open] > summary .project-disclosure-chevron {
   cursor: pointer !important;
   list-style: none !important;
   user-select: none;
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
 }
 .project-materials > summary:hover {
   color: var(--ds-ink, #1c2330) !important;
@@ -95,7 +95,7 @@ details[open] > summary .project-disclosure-chevron {
   border-radius: 4px;
   list-style: none !important;
   user-select: none;
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
 }
 .action-original > summary:hover {
   color: var(--ds-ink-2);
@@ -111,7 +111,7 @@ details[open] > summary .project-disclosure-chevron {
 .project-modal-card, .schedule-modal-card { max-height: calc(100dvh - 40px); overflow-y: auto; }
 .schedule-grid-wrapper:has(.period-grid) { min-height: 0; flex: 1 1 auto; overflow: auto; }
 #schedule-scroll-viewport:has(.period-grid) { height: auto; min-height: 0; max-height: none; overflow: visible; }
-.schedule-grid.period-grid { display: grid; grid-template-columns: 48px repeat(7, minmax(0, 1fr)); align-items: stretch; width: 100%; min-width: 0; height: auto; }
+.schedule-grid.period-grid { display: grid; grid-template-columns: 48px repeat(7, minmax(0, 1fr)); align-items: stretch; width: 100%; min-width: 0; height: auto; background: var(--color-surface); }
 .period-label { padding: 16px 6px; font-size: 12px; text-align: center; color: var(--ds-ink-3); background: var(--ds-page); border-bottom: 1px solid var(--ds-line); }
 .period-day { border: 0; border-bottom: 1px solid var(--ds-line); background: var(--ds-surface, #fff); color: var(--ds-ink-2, #555); padding: 14px 4px; font-size: 12px; cursor: pointer; }
 .period-day.is-today { color: var(--ds-accent); font-weight: 700; background: var(--ds-accent-soft); }
@@ -175,7 +175,7 @@ details[open] > summary .project-disclosure-chevron {
   .period-cell .period-event-time { font-size: 10px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
   .period-cell .period-event small { display: block; font-size: 10px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
 }
-@media (max-width: 760px) {
+@media (max-width: 768px) {
   .schedule-grid.period-grid { grid-template-columns: 45px minmax(0, 1fr); }
   #schedule-grid-header.period-grid { display: flex; overflow-x: auto; }
   #schedule-grid-header .period-label { display: none; }
@@ -198,7 +198,7 @@ details[open] > summary .project-disclosure-chevron {
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid var(--ds-line-soft, #eef0f3);
   border-radius: 8px;
   gap: 12px;

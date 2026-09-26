@@ -927,10 +927,21 @@
     <div class="console-manager-heading business-manager-heading">
       <div>
         <h1>偏好设置</h1>
-        <p>常用账户安全设置优先展示；数据说明与危险操作可按需展开。</p>
+        <p>调整界面外观与账户安全设置；数据说明与危险操作可按需展开。</p>
       </div>
     </div>
     <div class="ui-card settings-summary-grid settings-progressive-layout">
+      <section class="ui-card-section settings-item" aria-labelledby="settings-appearance-title">
+        <div class="settings-section-heading"><span class="ui-section-label manager-section-index">外观</span><h2 class="ui-card__title" id="settings-appearance-title">选一个喜欢的颜色</h2></div>
+        <div class="settings-section-content">
+          <div class="appearance-choices" role="group" aria-label="界面配色">
+            <button type="button" class="ui-button ui-button--choice ui-theme-choice" data-appearance-theme="blue" aria-pressed="true"><span class="ui-theme-swatch ui-theme-swatch--blue" aria-hidden="true"></span><span><strong>蓝白</strong><small>清爽、明亮</small></span></button>
+            <button type="button" class="ui-button ui-button--choice ui-theme-choice" data-appearance-theme="moss" aria-pressed="false"><span class="ui-theme-swatch ui-theme-swatch--moss" aria-hidden="true"></span><span><strong>苔绿</strong><small>暖白底色，苔绿点缀</small></span></button>
+          </div>
+          <p class="ui-help" id="appearance-status" role="status">仅保存在此浏览器。布局与操作方式保持一致；动效跟随系统的“减少动态效果”设置。</p>
+        </div>
+      </section>
+
       <section class="ui-card-section settings-item settings-account-overview" aria-labelledby="settings-account-title">
         <div class="settings-section-heading"><span class="ui-section-label manager-section-index">账号</span><h2 class="ui-card__title" id="settings-account-title">当前账号</h2></div>
         <div class="settings-section-content settings-account-row"><div><p class="settings-account-name">{{ username }}</p><p>平台连接、同步数据与日历订阅均按此站点账号隔离保存。</p></div><span class="ui-status ui-status--success settings-account-status">当前设备已登录</span></div>

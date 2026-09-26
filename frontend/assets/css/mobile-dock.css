@@ -33,151 +33,107 @@
     border-radius: var(--radius-card) !important;
   }
 
-  .enter-top-bar {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) auto !important;
-    row-gap: 6px !important;
-    column-gap: 8px !important;
-    align-items: center !important;
-    padding: 0 !important;
+  /* One phone header: date/week above campus/temperature. */
+  .top-bar.opt1-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: var(--space-2) var(--space-3);
+    margin: 0;
+    padding: 0;
   }
 
-  /* Row 1: Campus Switcher (left) + Weather Badge (right) */
-  .enter-top-bar .opt1-col.left {
-    grid-column: 1 / -1 !important;
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    width: 100% !important;
-    gap: 8px !important;
+  .opt1-header .opt1-col.center,
+  .opt1-header .opt1-col.right {
+    display: contents;
   }
 
-  .weather-campus-switch {
-    display: inline-flex !important;
-    background: var(--page) !important;
-    border: 1px solid var(--line) !important;
-    border-radius: 9999px !important;
-    padding: 2px !important;
-    gap: 2px !important;
-    flex-shrink: 0 !important;
+  .opt1-header .opt1-date {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-control);
+    line-height: var(--line-height-control);
   }
 
-  .weather-campus-separator {
-    display: none !important;
+  .opt1-header .opt1-week-pill {
+    grid-column: 2;
+    grid-row: 1;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-control);
+    line-height: var(--line-height-control);
+    white-space: nowrap;
+    text-align: right;
   }
 
-  .weather-campus-option {
-    border: none !important;
-    background: transparent !important;
-    padding: 3px 8px !important;
-    border-radius: 9999px !important;
-    font-size: 11px !important;
-    font-weight: 500 !important;
-    color: var(--ink-3) !important;
-    cursor: pointer !important;
-    line-height: 1.2 !important;
-    transition: all 0.15s ease !important;
-    min-height: 24px !important;
-    height: auto !important;
+  .opt1-header .opt1-col.left {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    min-width: 0;
   }
 
-  .weather-campus-option.is-active {
-    background: var(--surface) !important;
-    color: var(--ink) !important;
-    font-weight: 600 !important;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+  .opt1-header .weather-campus-switch {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-width: 0;
+    margin: 0;
+    height: auto;
   }
 
-  .opt1-temp-row {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 4px !important;
-    font-size: 12px !important;
-    color: var(--ink) !important;
-    background: var(--surface) !important;
-    padding: 3px 6px 3px 8px !important;
-    border-radius: 9999px 0 0 9999px !important;
-    border: 1px solid var(--line) !important;
-    border-right: none !important;
-    margin-left: auto !important;
+  .weather-campus-switch .ui-button.weather-campus-option {
+    min-height: var(--control-height-sm);
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-pill);
+    font-size: var(--font-size-control-sm);
+    line-height: var(--line-height-control);
   }
 
-  .weather-icn-opt1 {
-    font-size: 13px !important;
-    display: flex !important;
-    align-items: center !important;
+  .weather-campus-switch .ui-button.weather-campus-option.is-active {
+    background: var(--color-action-soft);
   }
 
-  .weather-temp {
-    font-weight: 600 !important;
-    color: var(--ink) !important;
-    font-family: var(--font-number) !important;
+  .opt1-header .opt1-temp-row {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: var(--space-1);
+    color: var(--color-text-primary);
+    font-family: var(--font-number);
+    font-size: var(--font-size-title-sm);
+    line-height: var(--line-height-control);
   }
 
-  .opt1-weather-detail {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 3px !important;
-    font-size: 11px !important;
-    color: var(--ink-3) !important;
-    background: var(--surface) !important;
-    padding: 3px 8px 3px 2px !important;
-    border-radius: 0 9999px 9999px 0 !important;
-    border: 1px solid var(--line) !important;
-    border-left: none !important;
-    white-space: nowrap !important;
+  .opt1-header .weather-temp {
+    font-size: inherit;
+    font-weight: 500;
+    line-height: inherit;
   }
 
-  /* Row 2: Term info (left) + Monospace Clock (right) */
-  .enter-top-bar .opt1-col.right {
-    grid-column: 1 !important;
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    gap: 6px !important;
-    min-width: 0 !important;
+  .opt1-header .weather-emoji {
+    display: inline-flex;
+    align-items: center;
+    font-size: var(--font-size-title-sm);
   }
 
-  .opt1-week-pill {
-    font-size: 11px !important;
-    font-weight: 600 !important;
-    background: var(--accent-soft) !important;
-    color: var(--accent) !important;
-    padding: 1px 6px !important;
-    border-radius: 4px !important;
-    font-family: var(--font-mono) !important;
-    flex-shrink: 0 !important;
+  .opt1-header .weather-outline-icon {
+    width: var(--icon-size-md);
+    height: var(--icon-size-md);
   }
 
-  .opt1-term {
-    font-size: 11px !important;
-    color: var(--ink-3) !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-  }
-
-  .enter-top-bar .opt1-col.center {
-    grid-column: 2 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: flex-end !important;
-    position: static !important;
-    flex-shrink: 0 !important;
-  }
-
-  .opt1-time {
-    font-family: var(--font-mono) !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
-    color: var(--ink) !important;
-    letter-spacing: -0.02em !important;
-    white-space: nowrap !important;
-  }
-
-  .opt1-date {
-    display: none !important;
+  .opt1-header .weather-campus-separator,
+  .opt1-header .opt1-weather-detail,
+  .opt1-header .opt1-time,
+  .opt1-header .opt1-term {
+    display: none;
   }
 
   /* ─── Compact 3-Column KPI Grid ──────────────────────────────────── */
@@ -268,6 +224,11 @@
   }
 
   /* ─── Todo List & Input Bar ──────────────────────────────────────── */
+  .listcard .sync-status-button,
+  .todo-source-manager:not([open]) {
+    display: none;
+  }
+
   .enter-main-card {
     border-radius: 14px !important;
     padding: 12px !important;
@@ -340,17 +301,81 @@
     margin-right: 0 !important;
   }
 
-  /* Todo List Items */
-  .todo-list {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 6px !important;
+  /* Title first; one aligned row for origin and deadline/plan. */
+  .todo-list { gap: 0; }
+
+  .todo-row {
+    --todo-date-background: transparent;
+    grid-template-columns: minmax(0, 1fr) auto var(--control-height-md);
+    grid-template-areas:
+      "body subtask more"
+      "source due due"
+      "mobile-actions mobile-actions mobile-actions";
+    align-items: center;
+    gap: var(--space-1) var(--space-2);
+    padding: var(--space-3) var(--space-4);
   }
 
-  .todo-item {
-    padding: 8px 10px !important;
-    border-radius: 10px !important;
+  .todo-row .biz-todo__body { padding: 0; }
+  .todo-row .biz-todo__meta { display: none; }
+  .todo-row .biz-todo__right { display: contents; }
+  .todo-row .biz-todo__title .item-title {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.5;
+    font-size: var(--font-size-title-sm);
+    text-align: left;
   }
+
+  .todo-row .item-source-badge,
+  .todo-row .item-source-badge .ui-badge,
+  .todo-row .item-due {
+    min-height: 20px;
+    height: 20px;
+    line-height: 20px;
+    align-self: center;
+  }
+
+  .todo-row .item-source-badge { grid-area: source; }
+  .todo-row .item-due {
+    grid-area: due;
+    justify-self: end;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    min-width: 0;
+    max-width: 100%;
+    white-space: nowrap;
+  }
+  .todo-row .item-source-badge .ui-badge,
+  .todo-row .item-due { font-size: var(--font-size-control-sm); }
+
+  .todo-row .item-subtask-slot { grid-area: subtask; }
+  .todo-row .item-subtask-slot:has(.subtask-toggle-placeholder) { display: none; }
+  .todo-row:has(.subtask-toggle-placeholder) .biz-todo__body { grid-column: 1 / 3; }
+  .todo-row .mobile-action-trigger { grid-area: more; justify-self: end; }
+  .todo-row .item-desktop-actions { display: none; }
+  .todo-row .item-mobile-actions { grid-area: mobile-actions; }
+  .todo-row .item-mobile-actions.open { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+  .todo-row .item-mobile-actions button {
+    width: auto;
+    min-width: var(--control-height-md);
+    min-height: var(--control-height-lg);
+    padding: 0 var(--space-2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+  }
+  .todo-row .item-mobile-actions button[title]::after {
+    content: attr(title);
+    font-size: var(--font-size-control-sm);
+  }
+
+  .todo-row .todo-date-desktop { display: none; }
+  .todo-row .todo-date-mobile { display: inline; }
+  .todo-row .inline-edit-date-input { grid-area: due; max-width: 100%; }
 
   /* ─── Long-Term Projects Mobile Layout ───────────────────────────── */
   .project-manager-card {
@@ -411,6 +436,40 @@
   }
 
   /* Hero Next Action Card */
+  .project-detail-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    margin-left: 0;
+  }
+
+  .project-task-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "check name" ". date" "actions actions";
+  }
+  .project-task-item:not(:has(.project-task-date)) {
+    grid-template-areas: "check name" "actions actions";
+  }
+  .project-task-item > .ui-checkbox { grid-area: check; }
+  .project-task-item .project-task-name-btn {
+    grid-area: name;
+    display: block;
+    white-space: normal;
+  }
+  .project-task-item .ui-list-item__title {
+    display: block;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.5;
+  }
+  .project-task-name-btn .action-task-caption { line-height: 1.5; }
+  .project-task-date { grid-area: date; margin-left: 0; }
+  .project-task-item .project-task-actions {
+    grid-area: actions;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
   .project-next-action-card {
     display: flex !important;
     flex-direction: column !important;
@@ -546,7 +605,7 @@
 
   .period-day {
     flex: 1 !important;
-    min-width: 42px !important;
+    min-width: 36px !important;
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
@@ -695,7 +754,7 @@
     left: 0 !important;
     right: 0 !important;
     height: calc(var(--mobile-bottom-bar-height) + var(--mobile-safe-bottom)) !important;
-    background: color-mix(in srgb, var(--surface) 94%, transparent) !important;
+    background: color-mix(in srgb, var(--color-navigation-surface) 94%, transparent) !important;
     backdrop-filter: blur(20px) !important;
     -webkit-backdrop-filter: blur(20px) !important;
     border-top: 1px solid var(--line) !important;
@@ -781,4 +840,9 @@
   .mobile-nav-badge.hidden {
     display: none !important;
   }
+}
+
+/* Compact date labels are presentation only; editors keep the original ISO value. */
+@media (min-width: 769px) {
+  .todo-date-mobile { display: none; }
 }

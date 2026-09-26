@@ -256,7 +256,7 @@
 
 
     .academic-sidebar {
-      background: var(--ds-surface, #ffffff) !important;
+      background: var(--color-navigation-surface) !important;
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
       border: none !important;
@@ -269,7 +269,7 @@
 
     .card:hover, .rail-card:hover {
       background: var(--glass-surface-hover) !important;
-      border-color: rgba(215, 208, 195, 0.9) !important;
+      border-color: var(--color-glass-border-hover) !important;
       box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 1), 0 6px 24px -4px rgba(70, 80, 72, 0.07) !important;
     }
 
@@ -449,7 +449,7 @@
     .unified-item.remote .item-due,
     .unified-item.is-normal .item-due,
     .todo-item.remote .item-due {
-      color: #94A3B8;
+      color: var(--color-text-muted);
       background: transparent;
       border: 1px solid transparent;
       font-weight: 400;
@@ -497,14 +497,14 @@
     /* 标题 (视觉第一核心层级) */
     .unified-item .item-title, .todo-item .item-title {
       font-weight: 500 !important;
-      color: #1E293B !important;
+      color: var(--color-text-primary) !important;
       font-size: 14px !important;
       line-height: 1.4 !important;
     }
 
     /* 课程与项目 (收敛为普通中性灰文本，杜绝亮蓝醒目胶囊包围) */
     .unified-item .item-course:not(button), .todo-item .item-course:not(button) {
-      color: #94A3B8;
+      color: var(--color-text-muted);
       background: transparent;
       border: none;
       font-size: 12.5px;
@@ -560,8 +560,8 @@
         align-items: center !important;
         /* 设计稿：轻量磨砂玻璃（78% 半透白 + backdrop blur），tokens 的
            --glass-surface 已被重定义为实色白，这里显式写回设计值 */
-        background: rgba(255, 255, 255, 0.78) !important;
-        border: 1px solid rgba(226, 220, 210, 0.85) !important;
+        background: var(--color-glass) !important;
+        border: 1px solid var(--color-glass-border) !important;
         border-radius: 14px !important;
         padding: 20px 24px !important;
         box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.9), 0 4px 20px -2px rgba(70, 80, 72, 0.04) !important;
@@ -572,7 +572,7 @@
 
       .top-bar.opt1-header:hover {
         background: var(--glass-surface-hover) !important;
-        border-color: rgba(215, 208, 195, 0.9) !important;
+        border-color: var(--color-glass-border-hover) !important;
         box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 1), 0 6px 24px -4px rgba(70, 80, 72, 0.07) !important;
       }
 
@@ -588,7 +588,7 @@
         align-items: center !important;
         text-align: center !important;
         justify-content: center !important;
-        border-right: 1px solid rgba(215, 208, 195, 0.55) !important;
+        border-right: 1px solid var(--color-glass-divider) !important;
         padding-right: 20px !important;
       }
 
@@ -596,7 +596,7 @@
         align-items: center !important;
         text-align: center !important;
         justify-content: center !important;
-        border-right: 1px solid rgba(215, 208, 195, 0.55) !important;
+        border-right: 1px solid var(--color-glass-divider) !important;
         padding: 0 20px !important;
       }
 
@@ -611,14 +611,14 @@
         font-family: var(--font-number) !important;
         font-size: 34px !important;
         font-weight: 400 !important;
-        color: #1E293B !important;
+        color: var(--color-text-primary) !important;
         line-height: 1.1 !important;
         letter-spacing: -0.02em !important;
       }
 
       .opt1-date {
         font-size: 13px !important;
-        color: #94A3B8 !important;
+        color: var(--color-text-muted) !important;
         margin-top: 5px !important;
         font-weight: 400 !important;
         display: flex !important;
@@ -634,7 +634,7 @@
         font-family: var(--font-number) !important;
         font-size: 26px !important;
         font-weight: 400 !important;
-        color: #1E293B !important;
+        color: var(--color-text-primary) !important;
       }
 
       .opt1-weather-detail {
@@ -644,7 +644,7 @@
         gap: 5px;
         justify-content: center;
         font-size: 13.5px !important;
-        color: #64748B !important;
+        color: var(--color-text-secondary) !important;
         margin-top: 3px !important;
         font-weight: 500 !important;
       }
@@ -668,7 +668,7 @@
 
       .opt1-term {
         font-size: 13.5px !important;
-        color: #64748B !important;
+        color: var(--color-text-secondary) !important;
         margin-top: 6px !important;
         font-weight: 500 !important;
       }
@@ -709,7 +709,7 @@
         font-weight: 400;
         letter-spacing: -0.02em;
         line-height: 1;
-        color: #0F172A !important;
+        color: var(--color-text-primary) !important;
       }
 
       .clock-section .date-info {
@@ -719,7 +719,7 @@
         margin-top: 6px;
         font-size: 13px;
         font-weight: 400;
-        color: #94A3B8 !important;
+        color: var(--color-text-muted) !important;
       }
 
       .clock-section .date-info span#date {
@@ -731,7 +731,7 @@
       .clock-section .date-info span#weekday {
         padding-left: 10px;
         border-left: 1px solid #E2E8F0;
-        color: #64748B !important;
+        color: var(--color-text-secondary) !important;
         letter-spacing: 0.02em;
       }
 
@@ -779,7 +779,7 @@
         font-weight: 400;
         letter-spacing: -0.01em;
         line-height: 1;
-        color: #0F172A !important;
+        color: var(--color-text-primary) !important;
       }
 
       .weather-right {
@@ -793,13 +793,13 @@
       .weather-desc {
         font-size: 14px;
         font-weight: 500;
-        color: #1E293B !important;
+        color: var(--color-text-primary) !important;
         line-height: 1.2;
       }
 
       .weather-detail {
         font-size: 12.5px;
-        color: #64748B !important;
+        color: var(--color-text-secondary) !important;
         line-height: 1.2;
         white-space: nowrap;
       }
@@ -857,7 +857,7 @@
       }
 
       .item-course-empty {
-        color: #94A3B8 !important;
+        color: var(--color-text-muted) !important;
         background: transparent !important;
         border: none !important;
         opacity: 0.6;
@@ -1021,7 +1021,7 @@
         font-family: var(--font-title) !important;
         font-size: 20px !important;
         font-weight: 500 !important;
-        color: #0F172A !important;
+        color: var(--color-text-primary) !important;
         letter-spacing: -0.015em !important;
       }
 
@@ -1029,7 +1029,7 @@
         font-family: var(--font-number) !important;
         font-size: 12px !important;
         font-weight: 500 !important;
-        color: #64748B !important;
+        color: var(--color-text-secondary) !important;
         background: #F1F5F9 !important;
         padding: 2px 8px !important;
         border-radius: 10px !important;
@@ -1050,13 +1050,13 @@
         font-family: var(--font-body) !important;
         font-size: 12px !important;
         line-height: 1.45 !important;
-        color: #64748B !important;
+        color: var(--color-text-secondary) !important;
       }
 
       .project-overview-due {
         font-family: var(--font-number) !important;
         font-size: 11.5px !important;
-        color: #94A3B8 !important;
+        color: var(--color-text-muted) !important;
         font-weight: 400 !important;
       }
 
@@ -1070,7 +1070,7 @@
         font-family: var(--font-kicker) !important;
         font-size: 10px !important;
         font-weight: 500 !important;
-        color: #94A3B8 !important;
+        color: var(--color-text-muted) !important;
         letter-spacing: 0.05em !important;
         text-transform: uppercase !important;
       }
@@ -1084,12 +1084,12 @@
       .project-overview-task strong {
         font-size: 12px !important;
         font-weight: 500 !important;
-        color: #0F172A !important;
+        color: var(--color-text-primary) !important;
       }
 
       .project-overview-task small {
         font-size: 11px !important;
-        color: #64748B !important;
+        color: var(--color-text-secondary) !important;
         font-variant-numeric: tabular-nums !important;
       }
 
@@ -1119,14 +1119,14 @@
         font-family: var(--font-number) !important;
         font-size: 11.5px !important;
         font-weight: 500 !important;
-        color: #1E293B !important;
+        color: var(--color-text-primary) !important;
         font-variant-numeric: tabular-nums !important;
       }
 
       .today-schedule-row strong {
         font-size: 12.5px !important;
         font-weight: 600 !important;
-        color: #0F172A !important;
+        color: var(--color-text-primary) !important;
       }
 
       .today-schedule-row small {
@@ -1146,7 +1146,7 @@
         font-family: var(--font-kicker) !important;
         font-size: 10px !important;
         font-weight: 500 !important;
-        color: #94A3B8 !important;
+        color: var(--color-text-muted) !important;
         letter-spacing: 0.05em !important;
         text-transform: uppercase !important;
       }
@@ -1161,7 +1161,7 @@
       .today-deadlines strong {
         font-size: 12px !important;
         font-weight: 500 !important;
-        color: #1E293B !important;
+        color: var(--color-text-primary) !important;
       }
 
       .today-deadline-course {
@@ -1607,7 +1607,7 @@
     }
 
     .project-overview-objective {
-      color: #64748B !important;
+      color: var(--color-text-secondary) !important;
       font-family: var(--font-body) !important;
       font-size: 12px !important;
       line-height: 1.55 !important;
@@ -1616,7 +1616,7 @@
 
     .project-overview-stats,
     .project-overview-due {
-      color: #64748B !important;
+      color: var(--color-text-secondary) !important;
       font-family: var(--font-number) !important;
       font-size: 11px !important;
       line-height: 1.45 !important;
@@ -1630,7 +1630,7 @@
     }
 
     .project-overview-section-heading {
-      color: #94A3B8 !important;
+      color: var(--color-text-muted) !important;
       font-family: var(--font-kicker) !important;
       font-size: 10px !important;
       font-weight: 500 !important;
@@ -1644,7 +1644,7 @@
     }
 
     .project-overview-task strong {
-      color: #0F172A !important;
+      color: var(--color-text-primary) !important;
       font-family: var(--font-body) !important;
       font-size: 12px !important;
       font-weight: 500 !important;
@@ -1653,7 +1653,7 @@
     }
 
     .project-overview-task small {
-      color: #64748B !important;
+      color: var(--color-text-secondary) !important;
       font-family: var(--font-number) !important;
       font-size: 11px !important;
       line-height: 1.4 !important;
@@ -1682,7 +1682,7 @@
     }
 
     .today-schedule-row time {
-      color: #1E293B !important;
+      color: var(--color-text-primary) !important;
       font-family: var(--font-number) !important;
       font-size: 11.5px !important;
       font-weight: 500 !important;
@@ -1692,7 +1692,7 @@
     }
 
     .today-schedule-row strong {
-      color: #0F172A !important;
+      color: var(--color-text-primary) !important;
       font-family: var(--font-body) !important;
       font-size: 12.5px !important;
       font-weight: 600 !important;
@@ -1717,7 +1717,7 @@
     }
 
     .today-deadlines > span {
-      color: #94A3B8 !important;
+      color: var(--color-text-muted) !important;
       font-family: var(--font-kicker) !important;
       font-size: 10px !important;
       font-weight: 500 !important;
@@ -1733,7 +1733,7 @@
     }
 
     .today-deadlines strong {
-      color: #1E293B !important;
+      color: var(--color-text-primary) !important;
       font-family: var(--font-body) !important;
       font-size: 12px !important;
       font-weight: 500 !important;

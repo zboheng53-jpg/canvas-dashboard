@@ -159,6 +159,43 @@
   width: 100%;
 }
 
+/* Theme choices reuse the selected, hover and focus states of ui-button--choice. */
+.ui-theme-choice {
+  min-height: var(--control-height-lg);
+  padding: var(--space-3) var(--space-4);
+  gap: var(--space-3);
+  border-color: var(--color-border);
+  border-radius: var(--radius-surface);
+  text-align: left;
+  line-height: var(--line-height-control);
+}
+
+.ui-theme-choice strong,
+.ui-theme-choice small {
+  display: block;
+}
+
+.ui-theme-choice small {
+  margin-top: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-help);
+}
+
+.ui-theme-swatch {
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
+  border-radius: var(--radius-pill);
+  border: var(--border-width) solid var(--color-border);
+}
+
+.ui-theme-swatch--blue {
+  background: var(--theme-preview-blue);
+}
+
+.ui-theme-swatch--moss {
+  background: var(--theme-preview-moss);
+}
+
 .ui-button--start {
   justify-content: flex-start;
   text-align: left;

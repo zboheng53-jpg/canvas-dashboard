@@ -1284,6 +1284,7 @@ function startProjectTodoDueEdit(button) {
     if (saved) return;
     saved = true;
     input.replaceWith(button);
+    renderUnifiedList();
     if (!commit || input.value === original) return;
     const url = kind === "project_due"
       ? `/api/projects/${projectId}`

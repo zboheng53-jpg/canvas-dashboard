@@ -84,9 +84,13 @@ def test_global_tokens_have_one_source_and_no_duplicate_names():
     assert root_sources == ["tokens.css"]
 
     token_source = _read(CSS_ROOT / "tokens.css")
-    names = re.findall(r"(?m)^\s*(--[\w-]+)\s*:", token_source)
+    default_tokens, theme_tokens = token_source.split(':root[data-theme="moss"]', 1)
+    names = re.findall(r"(?m)^\s*(--[\w-]+)\s*:", default_tokens)
     duplicates = {name for name in names if names.count(name) > 1}
     assert duplicates == set()
+    overrides = re.findall(r"(?m)^\s*(--[\w-]+)\s*:", theme_tokens)
+    assert len(overrides) == len(set(overrides))
+    assert set(overrides) <= set(names), "Theme overrides must use existing tokens"
 
     for filename in LEGACY_FILES:
         source = _read(CSS_ROOT / filename)

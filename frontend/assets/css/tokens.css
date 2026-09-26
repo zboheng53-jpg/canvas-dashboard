@@ -83,6 +83,10 @@
   --ds-green-soft: var(--green-soft);
   --ds-radius: 10px;
   --ds-radius-sm: 7px;
+  --ds-radius-card: 14px;
+  --ds-surface-subtle: var(--color-surface-subtle);
+  --ds-surface-variant: var(--color-surface-subtle);
+  --ds-accent-tint: var(--color-action-soft);
   --ds-src-canvas: var(--src-canvas);
   --ds-src-haoke: var(--src-haoke);
   --ds-src-zxm: var(--src-zxm);
@@ -102,6 +106,8 @@
   /* Confirmed semantic palette for new and migrated UI */
   --color-page: var(--page);
   --color-surface: var(--surface);
+  --color-navigation-surface: var(--surface);
+  --color-mobile-header: rgba(250, 249, 247, 0.94);
   --color-surface-subtle: #f3f6f9;
   --color-surface-hover: #ffffff;
   --color-text-primary: var(--ink);
@@ -133,6 +139,14 @@
   --color-neutral-soft: #f3f6f9;
   --color-neutral-border: #dbe3eb;
   --color-focus-ring: rgba(37, 99, 235, 0.24);
+  --color-focus-outline: rgba(37, 99, 235, 0.65);
+  --color-glass: rgba(255, 255, 255, 0.78);
+  --color-glass-hover: rgba(255, 255, 255, 0.92);
+  --color-glass-border: rgba(226, 220, 210, 0.85);
+  --color-glass-border-hover: rgba(215, 208, 195, 0.9);
+  --color-glass-divider: rgba(215, 208, 195, 0.55);
+  --theme-preview-blue: linear-gradient(135deg, #eff4fe 50%, #527cb5 50%);
+  --theme-preview-moss: linear-gradient(135deg, #f5f3e9 50%, #637b56 50%);
 
   /* Source identity. These colors identify origin, never result or severity. */
   --color-source-canvas: #c45b55;
@@ -222,6 +236,8 @@
   --shadow-dialog: 0 22px 54px rgba(15, 23, 42, 0.16);
   --duration-fast: 120ms;
   --duration-normal: 160ms;
+  --duration-enter: 280ms;
+  --delay-enter-step: 40ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --focus-ring: 0 0 0 3px var(--color-focus-ring);
 
@@ -237,6 +253,7 @@
   --glass-border-subtle: rgba(215, 208, 195, 0.55);
   --glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 4px 20px -2px rgba(70, 80, 72, 0.04);
 
+  --text-primary: var(--color-text-primary);
   --text: #2c3237;
   --text-secondary: #5a646c;
   --border: rgba(226, 220, 210, 0.85);
@@ -300,4 +317,85 @@
 
   --mobile-bottom-bar-height: 56px;
   --mobile-safe-bottom: env(safe-area-inset-bottom, 12px);
+}
+
+/* Moss changes appearance only. Source identity and success/warning/danger stay stable. */
+:root[data-theme="moss"] {
+  --page: #f1f1e9;
+  --surface: #fffef9;
+  --ink: #30392e;
+  --ink-2: #606b59;
+  --ink-3: #737d6a;
+  --line: #dfe3d6;
+  --line-soft: #ebeee4;
+  --accent: #526e45;
+  --accent-soft: #edf2e4;
+  --accent-ink: #425f35;
+  --avatar-bg: #e8eddf;
+  --avatar-ring: #eef2e8;
+  --badge-bg: #374a30;
+  --badge-moon: #b8cda8;
+
+  --color-surface-subtle: #f3f5ed;
+  --color-surface-hover: #fffef9;
+  --color-border-strong: #c4ceba;
+  --color-action-hover: #425f35;
+  --color-action-active: #354d2b;
+  --color-action-soft-hover: #e1ead5;
+  --color-action-border: #c3d1b6;
+  --color-neutral: #606b59;
+  --color-neutral-soft: #f3f5ed;
+  --color-neutral-border: #dfe3d6;
+  --color-focus-ring: rgba(82, 110, 69, 0.24);
+  --color-focus-outline: rgba(66, 95, 53, 0.75);
+  --color-glass: rgba(255, 254, 249, 0.82);
+  --color-glass-hover: rgba(255, 254, 249, 0.96);
+  --color-glass-border: rgba(203, 211, 188, 0.85);
+  --color-glass-border-hover: rgba(180, 195, 165, 0.9);
+  --color-glass-divider: rgba(195, 205, 181, 0.6);
+
+  --control-bg: #fffef9;
+  --control-bg-hover: #f7faf2;
+  --control-border: #c4ceba;
+  --control-border-hover: #9aad8d;
+  --control-placeholder: #7b8672;
+  --control-disabled-bg: #f3f5ed;
+  --control-disabled-text: #89927f;
+  --control-focus-border: #7f9b6c;
+  --control-focus-shadow: 0 0 0 3px rgba(82, 110, 69, 0.18);
+  --button-primary-bg: #fafcf6;
+  --button-primary-bg-hover: #edf2e4;
+  --button-primary-bg-active: #e1ead5;
+  --button-primary-border: #c3d1b6;
+  --button-primary-border-hover: #a5bc95;
+  --button-primary-text: #425f35;
+  --button-secondary-bg-hover: #f3f5ed;
+  --button-secondary-bg-active: #e8eddf;
+  --button-secondary-text: #606b59;
+
+  /* Keep old surfaces and controls on the same palette during gradual migration. */
+  --bg-main: var(--page);
+  --text: var(--ink);
+  --text-secondary: var(--ink-2);
+  --border: var(--color-glass-border);
+  --border-light: var(--line);
+  --border-subtle: var(--line-soft);
+  --glass-border: var(--color-glass-border);
+  --glass-border-subtle: var(--color-glass-divider);
+  --color-primary: var(--accent);
+  --color-primary-border: var(--color-action-border);
+  --color-primary-hover: var(--color-action-hover);
+  --color-primary-soft-hover: #f4f7ed;
+  --btn-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 3px 12px rgba(82, 110, 69, 0.2);
+  --btn-glass-bg: var(--color-glass);
+  --btn-glass-border: var(--color-glass-border);
+  --btn-glass-text: var(--ink);
+  --btn-glass-hover: var(--surface);
+  --shell-surface: var(--color-glass);
+  --shell-border: var(--color-glass-border);
+  --shell-border-soft: var(--color-glass-divider);
+  --shell-ink: var(--ink);
+  --shell-muted: var(--ink-3);
+  --sidebar-text: var(--ink-2);
+  --sidebar-muted: var(--ink-3);
 }

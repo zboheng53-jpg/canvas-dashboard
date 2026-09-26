@@ -67,35 +67,22 @@ def test_frontend_mobile_header_shows_compact_weather_and_term(live_app, browser
     page = browser.new_page(viewport={"width": width, "height": 844})
     register_dashboard_user(page, live_app, f"mobileheader{width}")
 
-    weather_desc = page.locator(".weather-desc")
-    weather_detail = page.locator(".weather-detail")
-    term_info = page.locator("#term-info")
-    expect(weather_desc).to_be_visible()
-    expect(weather_detail).to_be_visible()
-    expect(weather_detail).to_contain_text("湿度 55%")
-    expect(weather_detail).not_to_contain_text("风速")
-    expect(term_info).to_be_visible()
-
-    emoji_box = page.locator(".weather-emoji").bounding_box()
-    temp_box = page.locator(".weather-temp").bounding_box()
-    desc_box = weather_desc.bounding_box()
-    detail_box = weather_detail.bounding_box()
-    term_box = term_info.bounding_box()
-    assert all(box is not None for box in (emoji_box, temp_box, desc_box, detail_box, term_box))
-    assert emoji_box["x"] < temp_box["x"]
-    assert abs((emoji_box["y"] + emoji_box["height"] / 2) - (temp_box["y"] + temp_box["height"] / 2)) <= 3
-    assert desc_box["y"] > temp_box["y"]
-    # 设计稿移动端：375 下描述与详情两行堆叠，≥390 同行排列
-    desc_center = desc_box["y"] + desc_box["height"] / 2
-    detail_center = detail_box["y"] + detail_box["height"] / 2
-    same_line = abs(desc_center - detail_center) <= 2
-    stacked = desc_box["y"] + desc_box["height"] <= detail_box["y"] + 2
-    assert same_line or stacked
-    assert term_box["y"] >= max(
-        desc_box["y"] + desc_box["height"],
-        detail_box["y"] + detail_box["height"],
-    )
-    assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    expect(page.locator(".weather-desc")).to_be_hidden()
+    expect(page.locator(".weather-detail")).to_be_hidden()
+    expect(page.locator(".opt1-time")).to_be_hidden()
+    expect(page.locator(".opt1-term")).to_be_hidden()
+    expect(page.locator(".opt1-date")).to_be_visible()
+    expect(page.locator(".opt1-week-pill")).to_be_visible()
+    page.wait_for_function("""() => {
+      const rect = selector => document.querySelector(selector).getBoundingClientRect();
+      const date = rect('.opt1-date'), week = rect('.opt1-week-pill');
+      const weather = rect('.opt1-temp-row'), campus = rect('.weather-campus-switch');
+      return Math.abs(date.bottom - week.bottom) <= 2
+        && Math.abs((weather.top + weather.bottom) / 2 - (campus.top + campus.bottom) / 2) <= 2
+        && weather.top >= date.bottom
+        && rect('.context-card').height <= 105
+        && document.documentElement.scrollWidth <= innerWidth;
+    }""")
 
 
 def test_frontend_desktop_header_uses_v103_three_part_layout(live_app, browser):
@@ -202,7 +189,7 @@ def test_frontend_v2_desktop_shell_uses_bounded_three_column_layout(live_app, br
     assert first_rail_box["height"] == pytest.approx(second_rail_box["height"], abs=1)
     todo_card = page.locator(".workspace-main .enter-main-card")
     expect(todo_card).to_have_css(
-        "transform", re.compile(r"matrix\(1, 0, 0, 1, 0, 0\)")
+        "transform", "none"
     )
     todo_card_box = todo_card.bounding_box()
     assert todo_card_box is not None
@@ -243,7 +230,7 @@ def test_frontend_desktop_todo_card_scrolls_without_outgrowing_sidebars(live_app
     sidebar = page.locator("#academic-sidebar")
     expect(todo_list.locator(".todo-row")).to_have_count(18)
     expect(todo_card).to_have_css(
-        "transform", re.compile(r"matrix\(1, 0, 0, 1, 0, 0\)")
+        "transform", "none"
     )
 
     todo_card_box = todo_card.bounding_box()
@@ -893,6 +880,7 @@ def test_frontend_right_rail_distinguishes_loading_failures_from_empty_states(li
 def test_frontend_mobile_alignment_places_controls_on_the_right(live_app, browser, width):
     page = browser.new_page(viewport={"width": width, "height": 844})
     register_dashboard_user(page, live_app, f"alignment{width}")
+    page.locator("#mobile-add-toggle").click()
     page.fill("#new-todo-input", "Alignment task #label")
     page.click("#add-todo-form button")
 
@@ -921,6 +909,7 @@ def test_frontend_mobile_alignment_places_controls_on_the_right(live_app, browse
 def test_frontend_mobile_todo_layout_is_compact_and_tappable(live_app, browser, width):
     page = browser.new_page(viewport={"width": width, "height": 844})
     register_dashboard_user(page, live_app, f"mobiletodo{width}")
+    page.locator("#mobile-add-toggle").click()
 
     todo = page.locator(".todo-row").first
     expect(todo).to_have_css("display", re.compile(r"^(grid|flex)$"))
@@ -973,6 +962,7 @@ def test_frontend_mobile_todo_layout_is_compact_and_tappable(live_app, browser, 
     assert subtask_toggle_box["height"] >= 35.9
 
     long_label = "x" * 240
+    page.locator("#mobile-add-toggle").click()
     page.fill("#new-todo-input", f"Mobile long label #{long_label}")
     page.click("#add-todo-form button")
     long_label_item = page.locator(".todo-row-wrap").filter(has_text="Mobile long label")
@@ -1094,8 +1084,9 @@ def test_frontend_connections_workspace_stacks_cleanly_on_narrow_desktop(live_ap
 def test_frontend_mobile_compact_controls_and_action_menu(live_app, browser, width):
     page = browser.new_page(viewport={"width": width, "height": 844})
     register_dashboard_user(page, live_app, f"compact{width}")
+    page.locator("#mobile-add-toggle").click()
 
-    expect(page.locator("#term-info")).to_be_visible()
+    expect(page.locator("#term-info")).to_be_hidden()
     form_box = page.locator("#add-todo-form").bounding_box()
     title_box = page.locator("#new-todo-input").bounding_box()
     date_box = page.locator("#new-todo-due").bounding_box()
@@ -1218,6 +1209,8 @@ def test_frontend_v2_preserves_core_todo_actions(live_app, browser):
     expect(custom_item.locator(".biz-todo__meta")).to_contain_text("updated")
     custom_item.locator(".subtask-toggle").click()
     custom_item.locator(".subtask-add-input").fill("Preserved subtask")
+    page.evaluate("renderUnifiedList()")
+    expect(custom_item.locator(".subtask-add-input")).to_have_value("Preserved subtask")
     custom_item.locator(".subtask-add-input").press("Enter")
     expect(custom_item.locator(".subtask-text")).to_have_text("Preserved subtask")
 
@@ -1372,7 +1365,7 @@ def test_frontend_todo_completion_sinks_and_syncs_with_agenda(live_app, browser)
     expect(completed_group).to_be_visible()
     expect(completed_group.locator(".ui-card__title")).to_have_text("已完成")
     expect(completed_group.locator(".todo-row").filter(has_text="今日必做测试")).to_be_visible()
-    expect(page.locator(".todo-group").filter(has_text="今天")).to_have_count(0)
+    expect(page.locator(".todo-group-heading .ui-card__title").filter(has_text=re.compile(r"^今天$"))).to_have_count(0)
 
     expect(schedule_item).to_have_class(re.compile(r"\bis-done\b"))
 
@@ -1445,7 +1438,7 @@ def test_frontend_today_and_overdue_visual_consistency(live_app, browser):
     expect(project_row).to_have_class(re.compile(r"\bis-today\b"))
 
     # 验证胶囊文字为纯净日期（today_str），不含“计划 ”前缀
-    due_badge = project_row.locator(".project-due-editable")
+    due_badge = project_row.locator(".project-due-editable .todo-date-desktop")
     expect(due_badge).to_have_text(today_str)
     expect(due_badge).not_to_contain_text("计划")
 

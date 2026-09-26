@@ -20,6 +20,7 @@ def test_mobile_todo_input_geometry_and_wrapping(live_app, browser, width):
     """UI-02: Validate mobile add-todo input takes full line and controls wrap below."""
     page = browser.new_page(viewport={"width": width, "height": 844})
     register_user(page, live_app, f"m{width}")
+    page.locator("#mobile-add-toggle").click()
 
     input_loc = page.locator("#new-todo-input")
     due_loc = page.locator("#new-todo-due")

@@ -111,11 +111,13 @@
           <div class="card-head section-header">
             <div class="header-left-group"><h2 style="font-size: 22px;">&#24453;&#21150;&#28165;&#21333;</h2></div>
             <div class="right header-right">
+              <button type="button" class="ui-button ui-button--primary mobile-add-toggle" id="mobile-add-toggle" aria-controls="todo-composer" aria-expanded="false">＋ 新增</button>
               <button type="button" class="ui-button ui-button--text muted last-updated sync-status-button" id="list-updated" style="font-size:12px; background:none; border:none; cursor:pointer;" aria-label="查看平台同步状态">已同步</button>
               <button class="ui-icon-button icon-btn btn-refresh" id="btn-refresh" title="刷新待办" aria-label="刷新待办"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"></path></svg></button>
             </div>
           </div>
 
+          <div class="todo-composer" id="todo-composer">
           <form class="add-row add-todo-form" id="add-todo-form">
             <input type="text" id="new-todo-input" placeholder="添加新待办…" autocomplete="off" class="ui-control input todo-title-input">
             <input type="date" id="new-todo-due" class="ui-control input date date-input" aria-label="截止日期" title="截止日期">
@@ -127,6 +129,7 @@
             <button type="submit" class="ui-button ui-button--primary btn-quiet" id="btn-add-todo">添加</button>
           </form>
           <p class="ui-feedback ui-feedback--danger add-todo-error" id="add-todo-error" role="alert" style="display: none; font-size: 13px; margin: 4px 0 8px 0;"></p>
+          </div>
 
           <select id="todo-source-select" class="ui-control todo-source-select" style="position: absolute; opacity: 0; pointer-events: auto; width: 1px; height: 1px; margin: -1px; overflow: hidden;" aria-label="按来源筛选待办">
             <option value="all">全部</option>
@@ -215,7 +218,7 @@
         <div class="mobile-nav-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         </div>
-        <span class="mobile-nav-label">今日总览</span>
+        <span class="mobile-nav-label">待办</span>
       </button>
       <button type="button" class="mobile-nav-item" data-mobile-tab="projects" onclick="switchDashboardView('projects')">
         <div class="mobile-nav-icon">
@@ -227,20 +230,7 @@
         <div class="mobile-nav-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         </div>
-        <span class="mobile-nav-label">周课表</span>
-      </button>
-      <button type="button" class="mobile-nav-item" data-mobile-tab="connections" onclick="switchDashboardView('connections')">
-        <div class="mobile-nav-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-          <span class="mobile-nav-badge hidden" id="mobile-connections-badge" aria-label="需要配置">0</span>
-        </div>
-        <span class="mobile-nav-label">同步连接</span>
-      </button>
-      <button type="button" class="mobile-nav-item" data-mobile-tab="settings" onclick="switchDashboardView('settings')">
-        <div class="mobile-nav-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        </div>
-        <span class="mobile-nav-label">设置接入</span>
+        <span class="mobile-nav-label">日程</span>
       </button>
     </nav>
   </div>
@@ -2183,9 +2173,43 @@
         .map((k) => ({ key: k, title: labels[k], items: groups[k] }));
     }
 
+    function compactTodoDateLabel(item, today) {
+      const hasDeadline = Boolean(item.due_ts || item.due_str);
+      let day = (hasDeadline ? item.due_str : item.plannedOn) || '';
+      let time = '';
+      if (hasDeadline && item.due_ts) {
+        const timestamp = new Date(item.due_ts);
+        if (!Number.isNaN(timestamp.getTime())) {
+          day = new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'}).format(timestamp);
+          if (!['custom', 'project'].includes(item.source)) {
+            time = new Intl.DateTimeFormat('en-GB', {timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).format(timestamp);
+          }
+        }
+      } else if (!hasDeadline && item.occurrences?.length) {
+        time = item.occurrences[0].start_time || '';
+      }
+      if (!day) return '未设截止';
+      const match = day.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        const iso = match[0];
+        const offset = Math.round((Date.parse(iso) - Date.parse(today)) / 86400000);
+        day = offset === 0 ? '今天' : offset === 1 ? '明天' : offset === -1 ? '昨天'
+          : `${match[1] === today.slice(0, 4) ? '' : match[1] + '/'}${Number(match[2])}/${Number(match[3])}`;
+      }
+      return `${hasDeadline ? '截止' : '计划'} ${day}${time ? ' ' + time : ''}`;
+    }
+
     function renderUnifiedList() {
       const container = document.getElementById('todo-list');
+      // Keep the live editor (and its handlers) until the user commits or cancels.
+      // Each editor renders again on exit, using the latest fetched data.
+      if (container.querySelector('.inline-edit-input, .inline-edit-date-input')) return;
       const savedScrollTop = container.scrollTop;
+      // Background refreshes must not erase a subtask the user is still typing.
+      const subtaskDrafts = Array.from(container.querySelectorAll('.subtask-add-row input')).map(input => ({
+        id: input.id, value: input.value, focused: input === document.activeElement,
+        start: input.selectionStart, end: input.selectionEnd,
+      }));
 
       // Build unified items
       let unified = [];
@@ -2493,7 +2517,7 @@
 
         let urgencyClass = '';
         if (!isDismissed) {
-          const effectiveDueTs = item.due_ts || (item.plannedOn ? `${item.plannedOn}T23:59:59` : null);
+          const effectiveDueTs = item.due_ts;
           if (effectiveDueTs) {
             const dueStr = effectiveDueTs.split('T')[0];
             const dueTime = new Date(effectiveDueTs).getTime();
@@ -2595,11 +2619,12 @@
             : (item.source === 'project'
               ? `<button type="button" class="ui-button ui-button--text ui-list-item__title item-title action-title-button" onclick="openActionDetail('${item.taskId === null ? 'project_due:' + item.projectId : 'project:' + item.projectId + ':' + item.taskId}')">${escapeHtml(item.title)}</button>`
               : (safeUrl ? `<a class="ui-list-item__title item-title" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</a>` : `<span class="ui-list-item__title item-title item-title-plain">${escapeHtml(item.title)}</span>`)));
+        const dueLabel = `<span class="todo-date-desktop">${escapeHtml(item.due_str || (item.source === 'project' ? item.plannedOn : '') || '')}</span><span class="todo-date-mobile">${escapeHtml(compactTodoDateLabel(item, todayStr))}</span>`;
         const dueHtml = (item.source === 'custom' && !item.is_recurring)
-          ? `<span class="ui-list-item__meta item-due editable-due" data-id="${item.rawId}" data-field="due_date">${item.due_str}</span>`
+          ? `<span class="ui-list-item__meta item-due editable-due" data-id="${item.rawId}" data-field="due_date" data-value="${escapeHtml(item.due_str || '')}">${dueLabel}</span>`
           : item.source === 'project'
-            ? `<button class="ui-button ui-button--text ui-list-item__meta item-due project-due-editable" onclick="startProjectTodoDueEdit(this)" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" data-date-field="${!item.due_str && item.isTodayAction ? 'planned_on' : 'due_date'}" data-date-value="${item.due_str || item.plannedOn}" aria-label="${!item.due_str && item.isTodayAction ? '修改计划日期' : '修改截止日期'}" title="${!item.due_str && item.isTodayAction ? '计划推进：' + (item.plannedOn || '') + '（点击修改）' : '截止日期：' + (item.due_str || item.plannedOn || '') + '（点击修改）'}">${item.due_str || item.plannedOn || ''}</button>`
-            : `<span class="ui-list-item__meta item-due">${item.due_str}</span>`;
+            ? `<button class="ui-button ui-button--text ui-list-item__meta item-due project-due-editable" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" data-date-field="${!item.due_str && item.isTodayAction ? 'planned_on' : 'due_date'}" data-date-value="${item.due_str || item.plannedOn}" aria-label="${!item.due_str && item.isTodayAction ? '修改计划日期' : '修改截止日期'}" title="${!item.due_str && item.isTodayAction ? '计划推进：' + (item.plannedOn || '') + '（点击修改）' : '截止日期：' + (item.due_str || item.plannedOn || '') + '（点击修改）'}">${dueLabel}</button>`
+            : `<span class="ui-list-item__meta item-due">${dueLabel}</span>`;
 
         const srcLabels = { canvas: 'Canvas', haoke: '好课', zhixuemeng: '智学盟', zhihuishu: '智慧树', ketangpai: '课堂派', tongjioj: '同济OJ', project: '项目', custom: '自定义' };
         const tagLabel = srcLabels[item.source] || item.type || '';
@@ -2669,7 +2694,7 @@
               <span class="item-desktop-actions">${actionsHtml}</span>
             </div>
             <button class="ui-icon-button mobile-action-trigger" onclick="toggleMobileActions('${item.id}')" aria-label="更多操作" aria-expanded="${mobileActionsOpen}">•••</button>
-            <span class="item-mobile-actions ${mobileActionsOpen ? 'open' : ''}">${actionsHtml}</span>
+            <span class="item-mobile-actions ${mobileActionsOpen ? 'open' : ''}">${actionsHtml}<button type="button" class="ui-button ui-button--secondary" data-mobile-detail="${escapeHtml(item.ref || (item.source === 'project' ? (item.taskId === null ? 'project_due:' + item.projectId : 'project:' + item.projectId + ':' + item.taskId) : item.source + ':' + item.rawId))}">详情</button></span>
           </div>
         `;
 
@@ -2710,6 +2735,15 @@
       }).join('');
 
       container.scrollTop = savedScrollTop;
+      for (const draft of subtaskDrafts) {
+        const input = document.getElementById(draft.id);
+        if (!input) continue;
+        input.value = draft.value;
+        if (draft.focused) {
+          input.focus({preventScroll: true});
+          if (input.type !== 'date' && draft.start !== null) input.setSelectionRange(draft.start, draft.end);
+        }
+      }
 
       if (doAnimate) firstItemRender = false;
 
@@ -3269,7 +3303,13 @@
       const text = textInput.value.trim();
       const dueDate = dueInput ? dueInput.value : getTodayDateString();
       if (!text) return;
-      await addSubtask(source, todoId, text, dueDate);
+      const saved = await addSubtask(source, todoId, text, dueDate);
+      if (saved) {
+        const currentInput = document.getElementById(textInput.id);
+        const currentDue = dueInput && document.getElementById(dueInput.id);
+        if (currentInput?.value.trim() === text) currentInput.value = '';
+        if (currentDue?.value === dueDate) currentDue.value = getTodayDateString();
+      }
     }
 
     async function saveSubtasks(source, todoId, subtasks) {
@@ -3307,6 +3347,7 @@
           }
         }
         renderUnifiedList();
+        return true;
       } catch (e) {
         alert('保存失败');
         if (source === 'custom') fetchCustomTodos();
@@ -3316,6 +3357,7 @@
         else if (source === 'zhihuishu') fetchZhihuishuTodos();
         else if (source === 'ketangpai') fetchKetangpaiTodos();
         else if (source === 'tongjioj') fetchTongjiojTodos();
+        return false;
       }
     }
 
@@ -3343,7 +3385,7 @@
         ...currentSubtasks,
         { id: newId, text: trimmed, done: false, due_date: finalDueDate },
       ];
-      await saveSubtasks(source, todoId, sortSubtasks(subtasks));
+      return await saveSubtasks(source, todoId, sortSubtasks(subtasks));
     }
 
     async function toggleSubtaskDone(source, todoId, subtaskId) {
@@ -3543,6 +3585,7 @@
           if (repeatSelect) repeatSelect.value = 'none';
           currentTodoRequestId = null;
           setNewTodoDueDefault(window.customToday || new Date().toISOString().split('T')[0]);
+          document.getElementById('add-todo-form').dispatchEvent(new Event('todo:created'));
           await fetchCustomTodos();
           if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
         } else {
@@ -3785,7 +3828,7 @@
 
     function startInlineEdit(spanEl, field) {
       const id = parseInt(spanEl.dataset.id);
-      const originalValue = spanEl.textContent.trim();
+      const originalValue = field === 'due_date' ? (spanEl.dataset.value ?? spanEl.textContent.trim()) : spanEl.textContent.trim();
 
       const input = document.createElement('input');
       input.type = field === 'due_date' ? 'date' : 'text';
@@ -3800,9 +3843,13 @@
       spanEl.replaceWith(input);
       input.focus();
       if (input.type === 'text') input.select();
+      let finished = false;
 
       function commit() {
+        if (finished) return;
+        finished = true;
         const newValue = input.value.trim();
+        input.replaceWith(spanEl);
         if (newValue !== originalValue) {
           // 濡傛灉鏄紪杈戜换鍔℃爣棰橈紝妫€鏌ユ槸鍚︽湁鏍囩
           if (field === 'text') {
@@ -3820,17 +3867,15 @@
             saveInlineEdit(id, field, newValue);
           }
         } else {
-          const newSpan = document.createElement('span');
-          newSpan.className = spanEl.className;
-          newSpan.dataset.id = spanEl.dataset.id;
-          newSpan.dataset.field = spanEl.dataset.field;
-          newSpan.textContent = originalValue;
-          input.replaceWith(newSpan);
+          renderUnifiedList();
         }
       }
 
       function cancel() {
+        if (finished) return;
+        finished = true;
         input.replaceWith(spanEl);
+        renderUnifiedList();
       }
 
       input.addEventListener('blur', commit);
