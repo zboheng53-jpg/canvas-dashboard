@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>桌面端微调方案 · Canvas Dashboard</title>
+<style>
+  :root { color-scheme: light; --paper:#f6f6f2; --white:#fffefa; --ink:#29332e; --muted:#5d6961; --line:#dce2db; --green:#496744; --soft:#edf2e9; --radius:18px; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.7 "Segoe UI","Microsoft YaHei",sans-serif; }
+  button,input { font:inherit; }
+  button,a { -webkit-tap-highlight-color:transparent; }
+  button { cursor:pointer; }
+  a { color:var(--green); text-underline-offset:4px; }
+  :focus-visible { outline:2px solid #416dba; outline-offset:3px; }
+  .wrap { max-width:1280px; margin:auto; padding:32px 32px 72px; }
+  .mast { display:flex; justify-content:space-between; gap:18px; align-items:center; font-size:12px; letter-spacing:.04em; color:var(--muted); }
+  .mast strong { color:var(--green); }
+  h1,h2,h3,p { margin:0; }
+  h1 { font-family:"Noto Serif SC","Songti SC","SimSun",serif; font-weight:600; font-size:clamp(30px,4vw,46px); line-height:1.3; margin:28px 0 16px; letter-spacing:.015em; }
+  .lead { max-width:820px; color:var(--muted); font-size:16px; }
+  .scope { display:flex; flex-wrap:wrap; gap:8px; margin:22px 0 32px; }
+  .scope span { border:1px solid var(--line); padding:3px 11px; border-radius:999px; color:var(--muted); font-size:12px; }
+  section { margin-top:44px; scroll-margin-top:24px; }
+  .section-top { display:flex; justify-content:space-between; align-items:baseline; gap:16px; margin-bottom:16px; }
+  .section-top h2 { font-size:22px; font-weight:600; }
+  .section-top p,.caption { color:var(--muted); font-size:13px; }
+  .evidence { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .finding { background:var(--white); border:1px solid var(--line); border-radius:var(--radius); padding:21px 23px; }
+  .eyebrow { font-size:12px; color:var(--green); letter-spacing:.06em; margin-bottom:9px; }
+  .finding h3 { font-size:17px; margin-bottom:8px; }
+  .finding p { font-size:13px; color:var(--muted); }
+  .finding strong { color:var(--ink); }
+  .finding .arrow { display:block; margin-top:12px; color:var(--green); }
+  .review { border:1px solid var(--line); border-radius:20px; background:var(--white); overflow:hidden; }
+  .toolbar { display:flex; flex-wrap:wrap; gap:12px 22px; justify-content:space-between; padding:16px 18px; align-items:center; }
+  .choices { display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
+  .choices .label { color:var(--muted); font-size:12px; margin-right:6px; }
+  .choices button { font-size:13px; border:1px solid transparent; background:transparent; padding:7px 12px; border-radius:999px; color:var(--muted); }
+  .choices button[aria-pressed="true"] { background:var(--soft); border-color:#bccbb5; color:#344f2e; }
+  .mode-note { padding:0 20px 15px; color:var(--muted); font-size:13px; min-height:37px; }
+  .stage-scroll { overflow-x:auto; border-top:1px solid var(--line); }
+  .stage { --p:#f7f8fa; --s:#fff; --i:#1c2330; --sub:#5b6472; --faint:#7d8694; --b:#e6e8ec; --bs:#eef0f3; --ac:#2563eb; --as:#eff4fe; --chip:#f3f6f9; --red:#b91c1c; width:100%; min-width:1080px; height:704px; display:grid; grid-template-columns:182px minmax(0,1fr) 274px; gap:18px; background:var(--p); color:var(--i); font-size:13px; line-height:1.5; padding-right:18px; }
+  .stage[data-theme="moss"] { --p:#f1f1e9; --s:#fffef9; --i:#30392e; --sub:#606b59; --faint:#737d6a; --b:#dfe3d6; --bs:#ebeee4; --ac:#526e45; --as:#edf2e4; --chip:#f0f2e9; }
+  .side { background:var(--s); border-right:1px solid var(--b); padding:24px 12px; display:flex; flex-direction:column; gap:24px; }
+  .profile { display:flex; align-items:center; gap:10px; padding:0 10px; }
+  .avatar { width:30px; height:30px; border-radius:50%; background:var(--chip); display:grid; place-items:center; }
+  .profile small { color:var(--sub); }
+  .navgroup > small { display:block; margin:0 12px 8px; color:var(--sub); font-family:"SimSun",serif; font-size:13px; }
+  .navitem { display:flex; align-items:center; gap:10px; padding:10px; margin:3px 0; border-radius:8px; }
+  .navitem.active { color:var(--ac); background:var(--as); font-weight:600; }
+  .navitem span:last-child { margin-left:auto; font-size:12px; }
+  .navfoot { margin-top:auto; padding:12px; border-top:1px solid var(--b); color:var(--sub); }
+  .center { min-width:0; padding-top:22px; display:flex; flex-direction:column; overflow:hidden; }
+  .environment { height:124px; flex:none; background:var(--s); border:1px solid var(--b); border-radius:14px; display:grid; grid-template-columns:1fr 1fr 1.1fr; align-items:center; margin-bottom:12px; padding:12px 10px; }
+  .environment > div { padding:0 8px; text-align:center; min-width:0; }
+  .environment > div + div { border-left:1px solid var(--b); }
+  .campuses { font-size:10px; color:var(--sub); display:flex; gap:8px; justify-content:center; }
+  .campuses b { color:var(--ac); }
+  .temp { font-size:26px; line-height:1.3; margin:4px 0; font-variant-numeric:tabular-nums; }
+  .humidity,.weather-copy,.calendar-date,.term { font-size:12px; color:var(--sub); }
+  .clock { font-size:34px; font-weight:500; line-height:1.25; font-variant-numeric:tabular-nums; letter-spacing:-1px; }
+  .calendar-date { white-space:nowrap; margin-top:6px; }
+  .week { display:inline-block; background:var(--as); border-radius:20px; color:var(--ac); padding:5px 12px; font-size:12px; font-weight:600; }
+  .term { margin-top:6px; font-size:11px; }
+  .kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px; flex:none; }
+  .kpi { height:113px; padding:14px; border:1px solid var(--b); border-radius:10px; background:var(--s); }
+  .kpi-label { color:var(--faint); font-size:12px; }
+  .kpi-value { font-size:26px; line-height:1.5; font-weight:650; font-variant-numeric:tabular-nums; }
+  .kpi-hint { font-size:11.5px; color:var(--faint); }
+  .listcard { background:var(--s); border:1px solid var(--b); border-radius:10px 10px 0 0; min-height:0; display:flex; flex-direction:column; flex:1; overflow:hidden; }
+  .list-head { height:64px; flex:none; padding:16px 18px; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--bs); }
+  .serif { font-family:"Noto Serif SC","Songti SC","SimSun",serif; }
+  .list-head h3 { font-size:22px; font-weight:500; }
+  .sync { margin-left:auto; color:var(--faint); font-size:11px; }
+  .composer { display:flex; gap:7px; padding:12px 16px; border-bottom:1px solid var(--bs); flex:none; font-size:12px; }
+  .fake-input { padding:7px 9px; border:1px solid var(--b); border-radius:7px; white-space:nowrap; }
+  .fake-input:first-child { flex:1; min-width:50px; color:var(--sub); overflow:hidden; }
+  .fake-add { color:var(--ac); font-weight:600; }
+  .filters { display:flex; gap:6px; align-items:center; padding:10px 18px; flex:none; border-bottom:1px solid var(--bs); }
+  .filter { font-size:11px; border:1px solid var(--b); border-radius:999px; padding:2px 8px; color:var(--sub); }
+  .filter.on { color:var(--ac); background:var(--as); }
+  .manage { margin-left:auto; font-size:11px; color:var(--sub); }
+  .tasklist { overflow-y:auto; padding-top:12px; min-height:0; scrollbar-width:thin; }
+  .group { display:flex; align-items:center; gap:8px; padding:11px 18px 7px; color:var(--sub); font-size:15px; }
+  .group::after { content:""; height:1px; flex:1; background:var(--bs); margin-left:5px; }
+  .group small { font:11px/1.4 "Segoe UI",sans-serif; background:var(--chip); border-radius:12px; padding:1px 6px; }
+  .task { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:center; padding:10px 18px; min-height:58px; border-bottom:1px solid var(--bs); }
+  .task-body { min-width:0; }
+  .task-title { font-size:13.5px; font-weight:500; line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .task-meta { display:flex; align-items:baseline; gap:5px; color:var(--faint); font-size:12px; margin-top:3px; min-width:0; line-height:1.3; }
+  .course { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tag { font-size:10px; color:#8068c5; background:#f2eef9; border:1px solid #ded8eb; border-radius:3px; line-height:1.2; padding:1px 3px; flex:none; }
+  .custom-tag { color:var(--sub); background:var(--chip); border-color:var(--b); }
+  .task-tail { display:flex; align-items:center; gap:8px; }
+  .duplicate { color:var(--faint); white-space:nowrap; font-size:11.5px; }
+  .dot { width:5px; height:5px; display:inline-block; border-radius:50%; background:#8068c5; margin-right:4px; vertical-align:middle; }
+  .custom-dot { background:#8a94a3; }
+  .date { font-size:11.5px; font-variant-numeric:tabular-nums; white-space:nowrap; background:var(--chip); padding:5px 8px; border-radius:999px; min-width:50px; text-align:center; color:var(--sub); }
+  .today .date { background:var(--as); color:var(--ac); }
+  .overdue { background:#fdf0f0; border-left:2px solid #d64545; padding-left:16px; }
+  .overdue .date { color:#d64545; background:#fdf0f0; }
+  .actions { display:flex; align-items:center; gap:2px; }
+  .action { width:24px; height:28px; display:grid; place-items:center; color:var(--sub); font-size:13px; border:0; background:transparent; border-radius:7px; padding:0; }
+  .action svg { width:13px; height:13px; stroke:currentColor; fill:none; stroke-linecap:round; stroke-linejoin:round; stroke-width:1.5; }
+  .action:hover,.action:focus-visible { background:var(--chip); }
+  .rail { min-width:0; display:flex; flex-direction:column; gap:16px; padding-top:22px; overflow:hidden; }
+  .rail-card { background:var(--s); border:1px solid var(--b); border-radius:10px; overflow:hidden; }
+  .rail-head { padding:16px; display:flex; gap:6px; align-items:baseline; border-bottom:1px solid var(--bs); }
+  .rail-head h3 { font-size:20px; font-weight:500; }
+  .rail-head small { font-size:10px; color:var(--sub); }
+  .rail-body { padding:10px; }
+  .project { background:var(--chip); border:1px solid var(--b); border-radius:8px; padding:10px; margin-bottom:8px; font-size:12px; }
+  .project.main { background:var(--s); }
+  .project b { display:block; margin-bottom:4px; }
+  .project span { color:var(--sub); font-size:11px; }
+  .project em { font-style:normal; color:var(--ac); }
+  .project small { display:block; margin-top:4px; color:var(--sub); font-size:10px; }
+  .schedule { padding:0 5px 12px; }
+  .schedule-label { padding:2px 0 12px; color:var(--sub); font-size:11px; }
+  .event { display:grid; grid-template-columns:69px 1fr; gap:8px; margin:0 0 18px; align-items:baseline; }
+  .event time { font-size:11px; color:var(--sub); font-variant-numeric:tabular-nums; }
+  .event strong { font-size:12px; }
+  .event small { font-size:11px; display:block; color:var(--sub); margin-top:3px; }
+  /* Proposal-only styles. The application files are not loaded or changed. */
+  .stage[data-mode="recommended"] .environment { height:84px; }
+  .stage[data-mode="recommended"] .temp { font-size:20px; margin:2px 0; }
+  .stage[data-mode="recommended"] .clock { font-size:20px; letter-spacing:0; color:var(--sub); }
+  .stage[data-mode="recommended"] .seconds,
+  .stage[data-mode="recommended"] .humidity,
+  .stage[data-mode="recommended"] .pending-repeat { display:none; }
+  .stage[data-mode="recommended"] .weather-copy { font-size:11px; }
+  .stage[data-mode="recommended"] .calendar-date { font-size:12px; color:var(--i); margin-top:4px; }
+  .stage[data-mode="recommended"] .week { background:transparent; padding:0; color:var(--sub); }
+  .stage[data-mode="recommended"] .term { font-size:10.5px; }
+  .stage[data-mode="recommended"] .kpi { height:76px; padding:9px 12px; display:grid; grid-template-columns:1fr auto; gap:3px 7px; align-content:center; align-items:baseline; }
+  .stage[data-mode="recommended"] .kpi-value { font-size:22px; }
+  .stage[data-mode="recommended"] .kpi-hint { grid-column:1/-1; }
+  .stage:not([data-mode="current"]) .task { align-items:baseline; min-height:66px; padding-top:12px; padding-bottom:12px; }
+  .stage:not([data-mode="current"]) .task-title { font-size:15px; line-height:22px; font-weight:600; white-space:normal; overflow-wrap:anywhere; }
+  .stage:not([data-mode="current"]) .task-meta { font-size:12.5px; line-height:18px; color:var(--sub); }
+  .stage:not([data-mode="current"]) .tag { font-size:11px; line-height:16px; padding:1px 4px; }
+  .stage:not([data-mode="current"]) .duplicate { display:none; }
+  .stage:not([data-mode="current"]) .date { background:transparent; border-radius:0; padding:0; font-size:12.5px; line-height:22px; min-width:92px; text-align:right; }
+  .stage:not([data-mode="current"]) .task-tail { align-items:baseline; gap:10px; }
+  .stage:not([data-mode="current"]) .actions { align-self:center; }
+  .stage:not([data-mode="current"]) .action { width:28px; height:30px; }
+  .stage:not([data-mode="current"]) .action.complete { order:-1; color:var(--ac); background:var(--as); }
+  .stage:not([data-mode="current"]) .overdue { background:var(--s); }
+  .stage:not([data-mode="current"]) .overdue .date { color:var(--red); }
+  .stage:not([data-mode="current"]) .kpi-label,
+  .stage:not([data-mode="current"]) .kpi-hint,
+  .stage:not([data-mode="current"]) .sync { color:var(--sub); }
+  .after-date { display:none; }
+  .stage:not([data-mode="current"]) .before-date { display:none; }
+  .stage:not([data-mode="current"]) .after-date { display:inline; }
+  .stage-foot { padding:12px 20px; font-size:12px; color:var(--muted); border-top:1px solid var(--line); }
+  .detail-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+  .detail { border-top:1px solid #becab9; padding:20px 2px; }
+  .detail h3 { font-size:17px; margin-bottom:10px; }
+  .detail p { color:var(--muted); font-size:14px; }
+  .detail ul { padding-left:20px; margin:12px 0 0; font-size:14px; }
+  .detail li { margin:7px 0; }
+  .measure { background:var(--soft); border-radius:10px; padding:12px 16px; font-size:13px; margin-top:14px; }
+  .rules { display:grid; gap:1px; border:1px solid var(--line); background:var(--line); border-radius:16px; overflow:hidden; }
+  .rule { background:var(--white); display:grid; grid-template-columns:150px 1fr 1fr; gap:24px; padding:20px 24px; font-size:13px; }
+  .rule strong { font-size:14px; }
+  .rule p { color:var(--muted); }
+  .rule .rule-label { display:block; margin-bottom:5px; font-size:11px; color:var(--green); }
+  .rollout { display:grid; grid-template-columns:1.2fr 1fr; gap:18px; }
+  .rollout article { background:var(--white); border:1px solid var(--line); border-radius:16px; padding:24px; }
+  .rollout h3 { font-size:17px; margin-bottom:12px; }
+  .rollout p,.rollout li { font-size:13px; color:var(--muted); }
+  .rollout ol { padding-left:20px; margin:10px 0 0; }
+  .rollout li { margin:8px 0; }
+  .footnote { border-top:1px solid var(--line); padding-top:22px; margin-top:30px; color:var(--muted); font-size:12px; }
+  .demo-message { min-height:21px; margin-top:8px; font-size:12px; color:var(--muted); }
+  @media(max-width:800px) { .wrap { padding:22px 18px 44px; } .evidence,.detail-grid,.rollout { grid-template-columns:1fr; } .mast { align-items:start; } .mast span { text-align:right; } .section-top { display:block; } .section-top p { margin-top:8px; } .rule { grid-template-columns:1fr; gap:10px; padding:20px; } .toolbar { align-items:start; } h1 { margin-top:24px; } }
+  @media(prefers-reduced-motion:no-preference) { .choices button,.action { transition:background-color 160ms ease,color 160ms ease; } }
+  @media print { .stage-scroll { display:none; } .toolbar { display:none; } .wrap { max-width:none; padding:0; } .finding,.rule,.detail { break-inside:avoid; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <div class="mast"><strong>CANVAS / DESKTOP REFINEMENT</strong><span>2026.09.27 · 方案阶段 · 基于 5980273</span></div>
+    <h1>把注意力，还给任务。</h1>
+    <p class="lead">保留熟悉的三栏、圆角卡片和蓝白／暖白苔绿。只做三个动作：上方更轻一点，任务更清楚一点，每一行更有秩序一点。</p>
+    <div class="scope"><span>桌面端局部调整</span><span>保留彩色分类标签</span><span>颜色沿用现有主题</span><span>移动端保留已确认方案</span><span>可切换查看调整幅度</span></div>
+  </header>
+
+  <div class="evidence">
+    <article class="finding"><div class="eyebrow">01 / 视觉权重</div><h3>顶部仍占据较多空间</h3><p>当前 1280 × 720 示例页中，环境卡约 <strong>124 px</strong>，统计卡约 <strong>113 px</strong>。时钟 34 px，任务标题 13.5 px，首条任务标题从约 y=530 开始。</p><p class="arrow">→ 保留卡片，压缩内部排版。</p></article>
+    <article class="finding"><div class="eyebrow">02 / 行内信息</div><h3>一条任务，有两处来源</h3><p>副标题和右侧同时出现“项目／自定义”。右侧是裸日期；无日期项仍留空胶囊。操作和重复信息挤压了标题。</p><p class="arrow">→ 来源只出现一次，日期带上语义。</p></article>
+    <article class="finding"><div class="eyebrow">03 / 共同规则</div><h3>应降低装饰，增强可读性</h3><p>任务已经使用无衬线字体；主题与 280 ms 渐入也已具备。剩下应补的是字号、对齐、文字对比度及操作的稳定性。</p><p class="arrow">→ 复用已有规则，修正具体落点。</p></article>
+  </div>
+
+  <section id="comparison">
+    <div class="section-top"><h2>同一套界面，比较调整幅度</h2><p>默认推荐组合；“只调任务行”是更保守的备选。</p></div>
+    <div class="review">
+      <div class="toolbar">
+        <div class="choices" role="group" aria-label="调整幅度"><span class="label">对照</span><button data-mode="current" aria-pressed="false">当前排版示意</button><button data-mode="rows" aria-pressed="false">只调任务行</button><button data-mode="recommended" aria-pressed="true">推荐组合</button></div>
+        <div class="choices" role="group" aria-label="主题"><span class="label">主题</span><button data-theme="blue" aria-pressed="false">蓝白</button><button data-theme="moss" aria-pressed="true">暖白苔绿</button></div>
+      </div>
+      <p class="mode-note" id="mode-note" aria-live="polite">推荐组合：环境卡 84 px、统计卡 76 px；任务 15 px，来源合并，日期明确，完成按钮排在现有操作区第一位。</p>
+      <div class="stage-scroll" role="region" aria-label="桌面方案示意，窄屏可横向滚动" tabindex="0">
+        <div class="stage" id="stage" data-mode="recommended" data-theme="moss">
+          <aside class="side" aria-label="导航示意">
+            <div class="profile"><span class="avatar">P</span><div><small>上午好，</small><br>preview</div></div>
+            <div class="navgroup"><small>工作区</small><div class="navitem active">▦ &nbsp;今日总览 <span>4</span></div></div>
+            <div class="navgroup"><small>计划</small><div class="navitem">▱ &nbsp;长期项目 <span>4</span></div><div class="navitem">▤ &nbsp;日程与课表</div></div>
+            <div class="navgroup"><small>管理</small><div class="navitem">♧ &nbsp;连接与同步</div><div class="navitem">▣ &nbsp;日历订阅</div><div class="navitem">⌘ &nbsp;Agent 接入</div><div class="navitem">☼ &nbsp;偏好设置</div></div>
+            <div class="navfoot">P &nbsp; preview</div>
+          </aside>
+          <div class="center">
+            <div class="environment">
+              <div><div class="campuses"><b>四平路校区</b><span>嘉定校区</span></div><div class="temp">☀ 26.3°C</div><div class="weather-copy">晴间多云</div><div class="humidity">湿度 62%</div></div>
+              <div><div class="clock">11:36<span class="seconds">:52</span></div><div class="calendar-date">09 / 27 · 星期日</div></div>
+              <div><span class="week">第 2 周</span><div class="term">2026–2027 学年 第一学期</div></div>
+            </div>
+            <div class="kpis"><div class="kpi"><div class="kpi-label">待完成</div><div class="kpi-value">4</div><div class="kpi-hint pending-repeat">4 项待处理</div></div><div class="kpi"><div class="kpi-label">48 小时内截止</div><div class="kpi-value">0</div><div class="kpi-hint">无逾期事项</div></div><div class="kpi"><div class="kpi-label">今日课程</div><div class="kpi-value">1</div><div class="kpi-hint">今日课程已结束</div></div></div>
+            <div class="listcard">
+              <div class="list-head"><h3 class="serif">待办清单</h3><span class="sync">尚未连接平台</span><span aria-hidden="true">↻</span></div>
+              <div class="composer" aria-label="新增表单示意"><span class="fake-input">添加新待办…</span><span class="fake-input">2026/09/27</span><span class="fake-input">不重复⌄</span><span class="fake-input fake-add">添加</span></div>
+              <div class="filters"><span class="filter on">全部 4</span><span class="filter">• 项目 2</span><span class="filter">• 自定义 2</span><span class="manage">⇄ 管理标签</span></div>
+              <div class="tasklist">
+                <div class="group serif">⌄ 今天 <small>1</small></div>
+                <article class="task today"><div class="task-body"><div class="task-title">完成听力诊断与核心词复习</div><div class="task-meta"><span class="tag">项目</span><span class="course">英语｜六级学习与持续提升</span></div></div><div class="task-tail"><span class="duplicate"><i class="dot"></i>项目</span><span class="date"><span class="before-date">2026-09-27</span><span class="after-date">计划 今天</span></span><span class="actions"></span></div></article>
+                <div class="group serif">⌄ 本周内 <small>2</small></div>
+                <article class="task"><div class="task-body"><div class="task-title">提交自动控制实验报告</div><div class="task-meta"><span class="tag custom-tag">自定义</span></div></div><div class="task-tail"><span class="duplicate"><i class="dot custom-dot"></i>自定义</span><span class="date"><span class="before-date">2026-09-29</span><span class="after-date">截止 9/29</span></span><span class="actions"></span></div></article>
+                <article class="task"><div class="task-body"><div class="task-title">确认项目组会材料</div><div class="task-meta"><span class="tag custom-tag">自定义</span></div></div><div class="task-tail"><span class="duplicate"><i class="dot custom-dot"></i>自定义</span><span class="date"><span class="before-date">2026-10-02</span><span class="after-date">截止 10/2</span></span><span class="actions"></span></div></article>
+                <div class="group serif">⌄ 无日期 <small>1</small></div>
+                <article class="task"><div class="task-body"><div class="task-title">核实六级报名资格与校内窗口</div><div class="task-meta"><span class="tag">项目</span><span class="course">英语｜六级学习与持续提升</span></div></div><div class="task-tail"><span class="duplicate"><i class="dot"></i>项目</span><span class="date"><span class="before-date">&nbsp;</span><span class="after-date">未设截止</span></span><span class="actions"></span></div></article>
+                <div class="group serif">额外状态示意</div>
+                <article class="task overdue"><div class="task-body"><div class="task-title">完成 OJ 循环结构练习</div><div class="task-meta"><span class="tag custom-tag">同济 OJ</span><span class="course">程序设计基础</span></div></div><div class="task-tail"><span class="duplicate">同济 OJ</span><span class="date"><span class="before-date">2026-09-26</span><span class="after-date">逾期 · 昨天 23:59</span></span><span class="actions"></span></div></article>
+              </div>
+            </div>
+          </div>
+          <aside class="rail" aria-label="项目与日程示意">
+            <div class="rail-card"><div class="rail-head"><h3 class="serif">长期项目</h3><small>4 个进行中</small></div><div class="rail-body"><div class="project main"><b>英语｜六级学习与持续提升</b><span><em>下一步</em> 完成听力诊断与核心词复习</span><small>计划 2026-09-27</small></div><div class="project"><b>健身｜稳定训练与引体进步</b><span><em>下一步</em> 完成一次基础力量训练</span><small>计划 2026-09-29</small></div><div class="project"><b>科研｜导师沟通到真实项目</b><span><em>下一步</em> 整理一个想问导师的问题</span></div></div></div>
+            <div class="rail-card"><div class="rail-head"><h3 class="serif">今日日程</h3><small>含未来安排</small></div><div class="rail-body schedule"><div class="schedule-label">今天 · 9月27日</div><div class="event"><time>09:50–11:25</time><div><strong>自动控制原理（示例）</strong><small>北楼 229</small></div></div><div class="event"><time>16:00–16:45</time><div><strong>提交自动控制实验报告</strong><small>图书馆</small></div></div><div class="schedule-label">全天截止与计划</div><div class="event"><time>计划推进</time><div><strong>完成听力诊断与核心词复习</strong><small>未定时间</small></div></div></div></div>
+          </aside>
+        </div>
+      </div>
+      <div class="stage-foot">这是依据当前页面制作的静态布局示意，非线上截图；列宽与数据作适度简化。对照只表达调整方向与幅度，侧栏、右栏沿用原位置。窄屏请横向滚动查看桌面方案。</div>
+    </div>
+    <p class="demo-message" id="demo-message" role="status">上方只开放方案／主题切换和操作按钮样式示意，不连接真实账户或写入数据。</p>
+  </section>
+
+  <section id="changes">
+    <div class="section-top"><h2>推荐实施的四处微调</h2><p>先完成这四处，就足够形成一轮可感知的改善。</p></div>
+    <div class="detail-grid">
+      <article class="detail"><div class="eyebrow">A / 上方降权</div><h3>缩短卡片，而非拆掉卡片</h3><p>上一稿“全部压成一条”的幅度偏大。这次保留天气、日期、教学周的三个区域，也保留三个统计卡。</p><ul><li>环境卡由约 124 px 收至 84–88 px；时钟 34 → 20 px，默认显示到分钟。湿度放入可点击、可键盘打开的天气详情。</li><li>统计卡由约 113 px 收至 72–76 px；数字 26 → 22 px，标签与数字同一行。</li><li>删除“待完成 4 / 4 项待处理”的同义重复；保留下一节课、实际逾期数量等有用补充。</li><li>不改指标口径；去掉环境卡整体 hover 提亮，只让真正可操作的控件响应。</li></ul><div class="measure">目标：上方释放约 75–85 px，让首屏更早出现任务。实际高度以字体回退、窄桌面和缩放验收为准。</div></article>
+      <article class="detail"><div class="eyebrow">B / 行内去重</div><h3>一行只回答一次“从哪里来”</h3><p>左侧保持“标题 + 辅助信息”，右侧保持“时间 + 操作”，只重整每个位置的内容。</p><ul><li>辅助行保留既有彩色分类标签，例如紫色“项目”、灰色“自定义”及各平台来源色，再接课程或项目名称。保留用户标签、分类筛选与项目名称的跳转能力。</li><li>移除右侧重复来源；保留“已断开”、用户标签和有区别的事项类型。</li><li>日期明确为“截止 9/29 23:59”“计划 今天”“未设截止”；全天截止不凭空补 23:59。</li><li>同时有计划与截止时，右侧优先截止，计划留辅助行；跨年显示年份。原始日期值与编辑方式保持。</li></ul><div class="measure">对齐：标题与右侧日期共享第一行文字基线；同类日期右边缘一致。较长标题自然增高，操作不挤进文字中。</div></article>
+      <article class="detail"><div class="eyebrow">C / 字号与颜色</div><h3>把任务读清楚，靠层级而非浓底色</h3><p>任务已经是无衬线，无需换字体。建议只调整列表及右栏辅助文字的几个语义用色。</p><ul><li>任务标题 13.5 → 15 px，字重约 600、行高 22 px；辅助文字 12.5 px / 18 px；日期 12.5 px。</li><li>保留页面／分区的衬线标题；行内任务、按钮与时间使用现有无衬线。</li><li>课程／时间等辅助文字由 muted 改用现有 secondary；彩色分类标签沿用既有颜色：蓝白 #5b6472、苔绿 #606b59。分别对卡片底色约 5.98:1、5.55:1。</li><li>逾期使用窄红线 + “逾期”文字；普通任务保持白底。计划日期不因计划已过而染红。</li></ul><div class="measure">颜色改在具体文字角色上，避免全局加深 muted 导致其他模块一起变重。红色小字同样须核查对比度。</div></article>
+      <article class="detail"><div class="eyebrow">D / 操作与动效</div><h3>可点击的反馈一致，位置稳定</h3><p>无需把完成按钮整体搬到最左侧。在现有右侧操作区，让高频动作更容易找到即可。</p><ul><li>“完成”排在操作区第一位并常显；标记与删除保留较轻的视觉，hover／focus 时强调。</li><li>图标视觉约 14–16 px，桌面点击区目标 28–32 px；统一尺寸与基线，不因 hover 改布局。</li><li>边框、背景的反馈复用现有 120–160 ms；保留 280 ms 渐入和减少动态效果设置。</li><li>新增／保存失败保留输入；刷新不夺取输入焦点，不把列表滚回顶部。此处做回归确认。</li></ul><div class="measure">“完成后撤销”单独作为可选小交互，先核验各来源恢复能力与失败处理；不把永久删除当成可撤销。</div></article>
+    </div>
+  </section>
+
+  <section id="rules">
+    <div class="section-top"><h2>“共同设计规则”如何用到这一轮</h2><p>把通用原则收敛成桌面端的具体检查。</p></div>
+    <div class="rules">
+      <div class="rule"><strong>文字与间距</strong><p><span class="rule-label">本轮调整</span>仅提升任务字号和辅助行可读性。卡片圆角继续沿用，列表内边距优先统一至横向 18 px、纵向约 12 px，常见两行任务约 66–70 px。</p><p><span class="rule-label">验收</span>标题、来源、时间不互相挤压；长标题可换行，行高自然增长。系统字体回退和 200% 缩放后，内容与操作仍可达。</p></div>
+      <div class="rule"><strong>颜色与紧急程度</strong><p><span class="rule-label">本轮调整</span>品牌色用于选中、主操作和计划信息；按用户确认保留彩色分类标签的名称、底色与边框，不降为纯文字或小圆点。逾期由明确文字和小面积红色表达。</p><p><span class="rule-label">验收</span>普通有效文字目标至少 4.5:1。当前 muted 在两套卡片底色上分别约 3.68:1、4.27:1；将需要阅读的文字改为 secondary。<a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html" target="_blank" rel="noreferrer">W3C 对比度依据</a></p></div>
+      <div class="rule"><strong>触控与键盘</strong><p><span class="rule-label">本轮调整</span>桌面操作固定占位，键盘 focus 与 hover 同等清楚。天气详情等低频信息不能只藏在鼠标悬停里。</p><p><span class="rule-label">验收</span>Tab 可达，焦点不被裁剪。桌面按钮 28–32 px 是本方案目标；WCAG 2.2 AA 基线为 24 × 24 CSS px，另有间距等例外。<a href="https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html" target="_blank" rel="noreferrer">W3C 目标尺寸依据</a></p></div>
+      <div class="rule"><strong>窄屏与长内容</strong><p><span class="rule-label">本轮调整</span>在桌面内容列变窄时允许标题换行，让日期与操作保有固定空间；必要时行内换行，不改变整体三栏职责。</p><p><span class="rule-label">验收</span>1280 / 1440 / 1920 px、侧栏展开／收起与 960／961 px 边界；normal / dense / empty。复查 768／769 px，避免桌面规则覆盖手机。</p></div>
+      <div class="rule"><strong>反馈与状态</strong><p><span class="rule-label">本轮处理</span>已有渐入、焦点与草稿保护沿用并验证。同步正常文字保持轻量；失败明确指出平台与影响，不用“加载中”覆盖最后可用数据。</p><p><span class="rule-label">后续可选</span>完成后的可撤销反馈属于交互变更，另行验证多来源恢复和错误分支。本轮视觉示意没有实现此行为。</p></div>
+    </div>
+  </section>
+
+  <section id="delivery">
+    <div class="section-top"><h2>实施边界与验收</h2><p>推荐 A + B + C + D；想更保守，可以先只做 B + C。</p></div>
+    <div class="rollout">
+      <article><h3>代码落点保持局部</h3><ol><li><b>index.html：</b>来源合并、日期显示文案、统计副文案与操作顺序。保留事件绑定、原始日期值和事项来源语义。</li><li><b>现有 CSS 责任层：</b>局部调整桌面环境卡、统计卡、待办行；字号、语义色与动效复用 tokens。修改命中的既有规则，避免再叠一层全局覆盖。</li><li><b>设计契约：</b>将任务／辅助文字的具体规则写回 DESIGN_SYSTEM.md；不扩大成组件体系重构。</li></ol><p style="margin-top:14px">本轮交付是可评审的方案文件；产品代码、API、数据口径与线上部署没有随此文件改变。</p></article>
+      <article><h3>一轮验收看五件事</h3><ol><li>首屏更早看见待办；顶部依然能快速读到天气、日期和教学周。</li><li>每条任务只有一处来源；计划／截止／未设截止一眼分清。</li><li>蓝白与苔绿都以白色卡片为主；辅助文字清楚，逾期小字不刺眼也不太淡。</li><li>长标题、无日期、计划与截止同时存在、来源断开、子任务展开均不重叠。</li><li>键盘操作、内联改期、刷新时输入、减少动态效果和手机断点保持可用。</li></ol></article>
+    </div>
+  </section>
+  <footer class="footnote">核验基础：2026-09-27 本地 normal 隔离预览、1280 × 720、提交 5980273；数值来自页面计算样式与元素尺寸。配色比值按 CSS 前景／背景色计算，未宣称全站无障碍达标。静态示意不替代真实页面验收。<br><a href="ui-optimization-2026-09-26.html">回到上一版完整设计讨论</a></footer>
+</main>
+<script>
+  const stage = document.getElementById('stage');
+  const notes = {
+    current:'当前排版示意：保留较高的顶部、13.5 px 任务标题、重复来源和裸日期，便于比较；不是逐像素截图。',
+    rows:'更保守：保留顶部现有高度，仅整理任务字号、来源、日期语义、对齐和操作顺序。',
+    recommended:'推荐组合：环境卡 84 px、统计卡 76 px；任务 15 px，来源合并，日期明确，完成按钮排在现有操作区第一位。'
+  };
+  document.querySelectorAll('button[data-mode]').forEach(button => button.addEventListener('click', () => {
+    stage.dataset.mode = button.dataset.mode;
+    document.querySelectorAll('button[data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+    document.getElementById('mode-note').textContent = notes[button.dataset.mode];
+    document.querySelector('.tasklist').scrollTop = 0;
+  }));
+  document.querySelectorAll('button[data-theme]').forEach(button => button.addEventListener('click', () => {
+    stage.dataset.theme = button.dataset.theme;
+    document.querySelectorAll('button[data-theme]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+  }));
+  const flag = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 17V3m0 0c4-3 6 3 10 0v8c-4 3-6-3-10 0"/></svg>';
+  const tick = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10 4 4 8-9"/></svg>';
+  const trash = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 5h12M8 3h4M6 5l1 12h6l1-12M9 8v6m2-6v6"/></svg>';
+  document.querySelectorAll('.actions').forEach(actions => {
+    const title = actions.closest('.task').querySelector('.task-title').textContent;
+    actions.innerHTML = `<button class="action" type="button" aria-label="标记示意">${flag}</button><button class="action complete" type="button" aria-label="完成示意">${tick}</button><button class="action" type="button" aria-label="删除示意">${trash}</button>`;
+    actions.querySelectorAll('button').forEach(button => button.addEventListener('click', () => {
+      document.getElementById('demo-message').textContent = `这是“${title}”的${button.getAttribute('aria-label')}：此方案仅演示控件样式和焦点反馈，没有执行任务操作。`;
+    }));
+  });
+</script>
+</body>
+</html>

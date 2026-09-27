@@ -90,6 +90,8 @@ def test_frontend_desktop_header_uses_v103_three_part_layout(live_app, browser):
     register_dashboard_user(page, live_app, "desktopheader")
 
     expect(page.locator(".weather-desc")).to_be_visible()
+    expect(page.locator(".weather-detail")).to_be_hidden()
+    page.locator(".weather-details-toggle").press("Enter")
     expect(page.locator(".weather-detail")).to_be_visible()
     expect(page.locator("#weather-emoji .weather-outline-icon")).to_be_visible()
     expect(page.locator("#sidebar-greeting-icon .weather-outline-icon")).to_be_visible()
@@ -103,7 +105,8 @@ def test_frontend_desktop_header_uses_v103_three_part_layout(live_app, browser):
     ) == "grid"
     assert page.locator(".opt1-time").evaluate(
         "element => Number.parseFloat(getComputedStyle(element).fontSize)"
-    ) >= 30
+    ) == 20
+    expect(page.locator(".opt1-time")).to_have_text(re.compile(r"^\d{2}:\d{2}$"))
 
 
 def test_frontend_titles_follow_v103_type_hierarchy(live_app, browser):
@@ -890,19 +893,20 @@ def test_frontend_mobile_alignment_places_controls_on_the_right(live_app, browse
     subtask_loc = item.locator(".item-subtask-slot")
     expect(title_loc).to_be_visible()
     expect(subtask_loc).to_be_visible()
-    title_box = title_loc.bounding_box()
-    subtask_box = subtask_loc.bounding_box()
-    heading_box = page.locator(".section-header h2").bounding_box()
-    header_box = page.locator(".section-header").bounding_box()
-    emoji_box = page.locator(".weather-emoji").bounding_box()
-    temp_box = page.locator(".weather-temp").bounding_box()
-    assert title_box is not None and subtask_box is not None
-    assert heading_box is not None and header_box is not None
-    assert emoji_box is not None and temp_box is not None
-    assert subtask_box["x"] > title_box["x"]
-    assert abs((heading_box["y"] + heading_box["height"] / 2) - (header_box["y"] + header_box["height"] / 2)) <= 35
-    assert emoji_box["x"] < temp_box["x"]
-    assert abs((emoji_box["y"] + emoji_box["height"] / 2) - (temp_box["y"] + temp_box["height"] / 2)) <= 5
+    # Platform refresh can replace rows between separate geometry reads.
+    # Assert the same alignment constraints from one connected DOM frame.
+    page.wait_for_function("""() => {
+      const item = [...document.querySelectorAll('.todo-row-wrap')].find(e => e.textContent.includes('Alignment task'));
+      if (!item?.checkVisibility()) return false;
+      const rect = (selector, parent = document) => parent.querySelector(selector).getBoundingClientRect();
+      const title = rect('.item-title', item), subtask = rect('.item-subtask-slot', item);
+      const heading = rect('.section-header h2'), header = rect('.section-header');
+      const emoji = rect('.weather-emoji'), temp = rect('.weather-temp');
+      return title.width > 0 && subtask.width > 0 && subtask.x > title.x
+        && Math.abs((heading.y + heading.height / 2) - (header.y + header.height / 2)) <= 35
+        && emoji.x < temp.x
+        && Math.abs((emoji.y + emoji.height / 2) - (temp.y + temp.height / 2)) <= 5;
+    }""")
 
 
 @pytest.mark.parametrize("width", [375, 390, 768])
@@ -956,10 +960,11 @@ def test_frontend_mobile_todo_layout_is_compact_and_tappable(live_app, browser, 
     expect(custom_item).to_be_visible()
     expect(custom_item.locator(".label-badge")).to_be_hidden()
     expect(custom_item.locator(".subtask-toggle")).to_be_visible()
-    subtask_toggle_box = custom_item.locator(".subtask-toggle").bounding_box()
-    assert subtask_toggle_box is not None
-    assert subtask_toggle_box["width"] >= 35.9
-    assert subtask_toggle_box["height"] >= 35.9
+    page.wait_for_function("""() => {
+      const item = [...document.querySelectorAll('.todo-row-wrap')].find(e => e.textContent.includes('Mobile labels'));
+      const rect = item?.querySelector('.subtask-toggle')?.getBoundingClientRect();
+      return rect && rect.width >= 35.9 && rect.height >= 35.9;
+    }""")
 
     long_label = "x" * 240
     page.locator("#mobile-add-toggle").click()
@@ -1384,9 +1389,14 @@ def test_frontend_todo_completion_sinks_and_syncs_with_agenda(live_app, browser)
     assert course_classes["futureDone"] is False
 
 
-def test_frontend_today_and_overdue_visual_consistency(live_app, browser):
+@pytest.mark.parametrize("width", [390, 1440])
+@pytest.mark.parametrize("theme", ["blue", "moss"])
+def test_frontend_today_and_overdue_visual_consistency(live_app, browser, width, theme):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "visualconsistency")
+    page.evaluate("switchDashboardView('settings')")
+    page.locator(f'[data-appearance-theme="{theme}"]').click()
+    page.evaluate("switchDashboardView('overview')")
 
     # 1. 验证 KPI 概览带有入场动效类 enter-kpis
     expect(page.locator("#dashboard-kpis")).to_have_class(re.compile(r"\benter-kpis\b"))
@@ -1405,13 +1415,14 @@ def test_frontend_today_and_overdue_visual_consistency(live_app, browser):
     overdue_row = page.locator(".todo-row").filter(has_text="已逾期待办事项")
     expect(overdue_row).to_be_visible()
 
-    # 3. 验证逾期行有 ui-list-item--danger，而今天行绝不应带有 ui-list-item--danger
+    # 3. 今天真实截止也需警示，但不能被误标为已逾期。
     expect(overdue_row).to_have_class(re.compile(r"\bui-list-item--danger\b"))
     expect(overdue_row).to_have_class(re.compile(r"\bis-overdue\b"))
-    expect(today_row).not_to_have_class(re.compile(r"\bui-list-item--danger\b"))
+    expect(today_row).to_have_class(re.compile(r"\bui-list-item--danger\b"))
+    expect(today_row).not_to_have_class(re.compile(r"\bis-overdue\b"))
     expect(today_row).to_have_class(re.compile(r"\bis-today\b"))
 
-    # 4. 创建一个计划在今天推进的项目任务，验证其日期胶囊为纯净日期文本且无计划汉字前缀
+    # 4. 计划与截止明确区分，计划日期不误标为逾期
     page.evaluate("""async (todayStr) => {
         const csrf = window.CSRF_TOKEN || '';
         const projRes = await fetch('/api/projects', {
@@ -1437,13 +1448,42 @@ def test_frontend_today_and_overdue_visual_consistency(live_app, browser):
     expect(project_row).not_to_have_class(re.compile(r"\bui-list-item--danger\b"))
     expect(project_row).to_have_class(re.compile(r"\bis-today\b"))
 
-    # 验证胶囊文字为纯净日期（today_str），不含“计划 ”前缀
+    # 展示语义不改变编辑器保存的原始 ISO 日期
     due_badge = project_row.locator(".project-due-editable .todo-date-desktop")
-    expect(due_badge).to_have_text(today_str)
-    expect(due_badge).not_to_contain_text("计划")
+    expect(due_badge).to_have_text("计划 今天")
+    expect(project_row.locator(".project-due-editable")).to_have_attribute("data-date-value", today_str)
+    expect(project_row.locator(".ui-source-tag--project")).to_be_visible()
+    expect(project_row.locator(".item-source-badge")).to_be_hidden()
+    expect(today_row.locator(".todo-date-desktop")).to_have_text("截止 今天")
+    expect(overdue_row.locator(".todo-date-desktop")).to_contain_text("逾期 ·")
 
     # 5. 验证非自定义待办占位符没有实心黑三角符号
     expect(project_row.locator(".subtask-toggle-placeholder")).not_to_contain_text("\u25b8")
+
+    page.set_viewport_size({"width": width, "height": 1000})
+    colors = [row.locator('.item-due').evaluate('e => getComputedStyle(e).color')
+              for row in (today_row, overdue_row, project_row)]
+    assert colors[0] == colors[1] and colors[0] != colors[2]
+    assert today_row.evaluate('e => getComputedStyle(e).boxShadow') == overdue_row.evaluate('e => getComputedStyle(e).boxShadow')
+    assert today_row.evaluate('e => getComputedStyle(e).boxShadow') != 'none'
+
+
+def test_deadline_warning_boundaries(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 900})
+    register_dashboard_user(page, live_app, 'deadlinebounds')
+    page.evaluate('''() => {
+      canvasItems = [-1, 24, 25, 72, 73].map((hours, index) => {
+        const due = new Date(Date.now() + hours * 3600000);
+        return {id: index + 100, title: `boundary ${hours}`, course: '示例课程',
+          due_ts: due.toISOString(), due_str: due.toISOString(), url: ''};
+      });
+      renderUnifiedList();
+    }''')
+    for hours, state in [(-1, 'is-overdue'), (24, 'is-due-soon'),
+                         (25, 'is-approaching'), (72, 'is-approaching'), (73, 'is-normal')]:
+        row = page.locator('.todo-row').filter(has=page.locator('.item-title', has_text=re.compile(f'^boundary {hours}$')))
+        expect(row).to_have_class(re.compile(rf'\b{state}\b'))
+    page.close()
 
 
 def test_frontend_recurring_todo_creation_and_homepage_single_item(live_app, browser):
@@ -1483,3 +1523,75 @@ def test_frontend_recurring_todo_creation_and_homepage_single_item(live_app, bro
     expect(page.locator(".todo-row").filter(has_text="每周电工实验")).to_have_count(1)
     expect(page.locator(".todo-row").filter(has_text="每周电工实验").locator(".item-desktop-actions .btn-action-skip")).to_be_visible()
 
+
+
+@pytest.mark.parametrize("width", [769, 961, 1280, 1440, 1920])
+@pytest.mark.parametrize("theme", ["blue", "moss"])
+def test_desktop_refinement_keeps_colored_tags_and_readable_rows(live_app, browser, width, theme):
+    page = browser.new_page(viewport={"width": width, "height": 900}, reduced_motion="reduce")
+    register_dashboard_user(page, live_app, f"polish{width}{theme}")
+    title = "核对自动控制原理实验报告的参数、图表与结论，并整理下一次讨论的问题"
+    response = page.request.post(f"{live_app}/api/custom/todos", data={"text": title, "due_date": None},
+                                 headers={"X-CSRF-Token": page.evaluate("window.CSRF_TOKEN")})
+    assert response.ok
+    page.reload()
+    page.evaluate("switchDashboardView('settings')")
+    page.locator(f'[data-appearance-theme="{theme}"]').click()
+    page.evaluate("switchDashboardView('overview')")
+    row = page.locator('.todo-row', has_text=title)
+    expect(row).to_be_visible()
+    expect(row.locator('.ui-source-tag--custom')).to_be_visible()
+    expect(row.locator('.item-source-badge')).to_be_hidden()
+    expect(row.locator('.todo-date-desktop')).to_have_text('未设截止')
+    expect(row.locator('.item-desktop-actions button').first).to_have_class('btn-dismiss')
+    page.wait_for_function("""() => {
+      return [...document.querySelectorAll('.todo-row')].filter(e => e.checkVisibility()).every(row => {
+        const title = row.querySelector('.item-title');
+        const due = row.querySelector('.item-due').getBoundingClientRect();
+        const actions = row.querySelector('.item-desktop-actions').getBoundingClientRect();
+        const rect = row.getBoundingClientRect();
+        return title.scrollWidth <= title.clientWidth + 1 && row.scrollWidth <= row.clientWidth + 1
+          && due.right <= actions.left + 1 && actions.right <= rect.right + 1;
+      }) && document.documentElement.scrollWidth <= innerWidth;
+    }""")
+    assert row.locator('.item-title').evaluate('e => getComputedStyle(e).fontSize') == '15px'
+    assert row.locator('.ui-source-tag--custom').evaluate('e => getComputedStyle(e).backgroundColor') != 'rgba(0, 0, 0, 0)'
+    if width >= 1280:
+        assert page.locator('.context-card').bounding_box()['height'] <= 90
+        for card in page.locator('.kpi').all():
+            assert card.bounding_box()['height'] <= 78
+        positions = page.locator('.k-value').evaluate_all('nodes => nodes.map(e => e.getBoundingClientRect().top)')
+        assert max(positions) - min(positions) <= 1
+        for card in page.locator('.kpi').all():
+            assert card.evaluate('''e => {
+              const card = e.getBoundingClientRect();
+              const value = e.querySelector('.k-value').getBoundingClientRect();
+              return Math.abs(value.y + value.height / 2 - card.y - card.height / 2) <= 1
+                && card.right - value.right >= 20;
+            }''')
+    row.locator('.editable-due').click()
+    expect(row.locator('.inline-edit-date-input')).to_have_value('')
+    row.locator('.inline-edit-date-input').press('Escape')
+    page.close()
+
+
+def test_desktop_date_labels_preserve_all_day_and_precise_time(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 900})
+    register_dashboard_user(page, live_app, 'polishdates')
+    page.evaluate("""() => {
+      canvasItems = [{id: 303, title: '全天事项', course: '程序设计', type: '作业',
+        due_str: '07-10', due_ts: '2099-07-10T00:00:00+08:00', url: ''}];
+      renderUnifiedList();
+    }""")
+    row = page.locator('.todo-row', has_text='全天事项')
+    expect(row.locator('.ui-source-tag--canvas')).to_be_visible()
+    expect(row.locator('.biz-todo__meta')).to_contain_text('程序设计 · 作业')
+    expect(row.locator('.todo-date-desktop')).to_have_text('截止 2099/7/10')
+    labels = page.evaluate("""() => [
+      {source:'canvas', due_str:'07-10 23:59', due_ts:'2099-07-10T23:59:00+08:00'},
+      {source:'custom', due_str:'2099-07-10', due_ts:'2099-07-10T23:59:59+08:00'},
+      {source:'canvas', due_str:'—', due_ts:null},
+      {source:'project', plannedOn:'2099-07-10'}
+    ].map(item => compactTodoDateLabel(item, workspaceTodayISO()))""")
+    assert labels == ['截止 2099/7/10 23:59', '截止 2099/7/10', '未设截止', '计划 2099/7/10']
+    page.close()

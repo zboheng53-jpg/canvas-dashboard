@@ -21,6 +21,12 @@
   --font-size-label: 12px;
   --font-size-help: 11px;
   --font-size-title-sm: 15px;
+  /* Desktop overview: task metadata and compact context figures. */
+  --font-size-todo-meta: 12.5px;
+  --font-size-context: 20px;
+  --font-size-summary: 22px;
+  --line-height-todo-title: 22px;
+  --line-height-todo-meta: 18px;
   --line-height-control: 1.4;
   --line-height-help: 1.5;
 
