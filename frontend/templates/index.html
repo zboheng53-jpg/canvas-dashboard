@@ -58,11 +58,11 @@
         </div>
        <div class="opt1-weather-detail">
          <span id="weather-desc" class="weather-desc">&#21152;&#36733;&#20013;...</span>
-          <details class="weather-details"><summary class="weather-details-toggle" aria-label="天气详情">详情</summary><span id="weather-detail" class="weather-detail"></span></details>
+          <span id="weather-detail" class="weather-detail"></span>
         </div>
       </div>
       <div class="opt1-col center">
-        <div class="opt1-time" id="time">--:--</div>
+        <div class="opt1-time" id="time">--:--:--</div>
         <div class="opt1-date">
           <span id="date">----&#24180;--&#26376;--&#26085;</span>
           <span id="weekday">&#26143;&#26399;-</span>
@@ -80,7 +80,7 @@
       <div class="kpi">
         <div class="k-label">待完成</div>
         <div class="k-value" id="stat-pending-count">0</div>
-        <div class="k-hint" id="stat-pending-diff"></div>
+        <div class="k-hint" id="stat-pending-diff">未有新变化</div>
       </div>
       <div class="kpi">
         <div class="k-label">48 小时内截止</div>
@@ -1583,7 +1583,7 @@
     }
 
     function updateClock(data) {
-      document.getElementById('time').textContent = data.time.slice(0, 5);
+      document.getElementById('time').textContent = data.time;
       document.getElementById('date').textContent = data.date;
       document.getElementById('weekday').textContent = data.weekday;
       if (serverTime) {
@@ -1599,7 +1599,8 @@
       const now = new Date(serverTime + elapsed);
       const h = String(now.getHours()).padStart(2, '0');
       const m = String(now.getMinutes()).padStart(2, '0');
-      document.getElementById('time').textContent = `${h}:${m}`;
+      const s = String(now.getSeconds()).padStart(2, '0');
+      document.getElementById('time').textContent = `${h}:${m}:${s}`;
       updateGreeting(now);
       if (now.getSeconds() === 0 && typeof renderForwardAgenda === 'function' && typeof workspaceTodayData !== 'undefined' && workspaceTodayData) {
         renderForwardAgenda();
@@ -2526,7 +2527,7 @@
             if (dueStr < todayStr || hoursLeft < 0) {
               urgencyClass = 'urgent is-overdue';
             } else if (dueStr === todayStr || (hoursLeft >= 0 && hoursLeft <= 24)) {
-              urgencyClass = 'urgent is-due-soon is-today';
+              urgencyClass = 'is-today';
             } else if (hoursLeft <= 72) {
               urgencyClass = 'approaching is-approaching';
             } else {
@@ -2543,7 +2544,7 @@
         const flagTitle = manualFlag ? '\u53d6\u6d88\u6807\u7ea2' : '\u6807\u7ea2';
         const flagClass = manualFlag ? 'btn-flag active' : 'btn-flag';
         const dismissTitle = isDismissed ? '\u53d6\u6d88\u5b8c\u6210' : '\u5b8c\u6210';
-        const uiListStateClass = urgencyClass.includes('is-overdue') || urgencyClass.includes('is-due-soon')
+        const uiListStateClass = urgencyClass.includes('is-overdue')
           ? ' ui-list-item--danger'
           : urgencyClass.includes('approaching')
             ? ' ui-list-item--warning'
@@ -2553,14 +2554,14 @@
         let actionsHtml = '';
         if (item.source === 'canvas') {
           actionsHtml = `
-            <button class="btn-dismiss" onclick="togglePlatformCompletion('canvas', ${item.rawId}, ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="todo-action-button ${flagClass}" onclick="toggleHighlight('${item.id}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
+            <button class="btn-dismiss" onclick="togglePlatformCompletion('canvas', ${item.rawId}, ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="btn-delete" onclick="toggleCanvasDelete(${item.rawId})" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'haoke') {
           actionsHtml = `
-            <button class="btn-dismiss" onclick="togglePlatformCompletion('haoke', ${item.rawId}, ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="todo-action-button ${flagClass}" onclick="toggleHaokeHighlight('${item.id}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
+            <button class="btn-dismiss" onclick="togglePlatformCompletion('haoke', ${item.rawId}, ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="btn-delete" onclick="toggleHaokeDelete(${item.rawId})" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'custom') {
@@ -2573,39 +2574,39 @@
           } else {
             const isDeleting = deletingCustomIds.has(item.rawId);
             actionsHtml = `
-              <button class="btn-dismiss" onclick="toggleTodoCheck(${item.rawId}, ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
               <button class="todo-action-button ${flagClass}" onclick="toggleCustomHighlight(${item.rawId}, ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
+              <button class="btn-dismiss" onclick="toggleTodoCheck(${item.rawId}, ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
               <button class="btn-delete" onclick="toggleCustomDelete(${item.rawId})" ${isDeleting ? 'disabled aria-busy="true"' : ''} title="\u5220\u9664">&#x1f5d1;</button>
             `;
           }
         } else if (item.source === 'zhixuemeng') {
           actionsHtml = `
-            <button class="btn-dismiss" onclick="togglePlatformCompletion('zhixuemeng', '${item.id.substring(1)}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="todo-action-button ${flagClass}" onclick="toggleZhixuemengHighlight('${item.id.substring(1)}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
+            <button class="btn-dismiss" onclick="togglePlatformCompletion('zhixuemeng', '${item.id.substring(1)}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="btn-delete" onclick="toggleZhixuemengDelete('${item.id.substring(1)}')" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'zhihuishu') {
           actionsHtml = `
-            <button class="btn-dismiss" onclick="togglePlatformCompletion('zhihuishu', '${item.rawId}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="todo-action-button ${flagClass}" onclick="toggleZhihuishuHighlight('${item.rawId}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
+            <button class="btn-dismiss" onclick="togglePlatformCompletion('zhihuishu', '${item.rawId}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="btn-delete" onclick="toggleZhihuishuDelete('${item.rawId}')" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'ketangpai') {
           actionsHtml = `
-            <button class="btn-dismiss" onclick="togglePlatformCompletion('ketangpai', '${item.rawId}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="todo-action-button ${flagClass}" onclick="toggleKetangpaiHighlight('${item.rawId}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
+            <button class="btn-dismiss" onclick="togglePlatformCompletion('ketangpai', '${item.rawId}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="btn-delete" onclick="toggleKetangpaiDelete('${item.rawId}')" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'tongjioj') {
           actionsHtml = `
-            <button class="btn-dismiss" onclick="togglePlatformCompletion('tongjioj', '${item.rawId}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="todo-action-button ${flagClass}" onclick="toggleTongjiojHighlight('${item.rawId}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
+            <button class="btn-dismiss" onclick="togglePlatformCompletion('tongjioj', '${item.rawId}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
             <button class="btn-delete" onclick="toggleTongjiojDelete('${item.rawId}')" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'project') {
           actionsHtml = `
-            <button class="btn-dismiss" onclick="completeProjectTodo(${item.projectId}, ${item.taskId === null ? 'null' : item.taskId}, '${item.projectKind}')" title="完成" aria-label="完成">✓</button>
             <button class="todo-action-button ${flagClass}" onclick="toggleProjectTodoFlag(${item.projectId}, ${item.taskId === null ? 'null' : item.taskId}, '${item.projectKind}', ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
+            <button class="btn-dismiss" onclick="completeProjectTodo(${item.projectId}, ${item.taskId === null ? 'null' : item.taskId}, '${item.projectKind}')" title="完成" aria-label="完成">✓</button>
             <button class="btn-delete" onclick="deleteProjectTodo(${item.projectId}, ${item.taskId === null ? 'null' : item.taskId}, '${item.projectKind}')" title="\u5220\u9664" aria-label="\u5220\u9664">&#x1f5d1;</button>
           `;
         }
@@ -2618,9 +2619,7 @@
             : (item.source === 'project'
               ? `<button type="button" class="ui-button ui-button--text ui-list-item__title item-title action-title-button" onclick="openActionDetail('${item.taskId === null ? 'project_due:' + item.projectId : 'project:' + item.projectId + ':' + item.taskId}')">${escapeHtml(item.title)}</button>`
               : (safeUrl ? `<a class="ui-list-item__title item-title" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</a>` : `<span class="ui-list-item__title item-title item-title-plain">${escapeHtml(item.title)}</span>`)));
-        const dateLabel = compactTodoDateLabel(item, todayStr);
-        const desktopDateLabel = urgencyClass.includes('is-overdue') ? dateLabel.replace(/^截止 /, '逾期 · ') : dateLabel;
-        const dueLabel = `<span class="todo-date-desktop">${escapeHtml(desktopDateLabel)}</span><span class="todo-date-mobile">${escapeHtml(dateLabel)}</span>`;
+        const dueLabel = `<span class="todo-date-desktop">${escapeHtml(item.due_str || (item.source === 'project' ? item.plannedOn : '') || '')}</span><span class="todo-date-mobile">${escapeHtml(compactTodoDateLabel(item, todayStr))}</span>`;
         const dueHtml = (item.source === 'custom' && !item.is_recurring)
           ? `<span class="ui-list-item__meta item-due editable-due" data-id="${item.rawId}" data-field="due_date" data-value="${escapeHtml(item.due_str || '')}">${dueLabel}</span>`
           : item.source === 'project'
@@ -2672,10 +2671,10 @@
         if (item.groupName) metaParts.push(escapeHtml(item.groupName));
         if (item.plannedOn && item.due_str) metaParts.push(`计划 ${escapeHtml(item.plannedOn)}`);
         if (item.occurrences?.length) metaParts.push(item.occurrences.map(e => `${escapeHtml(e.start_time)}–${escapeHtml(e.end_time)}`).join('、'));
-        if (item.type && item.type !== tagLabel && item.type !== item.source && item.source !== 'custom') metaParts.push(escapeHtml(item.type));
+        if (item.type && !item.course && item.type !== tagLabel && item.source !== 'custom') metaParts.push(escapeHtml(item.type));
         if (!item.course && item.labels && item.labels.length) metaParts.push(escapeHtml(item.labels[0]));
         const metaText = metaParts.join(' · ');
-        const metaHtml = (tagHtml || metaText) ? `<div class="biz-todo__meta">${tagHtml}${metaText ? `<span class="biz-todo__meta-text">${metaText}</span>` : ''}${item.disconnected ? '<span class="ui-status ui-status--warning">已断开</span>' : ''}</div>` : '';
+        const metaHtml = (tagHtml || metaText) ? `<div class="biz-todo__meta">${tagHtml}${metaText ? `<span class="biz-todo__meta-text">${metaText}</span>` : ''}</div>` : '';
 
         const projectMainClass = item.isMainProject ? ' is-project-main' : '';
 
@@ -2793,7 +2792,7 @@
       const dueOverdueEl = document.getElementById('stat-due-overdue');
 
       if (pendingCountEl) pendingCountEl.textContent = pending;
-      if (pendingDiffEl) pendingDiffEl.textContent = pending > 0 ? '' : '待办已清空';
+      if (pendingDiffEl) pendingDiffEl.textContent = pending > 0 ? `${pending} 项待处理` : '待办已清空';
       if (dueCountEl) dueCountEl.textContent = due48h;
       if (dueOverdueEl) {
         dueOverdueEl.textContent = overdue > 0 ? `含 ${overdue} 项已逾期` : '无逾期事项';
