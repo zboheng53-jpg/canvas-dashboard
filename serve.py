@@ -68,9 +68,9 @@ def main():
         logger.error("waitress not installed. Run: .venv\\Scripts\\pip.exe install waitress")
         sys.exit(1)
 
-    logger.info("Canvas Dashboard starting on %s:%d (Waitress, 4 threads)", HOST, PORT)
+    logger.info("Canvas Dashboard starting on %s:%d (Waitress, %d threads)", HOST, PORT, settings.APP_THREADS)
     try:
-        serve(app, host=HOST, port=PORT, threads=4)
+        serve(app, host=HOST, port=PORT, threads=settings.APP_THREADS)
     except KeyboardInterrupt:
         logger.info("Server stopped (KeyboardInterrupt)")
         sys.exit(0)

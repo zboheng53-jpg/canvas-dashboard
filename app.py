@@ -53,7 +53,7 @@ from tongji_oj_client import (
     iam_login as tjoj_iam_login, local_login as tjoj_local_login,
     iam_send_second_auth_code as tjoj_iam_send_second_auth_code,
     iam_verify_second_auth_code as tjoj_iam_verify_second_auth_code,
-    has_credentials as has_tjoj_credentials, fetch_assignments as fetch_tjoj_assignments,
+    has_credentials as has_tjoj_credentials,
     load_state as load_tjoj_state,
     update_state as update_tjoj_state, save_state as save_tjoj_state,
     get_selected_course as get_tjoj_selected_course, set_selected_course as set_tjoj_selected_course,
@@ -1714,17 +1714,10 @@ def api_tjoj_todos():
         course_id = course_id.strip() or None
     had_creds = has_tjoj_credentials(username)
     cache_only = request.args.get("cache_only") == "1"
-    if cache_only:
+    result = tongji_oj_client.get_cached_assignments(username, course_id=course_id)
+    if had_creds and not cache_only and (request.args.get("refresh") == "1" or result.get("stale")):
+        tongji_oj_client.start_background_refresh(username)
         result = tongji_oj_client.get_cached_assignments(username, course_id=course_id)
-    else:
-        result = fetch_tjoj_assignments(username, course_id=course_id, force_fetch=request.args.get("refresh") == "1")
-    if had_creds and not cache_only and (not result.get("cached") or result.get("stale")):
-        platform_sync.record_result(
-            username, "tongjioj", ok=bool(result.get("ok")) and not bool(result.get("stale")),
-            has_cache=_platform_cache_path(username, "tongjioj").exists(), cached=False,
-            error_code=result.get("code"),
-            error_message=result.get("error"),
-        )
     state = load_tjoj_state(username)
     result = build_platform_todos_response(
         result,
@@ -1735,7 +1728,7 @@ def api_tjoj_todos():
     )
     result = attach_subtasks(username, "tongjioj", result)
     connection_state = "connected" if has_tjoj_credentials(username) else platform_sync.get(username, "tongjioj")["connection_state"]
-    return jsonify(_attach_sync(result, "tongjioj", connection_state=connection_state))
+    return jsonify(_attach_sync(result, "tongjioj", connection_state=connection_state, refreshing=result.get("refreshing", False)))
 
 
 @app.route("/api/tongjioj/state", methods=["GET", "POST"])

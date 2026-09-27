@@ -17,6 +17,7 @@ import json
 import logging
 import re
 import time
+import threading
 from datetime import datetime, timedelta, timezone
 from xml.etree import ElementTree
 
@@ -26,6 +27,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
 
 import settings
+import platform_sync
 from platform_state import PlatformStateStore
 from storage import locked_json_update, read_json_file, write_json_file
 from user_paths import DATA_DIR, user_dir
@@ -69,14 +71,31 @@ IAM_AJAX_ACCEPT = "application/json, text/javascript, */*; q=0.01"
 _cookie_cache: dict[str, dict[str, str]] = {}
 # Short-lived pending IAM second-factor (加强认证) sessions per username
 _pending_iam_sessions: dict[str, dict] = {}
+_refresh_lock = threading.RLock()
+_refresh_jobs: dict[str, object] = {}
+_refresh_context = threading.local()
+
+
+class _RefreshCancelled(Exception):
+    pass
+
+
+def _check_refresh_active(username: str):
+    job = getattr(_refresh_context, "job", None)
+    if job is not None and _refresh_jobs.get(username) is not job:
+        raise _RefreshCancelled()
 
 
 def _config_file(username: str):
-    return user_dir(username) / "config.json"
+    with _refresh_lock:
+        _check_refresh_active(username)
+        return user_dir(username) / "config.json"
 
 
 def _cache_file(username: str):
-    return user_dir(username) / "tongjioj_cache.json"
+    with _refresh_lock:
+        _check_refresh_active(username)
+        return user_dir(username) / "tongjioj_cache.json"
 
 
 # ---- Encryption helpers ----
@@ -118,7 +137,6 @@ def save_credentials(
 
     cookie_encrypted = None
     if cookies:
-        _cookie_cache[username] = dict(cookies)
         cookie_payload = json.dumps(cookies, ensure_ascii=False)
         cookie_encrypted = f.encrypt(cookie_payload.encode("utf-8")).decode("ascii")
 
@@ -128,17 +146,21 @@ def save_credentials(
             cfg["tongjioj_cookies_encrypted"] = cookie_encrypted
         return cfg
 
-    locked_json_update(_config_file(username), {}, _update)
-    try:
-        _cache_file(username).unlink(missing_ok=True)
-    except Exception:
-        pass
+    with _refresh_lock:
+        _check_refresh_active(username)
+        if getattr(_refresh_context, "job", None) is None:
+            # A new explicit login invalidates an older background session.
+            _refresh_jobs.pop(username, None)
+        if cookies:
+            _cookie_cache[username] = dict(cookies)
+        locked_json_update(_config_file(username), {}, _update)
+        if getattr(_refresh_context, "job", None) is None:
+            _cache_file(username).unlink(missing_ok=True)
 
 
 def _save_cookies(username: str, cookies: dict[str, str]):
     if not cookies:
         return
-    _cookie_cache[username] = dict(cookies)
     f = _get_fernet()
     cookie_payload = json.dumps(cookies, ensure_ascii=False)
     cookie_encrypted = f.encrypt(cookie_payload.encode("utf-8")).decode("ascii")
@@ -147,7 +169,10 @@ def _save_cookies(username: str, cookies: dict[str, str]):
         cfg["tongjioj_cookies_encrypted"] = cookie_encrypted
         return cfg
 
-    locked_json_update(_config_file(username), {}, _update)
+    with _refresh_lock:
+        _check_refresh_active(username)
+        _cookie_cache[username] = dict(cookies)
+        locked_json_update(_config_file(username), {}, _update)
 
 
 def load_credentials(username: str) -> dict | None:
@@ -189,7 +214,9 @@ def _load_cookies(username: str) -> dict[str, str] | None:
         raw = f.decrypt(enc.encode("ascii")).decode("utf-8")
         data = json.loads(raw)
         if isinstance(data, dict) and data:
-            _cookie_cache[username] = data
+            with _refresh_lock:
+                _check_refresh_active(username)
+                _cookie_cache[username] = data
             return dict(data)
     except Exception as e:
         logger.warning(f"Failed to decrypt Tongji OJ cookies for {username}: {e}")
@@ -209,17 +236,20 @@ def has_credentials(username: str) -> bool:
 
 def logout(username: str):
     """Clear stored credentials and session cookies."""
-    _cookie_cache.pop(username, None)
-    config_file = _config_file(username)
-    if config_file.exists():
-        def _clear(cfg):
-            cfg.pop("tongjioj_credentials_encrypted", None)
-            cfg.pop("tongjioj_cookies_encrypted", None)
-            cfg.pop("tongjioj_selected_course", None)
-            cfg.pop("tongjioj_courses", None)
-            return cfg
+    with _refresh_lock:
+        _refresh_jobs.pop(username, None)
+        _cookie_cache.pop(username, None)
+        _pending_iam_sessions.pop(username, None)
+        config_file = _config_file(username)
+        if config_file.exists():
+            def _clear(cfg):
+                cfg.pop("tongjioj_credentials_encrypted", None)
+                cfg.pop("tongjioj_cookies_encrypted", None)
+                cfg.pop("tongjioj_selected_course", None)
+                cfg.pop("tongjioj_courses", None)
+                return cfg
 
-        locked_json_update(config_file, {}, _clear)
+            locked_json_update(config_file, {}, _clear)
 
 
 def get_selected_course(username: str) -> str | None:
@@ -257,7 +287,9 @@ def _save_courses(username: str, courses: list[dict]):
         cfg["tongjioj_courses"] = courses
         return cfg
 
-    locked_json_update(_config_file(username), {}, _update)
+    with _refresh_lock:
+        _check_refresh_active(username)
+        locked_json_update(_config_file(username), {}, _update)
 
 
 # ---- Authentication Flows ----
@@ -419,7 +451,7 @@ def iam_login(username: str, student_id: str, password: str) -> dict:
                 mobile = str(auth_res.get("mobile") or "")
                 email = str(auth_res.get("email") or "")
                 chain_code_24 = str(auth_res.get("currentAuChainCodeEx") or sp_chain_code)
-                _pending_iam_sessions[username] = {
+                pending_session = {
                     "session": sess,
                     "student_id": student_id,
                     "password": password,
@@ -431,6 +463,9 @@ def iam_login(username: str, student_id: str, password: str) -> dict:
                     "email": email,
                     "created_at": time.time(),
                 }
+                with _refresh_lock:
+                    _check_refresh_active(username)
+                    _pending_iam_sessions[username] = pending_session
                 auth_methods = []
                 if mobile:
                     auth_methods.append({"type": "sms", "label": f"手机短信 ({mobile})"})
@@ -954,19 +989,30 @@ def _is_cache_fresh(cached: dict | None) -> bool:
 
 
 def _save_cache_payload(username: str, items: list[dict], courses: list[dict]):
-    write_json_file(
-        _cache_file(username),
-        {
-            "version": CACHE_SCHEMA_VERSION,
-            "items": items,
-            "courses": courses,
-            "updated_at": datetime.now(CST).isoformat(),
-        },
-    )
+    with _refresh_lock:
+        _check_refresh_active(username)
+        write_json_file(
+            _cache_file(username),
+            {
+                "version": CACHE_SCHEMA_VERSION,
+                "items": items,
+                "courses": courses,
+                "updated_at": datetime.now(CST).isoformat(),
+            },
+        )
 
 
 def get_cached_assignments(username: str, course_id: str | None = None) -> dict:
     """Read the current projection without contacting OJ, even when stale."""
+    # Snapshot cache and job state together, so completion cannot expose an old
+    # cache with refreshing=False and leave the browser waiting for its next reload.
+    with _refresh_lock:
+        result = _get_cached_assignments(username, course_id)
+        result["refreshing"] = username in _refresh_jobs
+        return result
+
+
+def _get_cached_assignments(username: str, course_id: str | None = None) -> dict:
     if not has_credentials(username):
         return {"ok": False, "error": "未配置同济OJ账号", "need_setup": True}
     selected = course_id if course_id is not None else get_selected_course(username)
@@ -980,6 +1026,50 @@ def get_cached_assignments(username: str, course_id: str | None = None) -> dict:
         "courses": payload.get("courses", []) if payload is not None else [],
         "selected_course": selected or "",
     }
+
+
+def _run_background_refresh(username: str, job: object):
+    _refresh_context.job = job
+    try:
+        with _refresh_lock:
+            _check_refresh_active(username)
+        try:
+            result = fetch_assignments(username, force_fetch=True)
+        except _RefreshCancelled:
+            return
+        except Exception:
+            logger.exception("Tongji OJ background refresh failed")
+            result = {"ok": False, "error": "同济OJ同步失败，请稍后重试"}
+        with _refresh_lock:
+            _check_refresh_active(username)
+            platform_sync.record_result(
+                username, "tongjioj", ok=bool(result.get("ok")) and not bool(result.get("cached")),
+                has_cache=_cache_file(username).exists(),
+                error_code=result.get("code"), error_message=result.get("error"),
+            )
+    except _RefreshCancelled:
+        pass
+    finally:
+        with _refresh_lock:
+            if _refresh_jobs.get(username) is job:
+                _refresh_jobs.pop(username, None)
+        del _refresh_context.job
+
+
+def start_background_refresh(username: str) -> bool:
+    """Deduplicate slow OJ synchronization without occupying a WSGI request thread."""
+    with _refresh_lock:
+        if username in _refresh_jobs or not has_credentials(username):
+            return False
+        job = object()
+        _refresh_jobs[username] = job
+        try:
+            threading.Thread(target=_run_background_refresh, args=(username, job), daemon=True,
+                             name="tongjioj-refresh").start()
+        except Exception:
+            _refresh_jobs.pop(username, None)
+            raise
+        return True
 
 
 def _fetch_authenticated_pages(username: str) -> tuple[str | None, str | None, str | None]:
@@ -1012,7 +1102,9 @@ def _fetch_authenticated_pages(username: str) -> tuple[str | None, str | None, s
     # Session expired or missing -> try automatic re-login with stored credentials
     creds = load_credentials(username)
     if not creds:
-        _cookie_cache.pop(username, None)
+        with _refresh_lock:
+            _check_refresh_active(username)
+            _cookie_cache.pop(username, None)
         return None, None, "会话已过期，请重新登录同济竞教实训平台"
 
     login_mode = creds.get("login_mode") or "iam"

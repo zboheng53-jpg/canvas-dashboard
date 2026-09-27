@@ -1,4 +1,6 @@
 import base64
+import time
+from threading import Event
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -9,6 +11,7 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 import app as dashboard_app
 import tongji_oj_client
+import platform_sync
 from storage import read_json_file, write_json_file
 
 
@@ -27,6 +30,8 @@ def test_env(tmp_path, monkeypatch):
     monkeypatch.setattr(tongji_oj_client, "KEY_FILE", tmp_path / ".encryption_key")
     monkeypatch.setattr(tongji_oj_client, "user_dir", _user_dir(tmp_path))
     monkeypatch.setattr(tongji_oj_client, "_cookie_cache", {})
+    monkeypatch.setattr(tongji_oj_client, "_refresh_jobs", {})
+    monkeypatch.setattr(platform_sync, "user_dir", _user_dir(tmp_path))
     monkeypatch.setattr(dashboard_app, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard_app, "user_dir", _user_dir(tmp_path))
     return tmp_path
@@ -396,10 +401,78 @@ def test_force_refresh_failure_preserves_cache_and_records_error(client_with_use
     tongji_oj_client._save_cache_payload(user, [{"id": "tjoj_1", "title": "Keep me"}], [])
     monkeypatch.setattr(tongji_oj_client, "_fetch_authenticated_pages", lambda username: (None, None, "OJ unavailable"))
     result = client_with_user.get("/api/tongjioj/todos?refresh=1").get_json()
-    assert result["ok"] and result["stale"]
+    assert result["ok"]
     assert result["data"][0]["title"] == "Keep me"
+    result = _wait_for_refresh(client_with_user)
     assert result["sync"]["consecutive_failures"] == 1
     assert result["sync"]["error_message"] == "OJ unavailable"
+
+
+def _wait_for_refresh(client):
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline:
+        result = client.get("/api/tongjioj/todos?cache_only=1").get_json()
+        if not result["sync"]["refreshing"]:
+            return result
+        time.sleep(0.01)
+    pytest.fail("OJ background refresh did not finish")
+
+
+@pytest.mark.parametrize("clear", [False, True])
+def test_background_refresh_cannot_restore_credentials_or_cache_after_disconnect(client_with_user, monkeypatch, test_env, clear):
+    user = "testuser"
+    tongji_oj_client.save_credentials(user, "student", "password")
+    started, release, finished = Event(), Event(), Event()
+    original_worker = tongji_oj_client._run_background_refresh
+    def observed_worker(username, job):
+        try:
+            original_worker(username, job)
+        finally:
+            finished.set()
+    def old_fetch(username, **kwargs):
+        started.set()
+        assert release.wait(5)
+        tongji_oj_client.save_credentials(username, "old-student", "old-password", cookies={"session": "old-cookie"})
+        tongji_oj_client._save_cache_payload(username, [{"id": "old"}], [])
+        return {"ok": True, "cached": False}
+    monkeypatch.setattr(tongji_oj_client, "_run_background_refresh", observed_worker)
+    monkeypatch.setattr(tongji_oj_client, "fetch_assignments", old_fetch)
+    try:
+        result = client_with_user.get("/api/tongjioj/todos?refresh=1").get_json()
+        assert result["sync"]["refreshing"] and started.wait(1)
+        if clear:
+            response = client_with_user.delete("/api/platform/tongjioj/data", headers=client_with_user.csrf_headers)
+        else:
+            response = client_with_user.post("/api/tongjioj/logout", headers=client_with_user.csrf_headers)
+        assert response.status_code == 200
+    finally:
+        release.set()
+        assert finished.wait(2)
+    assert not tongji_oj_client.has_credentials(user)
+    assert user not in tongji_oj_client._cookie_cache
+    assert not tongji_oj_client._cache_file(user).exists()
+
+
+def test_background_refresh_preserves_cache_while_renewing_session(client_with_user, monkeypatch, test_env):
+    user = "testuser"
+    tongji_oj_client.save_credentials(user, "student", "password")
+    tongji_oj_client._save_cache_payload(user, [{"id": "keep", "title": "Keep while logging in"}], [])
+    started, release = Event(), Event()
+    def renewing_fetch(username, **kwargs):
+        tongji_oj_client.save_credentials(username, "student", "password", cookies={"session": "renewed"})
+        started.set()
+        assert release.wait(5)
+        return {"ok": False, "error": "Upstream failed"}
+    monkeypatch.setattr(tongji_oj_client, "fetch_assignments", renewing_fetch)
+    try:
+        client_with_user.get("/api/tongjioj/todos?refresh=1")
+        assert started.wait(1)
+        result = client_with_user.get("/api/tongjioj/todos?cache_only=1").get_json()
+        assert result["data"][0]["title"] == "Keep while logging in"
+        assert result["sync"]["refreshing"]
+    finally:
+        release.set()
+        _wait_for_refresh(client_with_user)
 
 
 def test_rsa_encrypt_password():

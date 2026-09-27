@@ -1,10 +1,13 @@
 """First-render OJ behavior while the upstream synchronization is still pending."""
 from datetime import timedelta
+from threading import Barrier, Event
+import time
 
 import pytest
 from playwright.sync_api import expect
 
 import platform_sync
+import app as dashboard_app
 import tongji_oj_client
 from storage import read_json_file, write_json_file
 
@@ -115,4 +118,79 @@ def test_oj_course_switch_ignores_older_inflight_response(live_app, browser, tes
     page.wait_for_function("tongjiojPending === null")
     expect(page.locator("#todo-list")).not_to_contain_text("Course A updated")
     expect(page.locator("#tjoj-course-select-inline")).to_have_value("46")
+
+
+@pytest.mark.waitress(threads=4)
+def test_slow_oj_refresh_leaves_production_request_threads_available(live_app, browser, test_now, monkeypatch):
+    page = browser.new_page()
+    _open_connected_oj(page, live_app, "ojthreads")
+    tongji_oj_client._save_cache_payload("ojthreads", [_item(test_now)], [])
+    started, release, finished = Event(), Event(), Event()
+    calls = []
+    original_worker = tongji_oj_client._run_background_refresh
+    def observed_worker(username, job):
+        try:
+            original_worker(username, job)
+        finally:
+            finished.set()
+    def slow_pages(username):
+        calls.append(username)
+        started.set()
+        assert release.wait(10)
+        return "<html><body></body></html>", "<html><body></body></html>", None
+    monkeypatch.setattr(tongji_oj_client, "_run_background_refresh", observed_worker)
+    monkeypatch.setattr(tongji_oj_client, "_fetch_authenticated_pages", slow_pages)
+    try:
+        page.reload()
+        expect(page.locator("#todo-list")).to_contain_text("Cached OJ homework")
+        page.wait_for_function("tongjiojPending === null")
+        page.click("#btn-refresh")
+        assert started.wait(2)
+        # Four concurrent slow refreshes previously filled all four Waitress threads.
+        page.evaluate("""() => {
+            window.ojStressDone = false;
+            Promise.all(Array.from({length: 4}, () => fetch('/api/tongjioj/todos?refresh=1').then(r => r.json())))
+              .then(results => { window.ojStressDone = results.every(r => r.sync.refreshing); });
+        }""")
+        clock_started = time.monotonic()
+        response = page.request.get(f"{live_app}/api/clock", timeout=2000)
+        assert response.ok
+        assert time.monotonic() - clock_started < 2
+        expect(page.locator("#btn-refresh")).not_to_have_attribute("aria-busy", "true", timeout=2000)
+        page.wait_for_function("window.ojStressDone === true", timeout=2000)
+        assert calls == ["ojthreads"]
+        expect(page.locator("#todo-list")).to_contain_text("Cached OJ homework")
+        assert not finished.is_set()  # This evidence is collected while OJ is genuinely blocked.
+    finally:
+        release.set()
+        assert finished.wait(2)
+    expect(page.locator("#tongjioj-sync-notice")).to_be_hidden(timeout=5000)
+    expect(page.locator("#todo-list")).not_to_contain_text("Cached OJ homework")
+
+
+@pytest.mark.waitress
+def test_refresh_burst_keeps_local_requests_responsive(live_app, browser, monkeypatch):
+    page = browser.new_page()
+    _open_connected_oj(page, live_app, "refreshburst")
+    entered, release = Barrier(7), Event()
+    normal_fetch = dashboard_app.fetch_canvas_planner
+    def slow_canvas(username):
+        entered.wait(timeout=5)
+        assert release.wait(5)
+        return normal_fetch(username)
+    monkeypatch.setattr(dashboard_app, "fetch_canvas_planner", slow_canvas)
+    try:
+        page.evaluate("""() => {
+            window.slowPlatformsDone = false;
+            Promise.all(Array.from({length: 6}, () => fetch('/api/canvas/todos').then(r => r.json())))
+              .then(() => { window.slowPlatformsDone = true; });
+        }""")
+        entered.wait(timeout=5)
+        started = time.monotonic()
+        assert page.request.get(f"{live_app}/api/clock", timeout=2000).ok
+        assert page.request.get(f"{live_app}/api/actions", timeout=2000).ok
+        assert time.monotonic() - started < 2
+    finally:
+        release.set()
+    page.wait_for_function("window.slowPlatformsDone === true")
 

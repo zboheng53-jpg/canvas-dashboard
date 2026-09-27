@@ -29,12 +29,14 @@ import zhihuishu_login_sessions
 import tongji_login_sessions
 import ketangpai_client
 import tongji_oj_client
+import settings
 
 FIXED_NOW = datetime(2026, 7, 9, 12, 0, tzinfo=timezone(timedelta(hours=8)))
 
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "now(iso): set the same local datetime in Flask and the browser")
+    config.addinivalue_line("markers", "waitress(threads): run live_app with the production WSGI server and optional thread count")
 
 
 @pytest.fixture
@@ -93,7 +95,7 @@ def isolated_data(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def live_app(isolated_data, monkeypatch, test_now):
+def live_app(isolated_data, monkeypatch, test_now, request):
     class FixedDateTime(datetime):
         @classmethod
         def now(cls, tz=None):
@@ -151,13 +153,30 @@ def live_app(isolated_data, monkeypatch, test_now):
     )
     monkeypatch.setattr(dashboard_app.zhihuishu_login_sessions, "load_session", lambda username: None)
     monkeypatch.setitem(dashboard_app.app.config, "TESTING", True)
-    server = make_server("127.0.0.1", 0, dashboard_app.app, threaded=True)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    waitress_marker = request.node.get_closest_marker("waitress")
+    production_server = waitress_marker is not None
+    if production_server:
+        from waitress.server import create_server
+        server_map = {}
+        server = create_server(dashboard_app.app, host="127.0.0.1", port=0,
+                               threads=waitress_marker.kwargs.get("threads", settings.APP_THREADS), map=server_map)
+        port = server.effective_port
+        run = server.run
+    else:
+        server = make_server("127.0.0.1", 0, dashboard_app.app, threaded=True)
+        port = server.server_port
+        run = server.serve_forever
+    thread = threading.Thread(target=run, daemon=True)
     thread.start()
     try:
-        yield f"http://127.0.0.1:{server.server_port}"
+        yield f"http://127.0.0.1:{port}"
     finally:
-        server.shutdown()
+        if production_server:
+            server.task_dispatcher.shutdown()
+            for channel in list(server_map.values()):
+                channel.close()
+        else:
+            server.shutdown()
         thread.join(timeout=5)
 
 @pytest.hookimpl(hookwrapper=True)

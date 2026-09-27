@@ -26,6 +26,8 @@ OpenSSH must be able to authenticate non-interactively through the configured ke
 
 Runtime `data/` is never included in a release archive.
 
+Waitress defaults to eight request threads (`CANVAS_DASHBOARD_THREADS` overrides this). OJ synchronization runs in a separate background thread per active account and is deduplicated; its HTTP endpoints return cached projections immediately. The request pool retains capacity for local reads during bursts of slower calls to the other platforms. Increasing the pool is capacity headroom, not a replacement for keeping slow OJ requests off WSGI threads.
+
 ## Runtime File Permissions
 
 The application and 智慧树 worker use `UMask=0077`; runtime files are created private by default. Release activation corrects `/home/ubuntu/canvas-dashboard/data` to `ubuntu:ubuntu`, directories to `0700`, and files to `0600`. This includes credentials, session/key files, and user configuration. Verify after a release without printing any sensitive file contents:

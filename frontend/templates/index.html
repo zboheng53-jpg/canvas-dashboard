@@ -1797,10 +1797,11 @@
         const failures = [...document.querySelectorAll('#login-cards .login-card-status.attention')]
           .filter((item) => /失败|错误|重新|不可用/.test(item.textContent)).length;
         if (status) {
+          const refreshing = Object.values(platformSyncs).some(sync => sync.refreshing);
           status.textContent = failures
             ? `已完成刷新；${failures} 个平台需要处理。`
-            : '各平台的连接状态已刷新；待办数据也已同步。';
-          applyFeedbackSemantic(status, failures ? 'warning' : 'success');
+            : refreshing ? '连接状态已刷新，作业仍在后台同步。' : '各平台的连接状态已刷新；待办数据也已同步。';
+          applyFeedbackSemantic(status, failures ? 'warning' : refreshing ? 'info' : 'success');
         }
       } catch (error) {
         if (status) {
@@ -3114,6 +3115,7 @@
     // ---- Tongji OJ Todos ----
     let tongjiojPending = null;
     let tongjiojLoadVersion = 0;
+    let tongjiojPollTimer = null;
     function fetchTongjiojTodos(courseId = '', force = false) {
       // Coalesce refresh clicks; a response for an older course must not replace the new selection.
       if (tongjiojPending?.courseId === courseId) {
@@ -3121,6 +3123,7 @@
         return tongjiojPending.promise;
       }
       const version = ++tongjiojLoadVersion;
+      clearTimeout(tongjiojPollTimer);
       const promise = loadTongjiojTodos(courseId, force, version).finally(() => {
         if (tongjiojPending?.promise === promise) tongjiojPending = null;
       });
@@ -3136,21 +3139,45 @@
         const cached = await (await fetch(`/api/tongjioj/todos?${params}`)).json();
         if (version !== tongjiojLoadVersion) return;
         const refresh = !cached.need_setup && cached.ok && (force || tongjiojPending?.force || cached.stale);
-        if (cached.sync) cached.sync.refreshing = !!refresh;
+        if (cached.sync) cached.sync.refreshing ||= !!refresh;
         applyTongjiojTodos(cached);
-        if (!refresh) return;
+        if (!refresh) {
+          scheduleTongjiojPoll(courseId, version, cached);
+          return;
+        }
 
         params.delete('cache_only');
         params.set('refresh', '1');
         const result = await (await fetch(`/api/tongjioj/todos?${params}`)).json();
         if (version !== tongjiojLoadVersion) return;
         applyTongjiojTodos(result);
+        scheduleTongjiojPoll(courseId, version, result);
       } catch (e) {
         if (version !== tongjiojLoadVersion) return;
         setCardStatus('tongjioj', '网络错误', 'attention');
         platformSyncs.tongjioj = {...platformSyncs.tongjioj, refreshing: false, error_message: '网络错误'};
         renderDashboardSyncStatus();
       }
+    }
+
+    function scheduleTongjiojPoll(courseId, version, result) {
+      if (!result.sync?.refreshing || version !== tongjiojLoadVersion) return;
+      clearTimeout(tongjiojPollTimer);
+      tongjiojPollTimer = setTimeout(async () => {
+        if (version !== tongjiojLoadVersion) return;
+        try {
+          const params = new URLSearchParams({cache_only: '1'});
+          if (courseId) params.set('course_id', courseId);
+          const next = await (await fetch(`/api/tongjioj/todos?${params}`)).json();
+          if (version !== tongjiojLoadVersion) return;
+          applyTongjiojTodos(next);
+          scheduleTongjiojPoll(courseId, version, next);
+        } catch (_) {
+          if (version !== tongjiojLoadVersion) return;
+          platformSyncs.tongjioj = {...platformSyncs.tongjioj, refreshing: false, error_message: '网络错误'};
+          renderDashboardSyncStatus();
+        }
+      }, 2000);
     }
 
     function applyTongjiojTodos(result) {
