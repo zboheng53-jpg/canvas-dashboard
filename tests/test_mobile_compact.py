@@ -138,9 +138,15 @@ def test_mobile_dates_details_and_completion_remain_usable(live_app, browser, te
     row.locator('.mobile-action-trigger').click()
     actions = row.locator('.item-mobile-actions')
     expect(actions).to_be_visible()
-    for button in actions.locator('button').all():
-        rect = button.bounding_box()
-        assert rect['height'] >= 44 and rect['width'] >= 36
+    # Read connected controls in one frame; background refresh may replace the row.
+    page.wait_for_function("""() => {
+      const row = [...document.querySelectorAll('.todo-row')].find(e => e.textContent.includes('手机日期编辑'));
+      const buttons = row ? [...row.querySelectorAll('.item-mobile-actions button')] : [];
+      return buttons.length === 4 && buttons.every(button => {
+        const rect = button.getBoundingClientRect();
+        return rect.height >= 44 && rect.width >= 36;
+      });
+    }""")
     actions.get_by_role('button', name='详情', exact=True).click()
     dialog = page.locator('#action-detail-dialog')
     expect(dialog).to_be_visible()

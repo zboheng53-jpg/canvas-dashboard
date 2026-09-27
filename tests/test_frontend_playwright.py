@@ -1576,12 +1576,12 @@ def test_desktop_refinement_keeps_colored_tags_and_readable_rows(live_app, brows
 
 def test_desktop_date_labels_preserve_all_day_and_precise_time(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 900})
+    page.route('**/api/canvas/todos', lambda route: route.fulfill(json={
+        "ok": True, "data": [{"id": 303, "title": "全天事项", "course": "程序设计", "type": "作业",
+                              "due_str": "07-10", "due_ts": "2099-07-10T00:00:00+08:00", "url": ""}],
+        "hidden": [], "highlighted": [], "deleted": [],
+    }))
     register_dashboard_user(page, live_app, 'polishdates')
-    page.evaluate("""() => {
-      canvasItems = [{id: 303, title: '全天事项', course: '程序设计', type: '作业',
-        due_str: '07-10', due_ts: '2099-07-10T00:00:00+08:00', url: ''}];
-      renderUnifiedList();
-    }""")
     row = page.locator('.todo-row', has_text='全天事项')
     expect(row.locator('.ui-source-tag--canvas')).to_be_visible()
     expect(row.locator('.biz-todo__meta')).to_contain_text('程序设计 · 作业')
