@@ -1,4 +1,5 @@
 import base64
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -344,6 +345,63 @@ def test_fetch_assignments_strictly_read_only_and_never_opens_problems(monkeypat
     assert all("problems_list" not in url and "/problems/" not in url and "submit" not in url for _, url in requested_urls)
 
 
+def test_selected_course_uses_fresh_cache_without_network(monkeypatch, test_env):
+    user = "alice"
+    tongji_oj_client.save_credentials(user, "student", "password")
+    tongji_oj_client.set_selected_course(user, "45")
+    tongji_oj_client._save_cache_payload(user, [
+        {"id": "tjoj_1", "course_id": "45"},
+        {"id": "tjoj_2", "course_id": "46"},
+    ], [])
+    monkeypatch.setattr(tongji_oj_client, "_fetch_authenticated_pages", lambda username: pytest.fail("fresh cache must not fetch OJ"))
+
+    result = tongji_oj_client.fetch_assignments(user)
+    assert result["cached"] is True
+    assert [item["id"] for item in result["items"]] == ["tjoj_1"]
+
+
+def test_cache_only_api_returns_stale_filtered_state_without_network(client_with_user, monkeypatch, test_env):
+    user = "testuser"
+    tongji_oj_client.save_credentials(user, "student", "password")
+    tongji_oj_client.set_selected_course(user, "45")
+    write_json_file(tongji_oj_client._cache_file(user), {
+        "version": tongji_oj_client.CACHE_SCHEMA_VERSION,
+        "updated_at": (datetime.now(tongji_oj_client.CST) - timedelta(hours=1)).isoformat(),
+        "items": [{"id": "tjoj_1", "course_id": "45", "title": "OJ task"}, {"id": "tjoj_2", "course_id": "46"}],
+        "courses": [],
+    })
+    tongji_oj_client.update_override(user, "tjoj_1", patch={"title": "Local title"})
+    tongji_oj_client.update_state(user, "complete", "tjoj_1")
+    monkeypatch.setattr(tongji_oj_client, "_fetch_authenticated_pages", lambda username: pytest.fail("cache-only API must not fetch OJ"))
+
+    result = client_with_user.get("/api/tongjioj/todos?cache_only=1").get_json()
+    assert result["ok"] and result["cached"] and result["stale"] and result["has_cache"]
+    assert [(item["id"], item["title"], item["done"]) for item in result["data"]] == [("tjoj_1", "Local title", True)]
+
+
+def test_cache_only_api_distinguishes_first_sync_from_empty_cache(client_with_user, monkeypatch, test_env):
+    user = "testuser"
+    tongji_oj_client.save_credentials(user, "student", "password")
+    monkeypatch.setattr(tongji_oj_client, "_fetch_authenticated_pages", lambda username: pytest.fail("cache-only API must not fetch OJ"))
+    result = client_with_user.get("/api/tongjioj/todos?cache_only=1").get_json()
+    assert result["ok"] and not result["has_cache"] and result["stale"]
+    tongji_oj_client._save_cache_payload(user, [], [])
+    result = client_with_user.get("/api/tongjioj/todos?cache_only=1").get_json()
+    assert result["has_cache"] and not result["stale"]
+
+
+def test_force_refresh_failure_preserves_cache_and_records_error(client_with_user, monkeypatch, test_env):
+    user = "testuser"
+    tongji_oj_client.save_credentials(user, "student", "password")
+    tongji_oj_client._save_cache_payload(user, [{"id": "tjoj_1", "title": "Keep me"}], [])
+    monkeypatch.setattr(tongji_oj_client, "_fetch_authenticated_pages", lambda username: (None, None, "OJ unavailable"))
+    result = client_with_user.get("/api/tongjioj/todos?refresh=1").get_json()
+    assert result["ok"] and result["stale"]
+    assert result["data"][0]["title"] == "Keep me"
+    assert result["sync"]["consecutive_failures"] == 1
+    assert result["sync"]["error_message"] == "OJ unavailable"
+
+
 def test_rsa_encrypt_password():
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=1024)
     public_pem = private_key.public_key().public_bytes(
@@ -444,9 +502,9 @@ def test_state_actions(test_env):
 def test_api_tongjioj_routes(client_with_user, monkeypatch, test_env):
     monkeypatch.setattr(dashboard_app, "has_tjoj_credentials", lambda username: True)
     monkeypatch.setattr(
-        dashboard_app,
-        "fetch_tjoj_courses",
-        lambda username: {"ok": True, "courses": [{"id": "45", "name": "2026秋数据结构与算法设计（刘春梅）"}]},
+        tongji_oj_client,
+        "get_saved_courses",
+        lambda username: [{"id": "45", "name": "2026秋数据结构与算法设计（刘春梅）"}],
     )
 
     resp = client_with_user.get("/api/tongjioj/config")

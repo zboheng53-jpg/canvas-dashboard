@@ -965,6 +965,23 @@ def _save_cache_payload(username: str, items: list[dict], courses: list[dict]):
     )
 
 
+def get_cached_assignments(username: str, course_id: str | None = None) -> dict:
+    """Read the current projection without contacting OJ, even when stale."""
+    if not has_credentials(username):
+        return {"ok": False, "error": "未配置同济OJ账号", "need_setup": True}
+    selected = course_id if course_id is not None else get_selected_course(username)
+    payload = _read_cache_payload(username)
+    items = payload["items"] if payload is not None else []
+    if selected:
+        items = [item for item in items if str(item.get("course_id")) == str(selected)]
+    return {
+        "ok": True, "items": items, "cached": True,
+        "has_cache": payload is not None, "stale": not _is_cache_fresh(payload),
+        "courses": payload.get("courses", []) if payload is not None else [],
+        "selected_course": selected or "",
+    }
+
+
 def _fetch_authenticated_pages(username: str) -> tuple[str | None, str | None, str | None]:
     """Return `(assignments_html, submissions_html, error_message)` using stored session or re-login."""
     sess = requests.Session()
@@ -1050,8 +1067,8 @@ def fetch_assignments(
     selected = course_id if course_id is not None else get_selected_course(username)
     cached_payload = _read_cache_payload(username)
 
-    if not force_fetch and not selected and _is_cache_fresh(cached_payload):
-        return {"ok": True, "items": cached_payload["items"], "cached": True}
+    if not force_fetch and _is_cache_fresh(cached_payload):
+        return get_cached_assignments(username, course_id)
 
     asg_html, sub_html, err = _fetch_authenticated_pages(username)
     if err or asg_html is None or sub_html is None:
@@ -1059,7 +1076,8 @@ def fetch_assignments(
             items = cached_payload["items"]
             if selected:
                 items = [it for it in items if str(it.get("course_id")) == str(selected)]
-            return {"ok": True, "items": items, "cached": True, "stale": True}
+            return {"ok": True, "items": items, "cached": True, "stale": True,
+                    "has_cache": True, "error": err or "获取同济OJ作业失败"}
         return {"ok": False, "error": err or "获取同济OJ作业失败"}
 
     courses, all_assignments = parse_assignments_html(asg_html)
@@ -1074,7 +1092,8 @@ def fetch_assignments(
         if selected
         else all_todos
     )
-    return {"ok": True, "items": filtered_todos, "courses": courses, "cached": False}
+    return {"ok": True, "items": filtered_todos, "courses": courses, "cached": False,
+            "has_cache": True, "selected_course": selected or ""}
 
 
 # ---- Local State Management (hidden / highlighted / deleted / completed / overrides) ----

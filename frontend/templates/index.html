@@ -117,6 +117,7 @@
             </div>
           </div>
 
+          <p id="tongjioj-sync-notice" class="ui-feedback ui-feedback--info hidden" role="status" aria-live="polite"></p>
           <div class="todo-composer" id="todo-composer">
           <form class="add-row add-todo-form" id="add-todo-form">
             <input type="text" id="new-todo-input" placeholder="添加新待办…" autocomplete="off" class="ui-control input todo-title-input">
@@ -1791,7 +1792,7 @@
           fetchZhixuemengTodos(),
           fetchZhihuishuTodos(),
           fetchKetangpaiTodos(),
-          fetchTongjiojTodos(),
+          fetchTongjiojTodos('', true),
         ]);
         const failures = [...document.querySelectorAll('#login-cards .login-card-status.attention')]
           .filter((item) => /失败|错误|重新|不可用/.test(item.textContent)).length;
@@ -1824,6 +1825,7 @@
     function recordPlatformSync(platform, result) {
       if (!result || !result.sync) return;
       const sync = {...result.sync};
+      if (platform === 'tongjioj') sync.has_cache = !!result.has_cache;
       if (result.stale) sync.data_state = 'stale';
       else if (result.cached && sync.data_state === 'fresh') sync.data_state = 'cached';
       platformSyncs[platform] = sync;
@@ -1837,6 +1839,22 @@
       return 99;
     }
     function renderDashboardSyncStatus() {
+      const oj = platformSyncs.tongjioj;
+      const notice = document.getElementById('tongjioj-sync-notice');
+      if (notice) {
+        let message = '';
+        if (oj?.connection_state === 'connected' && visibleTodoSources.has('tongjioj')) {
+          if (oj.refreshing) message = oj.has_cache
+            ? '同济OJ 正在更新，先显示上次同步的作业。'
+            : '同济OJ 正在首次同步，作业尚未加载完成，请稍候。';
+          else if (oj.error_message) message = oj.has_cache
+            ? '同济OJ 更新失败，当前显示上次同步的作业，请重试。'
+            : '同济OJ 同步失败，作业尚未加载，请重试或检查连接。';
+        }
+        notice.textContent = message;
+        applyFeedbackSemantic(notice, oj?.error_message && !oj.refreshing ? 'warning' : 'info');
+        notice.classList.toggle('hidden', !message);
+      }
       const button = document.getElementById('list-updated');
       if (!button) return;
       const visiblePlatforms = TODO_SOURCE_ORDER.filter(s => TODO_PLATFORM_SOURCES.has(s) && (typeof visibleTodoSources !== 'undefined' ? visibleTodoSources.has(s) : true));
@@ -3094,11 +3112,53 @@
     }
 
     // ---- Tongji OJ Todos ----
-    async function fetchTongjiojTodos(courseId = '') {
+    let tongjiojPending = null;
+    let tongjiojLoadVersion = 0;
+    function fetchTongjiojTodos(courseId = '', force = false) {
+      // Coalesce refresh clicks; a response for an older course must not replace the new selection.
+      if (tongjiojPending?.courseId === courseId) {
+        tongjiojPending.force ||= force;
+        return tongjiojPending.promise;
+      }
+      const version = ++tongjiojLoadVersion;
+      const promise = loadTongjiojTodos(courseId, force, version).finally(() => {
+        if (tongjiojPending?.promise === promise) tongjiojPending = null;
+      });
+      tongjiojPending = {courseId, promise, force};
+      return promise;
+    }
+
+    async function loadTongjiojTodos(courseId, force, version) {
       try {
-        const url = courseId ? `/api/tongjioj/todos?course_id=${encodeURIComponent(courseId)}` : '/api/tongjioj/todos';
-        const resp = await fetch(url);
-        const result = await resp.json();
+        const params = new URLSearchParams();
+        if (courseId) params.set('course_id', courseId);
+        params.set('cache_only', '1');
+        const cached = await (await fetch(`/api/tongjioj/todos?${params}`)).json();
+        if (version !== tongjiojLoadVersion) return;
+        const refresh = !cached.need_setup && cached.ok && (force || tongjiojPending?.force || cached.stale);
+        if (cached.sync) cached.sync.refreshing = !!refresh;
+        applyTongjiojTodos(cached);
+        if (!refresh) return;
+
+        params.delete('cache_only');
+        params.set('refresh', '1');
+        const result = await (await fetch(`/api/tongjioj/todos?${params}`)).json();
+        if (version !== tongjiojLoadVersion) return;
+        applyTongjiojTodos(result);
+      } catch (e) {
+        if (version !== tongjiojLoadVersion) return;
+        setCardStatus('tongjioj', '网络错误', 'attention');
+        platformSyncs.tongjioj = {...platformSyncs.tongjioj, refreshing: false, error_message: '网络错误'};
+        renderDashboardSyncStatus();
+      }
+    }
+
+    function applyTongjiojTodos(result) {
+        // HTTP errors can omit sync/state metadata; keep the already rendered projection.
+        if (!result.sync) {
+          result.has_cache = platformSyncs.tongjioj?.has_cache || false;
+          result.sync = {...platformSyncs.tongjioj, refreshing: false, error_message: result.error || '获取失败'};
+        }
         recordPlatformSync('tongjioj', result);
 
         if (result.need_setup && result.sync?.connection_state !== 'disconnected') {
@@ -3110,13 +3170,15 @@
           return;
         }
 
-        if (!result.ok) {
-          setCardStatus('tongjioj', result.error || '获取失败', 'attention');
+        if (!result.ok || result.error || (!result.sync.refreshing && result.sync.error_message)) {
+          setCardStatus('tongjioj', result.error || result.sync.error_message || '获取失败', 'attention');
+        } else if (result.sync?.refreshing) {
+          setCardStatus('tongjioj', '正在同步', '');
         } else {
           setCardStatus('tongjioj', '已连接', 'connected');
         }
 
-        tongjiojItems = result.data || [];
+        if (result.ok) tongjiojItems = result.data || [];
         tongjiojItems.forEach(item => {
           if (item.subtasks) {
             item.subtasks.forEach((subtask, idx) => {
@@ -3125,13 +3187,17 @@
             item.subtasks = sortSubtasks(item.subtasks);
           }
         });
-        tongjiojHiddenIds = result.hidden || [];
-        tongjiojHighlightedIds = result.highlighted || [];
-        tongjiojDeletedIds = result.deleted || [];
+        if (result.ok) {
+          tongjiojHiddenIds = result.hidden || [];
+          tongjiojHighlightedIds = result.highlighted || [];
+          tongjiojDeletedIds = result.deleted || [];
+        }
+        if (result.has_cache && Array.isArray(result.courses)) {
+          const select = document.getElementById('tjoj-course-select-inline');
+          const selected = result.selected_course ?? select?.value ?? '';
+          if (select) populateTongjiojCourseSelectInline(select, result.courses, selected);
+        }
         renderUnifiedList();
-      } catch (e) {
-        setCardStatus('tongjioj', '网络错误', 'attention');
-      }
     }
 
     async function toggleTongjiojHide(itemId, current) {
@@ -4861,7 +4927,8 @@
     };
     async function refreshOnePlatform(platform) {
       const loaders = {canvas: fetchCanvasTodos, haoke: fetchHaokeTodos, zhixuemeng: fetchZhixuemengTodos, zhihuishu: fetchZhihuishuTodos, ketangpai: fetchKetangpaiTodos, tongjioj: fetchTongjiojTodos};
-      if (loaders[platform]) await loaders[platform]();
+      if (platform === 'tongjioj') await fetchTongjiojTodos('', true);
+      else if (loaders[platform]) await loaders[platform]();
       if (typeof selectConnectionPlatform === 'function') selectConnectionPlatform(platform);
     }
     async function disconnectPlatform(platform) {

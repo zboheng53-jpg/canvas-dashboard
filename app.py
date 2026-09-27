@@ -54,7 +54,7 @@ from tongji_oj_client import (
     iam_send_second_auth_code as tjoj_iam_send_second_auth_code,
     iam_verify_second_auth_code as tjoj_iam_verify_second_auth_code,
     has_credentials as has_tjoj_credentials, fetch_assignments as fetch_tjoj_assignments,
-    fetch_courses as fetch_tjoj_courses, load_state as load_tjoj_state,
+    load_state as load_tjoj_state,
     update_state as update_tjoj_state, save_state as save_tjoj_state,
     get_selected_course as get_tjoj_selected_course, set_selected_course as set_tjoj_selected_course,
     logout as tjoj_logout, update_override as update_tjoj_override,
@@ -1690,9 +1690,8 @@ def api_tjoj_config():
         "selected_course": get_tjoj_selected_course(username) or "",
     }
     if has_creds:
-        courses_result = fetch_tjoj_courses(username)
-        if courses_result.get("ok"):
-            result["courses"] = courses_result["courses"]
+        # Configuration reads must not duplicate the slow todo synchronization.
+        result["courses"] = tongji_oj_client.get_saved_courses(username)
     return jsonify(result)
 
 
@@ -1714,10 +1713,14 @@ def api_tjoj_todos():
     if course_id is not None:
         course_id = course_id.strip() or None
     had_creds = has_tjoj_credentials(username)
-    result = fetch_tjoj_assignments(username, course_id=course_id)
-    if had_creds and not result.get("cached"):
+    cache_only = request.args.get("cache_only") == "1"
+    if cache_only:
+        result = tongji_oj_client.get_cached_assignments(username, course_id=course_id)
+    else:
+        result = fetch_tjoj_assignments(username, course_id=course_id, force_fetch=request.args.get("refresh") == "1")
+    if had_creds and not cache_only and (not result.get("cached") or result.get("stale")):
         platform_sync.record_result(
-            username, "tongjioj", ok=bool(result.get("ok")),
+            username, "tongjioj", ok=bool(result.get("ok")) and not bool(result.get("stale")),
             has_cache=_platform_cache_path(username, "tongjioj").exists(), cached=False,
             error_code=result.get("code"),
             error_message=result.get("error"),
