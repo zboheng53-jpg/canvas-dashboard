@@ -1,6 +1,7 @@
 import json
 import os
 import re
+from datetime import timedelta
 
 import pytest
 
@@ -1468,17 +1469,15 @@ def test_frontend_today_and_overdue_visual_consistency(live_app, browser, width,
     assert today_row.evaluate('e => getComputedStyle(e).boxShadow') != 'none'
 
 
-def test_deadline_warning_boundaries(live_app, browser):
+def test_deadline_warning_boundaries(live_app, browser, test_now):
     page = browser.new_page(viewport={"width": 1440, "height": 900})
+    items = [{"id": index + 100, "title": f"boundary {hours}", "course": "示例课程",
+              "due_ts": (test_now + timedelta(hours=hours)).isoformat(),
+              "due_str": (test_now + timedelta(hours=hours)).isoformat(), "url": ""}
+             for index, hours in enumerate([-1, 24, 25, 72, 73])]
+    page.route('**/api/canvas/todos', lambda route: route.fulfill(
+        json={"ok": True, "data": items, "hidden": [], "highlighted": [], "deleted": []}))
     register_dashboard_user(page, live_app, 'deadlinebounds')
-    page.evaluate('''() => {
-      canvasItems = [-1, 24, 25, 72, 73].map((hours, index) => {
-        const due = new Date(Date.now() + hours * 3600000);
-        return {id: index + 100, title: `boundary ${hours}`, course: '示例课程',
-          due_ts: due.toISOString(), due_str: due.toISOString(), url: ''};
-      });
-      renderUnifiedList();
-    }''')
     for hours, state in [(-1, 'is-overdue'), (24, 'is-due-soon'),
                          (25, 'is-approaching'), (72, 'is-approaching'), (73, 'is-normal')]:
         row = page.locator('.todo-row').filter(has=page.locator('.item-title', has_text=re.compile(f'^boundary {hours}$')))
