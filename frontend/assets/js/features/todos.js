@@ -40,12 +40,13 @@
   byId('new-todo-due')?.addEventListener('change', () => { if (typeof resetTodoRequestId === 'function') resetTodoRequestId(); });
   byId('new-todo-repeat')?.addEventListener('change', () => { if (typeof resetTodoRequestId === 'function') resetTodoRequestId(); });
   byId('btn-refresh')?.addEventListener('click', async () => {
-    const btn = byId('btn-refresh');
-    btn?.setAttribute('aria-busy', 'true');
-    btn?.classList.add('is-refreshing');
+    if (workspaceRefreshing) return;
+    workspaceRefreshing = true;
+    workspaceRefreshFailed = false;
+    renderDashboardSyncStatus();
     try {
       if (typeof fetchCanvasTodos === 'function') fetchCanvasTodos();
-      if (typeof fetchHaokeTodos === 'function') fetchHaokeTodos();
+      if (typeof fetchHaokeTodos === 'function') fetchHaokeTodos(true);
       if (typeof fetchZhixuemengTodos === 'function') fetchZhixuemengTodos();
       if (typeof fetchZhihuishuTodos === 'function') fetchZhihuishuTodos();
       if (typeof fetchKetangpaiTodos === 'function') fetchKetangpaiTodos();
@@ -57,9 +58,11 @@
         if (typeof fetchCustomTodos === 'function') await fetchCustomTodos();
         if (typeof loadTodaySchedule === 'function') await loadTodaySchedule();
       }
+    } catch (_) {
+      workspaceRefreshFailed = true;
     } finally {
-      btn?.removeAttribute('aria-busy');
-      btn?.classList.remove('is-refreshing');
+      workspaceRefreshing = false;
+      renderDashboardSyncStatus();
     }
   });
   byId('list-updated')?.addEventListener('click', openSyncStatus);

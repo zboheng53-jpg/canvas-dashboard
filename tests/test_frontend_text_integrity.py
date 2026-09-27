@@ -62,7 +62,7 @@ def test_todo_frontend_keeps_platform_sync_and_dynamic_content_boundaries():
     }
     for function_name, platform in expected_syncs.items():
         body = re.search(
-            rf"async function {function_name}\(\) \{{(.*?)(?=\n    (?:async )?function )",
+            rf"async function {function_name}\([^)]*\) \{{(.*?)(?=\n    (?:async )?function )",
             index_text,
             re.DOTALL,
         )

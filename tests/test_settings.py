@@ -14,6 +14,7 @@ def test_apple_calendar_is_enabled_by_default(monkeypatch):
 def test_settings_env_overrides(monkeypatch):
     monkeypatch.setenv("CANVAS_DASHBOARD_PORT", "5050")
     monkeypatch.setenv("CANVAS_DASHBOARD_THREADS", "12")
+    monkeypatch.setenv("TONGJIOJ_READ_TIMEOUT_SECONDS", "30")
     monkeypatch.setenv("CANVAS_DASHBOARD_COOKIE_SECURE", "yes")
     monkeypatch.setenv("CANVAS_DASHBOARD_ICP_NUMBER", "沪ICP备00000000号-1")
     monkeypatch.setenv("CANVAS_DASHBOARD_APPLE_CALENDAR_ENABLED", "yes")
@@ -26,6 +27,7 @@ def test_settings_env_overrides(monkeypatch):
 
     assert settings.APP_PORT == 5050
     assert settings.APP_THREADS == 12
+    assert settings.TONGJIOJ_READ_TIMEOUT_SECONDS == 30
     assert settings.COOKIE_SECURE is True
     assert settings.ICP_NUMBER == "沪ICP备00000000号-1"
     assert settings.APPLE_CALENDAR_ENABLED is True
@@ -36,6 +38,7 @@ def test_settings_env_overrides(monkeypatch):
 def test_settings_invalid_numeric_overrides_fall_back(monkeypatch):
     monkeypatch.setenv("CANVAS_DASHBOARD_PORT", "not-a-port")
     monkeypatch.setenv("CANVAS_DASHBOARD_THREADS", "not-an-int")
+    monkeypatch.setenv("TONGJIOJ_READ_TIMEOUT_SECONDS", "not-an-int")
     monkeypatch.setenv("HAOKE_TENANT_ID", "not-an-int")
     monkeypatch.setenv("TONGJI_TERM_START", "not-a-date")
 
@@ -45,5 +48,6 @@ def test_settings_invalid_numeric_overrides_fall_back(monkeypatch):
 
     assert settings.APP_PORT == 5000
     assert settings.APP_THREADS == 8
+    assert settings.TONGJIOJ_READ_TIMEOUT_SECONDS == 45
     assert settings.HAOKE_TENANT_ID == 88
     assert settings.TERM_START_DATE.isoformat() == "2026-09-14"

@@ -20,6 +20,7 @@ import time
 import threading
 from datetime import datetime, timedelta, timezone
 from xml.etree import ElementTree
+from urllib.parse import urlsplit
 
 import requests
 from cryptography.fernet import Fernet
@@ -342,6 +343,8 @@ def _is_oj_authenticated_response(resp) -> bool:
     """Check whether a response from oj.tongji.edu.cn is an authenticated page (not login page)."""
     url = str(getattr(resp, "url", "") or "")
     text = getattr(resp, "text", "") or ""
+    if urlsplit(url).hostname != "oj.tongji.edu.cn":
+        return False
     if "/index.php/login" in url:
         return False
     if 'action="https://oj.tongji.edu.cn/index.php/login/U_Login"' in text:
@@ -363,6 +366,30 @@ def _session_cookies_dict(sess: requests.Session) -> dict[str, str]:
         elif isinstance(sess.cookies, dict):
             cookies = dict(sess.cookies)
     return cookies
+
+
+def _restore_oj_cookies(sess: requests.Session, cookies: dict[str, str]):
+    # Hostless cookies coexist with rotated server cookies and can send stale
+    # duplicate session values. Restore to the same scope used by the OJ server.
+    sess.cookies.clear()
+    for name, value in cookies.items():
+        sess.cookies.set(name, value, domain="oj.tongji.edu.cn", path="/")
+
+
+def _get_list_page(sess: requests.Session, username: str, url: str):
+    for attempt in range(2):
+        with _refresh_lock:
+            _check_refresh_active(username)
+        try:
+            response = sess.get(url, timeout=(8, settings.TONGJIOJ_READ_TIMEOUT_SECONDS), allow_redirects=True)
+            if response.status_code in (502, 503, 504) and attempt == 0:
+                continue
+            response.raise_for_status()
+            return response
+        except (requests.Timeout, requests.ConnectionError) as exc:
+            if attempt or isinstance(exc, requests.exceptions.SSLError):
+                raise
+    raise RuntimeError("OJ list request did not complete")
 
 
 def iam_login(username: str, student_id: str, password: str) -> dict:
@@ -1046,6 +1073,7 @@ def _run_background_refresh(username: str, job: object):
                 username, "tongjioj", ok=bool(result.get("ok")) and not bool(result.get("cached")),
                 has_cache=_cache_file(username).exists(),
                 error_code=result.get("code"), error_message=result.get("error"),
+                needs_reauth=result.get("code") == "needs_reauth",
             )
     except _RefreshCancelled:
         pass
@@ -1079,13 +1107,13 @@ def _fetch_authenticated_pages(username: str) -> tuple[str | None, str | None, s
 
     cookies = _load_cookies(username)
     if cookies:
-        sess.cookies.update(cookies)
+        _restore_oj_cookies(sess, cookies)
 
     def _try_get_pages():
-        r_asg = sess.get(OJ_ASSIGNMENTS_URL, timeout=15, allow_redirects=True)
+        r_asg = _get_list_page(sess, username, OJ_ASSIGNMENTS_URL)
         if not _is_oj_authenticated_response(r_asg):
             return None, None
-        r_sub = sess.get(OJ_FINAL_SUBMISSIONS_URL, timeout=15, allow_redirects=True)
+        r_sub = _get_list_page(sess, username, OJ_FINAL_SUBMISSIONS_URL)
         if not _is_oj_authenticated_response(r_sub):
             return None, None
         return r_asg.text, r_sub.text
@@ -1096,8 +1124,8 @@ def _fetch_authenticated_pages(username: str) -> tuple[str | None, str | None, s
             _save_cookies(username, _session_cookies_dict(sess))
             return asg_html, sub_html, None
     except requests.RequestException as e:
-        logger.warning(f"Tongji OJ initial fetch failed for {username}: {e}")
-        return None, None, f"网络请求失败: {e}"
+        logger.warning("Tongji OJ list fetch failed: %s", type(e).__name__)
+        return None, None, "同济OJ响应超时，请稍后重试" if isinstance(e, requests.Timeout) else "同济OJ网络请求失败，请稍后重试"
 
     # Session expired or missing -> try automatic re-login with stored credentials
     creds = load_credentials(username)
@@ -1114,19 +1142,23 @@ def _fetch_authenticated_pages(username: str) -> tuple[str | None, str | None, s
         login_res = iam_login(username, creds["username"], creds["password"])
 
     if not login_res.get("ok"):
+        if login_res.get("need_second_auth"):
+            return None, None, "同济OJ需要完成加强认证，请重新连接"
+        if str(login_res.get("error") or "").startswith("网络"):
+            return None, None, "同济OJ网络请求失败，请稍后重试"
         return None, None, login_res.get("error") or "自动重新登录失败，请重新配置账号"
 
     # Retry page fetch with fresh cookies
     fresh_cookies = _load_cookies(username) or {}
-    sess.cookies.clear()
-    sess.cookies.update(fresh_cookies)
+    _restore_oj_cookies(sess, fresh_cookies)
     try:
         asg_html, sub_html = _try_get_pages()
         if asg_html is not None and sub_html is not None:
+            _save_cookies(username, _session_cookies_dict(sess))
             return asg_html, sub_html, None
         return None, None, "登录后仍无法读取作业页面，请稍后重试"
     except requests.RequestException as e:
-        return None, None, f"网络请求失败: {e}"
+        return None, None, "同济OJ响应超时，请稍后重试" if isinstance(e, requests.Timeout) else "同济OJ网络请求失败，请稍后重试"
 
 
 def fetch_courses(username: str) -> dict:
@@ -1164,13 +1196,18 @@ def fetch_assignments(
 
     asg_html, sub_html, err = _fetch_authenticated_pages(username)
     if err or asg_html is None or sub_html is None:
+        code = "sync_failed"
+        if err and "超时" in err:
+            code = "upstream_timeout"
+        elif err and any(message in err for message in ("会话已过期", "加强认证", "重新配置账号", "密码错误", "登录后仍无法")):
+            code = "needs_reauth"
         if cached_payload is not None:
             items = cached_payload["items"]
             if selected:
                 items = [it for it in items if str(it.get("course_id")) == str(selected)]
             return {"ok": True, "items": items, "cached": True, "stale": True,
-                    "has_cache": True, "error": err or "获取同济OJ作业失败"}
-        return {"ok": False, "error": err or "获取同济OJ作业失败"}
+                    "has_cache": True, "code": code, "error": err or "获取同济OJ作业失败"}
+        return {"ok": False, "code": code, "error": err or "获取同济OJ作业失败"}
 
     courses, all_assignments = parse_assignments_html(asg_html)
     submissions_info = parse_final_submissions_html(sub_html)

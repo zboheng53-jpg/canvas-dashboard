@@ -486,6 +486,14 @@ def _cache_file(username: str):
 
 def get_cached_todos(username: str, now: float | None = None) -> dict | None:
     """Load cached haoke todos with freshness metadata, if cache exists."""
+    with _refresh_lock:
+        result = _get_cached_todos(username, now)
+        if result is not None:
+            result["refreshing"] = username in _refreshing_users
+        return result
+
+
+def _get_cached_todos(username: str, now: float | None = None) -> dict | None:
     cache_file = _cache_file(username)
     if not cache_file.exists():
         return None
@@ -529,6 +537,11 @@ def start_background_refresh(username: str) -> bool:
         with _refresh_lock:
             _refreshing_users.discard(username)
         raise
+
+
+def is_refreshing(username: str) -> bool:
+    with _refresh_lock:
+        return username in _refreshing_users
 
 
 def _fallback_cache(username: str) -> dict:

@@ -26,6 +26,7 @@ from storage import JsonFileCorruptionError, locked_json_update, read_json_file,
 from user_paths import DATA_DIR, user_dir
 from canvas_auth import fetch_canvas_planner, has_feed_url, save_feed_url, remove_feed_url, load_state, update_state, update_override as update_canvas_override, save_state
 from haoke_client import (
+    is_refreshing as is_haoke_refreshing,
     fetch_haoke_todos, has_credentials as has_haoke_credentials,
     save_credentials as save_haoke_credentials, clear_credentials as clear_haoke_credentials,
     load_state as load_haoke_state, update_state as update_haoke_state,
@@ -1306,19 +1307,23 @@ def api_haoke_todos():
     username = session["username"]
     result = None
     has_credentials = has_haoke_credentials(username)
+    cache_only = request.args.get("cache_only") == "1"
     if has_credentials:
         result = get_haoke_cached_todos(username)
         if result is not None:
             result = dict(result)
             is_stale = bool(result.get("stale"))
-            if is_stale:
+            if not cache_only and (is_stale or request.args.get("refresh") == "1"):
                 start_haoke_background_refresh(username)
-            result["refreshing"] = is_stale
+                result = dict(get_haoke_cached_todos(username) or result)
     if result is None:
         if not has_credentials and _platform_cache_path(username, "haoke").exists():
             result = get_haoke_cached_todos(username) or {"ok": True, "data": []}
             result = dict(result)
             result.update(disconnected=True, need_setup=True, refreshing=False)
+        elif cache_only:
+            result = {"ok": True, "data": [], "cached": True, "need_setup": not has_credentials,
+                      "refreshing": is_haoke_refreshing(username)}
         else:
             result = fetch_haoke_todos(username)
             platform_sync.record_result(
@@ -1326,8 +1331,8 @@ def api_haoke_todos():
                 has_cache=_platform_cache_path(username, "haoke").exists(), cached=bool(result.get("cached")),
                 error_code=result.get("code"), error_message=result.get("error"),
             )
-        result = dict(result)
-        result.setdefault("refreshing", False)
+    result = dict(result)
+    result.setdefault("refreshing", is_haoke_refreshing(username))
     result = _with_default_error_code(result, _haoke_default_error_code(result))
     state = load_haoke_state(username)
     result = build_platform_todos_response(

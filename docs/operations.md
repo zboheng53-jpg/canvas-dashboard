@@ -28,6 +28,8 @@ Runtime `data/` is never included in a release archive.
 
 Waitress defaults to eight request threads (`CANVAS_DASHBOARD_THREADS` overrides this). OJ synchronization runs in a separate background thread per active account and is deduplicated; its HTTP endpoints return cached projections immediately. The request pool retains capacity for local reads during bursts of slower calls to the other platforms. Increasing the pool is capacity headroom, not a replacement for keeping slow OJ requests off WSGI threads.
 
+OJ list reads use an 8-second connection timeout and a 45-second read timeout (`TONGJIOJ_READ_TIMEOUT_SECONDS` overrides the latter), with at most one retry for timeouts, connection failures, or 502/503/504 responses. Exhausting the retry preserves existing assignments and reports synchronization failure; expired sessions are renewed separately. Cached cookies are restored with the OJ host scope so server rotation replaces them, and renewed cookies are persisted after both read-only list pages succeed.
+
 ## Runtime File Permissions
 
 The application and 智慧树 worker use `UMask=0077`; runtime files are created private by default. Release activation corrects `/home/ubuntu/canvas-dashboard/data` to `ubuntu:ubuntu`, directories to `0700`, and files to `0600`. This includes credentials, session/key files, and user configuration. Verify after a release without printing any sensitive file contents:

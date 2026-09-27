@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+import requests
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
@@ -319,7 +320,8 @@ def test_fetch_assignments_strictly_read_only_and_never_opens_problems(monkeypat
     class FakeSession:
         def __init__(self):
             self.headers = {}
-            self.cookies = FakeJar({"shjsession": "valid_sess"})
+            self.cookies = requests.cookies.RequestsCookieJar()
+            self.cookies.set("shjsession", "valid_sess", domain="oj.tongji.edu.cn", path="/")
 
         def get(self, url, **kwargs):
             requested_urls.append(("GET", url))
@@ -348,6 +350,78 @@ def test_fetch_assignments_strictly_read_only_and_never_opens_problems(monkeypat
     # Verify strict read-only safety: only top-level list pages were fetched
     assert all(method == "GET" for method, _ in requested_urls)
     assert all("problems_list" not in url and "/problems/" not in url and "submit" not in url for _, url in requested_urls)
+
+
+def test_oj_cookie_rotation_replaces_restored_session():
+    session = requests.Session()
+    tongji_oj_client._restore_oj_cookies(session, {"shjsession": "old"})
+    session.cookies.set("shjsession", "rotated", domain="oj.tongji.edu.cn", path="/")
+    header = session.prepare_request(requests.Request("GET", tongji_oj_client.OJ_ASSIGNMENTS_URL)).headers["Cookie"]
+    assert header == "shjsession=rotated"
+
+
+def test_oj_list_timeout_retries_only_the_failed_read(monkeypatch, test_env):
+    user = "retry"
+    tongji_oj_client._save_cookies(user, {"shjsession": "session"})
+    session = requests.Session()
+    calls = []
+    def get(url, **kwargs):
+        calls.append((url, kwargs["timeout"]))
+        if url == tongji_oj_client.OJ_FINAL_SUBMISSIONS_URL and len(calls) == 2:
+            raise requests.ReadTimeout()
+        response = requests.Response()
+        response.status_code, response.url = 200, url
+        response._content = b"<html></html>"
+        return response
+    monkeypatch.setattr(session, "get", get)
+    monkeypatch.setattr(tongji_oj_client.requests, "Session", lambda: session)
+    monkeypatch.setattr(tongji_oj_client, "iam_login", lambda *args: pytest.fail("network timeout must not trigger login"))
+    assert tongji_oj_client._fetch_authenticated_pages(user) == ("<html></html>", "<html></html>", None)
+    assert [url for url, _ in calls] == [tongji_oj_client.OJ_ASSIGNMENTS_URL,
+                                      tongji_oj_client.OJ_FINAL_SUBMISSIONS_URL, tongji_oj_client.OJ_FINAL_SUBMISSIONS_URL]
+    assert all(timeout == (8, tongji_oj_client.settings.TONGJIOJ_READ_TIMEOUT_SECONDS) for _, timeout in calls)
+
+
+def test_exhausted_oj_timeout_is_one_confirmed_failure_and_keeps_cache(client_with_user, monkeypatch):
+    user = "testuser"
+    tongji_oj_client.save_credentials(user, "student", "password", cookies={"shjsession": "session"})
+    tongji_oj_client._save_cache_payload(user, [{"id": "keep", "title": "Keep homework"}], [])
+    calls = []
+    def timeout(self, url, **kwargs):
+        calls.append(url)
+        raise requests.ReadTimeout()
+    monkeypatch.setattr(requests.Session, "get", timeout)
+    client_with_user.get("/api/tongjioj/todos?refresh=1")
+    result = _wait_for_refresh(client_with_user)
+    assert len(calls) == 2
+    assert result["data"][0]["title"] == "Keep homework"
+    assert result["sync"]["error_code"] == "upstream_timeout"
+    assert result["sync"]["consecutive_failures"] == 1
+
+
+def test_renewed_oj_cookie_is_saved_after_both_pages(monkeypatch, test_env):
+    user = "renew"
+    tongji_oj_client.save_credentials(user, "student", "password", cookies={"shjsession": "expired"})
+    session = requests.Session()
+    calls = []
+    def get(url, **kwargs):
+        calls.append(url)
+        response = requests.Response()
+        response.status_code = 200
+        response.url = tongji_oj_client.OJ_LOGIN_URL if len(calls) == 1 else url
+        response._content = b"<html></html>"
+        if len(calls) == 2:
+            session.cookies.set("shjsession", "rotated", domain="oj.tongji.edu.cn", path="/")
+        return response
+    def login(*args):
+        tongji_oj_client._save_cookies(user, {"shjsession": "renewed"})
+        return {"ok": True}
+    monkeypatch.setattr(session, "get", get)
+    monkeypatch.setattr(tongji_oj_client.requests, "Session", lambda: session)
+    monkeypatch.setattr(tongji_oj_client, "iam_login", login)
+    assert tongji_oj_client._fetch_authenticated_pages(user)[2] is None
+    assert tongji_oj_client._load_cookies(user)["shjsession"] == "rotated"
+    assert len(session.cookies) == 1
 
 
 def test_selected_course_uses_fresh_cache_without_network(monkeypatch, test_env):

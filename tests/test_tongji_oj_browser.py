@@ -1,12 +1,14 @@
 """First-render OJ behavior while the upstream synchronization is still pending."""
 from datetime import timedelta
 from threading import Barrier, Event
+import os
 import time
 
 import pytest
 from playwright.sync_api import expect
 
 import platform_sync
+import haoke_client
 import app as dashboard_app
 import tongji_oj_client
 from storage import read_json_file, write_json_file
@@ -35,7 +37,7 @@ def _response(item=None, **kwargs):
 
 
 @pytest.mark.parametrize("has_cache", [True, False])
-def test_oj_displays_cache_or_first_sync_notice_before_slow_response(live_app, browser, test_now, has_cache):
+def test_oj_keeps_update_in_refresh_icon_before_slow_response(live_app, browser, test_now, has_cache):
     page = browser.new_page()
     username = f"ojfirst{int(has_cache)}"
     _open_connected_oj(page, live_app, username)
@@ -48,9 +50,11 @@ def test_oj_displays_cache_or_first_sync_notice_before_slow_response(live_app, b
 
     pending = []
     page.route("**/api/tongjioj/todos?refresh=1", lambda route: pending.append(route))
-    page.reload()
-    notice = page.locator("#tongjioj-sync-notice")
-    expect(notice).to_contain_text("上次同步" if has_cache else "首次同步")
+    with page.expect_request("**/api/tongjioj/todos?refresh=1"):
+        page.reload()
+    expect(page.locator("#tongjioj-sync-notice")).to_have_count(0)
+    expect(page.locator("#btn-refresh")).to_have_attribute("aria-busy", "true")
+    expect(page.locator("#list-updated")).to_be_hidden()
     if has_cache:
         expect(page.locator("#todo-list")).to_contain_text("Cached OJ homework")
         expect(page.locator("#tjoj-course-select-inline")).to_have_value("45")
@@ -63,7 +67,8 @@ def test_oj_displays_cache_or_first_sync_notice_before_slow_response(live_app, b
     pending[0].fulfill(json=_response(_item(test_now, "Updated OJ homework")))
     expect(page.locator("#todo-list")).to_contain_text("Updated OJ homework")
     expect(page.locator("#todo-list")).not_to_contain_text("Cached OJ homework")
-    expect(notice).to_be_hidden()
+    expect(page.locator("#btn-refresh")).not_to_have_attribute("aria-busy", "true")
+    expect(page.locator("#list-updated")).to_be_hidden()
 
 
 @pytest.mark.parametrize("failure", ["network", "http"])
@@ -78,14 +83,16 @@ def test_oj_refresh_failure_keeps_homework_and_shows_warning(live_app, browser, 
     expect(page.locator("#todo-list")).to_contain_text("Cached OJ homework")
     page.wait_for_function("tongjiojPending === null")
     assert not pending
-    page.click("#btn-refresh")
-    expect(page.locator("#tongjioj-sync-notice")).to_contain_text("正在更新")
+    with page.expect_request("**/api/tongjioj/todos?refresh=1"):
+        page.click("#btn-refresh")
+    expect(page.locator("#btn-refresh")).to_have_attribute("aria-busy", "true")
     assert len(pending) == 1
     if failure == "network":
         pending[0].abort("failed")
     else:
         pending[0].fulfill(status=503, json={"ok": False, "error": "同步暂不可用"})
-    expect(page.locator("#tongjioj-sync-notice")).to_contain_text("更新失败")
+    expect(page.locator("#list-updated")).to_have_text("1 处未同步")
+    expect(page.locator("#btn-refresh")).not_to_have_attribute("aria-busy", "true")
     expect(page.locator("#todo-list")).to_contain_text("Cached OJ homework")
 
 
@@ -156,7 +163,7 @@ def test_slow_oj_refresh_leaves_production_request_threads_available(live_app, b
         response = page.request.get(f"{live_app}/api/clock", timeout=2000)
         assert response.ok
         assert time.monotonic() - clock_started < 2
-        expect(page.locator("#btn-refresh")).not_to_have_attribute("aria-busy", "true", timeout=2000)
+        expect(page.locator("#btn-refresh")).to_have_attribute("aria-busy", "true", timeout=2000)
         page.wait_for_function("window.ojStressDone === true", timeout=2000)
         assert calls == ["ojthreads"]
         expect(page.locator("#todo-list")).to_contain_text("Cached OJ homework")
@@ -164,7 +171,8 @@ def test_slow_oj_refresh_leaves_production_request_threads_available(live_app, b
     finally:
         release.set()
         assert finished.wait(2)
-    expect(page.locator("#tongjioj-sync-notice")).to_be_hidden(timeout=5000)
+    expect(page.locator("#btn-refresh")).not_to_have_attribute("aria-busy", "true", timeout=5000)
+    expect(page.locator("#list-updated")).to_be_hidden()
     expect(page.locator("#todo-list")).not_to_contain_text("Cached OJ homework")
 
 
@@ -193,4 +201,80 @@ def test_refresh_burst_keeps_local_requests_responsive(live_app, browser, monkey
     finally:
         release.set()
     page.wait_for_function("window.slowPlatformsDone === true")
+
+
+@pytest.mark.parametrize("reauth,count", [(False, 2), (True, 3)])
+def test_refresh_waits_for_last_platform_then_shows_confirmed_failure_summary(live_app, browser, reauth, count):
+    page = browser.new_page()
+    page.goto(f"{live_app}/register")
+    page.fill("#register-username", "summary")
+    page.fill("#register-password", "strong-password")
+    page.click("#register-form button")
+    page.wait_for_url(f"{live_app}/")
+    page.wait_for_function("Object.values(platformRequests).every(count => count === 0)")
+    pending = []
+    platforms = ["canvas", "haoke", "zhixuemeng"][:count]
+    for platform in platforms:
+        page.route(f"**/api/{platform}/todos*", lambda route: pending.append(route))
+    page.click("#btn-refresh")
+    page.wait_for_function("workspaceRefreshing === false")
+    expect(page.locator("#btn-refresh")).to_have_attribute("aria-busy", "true")
+    assert page.locator("#btn-refresh svg").evaluate("node => getComputedStyle(node).animationName") == "ui-control-spin"
+    assert len(pending) == count
+    failure = {"ok": False, "error": "确认失败", "data": [], "sync": {
+        "connection_state": "needs_reauth" if reauth else "connected",
+        "data_state": "cached", "error_code": "needs_reauth" if reauth else "sync_failed", "refreshing": False}}
+    for route in pending[:-1]:
+        route.fulfill(json=failure)
+    expect(page.locator("#list-updated")).to_be_hidden()
+    expect(page.locator("#btn-refresh")).to_have_attribute("aria-busy", "true")
+    pending[-1].fulfill(json=failure)
+    expect(page.locator("#list-updated")).to_have_text(f"{count} 处{'连接失败' if reauth else '未同步'}")
+    expect(page.locator("#btn-refresh")).not_to_have_attribute("aria-busy", "true")
+    assert page.locator("#btn-refresh svg").evaluate("node => getComputedStyle(node).animationName") == "none"
+    # A successful retry removes the error summary without showing a success message.
+    page.unroute_all()
+    for platform in platforms:
+        page.route(f"**/api/{platform}/todos*", lambda route: route.fulfill(json=_response()))
+    page.click("#btn-refresh")
+    expect(page.locator("#btn-refresh")).not_to_have_attribute("aria-busy", "true")
+    expect(page.locator("#list-updated")).to_be_hidden()
+
+
+def test_haoke_background_failure_stops_polling_without_restarting_stale_refresh(live_app, browser, monkeypatch):
+    page = browser.new_page()
+    username = "haokestatus"
+    _open_connected_oj(page, live_app, username)
+    tongji_oj_client.logout(username)
+    haoke_client.save_credentials(username, "fake-student", "fake-password")
+    platform_sync.mark_connected(username, "haoke")
+    cache_file = haoke_client._cache_file(username)
+    write_json_file(cache_file, [])
+    os.utime(cache_file, (0, 0))
+    started, release, finished = Event(), Event(), Event()
+    calls = []
+    original_worker = haoke_client._run_background_refresh
+    def observed(username):
+        try:
+            original_worker(username)
+        finally:
+            finished.set()
+    def slow_fetch(username):
+        calls.append(username)
+        started.set()
+        assert release.wait(10)
+        return {"ok": False, "error": "confirmed upstream failure"}
+    monkeypatch.setattr(haoke_client, "_run_background_refresh", observed)
+    monkeypatch.setattr(haoke_client, "fetch_haoke_todos", slow_fetch)
+    try:
+        page.reload()
+        assert started.wait(2)
+        expect(page.locator("#btn-refresh")).to_have_attribute("aria-busy", "true")
+        expect(page.locator("#list-updated")).to_be_hidden()
+    finally:
+        release.set()
+        assert finished.wait(2)
+    expect(page.locator("#list-updated")).to_have_text("1 处未同步", timeout=5000)
+    expect(page.locator("#btn-refresh")).not_to_have_attribute("aria-busy", "true")
+    assert calls == [username]
 

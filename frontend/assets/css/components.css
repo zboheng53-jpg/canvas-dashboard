@@ -283,6 +283,15 @@
     box-shadow var(--duration-fast) var(--ease-standard);
 }
 
+#btn-refresh[aria-busy="true"]::before {
+  content: none;
+}
+
+#btn-refresh.is-refreshing svg {
+  animation: ui-control-spin 0.9s linear infinite;
+  transform-origin: center;
+}
+
 .ui-control:hover:not(:disabled):not([readonly]) {
   background: var(--control-bg-hover);
   border-color: var(--control-border-hover);

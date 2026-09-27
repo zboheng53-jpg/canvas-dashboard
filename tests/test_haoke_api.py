@@ -31,6 +31,7 @@ def test_haoke_todos_returns_stale_cache_and_starts_refresh(client_with_user, mo
             "cached": True,
             "fetched_at": 123.0,
             "stale": True,
+            "refreshing": bool(refreshed),
         },
     )
     monkeypatch.setattr(dashboard_app, "start_haoke_background_refresh", lambda username: refreshed.append(username) or True)
@@ -63,6 +64,7 @@ def test_haoke_todos_reports_refreshing_when_stale_refresh_already_active(client
             "cached": True,
             "fetched_at": 123.0,
             "stale": True,
+            "refreshing": True,
         },
     )
     monkeypatch.setattr(dashboard_app, "start_haoke_background_refresh", lambda username: False)
@@ -76,6 +78,19 @@ def test_haoke_todos_reports_refreshing_when_stale_refresh_already_active(client
     assert data["ok"] is True
     assert data["stale"] is True
     assert data["refreshing"] is True
+
+
+def test_haoke_cache_only_reports_stopped_job_without_restarting_stale_refresh(client_with_user, monkeypatch):
+    monkeypatch.setattr(dashboard_app, "has_haoke_credentials", lambda username: True)
+    monkeypatch.setattr(dashboard_app, "get_haoke_cached_todos", lambda username: {
+        "ok": True, "data": [], "cached": True, "stale": True, "refreshing": False})
+    monkeypatch.setattr(dashboard_app, "start_haoke_background_refresh", lambda username: pytest.fail("poll must not restart a failed job"))
+    monkeypatch.setattr(dashboard_app, "fetch_haoke_todos", lambda username: pytest.fail("poll must not contact upstream"))
+    monkeypatch.setattr(dashboard_app, "load_haoke_state", lambda username: {"hidden": [], "highlighted": [], "deleted": []})
+    result = client_with_user.get("/api/haoke/todos?cache_only=1").get_json()
+    assert result["stale"] is True
+    assert result["refreshing"] is False
+    assert result["sync"]["refreshing"] is False
 
 
 def test_haoke_todos_returns_fresh_cache_without_refresh(client_with_user, monkeypatch):

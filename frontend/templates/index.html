@@ -112,12 +112,11 @@
             <div class="header-left-group"><h2 style="font-size: 22px;">&#24453;&#21150;&#28165;&#21333;</h2></div>
             <div class="right header-right">
               <button type="button" class="ui-button ui-button--primary mobile-add-toggle" id="mobile-add-toggle" aria-controls="todo-composer" aria-expanded="false">＋ 新增</button>
-              <button type="button" class="ui-button ui-button--text muted last-updated sync-status-button" id="list-updated" style="font-size:12px; background:none; border:none; cursor:pointer;" aria-label="查看平台同步状态">已同步</button>
+              <button type="button" class="ui-button ui-button--text muted last-updated sync-status-button hidden" id="list-updated" style="font-size:12px; background:none; border:none; cursor:pointer;" aria-label="查看平台同步状态"></button>
               <button class="ui-icon-button icon-btn btn-refresh" id="btn-refresh" title="刷新待办" aria-label="刷新待办"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"></path></svg></button>
             </div>
           </div>
 
-          <p id="tongjioj-sync-notice" class="ui-feedback ui-feedback--info hidden" role="status" aria-live="polite"></p>
           <div class="todo-composer" id="todo-composer">
           <form class="add-row add-todo-form" id="add-todo-form">
             <input type="text" id="new-todo-input" placeholder="添加新待办…" autocomplete="off" class="ui-control input todo-title-input">
@@ -1775,42 +1774,25 @@
     }
 
     async function refreshPlatformConnections() {
-      const button = document.getElementById('connections-refresh-button');
-      const status = document.getElementById('connections-manager-status');
-      const detail = document.getElementById('connections-detail-panel');
-      const originalLabel = button?.textContent || '刷新全部状态';
-      if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); button.textContent = '正在刷新…'; }
-      if (detail) detail.setAttribute('aria-busy', 'true');
-      if (status) {
-        status.textContent = '正在刷新各平台的连接状态…';
-        applyFeedbackSemantic(status, 'info');
-      }
+      if (connectionsRefreshActive) return;
+      connectionsRefreshActive = true;
+      connectionsRequestsPending = true;
+      workspaceRefreshFailed = false;
+      renderDashboardSyncStatus();
       try {
         await Promise.all([
           fetchCanvasTodos(),
-          fetchHaokeTodos(),
+          fetchHaokeTodos(true),
           fetchZhixuemengTodos(),
           fetchZhihuishuTodos(),
           fetchKetangpaiTodos(),
           fetchTongjiojTodos('', true),
         ]);
-        const failures = [...document.querySelectorAll('#login-cards .login-card-status.attention')]
-          .filter((item) => /失败|错误|重新|不可用/.test(item.textContent)).length;
-        if (status) {
-          const refreshing = Object.values(platformSyncs).some(sync => sync.refreshing);
-          status.textContent = failures
-            ? `已完成刷新；${failures} 个平台需要处理。`
-            : refreshing ? '连接状态已刷新，作业仍在后台同步。' : '各平台的连接状态已刷新；待办数据也已同步。';
-          applyFeedbackSemantic(status, failures ? 'warning' : refreshing ? 'info' : 'success');
-        }
       } catch (error) {
-        if (status) {
-          status.textContent = '刷新未完成，请稍后重试。';
-          applyFeedbackSemantic(status, 'danger');
-        }
+        workspaceRefreshFailed = true;
       } finally {
-        if (button) { button.disabled = false; button.setAttribute('aria-busy', 'false'); button.textContent = originalLabel; }
-        if (detail) detail.setAttribute('aria-busy', 'false');
+        connectionsRequestsPending = false;
+        renderDashboardSyncStatus();
       }
     }
 
@@ -1822,9 +1804,31 @@
     }
 
     const platformSyncs = {};
+    const platformRequests = {};
+    let workspaceRefreshing = false;
+    let workspaceRefreshFailed = false;
+    let connectionsRefreshActive = false;
+    let connectionsRequestsPending = false;
     const platformLabels = {canvas: 'Canvas', haoke: '好课', zhixuemeng: '智学盟', zhihuishu: '智慧树', ketangpai: '课堂派', tongjioj: '同济OJ'};
+    function beginPlatformRequest(platform) {
+      platformRequests[platform] = (platformRequests[platform] || 0) + 1;
+      renderDashboardSyncStatus();
+      return () => {
+        platformRequests[platform]--;
+        renderDashboardSyncStatus();
+      };
+    }
+    function recordPlatformFailure(platform, message = '网络错误') {
+      platformSyncs[platform] = {...platformSyncs[platform], refreshing: false,
+        connection_state: platformSyncs[platform]?.connection_state || 'connected',
+        error_code: 'sync_failed', error_message: message};
+      renderDashboardSyncStatus();
+    }
     function recordPlatformSync(platform, result) {
-      if (!result || !result.sync) return;
+      if (!result?.sync) {
+        if (!result?.ok && !result?.need_setup) recordPlatformFailure(platform, result?.error || '更新失败');
+        return;
+      }
       const sync = {...result.sync};
       if (platform === 'tongjioj') sync.has_cache = !!result.has_cache;
       if (result.stale) sync.data_state = 'stale';
@@ -1833,60 +1837,50 @@
       renderDashboardSyncStatus();
     }
     function syncPriority(sync) {
+      if (sync.refreshing) return 99;
       if (sync.connection_state === 'needs_reauth') return 1;
-      if (sync.data_state === 'unavailable' && sync.error_code) return 2;
-      if ((sync.consecutive_failures || 0) >= 2) return 3;
-      if (sync.data_state === 'stale') return 4;
+      if (sync.error_code || sync.error_message) return 2;
       return 99;
     }
     function renderDashboardSyncStatus() {
-      const oj = platformSyncs.tongjioj;
-      const notice = document.getElementById('tongjioj-sync-notice');
-      if (notice) {
-        let message = '';
-        if (oj?.connection_state === 'connected' && visibleTodoSources.has('tongjioj')) {
-          if (oj.refreshing) message = oj.has_cache
-            ? '同济OJ 正在更新，先显示上次同步的作业。'
-            : '同济OJ 正在首次同步，作业尚未加载完成，请稍候。';
-          else if (oj.error_message) message = oj.has_cache
-            ? '同济OJ 更新失败，当前显示上次同步的作业，请重试。'
-            : '同济OJ 同步失败，作业尚未加载，请重试或检查连接。';
-        }
-        notice.textContent = message;
-        applyFeedbackSemantic(notice, oj?.error_message && !oj.refreshing ? 'warning' : 'info');
-        notice.classList.toggle('hidden', !message);
-      }
+      const refreshing = workspaceRefreshing || connectionsRequestsPending || Object.values(platformRequests).some(count => count > 0)
+        || Object.values(platformSyncs).some(sync => sync.refreshing);
+      const refreshButton = document.getElementById('btn-refresh');
+      refreshButton?.classList.toggle('is-refreshing', refreshing);
+      if (refreshing) refreshButton?.setAttribute('aria-busy', 'true');
+      else refreshButton?.removeAttribute('aria-busy');
       const button = document.getElementById('list-updated');
       if (!button) return;
-      const visiblePlatforms = TODO_SOURCE_ORDER.filter(s => TODO_PLATFORM_SOURCES.has(s) && (typeof visibleTodoSources !== 'undefined' ? visibleTodoSources.has(s) : true));
       const entries = Object.entries(platformSyncs).filter(([platform]) => {
         return typeof visibleTodoSources !== 'undefined' ? visibleTodoSources.has(platform) : true;
       });
       const active = entries.filter(([, sync]) => sync.connection_state !== 'unconfigured');
-      const issues = active.filter(([, sync]) => syncPriority(sync) < 99).sort((a, b) => {
+      const issues = active.filter(([platform, sync]) => !platformRequests[platform] && syncPriority(sync) < 99).sort((a, b) => {
         const priority = syncPriority(a[1]) - syncPriority(b[1]);
         return priority || String(a[1].last_success_at || '').localeCompare(String(b[1].last_success_at || ''));
       });
-      let text = '尚未连接平台';
-      if (visiblePlatforms.length === 0) {
-        text = '外部平台已隐藏';
-      } else if (issues.length === 1) {
-        const [platform, sync] = issues[0];
-        text = sync.connection_state === 'needs_reauth' ? `${platformLabels[platform]}需要重新连接`
-          : sync.data_state === 'unavailable' ? '更新失败' : `${platformLabels[platform]}数据未更新`;
-      } else if (issues.length > 1) {
-        text = `${issues.length} 个平台需要处理`;
-      } else if (active.length && active.every(([, sync]) => sync.connection_state === 'disconnected')) {
-        text = '平台已断开';
-      } else if (active.some(([, sync]) => sync.refreshing)) {
-        text = '正在更新';
-      } else if (active.length) {
-        const latest = active.map(([, sync]) => sync.last_success_at).filter(Boolean).sort().pop();
-        text = latest ? `已更新 · ${new Date(latest).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}` : '已连接，等待首次成功同步';
-      }
+      const connections = issues.filter(([, sync]) => sync.connection_state === 'needs_reauth').length;
+      const unsynced = issues.length - connections + Number(workspaceRefreshFailed);
+      const text = refreshing ? '' : [connections ? `${connections} 处连接失败` : '', unsynced ? `${unsynced} 处未同步` : ''].filter(Boolean).join('，');
       button.textContent = text;
+      button.classList.toggle('hidden', !text);
       button.setAttribute('aria-label', `${text}；打开连接与同步`);
       button.dataset.syncTarget = issues[0]?.[0] || active.find(([, sync]) => sync.connection_state === 'connected')?.[0] || '';
+      if (connectionsRefreshActive) {
+        const connectionButton = document.getElementById('connections-refresh-button');
+        if (connectionButton) {
+          connectionButton.disabled = refreshing;
+          connectionButton.setAttribute('aria-busy', String(refreshing));
+          connectionButton.textContent = refreshing ? '正在刷新…' : '刷新全部状态';
+        }
+        document.getElementById('connections-detail-panel')?.setAttribute('aria-busy', String(refreshing));
+        const status = document.getElementById('connections-manager-status');
+        if (status) {
+          status.textContent = text;
+          applyFeedbackSemantic(status, text ? 'warning' : 'info');
+        }
+        if (!refreshing) connectionsRefreshActive = false;
+      }
     }
     function openSyncStatus() {
       const target = document.getElementById('list-updated').dataset.syncTarget;
@@ -1895,8 +1889,7 @@
     }
 
     async function fetchCanvasTodos() {
-      const updatedEl = document.getElementById('list-updated');
-
+      const finish = beginPlatformRequest('canvas');
       try {
         const resp = await fetch('/api/canvas/todos');
         const result = await resp.json();
@@ -1904,7 +1897,6 @@
 
         if (result.need_setup && result.sync?.connection_state !== 'disconnected') {
           setCardStatus('canvas', '未关联', 'attention');
-          updatedEl.textContent = '请先连接 Canvas';
           canvasItems = [];
           hiddenIds = [];
           highlightedIds = [];
@@ -1933,6 +1925,9 @@
         renderUnifiedList();
       } catch (e) {
         setCardStatus('canvas', '\u7f51\u7edc\u9519\u8bef', 'attention');
+        recordPlatformFailure('canvas');
+      } finally {
+        finish();
       }
     }
 
@@ -2900,11 +2895,21 @@
     }
 
     // ---- Haoke Todos ----
-    async function fetchHaokeTodos() {
+    let haokePollTimer = null;
+    let haokeLoadVersion = 0;
+    async function fetchHaokeTodos(force = false, cacheOnly = false) {
+      const version = ++haokeLoadVersion;
+      clearTimeout(haokePollTimer);
+      const finish = beginPlatformRequest('haoke');
       try {
-        const resp = await fetch('/api/haoke/todos');
+        const params = new URLSearchParams();
+        if (force) params.set('refresh', '1');
+        if (cacheOnly) params.set('cache_only', '1');
+        const resp = await fetch(`/api/haoke/todos${params.size ? '?' + params : ''}`);
         const result = await resp.json();
+        if (version !== haokeLoadVersion) return;
         recordPlatformSync('haoke', result);
+        if (result.sync?.refreshing) haokePollTimer = setTimeout(() => fetchHaokeTodos(false, true), 2000);
 
         if (result.need_setup && result.sync?.connection_state !== 'disconnected') {
           setCardStatus('haoke', '未关联', 'attention');
@@ -2935,7 +2940,11 @@
         haokeDeletedIds = result.deleted || [];
         renderUnifiedList();
       } catch (e) {
+        if (version !== haokeLoadVersion) return;
         setCardStatus('haoke', '\u7f51\u7edc\u9519\u8bef', 'attention');
+        recordPlatformFailure('haoke');
+      } finally {
+        finish();
       }
     }
 
@@ -2973,6 +2982,7 @@
 
     // ---- Zhixuemeng Todos ----
     async function fetchZhixuemengTodos() {
+      const finish = beginPlatformRequest('zhixuemeng');
       try {
         const resp = await fetch('/api/zhixuemeng/todos');
         const result = await resp.json();
@@ -3008,6 +3018,9 @@
         renderUnifiedList();
       } catch (e) {
         setCardStatus('zhixuemeng', '\u7f51\u7edc\u9519\u8bef', 'attention');
+        recordPlatformFailure('zhixuemeng');
+      } finally {
+        finish();
       }
     }
 
@@ -3043,6 +3056,7 @@
 
     // ---- Ketangpai Todos ----
     async function fetchKetangpaiTodos(courseId = '') {
+      const finish = beginPlatformRequest('ketangpai');
       try {
         const url = courseId ? `/api/ketangpai/todos?course_id=${encodeURIComponent(courseId)}` : '/api/ketangpai/todos';
         const resp = await fetch(url);
@@ -3079,6 +3093,9 @@
         renderUnifiedList();
       } catch (e) {
         setCardStatus('ketangpai', '网络错误', 'attention');
+        recordPlatformFailure('ketangpai');
+      } finally {
+        finish();
       }
     }
 
@@ -3124,8 +3141,10 @@
       }
       const version = ++tongjiojLoadVersion;
       clearTimeout(tongjiojPollTimer);
+      const finish = beginPlatformRequest('tongjioj');
       const promise = loadTongjiojTodos(courseId, force, version).finally(() => {
         if (tongjiojPending?.promise === promise) tongjiojPending = null;
+        finish();
       });
       tongjiojPending = {courseId, promise, force};
       return promise;
@@ -3155,8 +3174,7 @@
       } catch (e) {
         if (version !== tongjiojLoadVersion) return;
         setCardStatus('tongjioj', '网络错误', 'attention');
-        platformSyncs.tongjioj = {...platformSyncs.tongjioj, refreshing: false, error_message: '网络错误'};
-        renderDashboardSyncStatus();
+        recordPlatformFailure('tongjioj');
       }
     }
 
@@ -3174,8 +3192,7 @@
           scheduleTongjiojPoll(courseId, version, next);
         } catch (_) {
           if (version !== tongjiojLoadVersion) return;
-          platformSyncs.tongjioj = {...platformSyncs.tongjioj, refreshing: false, error_message: '网络错误'};
-          renderDashboardSyncStatus();
+          recordPlatformFailure('tongjioj');
         }
       }, 2000);
     }
@@ -3184,7 +3201,9 @@
         // HTTP errors can omit sync/state metadata; keep the already rendered projection.
         if (!result.sync) {
           result.has_cache = platformSyncs.tongjioj?.has_cache || false;
-          result.sync = {...platformSyncs.tongjioj, refreshing: false, error_message: result.error || '获取失败'};
+          result.sync = {...platformSyncs.tongjioj, refreshing: false,
+            connection_state: platformSyncs.tongjioj?.connection_state || 'connected',
+            error_code: 'sync_failed', error_message: result.error || '获取失败'};
         }
         recordPlatformSync('tongjioj', result);
 
@@ -3200,7 +3219,7 @@
         if (!result.ok || result.error || (!result.sync.refreshing && result.sync.error_message)) {
           setCardStatus('tongjioj', result.error || result.sync.error_message || '获取失败', 'attention');
         } else if (result.sync?.refreshing) {
-          setCardStatus('tongjioj', '正在同步', '');
+          setCardStatus('tongjioj', '已连接', 'connected');
         } else {
           setCardStatus('tongjioj', '已连接', 'connected');
         }
@@ -3259,6 +3278,7 @@
 
     // ---- Zhihuishu Todos ----
     async function fetchZhihuishuTodos() {
+      const finish = beginPlatformRequest('zhihuishu');
       try {
         const resp = await fetch('/api/zhihuishu/todos');
         const result = await resp.json();
@@ -3289,6 +3309,9 @@
         renderUnifiedList();
       } catch (e) {
         setCardStatus('zhihuishu', '\u7f51\u7edc\u9519\u8bef', 'attention');
+        recordPlatformFailure('zhihuishu');
+      } finally {
+        finish();
       }
     }
 
@@ -4955,6 +4978,7 @@
     async function refreshOnePlatform(platform) {
       const loaders = {canvas: fetchCanvasTodos, haoke: fetchHaokeTodos, zhixuemeng: fetchZhixuemengTodos, zhihuishu: fetchZhihuishuTodos, ketangpai: fetchKetangpaiTodos, tongjioj: fetchTongjiojTodos};
       if (platform === 'tongjioj') await fetchTongjiojTodos('', true);
+      else if (platform === 'haoke') await fetchHaokeTodos(true);
       else if (loaders[platform]) await loaders[platform]();
       if (typeof selectConnectionPlatform === 'function') selectConnectionPlatform(platform);
     }
@@ -5015,7 +5039,7 @@
       const dueInput = document.getElementById('new-todo-due');
       if (dueInput && !dueInput.value) dueInput.value = window.customToday;
       const updatedEl = document.getElementById('list-updated');
-      if (updatedEl) updatedEl.textContent = '已更新 · 15:18:42';
+      if (updatedEl) updatedEl.textContent = '';
 
       canvasItems = [
         { id: 1, title: '《自动控制原理》第七章课后练习提交', course: '自动控制原理', type: '作业', due_str: '2026-07-25', due_ts: '2026-07-25T23:59:00', url: '' },
