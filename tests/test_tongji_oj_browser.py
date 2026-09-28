@@ -10,6 +10,7 @@ from playwright.sync_api import expect
 import platform_sync
 import haoke_client
 import app as dashboard_app
+import external_subtasks
 import tongji_oj_client
 from storage import read_json_file, write_json_file
 
@@ -34,6 +35,59 @@ def _response(item=None, **kwargs):
     return {"ok": True, "data": [item] if item else [], "has_cache": True,
             "hidden": [], "highlighted": [], "deleted": [], "courses": [],
             "sync": {"connection_state": "connected", "data_state": "fresh", "refreshing": False}, **kwargs}
+
+
+@pytest.mark.parametrize("completed", [True, False])
+def test_oj_manual_completion_and_undo_survive_cache_upgrade_and_refresh(live_app, browser, test_now, monkeypatch, completed):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    username = f"ojmanual{int(completed)}"
+    _open_connected_oj(page, live_app, username)
+    title = "Manual OJ homework"
+    due = (test_now + timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S")
+    html = f"""<h2 data-id="45"><a>45: OJ course</a></h2><div id="course45">
+      <table class="sharif_table"><tr><td>{title}</td><td>Default</td>
+      <td><a href="/index.php/assignments/problems_list/590">2 problems</a></td>
+      <td>999 submissions</td><td>100%</td><td></td><td>{due}</td><td>Open</td></tr></table></div>"""
+    monkeypatch.setattr(tongji_oj_client, "_fetch_authenticated_assignments", lambda username: (html, None))
+    write_json_file(tongji_oj_client._cache_file(username), {
+        "version": 2, "items": [_item(test_now, title)], "courses": [], "updated_at": test_now.isoformat(),
+    })
+    tongji_oj_client.update_state(username, "complete", "tjoj_590")
+    if not completed:
+        tongji_oj_client.update_state(username, "uncomplete", "tjoj_590")
+    external_subtasks.save_subtasks(username, "tongjioj", "tjoj_590", [
+        {"id": 1, "text": "Preserved OJ step", "done": True, "due_date": None},
+    ])
+
+    row = page.locator(".todo-row-wrap").filter(has_text=title)
+    def expect_completion(expected):
+        expect(row).to_be_visible()
+        action = row.locator(".item-desktop-actions .btn-dismiss")
+        expect(action).to_have_attribute("title", "取消完成" if expected else "完成")
+    page.reload()
+    expect(page.locator("#btn-refresh")).not_to_have_attribute("aria-busy", "true", timeout=5000)
+    expect_completion(completed)
+    row.locator(".subtask-toggle").click()
+    expect(row.locator(".subtask-text")).to_have_text("Preserved OJ step")
+    expect(row.locator(".todo-subtask-row input[type=checkbox]")).to_be_checked()
+
+    with page.expect_response("**/api/tongjioj/state"):
+        row.locator(".item-desktop-actions .btn-dismiss").click()
+    expect_completion(not completed)
+    with page.expect_request("**/api/tongjioj/todos?refresh=1"):
+        page.click("#btn-refresh")
+    page.wait_for_function("tongjiojPending === null")
+    expect(page.locator("#btn-refresh")).not_to_have_attribute("aria-busy", "true", timeout=5000)
+    page.reload()
+    expect_completion(not completed)
+    with page.expect_response("**/api/tongjioj/state"):
+        row.locator(".item-desktop-actions .btn-dismiss").click()
+    expect_completion(completed)
+    page.reload()
+    expect_completion(completed)
+    row.locator(".subtask-toggle").click()
+    expect(row.locator(".subtask-text")).to_have_text("Preserved OJ step")
+    expect(row.locator(".todo-subtask-row input[type=checkbox]")).to_be_checked()
 
 
 @pytest.mark.parametrize("has_cache", [True, False])
@@ -140,13 +194,13 @@ def test_slow_oj_refresh_leaves_production_request_threads_available(live_app, b
             original_worker(username, job)
         finally:
             finished.set()
-    def slow_pages(username):
+    def slow_assignments(username):
         calls.append(username)
         started.set()
         assert release.wait(10)
-        return "<html><body></body></html>", "<html><body></body></html>", None
+        return "<html><body></body></html>", None
     monkeypatch.setattr(tongji_oj_client, "_run_background_refresh", observed_worker)
-    monkeypatch.setattr(tongji_oj_client, "_fetch_authenticated_pages", slow_pages)
+    monkeypatch.setattr(tongji_oj_client, "_fetch_authenticated_assignments", slow_assignments)
     try:
         page.reload()
         expect(page.locator("#todo-list")).to_contain_text("Cached OJ homework")

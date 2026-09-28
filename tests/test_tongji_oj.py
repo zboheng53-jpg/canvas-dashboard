@@ -11,6 +11,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 import app as dashboard_app
+import external_subtasks
 import tongji_oj_client
 import platform_sync
 from storage import read_json_file, write_json_file
@@ -129,55 +130,6 @@ SAMPLE_ASSIGNMENTS_HTML = """
 </html>
 """
 
-SAMPLE_SUBMISSIONS_HTML_PARTIAL = """
-<!DOCTYPE html>
-<html>
-<head><title>Final Submissions - Tongji Online Judge</title></head>
-<body>
-<script>
-search_data['courses']['45']['assignments']['590']['problems']['101'] = {'id': '101'};
-search_data['courses']['45']['assignments']['590']['problems']['102'] = {'id': '102'};
-search_data['courses']['45']['assignments']['590']['problems']['103'] = {'id': '103'};
-search_data['courses']['45']['assignments']['590']['problems']['104'] = {'id': '104'};
-search_data['courses']['45']['assignments']['590']['problems']['105'] = {'id': '105'};
-search_data['courses']['45']['assignments']['554']['problems']['201'] = {'id': '201'};
-search_data['courses']['45']['assignments']['554']['problems']['202'] = {'id': '202'};
-</script>
-<table class="sharif_table">
-  <thead>
-    <tr>
-      <th>Course</th><th>Assignment</th><th>Problem</th><th>Submit ID</th><th>Status</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>45: 2026秋数据结构与算法设计（刘春梅）</td>
-      <td>HW0编程基础</td>
-      <td>Problem 1</td>
-      <td>90001</td>
-      <td>Uploaded</td>
-    </tr>
-    <tr>
-      <td>45: 2026秋数据结构与算法设计（刘春梅）</td>
-      <td>HW0编程基础</td>
-      <td>Problem 2</td>
-      <td>90002</td>
-      <td>Uploaded</td>
-    </tr>
-    <tr>
-      <td>45: 2026秋数据结构与算法设计（刘春梅）</td>
-      <td>HW1线性表</td>
-      <td>Problem 1</td>
-      <td>90003</td>
-      <td>Uploaded</td>
-    </tr>
-  </tbody>
-</table>
-</body>
-</html>
-"""
-
-
 def test_credentials_and_cookies_encryption(test_env):
     user = "alice"
     assert not tongji_oj_client.has_token(user)
@@ -203,20 +155,12 @@ def test_credentials_and_cookies_encryption(test_env):
     assert tongji_oj_client._load_cookies(user) is None
 
 
-def test_parse_assignments_and_submissions_and_build_todos():
+def test_parse_assignments_and_build_todos():
     courses, assignments = tongji_oj_client.parse_assignments_html(SAMPLE_ASSIGNMENTS_HTML)
     assert courses == [{"id": "45", "name": "2026秋数据结构与算法设计（刘春梅）"}]
     assert len(assignments) == 3
 
-    submissions_empty = tongji_oj_client.parse_final_submissions_html(
-        "<html><body><table class='sharif_table'><tbody><tr><td>Nothing to display.</td></tr></tbody></table></body></html>"
-    )
-    assert submissions_empty == {
-        "problem_counts_by_assignment": {},
-        "submitted_problems_by_key": {},
-    }
-
-    todos_all_pending = tongji_oj_client.build_unfinished_todos(assignments, submissions_empty)
+    todos_all_pending = tongji_oj_client.build_assignment_todos(assignments)
     # Skips community (id=1) and Closed (id=400), returns HW1线性表 (590) and HW0编程基础 (554)
     assert [t["id"] for t in todos_all_pending] == ["tjoj_590", "tjoj_554"]
     hw1 = todos_all_pending[0]
@@ -226,15 +170,13 @@ def test_parse_assignments_and_submissions_and_build_todos():
     assert hw1["due_ts"] == "2026-10-08T23:59:59+08:00"
     assert hw1["type"] == "编程作业"
     assert hw1["problem_count"] == 5
-    assert hw1["submitted_count"] == 0
+    assert "submitted_count" not in hw1
     assert hw1["url"] == "https://oj.tongji.edu.cn/index.php/assignments"
 
-    # Now with partial submissions: HW0 has 2/2 problems submitted -> filtered out; HW1 has 1/5 -> kept
-    submissions_partial = tongji_oj_client.parse_final_submissions_html(SAMPLE_SUBMISSIONS_HTML_PARTIAL)
-    todos_partial = tongji_oj_client.build_unfinished_todos(assignments, submissions_partial)
-    assert [t["id"] for t in todos_partial] == ["tjoj_590"]
-    assert todos_partial[0]["submitted_count"] == 1
-    assert todos_partial[0]["problem_count"] == 5
+    # Submission totals on the assignment page never determine completion.
+    assert assignments[1]["submissions_text"] == "320 submissions"
+    assert [t["id"] for t in tongji_oj_client.build_assignment_todos(assignments, "45")] == ["tjoj_590", "tjoj_554"]
+    assert tongji_oj_client.build_assignment_todos(assignments, "46") == []
 
 
 def test_parse_raw_html_without_tbody_and_cache_version_upgrade(test_env):
@@ -272,50 +214,24 @@ def test_parse_raw_html_without_tbody_and_cache_version_upgrade(test_env):
       </table>
     </div>
     """
-    raw_sub_html_no_tbody = """
-    <table class="sharif_table">
-      <thead>
-        <tr><th>Course</th><th>Assignment</th><th>Problem</th></tr>
-      </thead>
-      <tr data-u="2553904" data-a="3815" data-p="2">
-        <td>2026秋数据结构与算法设计（刘春梅）</td>
-        <td><a href="https://oj.tongji.edu.cn/index.php/assignments/problems_list/3815">HW1线性表</a></td>
-        <td><a href="https://oj.tongji.edu.cn/index.php/problems/2/3815">学生信息管理</a></td>
-      </tr>
-      <tr data-u="2553904" data-a="3375" data-p="1">
-        <td>2026秋数据结构与算法设计（刘春梅）</td>
-        <td><a href="https://oj.tongji.edu.cn/index.php/assignments/problems_list/3375">HW0编程基础</a></td>
-        <td><a href="https://oj.tongji.edu.cn/index.php/problems/1/3375">A+B</a></td>
-      </tr>
-      <tr data-u="2553904" data-a="3375" data-p="2">
-        <td>2026秋数据结构与算法设计（刘春梅）</td>
-        <td><a href="https://oj.tongji.edu.cn/index.php/assignments/problems_list/3375">HW0编程基础</a></td>
-        <td><a href="https://oj.tongji.edu.cn/index.php/problems/2/3375">最大公约数</a></td>
-      </tr>
-    </table>
-    """
     courses, assignments = tongji_oj_client.parse_assignments_html(raw_asg_html_no_tbody)
     assert courses == [{"id": "45", "name": "2026秋数据结构与算法设计（刘春梅）"}]
     assert len(assignments) == 2
-    sub_info = tongji_oj_client.parse_final_submissions_html(raw_sub_html_no_tbody)
-    todos = tongji_oj_client.build_unfinished_todos(assignments, sub_info)
-    assert [t["id"] for t in todos] == ["tjoj_3815"]
+    todos = tongji_oj_client.build_assignment_todos(assignments)
+    assert [t["id"] for t in todos] == ["tjoj_3815", "tjoj_3375"]
     assert todos[0]["title"] == "HW1线性表"
-    assert todos[0]["submitted_count"] == 1
+    assert "submitted_count" not in todos[0]
     assert todos[0]["problem_count"] == 5
 
     # Unversioned legacy cache should not be treated as fresh
     assert not tongji_oj_client._is_cache_fresh({"items": [], "updated_at": "2099-01-01T00:00:00+08:00"})
 
 
-def test_fetch_assignments_strictly_read_only_and_never_opens_problems(monkeypatch, test_env):
+@pytest.mark.parametrize("fetch", ["fetch_assignments", "fetch_courses"])
+def test_fetch_assignments_strictly_read_only_and_never_opens_problems(monkeypatch, test_env, fetch):
     user = "alice"
     tongji_oj_client._save_cookies(user, {"shjsession": "valid_sess"})
     requested_urls = []
-
-    class FakeJar(dict):
-        def get_dict(self):
-            return dict(self)
 
     class FakeSession:
         def __init__(self):
@@ -328,12 +244,8 @@ def test_fetch_assignments_strictly_read_only_and_never_opens_problems(monkeypat
             resp = MagicMock()
             resp.status_code = 200
             resp.url = url
-            if "/index.php/assignments" in url:
-                resp.text = SAMPLE_ASSIGNMENTS_HTML
-            elif "/index.php/submissions/final" in url:
-                resp.text = "<html><body><table class='sharif_table'><tbody></tbody></table></body></html>"
-            else:
-                resp.text = ""
+            assert url == tongji_oj_client.OJ_ASSIGNMENTS_URL
+            resp.text = SAMPLE_ASSIGNMENTS_HTML
             return resp
 
         def post(self, url, **kwargs):
@@ -342,12 +254,15 @@ def test_fetch_assignments_strictly_read_only_and_never_opens_problems(monkeypat
 
     monkeypatch.setattr(tongji_oj_client.requests, "Session", FakeSession)
 
-    res = tongji_oj_client.fetch_assignments(user, force_fetch=True)
+    res = (tongji_oj_client.fetch_assignments(user, force_fetch=True) if fetch == "fetch_assignments"
+           else tongji_oj_client.fetch_courses(user))
     assert res["ok"] is True
-    assert [it["id"] for it in res["items"]] == ["tjoj_590", "tjoj_554"]
+    if fetch == "fetch_assignments":
+        assert [it["id"] for it in res["items"]] == ["tjoj_590", "tjoj_554"]
     assert len(res["courses"]) == 1
 
-    # Verify strict read-only safety: only top-level list pages were fetched
+    # Assignment synchronization must never request final submissions or problem pages.
+    assert requested_urls == [("GET", tongji_oj_client.OJ_ASSIGNMENTS_URL)]
     assert all(method == "GET" for method, _ in requested_urls)
     assert all("problems_list" not in url and "/problems/" not in url and "submit" not in url for _, url in requested_urls)
 
@@ -360,14 +275,14 @@ def test_oj_cookie_rotation_replaces_restored_session():
     assert header == "shjsession=rotated"
 
 
-def test_oj_list_timeout_retries_only_the_failed_read(monkeypatch, test_env):
+def test_oj_assignment_timeout_retries_only_the_assignment_list(monkeypatch, test_env):
     user = "retry"
     tongji_oj_client._save_cookies(user, {"shjsession": "session"})
     session = requests.Session()
     calls = []
     def get(url, **kwargs):
         calls.append((url, kwargs["timeout"]))
-        if url == tongji_oj_client.OJ_FINAL_SUBMISSIONS_URL and len(calls) == 2:
+        if len(calls) == 1:
             raise requests.ReadTimeout()
         response = requests.Response()
         response.status_code, response.url = 200, url
@@ -376,9 +291,8 @@ def test_oj_list_timeout_retries_only_the_failed_read(monkeypatch, test_env):
     monkeypatch.setattr(session, "get", get)
     monkeypatch.setattr(tongji_oj_client.requests, "Session", lambda: session)
     monkeypatch.setattr(tongji_oj_client, "iam_login", lambda *args: pytest.fail("network timeout must not trigger login"))
-    assert tongji_oj_client._fetch_authenticated_pages(user) == ("<html></html>", "<html></html>", None)
-    assert [url for url, _ in calls] == [tongji_oj_client.OJ_ASSIGNMENTS_URL,
-                                      tongji_oj_client.OJ_FINAL_SUBMISSIONS_URL, tongji_oj_client.OJ_FINAL_SUBMISSIONS_URL]
+    assert tongji_oj_client._fetch_authenticated_assignments(user) == ("<html></html>", None)
+    assert [url for url, _ in calls] == [tongji_oj_client.OJ_ASSIGNMENTS_URL] * 2
     assert all(timeout == (8, tongji_oj_client.settings.TONGJIOJ_READ_TIMEOUT_SECONDS) for _, timeout in calls)
 
 
@@ -399,7 +313,7 @@ def test_exhausted_oj_timeout_is_one_confirmed_failure_and_keeps_cache(client_wi
     assert result["sync"]["consecutive_failures"] == 1
 
 
-def test_renewed_oj_cookie_is_saved_after_both_pages(monkeypatch, test_env):
+def test_renewed_oj_cookie_is_saved_after_assignment_page(monkeypatch, test_env):
     user = "renew"
     tongji_oj_client.save_credentials(user, "student", "password", cookies={"shjsession": "expired"})
     session = requests.Session()
@@ -419,7 +333,8 @@ def test_renewed_oj_cookie_is_saved_after_both_pages(monkeypatch, test_env):
     monkeypatch.setattr(session, "get", get)
     monkeypatch.setattr(tongji_oj_client.requests, "Session", lambda: session)
     monkeypatch.setattr(tongji_oj_client, "iam_login", login)
-    assert tongji_oj_client._fetch_authenticated_pages(user)[2] is None
+    assert tongji_oj_client._fetch_authenticated_assignments(user)[1] is None
+    assert calls == [tongji_oj_client.OJ_ASSIGNMENTS_URL] * 2
     assert tongji_oj_client._load_cookies(user)["shjsession"] == "rotated"
     assert len(session.cookies) == 1
 
@@ -432,7 +347,7 @@ def test_selected_course_uses_fresh_cache_without_network(monkeypatch, test_env)
         {"id": "tjoj_1", "course_id": "45"},
         {"id": "tjoj_2", "course_id": "46"},
     ], [])
-    monkeypatch.setattr(tongji_oj_client, "_fetch_authenticated_pages", lambda username: pytest.fail("fresh cache must not fetch OJ"))
+    monkeypatch.setattr(tongji_oj_client, "_fetch_authenticated_assignments", lambda username: pytest.fail("fresh cache must not fetch OJ"))
 
     result = tongji_oj_client.fetch_assignments(user)
     assert result["cached"] is True
@@ -451,7 +366,7 @@ def test_cache_only_api_returns_stale_filtered_state_without_network(client_with
     })
     tongji_oj_client.update_override(user, "tjoj_1", patch={"title": "Local title"})
     tongji_oj_client.update_state(user, "complete", "tjoj_1")
-    monkeypatch.setattr(tongji_oj_client, "_fetch_authenticated_pages", lambda username: pytest.fail("cache-only API must not fetch OJ"))
+    monkeypatch.setattr(tongji_oj_client, "_fetch_authenticated_assignments", lambda username: pytest.fail("cache-only API must not fetch OJ"))
 
     result = client_with_user.get("/api/tongjioj/todos?cache_only=1").get_json()
     assert result["ok"] and result["cached"] and result["stale"] and result["has_cache"]
@@ -461,7 +376,7 @@ def test_cache_only_api_returns_stale_filtered_state_without_network(client_with
 def test_cache_only_api_distinguishes_first_sync_from_empty_cache(client_with_user, monkeypatch, test_env):
     user = "testuser"
     tongji_oj_client.save_credentials(user, "student", "password")
-    monkeypatch.setattr(tongji_oj_client, "_fetch_authenticated_pages", lambda username: pytest.fail("cache-only API must not fetch OJ"))
+    monkeypatch.setattr(tongji_oj_client, "_fetch_authenticated_assignments", lambda username: pytest.fail("cache-only API must not fetch OJ"))
     result = client_with_user.get("/api/tongjioj/todos?cache_only=1").get_json()
     assert result["ok"] and not result["has_cache"] and result["stale"]
     tongji_oj_client._save_cache_payload(user, [], [])
@@ -473,7 +388,7 @@ def test_force_refresh_failure_preserves_cache_and_records_error(client_with_use
     user = "testuser"
     tongji_oj_client.save_credentials(user, "student", "password")
     tongji_oj_client._save_cache_payload(user, [{"id": "tjoj_1", "title": "Keep me"}], [])
-    monkeypatch.setattr(tongji_oj_client, "_fetch_authenticated_pages", lambda username: (None, None, "OJ unavailable"))
+    monkeypatch.setattr(tongji_oj_client, "_fetch_authenticated_assignments", lambda username: (None, "OJ unavailable"))
     result = client_with_user.get("/api/tongjioj/todos?refresh=1").get_json()
     assert result["ok"]
     assert result["data"][0]["title"] == "Keep me"
@@ -490,6 +405,75 @@ def _wait_for_refresh(client):
             return result
         time.sleep(0.01)
     pytest.fail("OJ background refresh did not finish")
+
+
+@pytest.mark.parametrize("completed", [True, False])
+def test_assignment_only_refresh_preserves_legacy_manual_state_and_subtasks(client_with_user, monkeypatch, test_env, completed):
+    user = "testuser"
+    tongji_oj_client.save_credentials(user, "student", "password")
+    tongji_oj_client.set_selected_course(user, "45")
+    # A fresh v2 cache may have omitted HW0 because of final submissions.
+    write_json_file(tongji_oj_client._cache_file(user), {
+        "version": 2, "updated_at": datetime.now(tongji_oj_client.CST).isoformat(),
+        "items": [{"id": "tjoj_590", "title": "Old homework", "course_id": "45"}], "courses": [],
+    })
+    tongji_oj_client.update_state(user, "complete", "tjoj_590")
+    if not completed:
+        tongji_oj_client.update_state(user, "uncomplete", "tjoj_590")
+    tongji_oj_client.update_state(user, "hide", "tjoj_554")
+    tongji_oj_client.update_state(user, "highlight", "tjoj_590")
+    tongji_oj_client.update_state(user, "delete", "tjoj_400")
+    tongji_oj_client.update_override(user, "tjoj_590", patch={"title": "Local homework", "due_ts": "2099-10-09T23:59:59+08:00"})
+    monkeypatch.setattr(external_subtasks, "user_dir", _user_dir(test_env))
+    subtasks = [{"id": 1, "text": "Local step", "done": True, "due_date": None}]
+    external_subtasks.save_subtasks(user, "tongjioj", "tjoj_590", subtasks)
+    directory = test_env / "users" / user
+    state_path, subtasks_path = directory / "tongjioj_state.json", directory / "external_subtasks.json"
+    original_state, original_subtasks = state_path.read_bytes(), subtasks_path.read_bytes()
+    started, release = Event(), Event()
+    def get_assignments(username):
+        assert username == user
+        started.set()
+        assert release.wait(3)
+        return SAMPLE_ASSIGNMENTS_HTML, None
+    monkeypatch.setattr(tongji_oj_client, "_fetch_authenticated_assignments", get_assignments)
+
+    # The obsolete projection remains usable until its replacement is ready.
+    snapshot = client_with_user.get("/api/tongjioj/todos?cache_only=1").get_json()
+    assert snapshot["stale"] and snapshot["has_cache"]
+    assert bool(snapshot["data"][0].get("done")) is completed
+    try:
+        client_with_user.get("/api/tongjioj/todos")
+        assert started.wait(2)
+        assert state_path.read_bytes() == original_state
+        assert subtasks_path.read_bytes() == original_subtasks
+    finally:
+        release.set()
+        result = _wait_for_refresh(client_with_user)
+
+    assert [item["id"] for item in result["data"]] == ["tjoj_590", "tjoj_554"]
+    first = result["data"][0]
+    assert bool(first.get("done")) is completed
+    assert first["title"] == "Local homework"
+    assert first["due_ts"] == "2099-10-09T23:59:59+08:00"
+    assert first["subtasks"] == subtasks
+    assert result["hidden"] == ["tjoj_554"] and result["highlighted"] == ["tjoj_590"]
+    assert result["deleted"] == ["tjoj_400"]
+    assert state_path.read_bytes() == original_state
+    assert subtasks_path.read_bytes() == original_subtasks
+    assert read_json_file(tongji_oj_client._cache_file(user), {})["version"] == tongji_oj_client.CACHE_SCHEMA_VERSION
+
+    # Completing or undoing after the upgrade still survives another refresh.
+    response = client_with_user.post("/api/tongjioj/state", json={
+        "action": "uncomplete" if completed else "complete", "id": "tjoj_590",
+    }, headers=client_with_user.csrf_headers)
+    assert response.status_code == 200
+    changed_state = state_path.read_bytes()
+    client_with_user.get("/api/tongjioj/todos?refresh=1")
+    result = _wait_for_refresh(client_with_user)
+    assert bool(result["data"][0].get("done")) is not completed
+    assert state_path.read_bytes() == changed_state
+    assert subtasks_path.read_bytes() == original_subtasks
 
 
 @pytest.mark.parametrize("clear", [False, True])

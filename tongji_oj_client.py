@@ -3,9 +3,9 @@
 Supports:
   1. Tongji Unified Authentication (同济统一身份认证登录 Unified_Certification via iam.tongji.edu.cn)
   2. Local OJ username/password login fallback (U_Login)
-  3. Read-only assignment & submission list scraping from:
+  3. Read-only assignment list scraping from:
      - GET /index.php/assignments
-     - GET /index.php/submissions/final/course/all
+     Completion is controlled by the user's local state, not OJ submissions or scores.
      Strictly never opens individual problem pages (/assignments/problems_list/... or /problems/...)
      and never submits any code or form on assignments.
 """
@@ -43,7 +43,6 @@ OJ_IAM_LOGIN_URL = f"{OJ_BASE_URL}/index.php/login/Unified_Certification"
 OJ_LOCAL_LOGIN_URL = f"{OJ_BASE_URL}/index.php/login/U_Login"
 OJ_DASHBOARD_URL = f"{OJ_BASE_URL}/index.php/dashboard"
 OJ_ASSIGNMENTS_URL = f"{OJ_BASE_URL}/index.php/assignments"
-OJ_FINAL_SUBMISSIONS_URL = f"{OJ_BASE_URL}/index.php/submissions/final/course/all"
 
 IAM_BASE_URL = "https://iam.tongji.edu.cn"
 IAM_ENTITY_ID = "SYS20240302"
@@ -879,66 +878,11 @@ def parse_assignments_html(html: str) -> tuple[list[dict], list[dict]]:
     return courses, assignments
 
 
-def parse_final_submissions_html(html: str) -> dict:
-    """Parse `/index.php/submissions/final/course/all` HTML.
-
-    Returns:
-      {
-        "problem_counts_by_assignment": {(course_id, assignment_id): int},
-        "submitted_problems_by_key": {(course_name, assignment_name): set[str]},
-      }
-    """
-    problem_counts_by_assignment: dict[tuple[str, str], int] = {}
-    submitted_problems_by_key: dict[tuple[str, str], set[str]] = {}
-
-    # 1. Extract problem counts from inline search_data if available:
-    # search_data['courses']['45']['assignments']['3815']['problems']['7452'] = {'id': ...}
-    prob_assign_matches = re.findall(
-        r"search_data\['courses'\]\['(\d+)'\]\['assignments'\]\['(\d+)'\]\['problems'\]\['(\d+)'\]\s*=",
-        html,
-    )
-    problems_map: dict[tuple[str, str], set[str]] = {}
-    for cid, aid, pid in prob_assign_matches:
-        problems_map.setdefault((cid, aid), set()).add(pid)
-    for key, pids in problems_map.items():
-        problem_counts_by_assignment[key] = len(pids)
-
-    # 2. Parse final submission rows from <table class="sharif_table">
-    table_match = re.search(
-        r'<table[^>]*class=["\'][^"\']*sharif_table[^"\']*["\'][^>]*>(.*?)</table>',
-        html,
-        re.DOTALL | re.IGNORECASE,
-    )
-    if table_match:
-        parser = _TableTextParser()
-        parser.feed(table_match.group(0))
-        for row in parser.rows:
-            if len(row) < 3:
-                continue
-            first_cell = row[0]["text"]
-            if "nothing to display" in first_cell.lower():
-                continue
-            course_name = _clean_course_name(first_cell)
-            assignment_name = row[1]["text"].strip()
-            problem_name = row[2]["text"].strip()
-            if course_name and assignment_name and problem_name:
-                submitted_problems_by_key.setdefault((course_name, assignment_name), set()).add(problem_name)
-
-    return {
-        "problem_counts_by_assignment": problem_counts_by_assignment,
-        "submitted_problems_by_key": submitted_problems_by_key,
-    }
-
-
-def build_unfinished_todos(
+def build_assignment_todos(
     assignments: list[dict],
-    submissions_info: dict,
     selected_course: str | None = None,
 ) -> list[dict]:
-    """Filter parsed assignments against final submissions to produce unified todo items."""
-    problem_counts_map = submissions_info.get("problem_counts_by_assignment", {})
-    submitted_map = submissions_info.get("submitted_problems_by_key", {})
-
+    """Project open assignments; manual completion is overlaid by PlatformStateStore."""
     todos: list[dict] = []
     for asg in assignments:
         course_id = str(asg.get("course_id") or "")
@@ -955,17 +899,7 @@ def build_unfinished_todos(
             continue
 
         problem_count = int(asg.get("problem_count") or 0)
-        if (course_id, assignment_id) in problem_counts_map:
-            problem_count = max(problem_count, problem_counts_map[(course_id, assignment_id)])
-
         if problem_count <= 0:
-            continue
-
-        submitted_problems = submitted_map.get((course_name, title), set())
-        submitted_count = len(submitted_problems)
-
-        # Completed when all problems in this assignment have a final submission
-        if submitted_count >= problem_count:
             continue
 
         due_str, due_date, due_ts = _parse_finish_time(asg.get("finish_time") or "")
@@ -982,7 +916,6 @@ def build_unfinished_todos(
             "type": "编程作业",
             "type_raw": "assignment",
             "problem_count": problem_count,
-            "submitted_count": submitted_count,
             "url": OJ_ASSIGNMENTS_URL,
         })
 
@@ -992,7 +925,9 @@ def build_unfinished_todos(
 
 # ---- Cache & Live Fetch ----
 
-CACHE_SCHEMA_VERSION = 2
+# Old caches omitted assignments based on submissions. Refresh them without
+# deleting the old projection or changing any independently stored local state.
+CACHE_SCHEMA_VERSION = 3
 
 
 def _read_cache_payload(username: str) -> dict | None:
@@ -1100,8 +1035,8 @@ def start_background_refresh(username: str) -> bool:
         return True
 
 
-def _fetch_authenticated_pages(username: str) -> tuple[str | None, str | None, str | None]:
-    """Return `(assignments_html, submissions_html, error_message)` using stored session or re-login."""
+def _fetch_authenticated_assignments(username: str) -> tuple[str | None, str | None]:
+    """Return `(assignments_html, error_message)` using stored session or re-login."""
     sess = requests.Session()
     sess.headers.update(DEFAULT_HEADERS)
 
@@ -1109,23 +1044,20 @@ def _fetch_authenticated_pages(username: str) -> tuple[str | None, str | None, s
     if cookies:
         _restore_oj_cookies(sess, cookies)
 
-    def _try_get_pages():
+    def _try_get_assignments():
         r_asg = _get_list_page(sess, username, OJ_ASSIGNMENTS_URL)
         if not _is_oj_authenticated_response(r_asg):
-            return None, None
-        r_sub = _get_list_page(sess, username, OJ_FINAL_SUBMISSIONS_URL)
-        if not _is_oj_authenticated_response(r_sub):
-            return None, None
-        return r_asg.text, r_sub.text
+            return None
+        return r_asg.text
 
     try:
-        asg_html, sub_html = _try_get_pages()
-        if asg_html is not None and sub_html is not None:
+        asg_html = _try_get_assignments()
+        if asg_html is not None:
             _save_cookies(username, _session_cookies_dict(sess))
-            return asg_html, sub_html, None
+            return asg_html, None
     except requests.RequestException as e:
         logger.warning("Tongji OJ list fetch failed: %s", type(e).__name__)
-        return None, None, "同济OJ响应超时，请稍后重试" if isinstance(e, requests.Timeout) else "同济OJ网络请求失败，请稍后重试"
+        return None, "同济OJ响应超时，请稍后重试" if isinstance(e, requests.Timeout) else "同济OJ网络请求失败，请稍后重试"
 
     # Session expired or missing -> try automatic re-login with stored credentials
     creds = load_credentials(username)
@@ -1133,7 +1065,7 @@ def _fetch_authenticated_pages(username: str) -> tuple[str | None, str | None, s
         with _refresh_lock:
             _check_refresh_active(username)
             _cookie_cache.pop(username, None)
-        return None, None, "会话已过期，请重新登录同济竞教实训平台"
+        return None, "会话已过期，请重新登录同济竞教实训平台"
 
     login_mode = creds.get("login_mode") or "iam"
     if login_mode == "local":
@@ -1143,22 +1075,22 @@ def _fetch_authenticated_pages(username: str) -> tuple[str | None, str | None, s
 
     if not login_res.get("ok"):
         if login_res.get("need_second_auth"):
-            return None, None, "同济OJ需要完成加强认证，请重新连接"
+            return None, "同济OJ需要完成加强认证，请重新连接"
         if str(login_res.get("error") or "").startswith("网络"):
-            return None, None, "同济OJ网络请求失败，请稍后重试"
-        return None, None, login_res.get("error") or "自动重新登录失败，请重新配置账号"
+            return None, "同济OJ网络请求失败，请稍后重试"
+        return None, login_res.get("error") or "自动重新登录失败，请重新配置账号"
 
     # Retry page fetch with fresh cookies
     fresh_cookies = _load_cookies(username) or {}
     _restore_oj_cookies(sess, fresh_cookies)
     try:
-        asg_html, sub_html = _try_get_pages()
-        if asg_html is not None and sub_html is not None:
+        asg_html = _try_get_assignments()
+        if asg_html is not None:
             _save_cookies(username, _session_cookies_dict(sess))
-            return asg_html, sub_html, None
-        return None, None, "登录后仍无法读取作业页面，请稍后重试"
+            return asg_html, None
+        return None, "登录后仍无法读取作业页面，请稍后重试"
     except requests.RequestException as e:
-        return None, None, "同济OJ响应超时，请稍后重试" if isinstance(e, requests.Timeout) else "同济OJ网络请求失败，请稍后重试"
+        return None, "同济OJ响应超时，请稍后重试" if isinstance(e, requests.Timeout) else "同济OJ网络请求失败，请稍后重试"
 
 
 def fetch_courses(username: str) -> dict:
@@ -1170,7 +1102,7 @@ def fetch_courses(username: str) -> dict:
     if not has_credentials(username):
         return {"ok": False, "error": "未配置同济OJ账号", "need_setup": True}
 
-    asg_html, _, err = _fetch_authenticated_pages(username)
+    asg_html, err = _fetch_authenticated_assignments(username)
     if err or asg_html is None:
         return {"ok": False, "error": err or "获取课程失败"}
 
@@ -1184,7 +1116,7 @@ def fetch_assignments(
     course_id: str | None = None,
     force_fetch: bool = False,
 ) -> dict:
-    """Fetch unfinished assignments for `username` from oj.tongji.edu.cn."""
+    """Fetch assignments without inferring completion from OJ submissions or scores."""
     if not has_credentials(username):
         return {"ok": False, "error": "未配置同济OJ账号", "need_setup": True}
 
@@ -1194,8 +1126,8 @@ def fetch_assignments(
     if not force_fetch and _is_cache_fresh(cached_payload):
         return get_cached_assignments(username, course_id)
 
-    asg_html, sub_html, err = _fetch_authenticated_pages(username)
-    if err or asg_html is None or sub_html is None:
+    asg_html, err = _fetch_authenticated_assignments(username)
+    if err or asg_html is None:
         code = "sync_failed"
         if err and "超时" in err:
             code = "upstream_timeout"
@@ -1210,8 +1142,7 @@ def fetch_assignments(
         return {"ok": False, "code": code, "error": err or "获取同济OJ作业失败"}
 
     courses, all_assignments = parse_assignments_html(asg_html)
-    submissions_info = parse_final_submissions_html(sub_html)
-    all_todos = build_unfinished_todos(all_assignments, submissions_info, selected_course=None)
+    all_todos = build_assignment_todos(all_assignments)
 
     _save_courses(username, courses)
     _save_cache_payload(username, all_todos, courses)
