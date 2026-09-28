@@ -196,6 +196,76 @@ def test_task_crud_next_action_completion_and_stats(tmp_path, monkeypatch):
     refreshed = client.get("/api/projects").get_json()["projects"][0]
     assert refreshed["pending_count"] == 1
     assert [task["id"] for task in refreshed["tasks"]] == [second["id"]]
+    assert refreshed["tasks"][0]["is_next_action"] is True
+
+
+def test_next_action_is_never_empty_while_pending_tasks_exist(tmp_path, monkeypatch):
+    client, headers = _client(tmp_path, monkeypatch)
+    project = _create_project(client, headers, "默认下一步测试")
+
+    # 1. Creating first task without is_next_action automatically sets it as next action
+    t1 = _create_task(client, headers, project["id"], "步骤一")
+    assert t1["is_next_action"] is True
+
+    # 2. Creating second task without is_next_action keeps t1 as next action
+    t2 = _create_task(client, headers, project["id"], "步骤二")
+    t3 = _create_task(client, headers, project["id"], "步骤三")
+    assert t2["is_next_action"] is False
+    assert t3["is_next_action"] is False
+
+    # 3. User can manually switch next action to t3
+    switched = client.put(
+        f"/api/projects/{project['id']}/tasks/{t3['id']}",
+        json={"is_next_action": True},
+        headers=headers,
+    ).get_json()["task"]
+    assert switched["is_next_action"] is True
+    ov = client.get("/api/projects/overview").get_json()["active_projects"][0]
+    assert ov["next_action"]["id"] == t3["id"]
+
+    # 4. Unchecking is_next_action on t3 promotes the first other pending task (t1)
+    unchecked = client.put(
+        f"/api/projects/{project['id']}/tasks/{t3['id']}",
+        json={"is_next_action": False},
+        headers=headers,
+    ).get_json()["task"]
+    assert unchecked["is_next_action"] is False
+    ov = client.get("/api/projects/overview").get_json()["active_projects"][0]
+    assert ov["next_action"]["id"] == t1["id"]
+
+    # 5. Completing current next action (t1) automatically promotes t2
+    client.put(
+        f"/api/projects/{project['id']}/tasks/{t1['id']}",
+        json={"done": True},
+        headers=headers,
+    )
+    ov = client.get("/api/projects/overview").get_json()["active_projects"][0]
+    assert ov["next_action"]["id"] == t2["id"]
+
+    # 6. Deleting current next action (t2) automatically promotes t3
+    client.delete(
+        f"/api/projects/{project['id']}/tasks/{t2['id']}",
+        headers=headers,
+    )
+    ov = client.get("/api/projects/overview").get_json()["active_projects"][0]
+    assert ov["next_action"]["id"] == t3["id"]
+
+    # 7. Unchecking is_next_action on the ONLY remaining pending task (t3) keeps it True
+    only_remaining = client.put(
+        f"/api/projects/{project['id']}/tasks/{t3['id']}",
+        json={"is_next_action": False},
+        headers=headers,
+    ).get_json()["task"]
+    assert only_remaining["is_next_action"] is True
+
+    # 8. Completing the last pending task leaves next_action as None
+    client.put(
+        f"/api/projects/{project['id']}/tasks/{t3['id']}",
+        json={"done": True},
+        headers=headers,
+    )
+    ov = client.get("/api/projects/overview").get_json()["active_projects"][0]
+    assert ov["next_action"] is None
 
 
 def test_task_move_and_reorder_validates_complete_order(tmp_path, monkeypatch):

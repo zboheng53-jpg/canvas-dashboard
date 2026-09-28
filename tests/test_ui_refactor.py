@@ -59,8 +59,12 @@ def test_todo_items_include_category_next_action_and_main_flag(tmp_path, monkeyp
     assert next_action_item["is_main"] is True
     assert next_action_item["project_category"] == "竞赛"
 
+    review_item = next(it for it in items if it["title"] == "两周全局复盘")
+    assert review_item["is_next_action"] is False
+    assert review_item["is_main"] is True
+
     english_item = next(it for it in items if it["title"] == "完成一次完整六级诊断并记录分项错因")
-    assert english_item["is_next_action"] is False
+    assert english_item["is_next_action"] is True
     assert english_item["is_main"] is False
     assert english_item["project_category"] == "英语"
 

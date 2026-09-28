@@ -2352,8 +2352,7 @@ section.card.listcard,
   color: var(--ds-ink, #1c2330) !important;
 }
 .project-next-action-text.text-muted { color: var(--ds-ink-3, #7d8694) !important; font-weight: 400 !important; }
-.project-next-action-card .ui-button { margin-left: auto !important; flex: none !important; }
-.project-next-action-card .project-next-action-left + .ui-button { margin-left: 0 !important; }
+.project-next-action-card .ui-button { margin-left: 0 !important; flex: none !important; }
 /* 分隔线 */
 .project-detail-divider {
   border: none !important;

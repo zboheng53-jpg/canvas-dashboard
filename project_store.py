@@ -80,6 +80,26 @@ def _normalize_task(task, fallback_id, fallback_order, valid_group_ids, legacy=F
     }
 
 
+def _pick_default_next_task(groups, tasks, exclude_task_id=None):
+    group_order = {group["id"]: (group["sort_order"], group["id"]) for group in groups}
+    candidates = [
+        task for task in tasks
+        if not task.get("done")
+        and not task.get("deleted_at")
+        and (exclude_task_id is None or task.get("id") != exclude_task_id)
+    ]
+    if not candidates:
+        return None
+
+    def sort_key(task):
+        gid = task.get("group_id")
+        if gid is not None and gid in group_order:
+            return (0, group_order[gid], task.get("sort_order", 0), task.get("id", 0))
+        return (1, (0, 0), task.get("sort_order", 0), task.get("id", 0))
+
+    return min(candidates, key=sort_key)
+
+
 def _normalize_project(project, fallback_id, fallback_order):
     now = _now()
     groups = []
@@ -114,6 +134,11 @@ def _normalize_project(project, fallback_id, fallback_order):
                 task["is_next_action"] = False
             next_action_seen = True
         tasks.append(task)
+
+    if not next_action_seen:
+        default_next = _pick_default_next_task(groups, tasks)
+        if default_next is not None:
+            default_next["is_next_action"] = True
 
     status = project.get("status")
     if status not in PROJECT_STATUSES:
@@ -208,6 +233,10 @@ def _project_view(project, today=None, include_deleted=False):
         value["tasks"] = [task for task in value["tasks"] if not task.get("deleted_at")]
     value["groups"].sort(key=lambda group: (group["sort_order"], group["id"]))
     value["tasks"].sort(key=lambda task: (task["sort_order"], task["id"]))
+    if not any(task.get("is_next_action") for task in value["tasks"] if not task["done"] and not task.get("deleted_at")):
+        default_next = _pick_default_next_task(value["groups"], value["tasks"])
+        if default_next is not None:
+            default_next["is_next_action"] = True
     value["completed_count"] = sum(1 for task in value["tasks"] if task["done"])
     value["pending_count"] = sum(1 for task in value["tasks"] if not task["done"])
     value["due_state"], value["due_days"] = _due_state(value.get("due_date"), today)
@@ -570,7 +599,14 @@ def update_task(username, project_id, task_id, changes):
             for item in project["tasks"]:
                 item["is_next_action"] = item["id"] == task_id
         elif "is_next_action" in changes:
+            was_next = bool(task.get("is_next_action"))
             task["is_next_action"] = False
+            if was_next and not task["done"]:
+                replacement = _pick_default_next_task(project["groups"], project["tasks"], exclude_task_id=task_id)
+                if replacement is not None:
+                    replacement["is_next_action"] = True
+                else:
+                    task["is_next_action"] = True
         task["updated_at"] = _now()
         project["updated_at"] = _now()
         result["found"] = True

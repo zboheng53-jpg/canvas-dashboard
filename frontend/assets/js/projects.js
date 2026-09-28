@@ -154,8 +154,12 @@ function openProjectTaskModal(projectId, taskId = null, groupId = null, forceNex
   form.dataset.updatedAt = task?.updated_at || "";
   form.dataset.originalName = task?.name || "";
   form.dataset.requestId = crypto.randomUUID();
+  const pendingTasks = project.tasks.filter((item) => !item.done);
+  const isOnlyNextCandidate = task
+    ? (!task.done && pendingTasks.length === 1 && pendingTasks[0].id === task.id)
+    : pendingTasks.length === 0;
   form.due_date.value = task?.due_date || "";
-  form.is_next_action.checked = forceNext || Boolean(task?.is_next_action);
+  form.is_next_action.checked = forceNext || isOnlyNextCandidate || Boolean(task?.is_next_action);
   populateProjectGroupOptions(form.group_id, project, task ? task.group_id : groupId);
   document.getElementById("project-task-title").textContent = task ? "编辑任务" : (forceNext ? "添加下一步行动" : "添加任务");
   document.getElementById("project-task-error").textContent = "";
@@ -338,8 +342,8 @@ function renderProjectList(containerId, values, history) {
 
     const totalTasks = project.completed_count + project.pending_count;
     const progressPercent = totalTasks > 0 ? Math.round((project.completed_count / totalTasks) * 100) : 0;
-    const nextTask = project.tasks.find(t => t.is_next_action && !t.done);
-    const nextTaskText = nextTask ? `下一步: ${nextTask.name}` : "无下一步行动";
+    const nextTask = project.tasks.find(t => t.is_next_action && !t.done) || project.tasks.find(t => !t.done);
+    const nextTaskText = nextTask ? `下一步: ${nextTask.name}` : "暂无细分步骤";
 
     return `
       <button type="button"
@@ -419,9 +423,9 @@ function renderProjectDetail() {
 
   const statusLabel = project.status === "active" ? "进行中的项目" : project.status === "completed" ? "已完成的项目" : "暂放的项目";
 
-  // Find incomplete next action task
+  // Find incomplete next action task (default to first incomplete task if needed)
   const activeTasks = project.tasks.filter(t => !t.done);
-  const nextActionTask = activeTasks.find(t => t.is_next_action);
+  const nextActionTask = activeTasks.find(t => t.is_next_action) || activeTasks[0] || null;
 
   let nextActionHtml = "";
   if (nextActionTask && active) {
@@ -431,17 +435,8 @@ function renderProjectDetail() {
           <span class="project-next-action-label">下一步行动</span>
           <span class="project-next-action-text">${pEscape(nextActionTask.name)}</span>
         </div>
+        ${activeTasks.length > 1 ? `<button type="button" class="ui-button ui-button--secondary project-next-action-btn-choose" onclick="openProjectChoiceModal(${project.id})">更换下一步</button>` : ""}
         <button type="button" class="ui-button ui-button--primary project-next-action-btn-complete" onclick="toggleProjectTask(${project.id}, ${nextActionTask.id}, true)">标记完成</button>
-      </div>
-    `;
-  } else if (active && activeTasks.length > 0) {
-    nextActionHtml = `
-      <div class="project-next-action-card is-empty">
-        <div class="project-next-action-left">
-          <span class="project-next-action-label">下一步行动</span>
-          <span class="project-next-action-text text-muted">暂无下一步行动，可从下方选择任务设为下一步</span>
-        </div>
-        <button type="button" class="ui-button ui-button--secondary project-next-action-btn-choose" onclick="openProjectChoiceModal(${project.id})">选择任务</button>
       </div>
     `;
   }
@@ -1111,7 +1106,7 @@ function renderProjectOverview(data) {
 
                 </button>` : `
                 <button type="button" class="biz-project-item__next is-empty biz-project-item__next--compact" onclick="openProjectsView(${p.id})">
-                  <b>下一步</b>未设置行动
+                  <b>下一步</b>暂无细分步骤
                 </button>`}
               ${total ? `<div class="proj-overview-meta">${p.next_action?.planned_on ? `<span class="proj-next-plan">计划 ${pEscape(p.next_action.planned_on)}</span>` : ""}</div>` : ""}
             </div>`;
