@@ -338,7 +338,18 @@
         <!-- Rendered by JS -->
       </div>
     </div>
-    <p class="ui-help schedule-login-note">数据说明：登录会在临时浏览器窗口中完成，网站不会保存你的同济统一身份认证密码。认证结束或过期后，临时登录环境会被删除，只保留导入后的课表数据。</p>
+    <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note connection-trust-card schedule-login-note">
+      <div class="connection-trust-card__head">
+        <strong>同济课表连接说明</strong>
+        <a href="/privacy" target="_blank" rel="noopener noreferrer" class="connection-trust-card__link">查看隐私说明 →</a>
+      </div>
+      <dl class="connection-trust-grid">
+        <div class="connection-trust-row"><dt>保存内容</dt><dd>导入后的课程表安排数据</dd></div>
+        <div class="connection-trust-row"><dt>用途</dt><dd>仅用于展示周课表与生成今日日程</dd></div>
+        <div class="connection-trust-row"><dt>不会保存</dt><dd>同济统一身份认证密码与长期登录 Session</dd></div>
+        <div class="connection-trust-row"><dt>认证结束后</dt><dd>临时登录窗口立即销毁，可随时一键清空课表</dd></div>
+      </dl>
+    </div>
   </div>
 </div>
 
@@ -408,7 +419,18 @@
         </div>
 
         <div class="ui-section-label detail-section-title">数据说明</div>
-        <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note"><strong>网站只保存你的 Canvas 日历订阅地址，用于读取课程作业，</strong><span>不会保存 Canvas 密码。你可以随时断开连接。</span></div>
+        <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note connection-trust-card">
+          <div class="connection-trust-card__head">
+            <strong>Canvas 连接说明</strong>
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" class="connection-trust-card__link">查看隐私说明 →</a>
+          </div>
+          <dl class="connection-trust-grid">
+            <div class="connection-trust-row"><dt>保存内容</dt><dd>iCal 日历订阅链接（只读 URL）</dd></div>
+            <div class="connection-trust-row"><dt>用途</dt><dd>仅用于读取并同步课程作业与考试日历</dd></div>
+            <div class="connection-trust-row"><dt>不会保存</dt><dd>Canvas 账号、密码与登录 Session</dd></div>
+            <div class="connection-trust-row"><dt>断开连接后</dt><dd>订阅链接立即删除，历史作业缓存保留</dd></div>
+          </dl>
+        </div>
         <div class="ui-section-label detail-section-title">连接配置</div>
         <div class="ui-card detail-content-box">
           <form class="connection-form connection-form-inline" id="canvas-setup-form-inline">
@@ -437,7 +459,18 @@
         </div>
 
         <div class="ui-section-label detail-section-title">数据说明</div>
-        <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note"><strong>为了自动同步作业，网站会保存你的好课账号和加密后的密码。</strong><span>密码只用于登录好课，不会在页面中再次显示。断开连接后会删除保存的账号和密码，但会保留最后一次同步的作业。</span></div>
+        <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note connection-trust-card">
+          <div class="connection-trust-card__head">
+            <strong>好课连接说明</strong>
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" class="connection-trust-card__link">查看隐私说明 →</a>
+          </div>
+          <dl class="connection-trust-grid">
+            <div class="connection-trust-row"><dt>保存内容</dt><dd>学号 + 加密密码</dd></div>
+            <div class="connection-trust-row"><dt>用途</dt><dd>仅用于自动同步课程作业</dd></div>
+            <div class="connection-trust-row"><dt>不会保存</dt><dd>统一身份认证 Session 与明文密码</dd></div>
+            <div class="connection-trust-row"><dt>断开连接后</dt><dd>账号密码立即删除，历史作业缓存保留</dd></div>
+          </dl>
+        </div>
         <div class="ui-section-label detail-section-title">连接配置</div>
         <div class="ui-card detail-content-box">
           <form class="connection-form" id="haoke-setup-form-inline">
@@ -467,7 +500,18 @@
         </div>
 
         <div class="ui-section-label detail-section-title">数据说明</div>
-        <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note"><strong>输入的短信验证码或密码仅用于完成本次登录，不会保存。</strong><span>登录成功后，网站会加密保存智学盟提供的登录凭证，用于后续同步作业。断开连接后会删除保存的登录凭证。</span></div>
+        <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note connection-trust-card">
+          <div class="connection-trust-card__head">
+            <strong>智学盟连接说明</strong>
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" class="connection-trust-card__link">查看隐私说明 →</a>
+          </div>
+          <dl class="connection-trust-grid">
+            <div class="connection-trust-row"><dt>保存内容</dt><dd>加密访问令牌（X-Access-Token）与已选课程</dd></div>
+            <div class="connection-trust-row"><dt>用途</dt><dd>仅用于同步所选课程的未交作业</dd></div>
+            <div class="connection-trust-row"><dt>不会保存</dt><dd>手机号、短信验证码与登录密码（仅当次换取令牌）</dd></div>
+            <div class="connection-trust-row"><dt>断开连接后</dt><dd>访问令牌立即删除，历史作业缓存保留</dd></div>
+          </dl>
+        </div>
         <div class="ui-section-label detail-section-title">连接配置</div>
         <div class="ui-card detail-content-box">
           <!-- Logged in state -->
@@ -526,7 +570,18 @@
         </div>
 
         <div class="ui-section-label detail-section-title">数据说明</div>
-        <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note"><strong>智慧树需要在独立的浏览器窗口中完成登录。</strong><span>网站会保存该浏览器的登录状态，用于后台同步作业，不会要求你在本站输入智慧树密码。断开连接后会删除浏览器登录状态，但保留最后一次同步的作业。</span></div>
+        <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note connection-trust-card">
+          <div class="connection-trust-card__head">
+            <strong>智慧树连接说明</strong>
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" class="connection-trust-card__link">查看隐私说明 →</a>
+          </div>
+          <dl class="connection-trust-grid">
+            <div class="connection-trust-row"><dt>保存内容</dt><dd>受控浏览器登录会话目录与任务缓存</dd></div>
+            <div class="connection-trust-row"><dt>用途</dt><dd>仅用于定时拉取智慧树课程任务与截止时间</dd></div>
+            <div class="connection-trust-row"><dt>不会保存</dt><dd>智慧树明文密码（登录在隔离远程窗口中完成）</dd></div>
+            <div class="connection-trust-row"><dt>断开连接后</dt><dd>浏览器登录会话立即删除，历史作业缓存保留</dd></div>
+          </dl>
+        </div>
         <div class="ui-section-label detail-section-title">连接状态</div>
         <div class="ui-card detail-content-box">
           <dl class="status-grid">
@@ -563,7 +618,18 @@
         </div>
 
         <div class="ui-section-label detail-section-title">数据说明</div>
-        <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note"><strong>输入的短信验证码或密码仅用于完成本次登录，不会保存。</strong><span>登录成功后，网站会加密保存课堂派提供的登录凭证，用于后续同步作业。断开连接后会删除保存的登录凭证。</span></div>
+        <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note connection-trust-card">
+          <div class="connection-trust-card__head">
+            <strong>课堂派连接说明</strong>
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" class="connection-trust-card__link">查看隐私说明 →</a>
+          </div>
+          <dl class="connection-trust-grid">
+            <div class="connection-trust-row"><dt>保存内容</dt><dd>加密访问令牌（API Token）</dd></div>
+            <div class="connection-trust-row"><dt>用途</dt><dd>仅用于同步当学期课程作业与随堂测验</dd></div>
+            <div class="connection-trust-row"><dt>不会保存</dt><dd>手机号、短信验证码与账号密码（仅当次换取令牌）</dd></div>
+            <div class="connection-trust-row"><dt>断开连接后</dt><dd>访问令牌立即删除，历史作业缓存保留</dd></div>
+          </dl>
+        </div>
         <div class="ui-section-label detail-section-title">连接配置</div>
         <div class="ui-card detail-content-box">
           <!-- Logged in state -->
@@ -642,7 +708,18 @@
         </div>
 
         <div class="ui-section-label detail-section-title">数据说明</div>
-        <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note"><strong>为自动同步竞教融合实训平台作业，网站会加密保存你的登录凭证与会话状态。</strong><span>同步过程仅读取作业列表，不会打开题目详情或提交任何代码。每次作业会作为一条待办事项导入，完成与撤销由你手动操作，刷新会保留这些状态。</span></div>
+        <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note connection-trust-card">
+          <div class="connection-trust-card__head">
+            <strong>同济OJ连接说明</strong>
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" class="connection-trust-card__link">查看隐私说明 →</a>
+          </div>
+          <dl class="connection-trust-grid">
+            <div class="connection-trust-row"><dt>保存内容</dt><dd>加密登录凭据、加密会话 Cookie 与已选课程</dd></div>
+            <div class="connection-trust-row"><dt>用途</dt><dd>仅只读同步顶层作业列表，绝不打开题目详情或代交代码</dd></div>
+            <div class="connection-trust-row"><dt>不会保存</dt><dd>明文密码与短信二次验证临时验证码</dd></div>
+            <div class="connection-trust-row"><dt>断开连接后</dt><dd>登录凭据与会话立即删除，历史作业缓存保留</dd></div>
+          </dl>
+        </div>
         <div class="ui-section-label detail-section-title">连接配置</div>
         <div class="ui-card detail-content-box">
           <!-- Logged in state -->
@@ -971,6 +1048,7 @@
           <p>由于网站由个人维护，网站运行者在服务器维护过程中，理论上具备接触账户数据、平台凭据和学习信息的技术权限。请仅在你信任网站运行者的情况下连接平台。</p>
           <p>Apple Calendar 订阅链接等同于访问凭证，任何获得链接的人都可能读取其中导出的任务标题和截止时间。</p>
           <p>学习平台统一在侧栏“连接与同步”中管理；日历订阅使用独立的“日历订阅”入口。</p>
+          <p><a href="/privacy" target="_blank" rel="noopener noreferrer">打开公开「数据与隐私中心」 →</a></p>
         </div>
       </details>
 

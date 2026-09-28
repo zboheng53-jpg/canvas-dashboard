@@ -124,6 +124,8 @@ def action_conflict_error(error):
 _LOGIN_EXEMPT_ENDPOINTS = {
     "site_login_page",
     "site_register_page",
+    "site_privacy_page",
+    "site_welcome_page",
     "api_auth_register",
     "api_auth_login",
     "calendar_subscription",
@@ -1025,6 +1027,23 @@ def site_register_page():
     if session.get("username"):
         return redirect("/")
     return render_template("auth_register.html", icp_number=settings.ICP_NUMBER)
+
+
+@app.route("/privacy")
+def site_privacy_page():
+    return render_template(
+        "privacy.html",
+        logged_in=bool(session.get("username")),
+        icp_number=settings.ICP_NUMBER,
+    )
+
+
+@app.route("/welcome")
+def site_welcome_page():
+    if session.get("username"):
+        return redirect("/")
+    return render_template("auth_login.html", icp_number=settings.ICP_NUMBER)
+
 
 
 @app.route("/api/auth/register", methods=["POST"])

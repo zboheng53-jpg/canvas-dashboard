@@ -164,8 +164,8 @@ def register(username: str, password: str):
     username = (username or "").strip()
     if not USERNAME_RE.match(username):
         return False, "用户名需为 3-20 位字母、数字或下划线"
-    if not password or len(password) < 8:
-        return False, "密码至少需要 8 位"
+    if not password or len(password) < 6:
+        return False, "密码至少需要 6 位"
     record = {
         "password_hash": generate_password_hash(password), "created_at": _now(),
         "last_login_at": _now(), "account_id": secrets.token_urlsafe(24),
@@ -369,8 +369,8 @@ def issue_password_reset(username: str, ttl_minutes: int = 30) -> str | None:
 
 
 def reset_password(username: str, token: str, new_password: str) -> tuple[bool, str | None]:
-    if not new_password or len(new_password) < 8:
-        return False, "密码至少需要 8 位"
+    if not new_password or len(new_password) < 6:
+        return False, "密码至少需要 6 位"
     result = {"ok": False, "account_id": None}
     supplied_hash = hashlib.sha256((token or "").encode()).hexdigest()
     def reset(users):

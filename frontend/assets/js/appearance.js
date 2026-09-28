@@ -1,6 +1,7 @@
 /* Run in the shared head, before CSS, so a saved theme is used on first paint. */
 (function initializeAppearance() {
-  const storageKey = 'cda_appearance';
+  const legacyKey = 'cda_appearance';
+  const storageKey = 'cda_appearance_v2';
   const root = document.documentElement;
   const normalize = (value) => value === 'moss' ? 'moss' : 'blue';
 
@@ -12,7 +13,10 @@
   }
 
   let saved;
-  try { saved = localStorage.getItem(storageKey); } catch (_) { /* Storage may be disabled. */ }
+  try {
+    localStorage.removeItem(legacyKey);
+    saved = localStorage.getItem(storageKey);
+  } catch (_) { /* Storage may be disabled. */ }
   apply(saved);
   document.addEventListener('DOMContentLoaded', () => apply(root.dataset.theme));
   document.addEventListener('click', (event) => {

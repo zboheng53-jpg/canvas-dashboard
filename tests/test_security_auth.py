@@ -178,17 +178,18 @@ def test_register_rejects_weak_password_and_duplicate_username(isolated_auth_cli
     )
     first = isolated_auth_client.post(
         "/api/auth/register",
-        json={"username": "alice", "password": "strong-password"},
+        json={"username": "alice", "password": "123456"},
         headers=headers,
     )
     duplicate = isolated_auth_client.post(
         "/api/auth/register",
-        json={"username": "alice", "password": "strong-password"},
+        json={"username": "alice", "password": "123456"},
         headers=headers,
     )
 
     assert weak.status_code == 400
     assert weak.get_json()["ok"] is False
+    assert "6 位" in weak.get_json()["error"]
     assert first.status_code == 200
     assert first.get_json() == {"ok": True}
     assert duplicate.status_code == 400
@@ -298,3 +299,80 @@ def test_canvas_config_returns_validation_error(client_with_user, monkeypatch):
         "ok": False,
         "error": "calendar feed URL must resolve to public addresses",
     }
+
+
+def test_public_auth_pages_render_product_landing_showcase_and_privacy_link(
+    anonymous_client, monkeypatch
+):
+    monkeypatch.setattr(dashboard_app.settings, "ICP_NUMBER", "闽ICP备2026026558号-1")
+
+    expected_fragments = (
+        "TONGJI ACADEMIC WORKSPACE",
+        "这是什么",
+        "为什么值得注册",
+        "支持哪些平台",
+        "我的账号安全吗",
+        "把散落在各教学平台的课程死线，收进同一张今日清单",
+        "Canvas",
+        "好课",
+        "智学盟",
+        "智慧树",
+        "课堂派",
+        "同济OJ",
+        "同济一网通办课表",
+        "数据与隐私中心",
+        'href="/privacy"',
+        'href="https://github.com/zboheng53-jpg/canvas-dashboard"',
+        "闽ICP备2026026558号-1",
+    )
+
+    login_html = anonymous_client.get("/login").get_data(as_text=True)
+    for fragment in expected_fragments:
+        assert fragment in login_html
+    assert 'id="login-form"' in login_html
+    assert 'id="login-username"' in login_html
+    assert 'id="login-password"' in login_html
+
+    register_html = anonymous_client.get("/register").get_data(as_text=True)
+    for fragment in expected_fragments:
+        assert fragment in register_html
+    assert 'id="register-form"' in register_html
+    assert 'id="register-username"' in register_html
+    assert 'id="register-password"' in register_html
+
+
+def test_dashboard_sidebar_renders_github_repository_link(client_with_user):
+    html = client_with_user.get("/").get_data(as_text=True)
+    assert 'class="sidebar-github-link"' in html
+    assert 'href="https://github.com/zboheng53-jpg/canvas-dashboard"' in html
+    assert 'class="sidebar-privacy-link"' in html
+    assert 'href="/privacy"' in html
+
+
+
+def test_public_privacy_and_welcome_pages_are_accessible_without_login(
+    anonymous_client, monkeypatch
+):
+    monkeypatch.setattr(dashboard_app.settings, "ICP_NUMBER", "闽ICP备2026026558号-1")
+
+    privacy_resp = anonymous_client.get("/privacy")
+    assert privacy_resp.status_code == 200
+    privacy_html = privacy_resp.get_data(as_text=True)
+    for question in ("保存什么？", "为什么保存？", "保存在哪里？", "怎么删除？"):
+        assert question in privacy_html
+    assert 'href="/login"' in privacy_html
+    assert "闽ICP备2026026558号-1" in privacy_html
+
+    welcome_resp = anonymous_client.get("/welcome")
+    assert welcome_resp.status_code == 200
+    assert "把散落在各教学平台的课程死线，收进同一张今日清单" in welcome_resp.get_data(as_text=True)
+
+
+def test_authenticated_privacy_and_welcome_routes(client_with_user):
+    authed_privacy_html = client_with_user.get("/privacy").get_data(as_text=True)
+    assert 'href="/"' in authed_privacy_html
+
+    authed_welcome_resp = client_with_user.get("/welcome")
+    assert authed_welcome_resp.status_code == 302
+    assert authed_welcome_resp.headers["Location"] == "/"
+

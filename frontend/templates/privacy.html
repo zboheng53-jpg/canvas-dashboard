@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="blue">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数据与隐私中心 · Canvas Dashboard</title>
+  {% include "_favicon.html" %}
+  {% include "_font_assets.html" %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+  <style>
+    .privacy-shell {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 32px 20px 56px;
+      color: var(--color-text-primary, #111827);
+    }
+    .privacy-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: var(--color-text-secondary, #4b5563);
+    }
+    .privacy-nav a {
+      color: var(--ds-accent-ink, #1d4fd7);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .privacy-nav a:hover {
+      text-decoration: underline;
+    }
+    .privacy-hero {
+      padding: 28px 28px 24px;
+      margin-bottom: 20px;
+    }
+    .privacy-eyebrow {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--ds-accent-ink, #1d4fd7);
+      margin-bottom: 8px;
+    }
+    .privacy-hero h1 {
+      font-family: var(--font-title, serif);
+      font-size: 26px;
+      font-weight: 600;
+      margin: 0 0 10px;
+      line-height: 1.3;
+    }
+    .privacy-hero p {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.65;
+      color: var(--color-text-secondary, #4b5563);
+    }
+    .privacy-section {
+      padding: 24px 28px;
+      margin-bottom: 16px;
+    }
+    .privacy-section__head {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--ds-line-soft, #eef0f3);
+    }
+    .privacy-section__num {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ds-accent-ink, #1d4fd7);
+      background: var(--color-surface-subtle, #f3f6fc);
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+    .privacy-section__title {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0;
+    }
+    .privacy-lead {
+      font-size: 14px;
+      line-height: 1.65;
+      color: var(--color-text-secondary, #4b5563);
+      margin: 0 0 16px;
+    }
+    .privacy-table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--ds-line-soft, #e5e7eb);
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    .privacy-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      line-height: 1.55;
+      text-align: left;
+    }
+    .privacy-table th,
+    .privacy-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--ds-line-soft, #eef0f3);
+      vertical-align: top;
+    }
+    .privacy-table th {
+      background: var(--color-surface-subtle, #f8fafc);
+      font-weight: 600;
+      color: var(--color-text-primary, #111827);
+      white-space: nowrap;
+    }
+    .privacy-table tr:last-child td {
+      border-bottom: none;
+    }
+    .privacy-platform-name {
+      font-weight: 600;
+      white-space: nowrap;
+      color: var(--color-text-primary, #111827);
+    }
+    .privacy-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 12px;
+    }
+    .privacy-item-box {
+      padding: 14px 16px;
+      border: 1px solid var(--ds-line-soft, #e5e7eb);
+      border-radius: 8px;
+      background: var(--color-surface-subtle, #fafbfc);
+    }
+    .privacy-item-box strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 4px;
+      color: var(--color-text-primary, #111827);
+    }
+    .privacy-item-box p {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--color-text-secondary, #4b5563);
+    }
+    .privacy-list {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 13.5px;
+      line-height: 1.7;
+      color: var(--color-text-secondary, #374151);
+    }
+    .privacy-list li + li {
+      margin-top: 8px;
+    }
+    .privacy-list strong {
+      color: var(--color-text-primary, #111827);
+    }
+    .privacy-callout {
+      margin-top: 14px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--ds-line-soft, #dbeafe);
+      background: var(--color-surface-subtle, #f8fafc);
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--color-text-secondary, #374151);
+    }
+    .privacy-callout strong {
+      color: var(--color-text-primary, #111827);
+    }
+    .privacy-delete-levels {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .privacy-footer-nav {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--ds-line-soft, #e5e7eb);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 13px;
+    }
+    @media (max-width: 640px) {
+      .privacy-shell {
+        padding: 20px 14px 40px;
+      }
+      .privacy-hero,
+      .privacy-section {
+        padding: 18px 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="privacy-shell">
+    <nav class="privacy-nav" aria-label="页面导航">
+      <div>
+        {% if logged_in %}
+        <a href="/">← 返回工作台</a>
+        {% else %}
+        <a href="/login">← 返回登录</a> · <a href="/register">注册账号</a>
+        {% endif %}
+      </div>
+      <span>公开透明说明</span>
+    </nav>
+
+    <header class="card privacy-hero">
+      <span class="privacy-eyebrow">DATA &amp; PRIVACY CENTER</span>
+      <h1>数据与隐私中心 · Canvas Dashboard</h1>
+      <p>Canvas Dashboard 仅围绕「汇总未完成作业、课表与个人待办」保存最小必要数据。以下直接回答关于数据的四个核心问题：保存什么、为什么保存、保存在哪里、怎么删除。</p>
+    </header>
+
+    <!-- 1. 保存什么？ -->
+    <section class="card privacy-section" id="what-we-store" aria-labelledby="heading-what">
+      <div class="privacy-section__head">
+        <span class="privacy-section__num">问题 1</span>
+        <h2 class="privacy-section__title" id="heading-what">保存什么？</h2>
+      </div>
+      <p class="privacy-lead">各学习平台按各自接口机制保存最小必要凭据与只读同步缓存；凡是能用只读链接或访问令牌完成的平台，绝不保存你的明文密码。</p>
+
+      <div class="privacy-table-wrap">
+        <table class="privacy-table">
+          <thead>
+            <tr>
+              <th>平台</th>
+              <th>保存内容</th>
+              <th>绝不保存</th>
+              <th>断开连接后</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="privacy-platform-name">Canvas</td>
+              <td>iCal 日历订阅链接（只读 URL）与作业日历缓存</td>
+              <td>Canvas 账号、密码与登录 Session</td>
+              <td>订阅链接立即删除，历史作业缓存保留</td>
+            </tr>
+            <tr>
+              <td class="privacy-platform-name">好课</td>
+              <td>学号 + 加密密码、课程作业缓存</td>
+              <td>统一身份认证 Session 与明文密码</td>
+              <td>账号密码立即删除，历史作业缓存保留</td>
+            </tr>
+            <tr>
+              <td class="privacy-platform-name">智学盟</td>
+              <td>加密访问令牌（X-Access-Token）、已选课程与作业缓存</td>
+              <td>手机号、短信验证码与登录密码（仅当次换取令牌）</td>
+              <td>访问令牌立即删除，历史作业缓存保留</td>
+            </tr>
+            <tr>
+              <td class="privacy-platform-name">智慧树</td>
+              <td>受控浏览器登录会话目录与任务缓存</td>
+              <td>智慧树明文密码（登录在隔离远程窗口中完成）</td>
+              <td>浏览器登录会话立即删除，历史作业缓存保留</td>
+            </tr>
+            <tr>
+              <td class="privacy-platform-name">课堂派</td>
+              <td>加密访问令牌（API Token）与当学期作业/测验缓存</td>
+              <td>手机号、短信验证码与账号密码（仅当次换取令牌）</td>
+              <td>访问令牌立即删除，历史作业缓存保留</td>
+            </tr>
+            <tr>
+              <td class="privacy-platform-name">同济OJ</td>
+              <td>加密登录凭据、加密会话 Cookie、已选课程与顶层作业列表缓存</td>
+              <td>明文密码、短信二次验证临时验证码、题目详情与提交代码</td>
+              <td>登录凭据与会话立即删除，历史作业缓存保留</td>
+            </tr>
+            <tr>
+              <td class="privacy-platform-name">同济课表</td>
+              <td>导入后的课程表安排数据（课程名、教师、时间、地点、周次）</td>
+              <td>同济统一身份认证密码与长期登录 Session</td>
+              <td>认证结束后临时登录窗口立即销毁，可随时一键清空课表</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="privacy-grid-2">
+        <div class="privacy-item-box">
+          <strong>站点账号与本地规划数据</strong>
+          <p>保存你的站点用户名、密码哈希（PBKDF2-HMAC-SHA256）、自定义待办、重复待办、外部作业子任务、长期项目与周日程安排。</p>
+        </div>
+        <div class="privacy-item-box">
+          <strong>Agent 接入与 Apple 日历订阅</strong>
+          <p>Agent API Token（<code>cda_...</code>）在服务端仅保存不可逆的 <strong>SHA-256 哈希值</strong>；Apple 日历订阅保存随机私密 Token，可随时一键重置或撤销。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 为什么保存？ -->
+    <section class="card privacy-section" id="why-we-store" aria-labelledby="heading-why">
+      <div class="privacy-section__head">
+        <span class="privacy-section__num">问题 2</span>
+        <h2 class="privacy-section__title" id="heading-why">为什么保存？</h2>
+      </div>
+      <p class="privacy-lead">不同学校与教学平台的技术限制不同，我们对每个平台均采用权限最小化的接入方式：</p>
+      <ul class="privacy-list">
+        <li><strong>Canvas（只读订阅）</strong>：Canvas 原生提供只读 iCal 馈送链接，无需账号密码即可读取作业和考试截止时间。</li>
+        <li><strong>智学盟 &amp; 课堂派（令牌换取）</strong>：登录时输入的手机号、验证码或密码仅用于当次向官方接口换取 <code>Token</code>，换取成功后立即丢弃输入凭据，只加密保存 Token 供后续同步。</li>
+        <li><strong>好课 &amp; 同济OJ（加密凭据自动续期）</strong>：这两个平台的会话有效期较短，后台需要定期自动重新登录以刷新未交作业列表，因此需使用服务端密钥（Fernet）加密保存登录凭据。其中同济OJ严格限制为只读抓取顶层作业列表，绝不打开题目或提交代码。</li>
+        <li><strong>智慧树 &amp; 同济课表（隔离浏览器窗口）</strong>：涉及滑块验证码或微信/短信加强认证，直接由你在受控远程浏览器窗口（noVNC）中操作。同济课表抓取完成后立即销毁临时浏览器环境；智慧树仅保留独立浏览器会话目录以供后台定时拉取任务。</li>
+      </ul>
+    </section>
+
+    <!-- 3. 保存在哪里？ -->
+    <section class="card privacy-section" id="where-we-store" aria-labelledby="heading-where">
+      <div class="privacy-section__head">
+        <span class="privacy-section__num">问题 3</span>
+        <h2 class="privacy-section__title" id="heading-where">保存在哪里？</h2>
+      </div>
+      <ul class="privacy-list">
+        <li><strong>按账户独立目录隔离</strong>：每位用户的数据独立存放在服务器本地 <code>data/users/&lt;username&gt;/</code> 目录下，所有接口均校验不可变账户 ID 与会话版本，严格隔离跨账户访问。</li>
+        <li><strong>原子写入与加密存储</strong>：JSON 数据采用文件锁 + 临时文件原子替换写入，损坏时执行 fail-closed 保护；平台 Token、Cookie 与需要保活的密码均使用服务端密钥（Fernet 对称加密）加密后落盘，绝不在前端页面回显。</li>
+      </ul>
+      <div class="privacy-callout">
+        <strong>自托管维护透明说明与安全建议：</strong><br>
+        本站为个人部署与维护的工具站点。在服务器运维与故障排查过程中，站点维护者从技术上拥有服务器文件系统与密钥的访问权限。请仅在你信任站点运行者的前提下连接第三方平台，并<strong>强烈建议为本站设置独立密码，不要直接复用同济统一身份认证密码或常用重要密码</strong>。
+      </div>
+    </section>
+
+    <!-- 4. 怎么删除？ -->
+    <section class="card privacy-section" id="how-to-delete" aria-labelledby="heading-delete">
+      <div class="privacy-section__head">
+        <span class="privacy-section__num">问题 4</span>
+        <h2 class="privacy-section__title" id="heading-delete">怎么删除？</h2>
+      </div>
+      <p class="privacy-lead">你可以随时在工作台按需执行三个层级的删除操作，所有删除均立即生效：</p>
+      <div class="privacy-delete-levels">
+        <div class="privacy-item-box">
+          <strong>① 断开连接（仅删凭据）</strong>
+          <p>在「连接与同步」中点击<strong>断开连接</strong>：立即删除该平台保存的加密密码、Token、订阅链接或浏览器登录会话；已同步的历史作业缓存与本地勾选状态保留。</p>
+        </div>
+        <div class="privacy-item-box">
+          <strong>② 清除平台数据（凭据 + 缓存）</strong>
+          <p>在「连接与同步」中点击<strong>清除平台数据</strong>：除断开凭据外，连同该平台的作业缓存文件、本地完成/隐藏/改期状态及外部作业子任务一并物理删除。</p>
+        </div>
+        <div class="privacy-item-box">
+          <strong>③ 永久删除账号（全量销毁）</strong>
+          <p>在「偏好设置 → 危险操作」中确认<strong>永久删除账户</strong>：一键销毁 <code>data/users/&lt;username&gt;/</code> 全部文件与智慧树浏览器目录，并写入匿名防复活账本，防止旧备份恢复已删账户。</p>
+        </div>
+      </div>
+      <p class="privacy-lead" style="margin-bottom: 0;">此外，自定义待办、长期项目与项目行动删除后均立即从服务器存储中物理移除，不保留回收站缓存。</p>
+    </section>
+
+    <footer class="privacy-footer-nav">
+      <div class="privacy-nav" style="margin-bottom: 0;">
+        {% if logged_in %}
+        <a href="/">← 返回工作台</a>
+        {% else %}
+        <a href="/login">← 返回登录</a> · <a href="/register">注册账号</a>
+        {% endif %}
+      </div>
+      {% if icp_number %}
+      <div class="site-footer" style="margin: 0;">
+        <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">{{ icp_number }}</a>
+      </div>
+      {% endif %}
+    </footer>
+  </main>
+</body>
+</html>

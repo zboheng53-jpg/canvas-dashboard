@@ -113,7 +113,7 @@
   --color-page: var(--page);
   --color-surface: var(--surface);
   --color-navigation-surface: var(--surface);
-  --color-mobile-header: rgba(250, 249, 247, 0.94);
+  --color-mobile-header: rgba(247, 248, 250, 0.94);
   --color-surface-subtle: #f3f6f9;
   --color-surface-hover: #ffffff;
   --color-text-primary: var(--ink);
@@ -146,11 +146,11 @@
   --color-neutral-border: #dbe3eb;
   --color-focus-ring: rgba(37, 99, 235, 0.24);
   --color-focus-outline: rgba(37, 99, 235, 0.65);
-  --color-glass: rgba(255, 255, 255, 0.78);
-  --color-glass-hover: rgba(255, 255, 255, 0.92);
-  --color-glass-border: rgba(226, 220, 210, 0.85);
-  --color-glass-border-hover: rgba(215, 208, 195, 0.9);
-  --color-glass-divider: rgba(215, 208, 195, 0.55);
+  --color-glass: rgba(255, 255, 255, 0.84);
+  --color-glass-hover: rgba(255, 255, 255, 0.96);
+  --color-glass-border: rgba(226, 232, 240, 0.88);
+  --color-glass-border-hover: rgba(203, 213, 225, 0.92);
+  --color-glass-divider: rgba(226, 232, 240, 0.65);
   --theme-preview-blue: linear-gradient(135deg, #eff4fe 50%, #527cb5 50%);
   --theme-preview-moss: linear-gradient(135deg, #f5f3e9 50%, #637b56 50%);
 
@@ -248,23 +248,23 @@
   --focus-ring: 0 0 0 3px var(--color-focus-ring);
 
   /* Legacy compatibility aliases */
-  --bg-main: oklch(96.35% 0.0067 97.35);
+  --bg-main: var(--page);
   --bg-gradient: var(--bg-main);
   --bg: var(--bg-main);
   --card-bg: var(--surface);
   --glass-surface: var(--surface);
   --glass-surface-hover: var(--surface);
   --glass-sidebar: var(--surface);
-  --glass-border: rgba(226, 220, 210, 0.85);
-  --glass-border-subtle: rgba(215, 208, 195, 0.55);
-  --glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 4px 20px -2px rgba(70, 80, 72, 0.04);
+  --glass-border: var(--color-glass-border);
+  --glass-border-subtle: var(--color-glass-divider);
+  --glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 4px 20px -2px rgba(15, 23, 42, 0.04);
 
   --text-primary: var(--color-text-primary);
-  --text: #2c3237;
-  --text-secondary: #5a646c;
-  --border: rgba(226, 220, 210, 0.85);
-  --border-light: rgba(226, 220, 210, 0.6);
-  --border-subtle: rgba(215, 208, 195, 0.45);
+  --text: var(--ink);
+  --text-secondary: var(--ink-2);
+  --border: var(--line);
+  --border-light: var(--line);
+  --border-subtle: var(--line-soft);
 
   /* 品牌主色：设计稿品牌蓝。大量 legacy 规则引用 var(--color-primary)，
      缺失会导致 stroke/color 等声明在计算值阶段失效（如激活导航图标不可见） */
@@ -298,23 +298,23 @@
   --btn-primary-bg: var(--color-primary);
   --btn-primary-text: var(--color-on-strong);
   --btn-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 3px 12px rgba(47, 111, 228, 0.2);
-  --btn-glass-bg: rgba(245, 243, 238, 0.85);
-  --btn-glass-border: rgba(226, 220, 210, 0.85);
-  --btn-glass-text: #2c3237;
-  --btn-glass-hover: rgba(255, 255, 255, 0.98);
+  --btn-glass-bg: var(--color-glass);
+  --btn-glass-border: var(--color-glass-border);
+  --btn-glass-text: var(--ink);
+  --btn-glass-hover: var(--surface);
 
-  --shell-surface: rgba(255, 255, 255, 0.78);
-  --shell-border: rgba(218, 213, 203, 0.75);
-  --shell-border-soft: rgba(205, 200, 190, 0.45);
-  --shell-ink: #2c3237;
-  --shell-muted: #8c969e;
+  --shell-surface: var(--color-glass);
+  --shell-border: var(--line);
+  --shell-border-soft: var(--line-soft);
+  --shell-ink: var(--ink);
+  --shell-muted: var(--ink-3);
   --shell-radius: 18px;
-  --shell-shadow: 0 6px 24px rgba(70, 60, 50, 0.035), 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+  --shell-shadow: 0 6px 24px rgba(15, 23, 42, 0.035), 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
   --sidebar-blue: var(--color-primary);
   --sidebar-blue-soft: var(--color-primary-soft);
   --sidebar-coral: #8c5b4c;
-  --sidebar-text: #5a646c;
-  --sidebar-muted: #8c969e;
+  --sidebar-text: var(--ink-2);
+  --sidebar-muted: var(--ink-3);
 
   --radius: 12px;
   --radius-card: 12px;

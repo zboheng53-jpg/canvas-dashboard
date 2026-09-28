@@ -19,6 +19,19 @@
         <button class="ui-icon-button btn-refresh" type="button" onclick="loadStatus()" title="刷新" aria-label="刷新状态">&#x21bb;</button>
       </div>
 
+      <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note connection-trust-card">
+        <div class="connection-trust-card__head">
+          <strong>智慧树连接说明</strong>
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" class="connection-trust-card__link">查看隐私说明 →</a>
+        </div>
+        <dl class="connection-trust-grid">
+          <div class="connection-trust-row"><dt>保存内容</dt><dd>受控浏览器登录会话目录与任务缓存</dd></div>
+          <div class="connection-trust-row"><dt>用途</dt><dd>仅用于定时拉取智慧树课程任务与截止时间</dd></div>
+          <div class="connection-trust-row"><dt>不会保存</dt><dd>智慧树明文密码（登录在隔离远程窗口中完成）</dd></div>
+          <div class="connection-trust-row"><dt>断开连接后</dt><dd>浏览器登录会话立即删除，历史作业缓存保留</dd></div>
+        </dl>
+      </div>
+
       <dl class="status-grid">
         <dt>登录状态</dt><dd id="session">--</dd>
         <dt>Worker</dt><dd id="worker">--</dd>

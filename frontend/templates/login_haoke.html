@@ -20,6 +20,19 @@
 
       <p class="ui-feedback ui-feedback--info setup-hint" id="status-line" role="status" aria-live="polite">检查中...</p>
 
+      <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note connection-trust-card">
+        <div class="connection-trust-card__head">
+          <strong>好课连接说明</strong>
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" class="connection-trust-card__link">查看隐私说明 →</a>
+        </div>
+        <dl class="connection-trust-grid">
+          <div class="connection-trust-row"><dt>保存内容</dt><dd>学号 + 加密密码</dd></div>
+          <div class="connection-trust-row"><dt>用途</dt><dd>仅用于自动同步课程作业</dd></div>
+          <div class="connection-trust-row"><dt>不会保存</dt><dd>统一身份认证 Session 与明文密码</dd></div>
+          <div class="connection-trust-row"><dt>断开连接后</dt><dd>账号密码立即删除，历史作业缓存保留</dd></div>
+        </dl>
+      </div>
+
       <div class="login-body" id="form-body">
         <form class="add-todo-form" id="haoke-setup-form">
           <input type="text" id="haoke-username" placeholder="学号" autocomplete="off" class="ui-control">

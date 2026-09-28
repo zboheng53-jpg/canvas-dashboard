@@ -491,3 +491,135 @@ def test_ketangpai_frontend_login_entries():
     assert "toggleKtpLoginModeInline" in index_html
     assert "setupDiv.classList.remove('hidden')" in index_html
 
+
+def test_homework_mstatus_graded_and_returned_filtering(monkeypatch, test_env):
+    """Verify mstatus=1, '1', 2, '2', 4, '4' are filtered out while 0, '0', 3, '3' remain."""
+    user = "alice"
+    ketangpai_client._save_token(user, "tok_valid")
+
+    def fake_post(url, **kwargs):
+        resp = MagicMock()
+        if "/courseApi/simpleLists" in url:
+            resp.json.return_value = {
+                "status": 1,
+                "data": {
+                    "toplists": [],
+                    "lists": [
+                        {"id": "c_active", "coursename": "Active Course", "fixTerm": "202620271", "classending": "0"},
+                    ],
+                },
+            }
+            return resp
+
+        if "/FutureV2/CourseMeans/getCourseContent" in url:
+            payload = kwargs.get("json", {})
+            if payload.get("contenttype") == 4:
+                resp.json.return_value = {
+                    "status": 1,
+                    "data": {
+                        "pageTotal": 1,
+                        "lists": [
+                            {"id": "hw_m0_int", "title": "Unsubmitted Int", "endtime": "2026-09-30 23:59:00", "mstatus": 0},
+                            {"id": "hw_m0_str", "title": "Unsubmitted Str", "endtime": "2026-09-30 23:59:00", "mstatus": "0"},
+                            {"id": "hw_m1_int", "title": "Submitted Int", "endtime": "2026-09-30 23:59:00", "mstatus": 1},
+                            {"id": "hw_m1_str", "title": "Submitted Str", "endtime": "2026-09-30 23:59:00", "mstatus": "1"},
+                            {"id": "hw_m2_int", "title": "Graded Int", "endtime": "2026-09-30 23:59:00", "mstatus": 2},
+                            {"id": "hw_m2_str", "title": "Graded Str", "endtime": "2026-09-30 23:59:00", "mstatus": "2"},
+                            {"id": "hw_m4_int", "title": "Graded Unpublished Int", "endtime": "2026-09-30 23:59:00", "mstatus": 4},
+                            {"id": "hw_m4_str", "title": "Graded Unpublished Str", "endtime": "2026-09-30 23:59:00", "mstatus": "4"},
+                            {"id": "hw_m3_int", "title": "Returned Int", "endtime": "2026-09-30 23:59:00", "mstatus": 3},
+                            {"id": "hw_m3_str", "title": "Returned Str", "endtime": "2026-09-30 23:59:00", "mstatus": "3"},
+                        ],
+                    },
+                }
+            else:
+                resp.json.return_value = {"status": 1, "data": {"pageTotal": 0, "lists": []}}
+            return resp
+
+        resp.json.return_value = {"status": 0}
+        return resp
+
+    monkeypatch.setattr(ketangpai_client.requests, "post", fake_post)
+
+    res = ketangpai_client.fetch_assignments(user, force_fetch=True)
+    assert res["ok"] is True
+    todo_ids = [t["id"] for t in res["items"]]
+    assert set(todo_ids) == {
+        "ktp_hw_hw_m0_int",
+        "ktp_hw_hw_m0_str",
+        "ktp_hw_hw_m3_int",
+        "ktp_hw_hw_m3_str",
+    }
+
+
+def test_cached_graded_homework_filtered_on_read(test_env):
+    """Verify stale cached items with mstatus=4 or '4' are filtered out immediately when reading cache."""
+    import time as time_module
+
+    user = "alice"
+    ketangpai_client._save_token(user, "tok_valid")
+    cache_file = test_env / "users" / user / "ketangpai_cache.json"
+    write_json_file(
+        cache_file,
+        {
+            "_ts": time_module.time(),
+            "sync_complete": True,
+            "items": [
+                {
+                    "id": "ktp_hw_pending",
+                    "title": "Pending HW",
+                    "course": "Math",
+                    "type": "作业",
+                    "type_raw": "assignment",
+                    "url": "https://www.ketangpai.com/#/courseHome?courseId=c1&tabActive=4",
+                    "submitted": False,
+                    "mstatus": 0,
+                },
+                {
+                    "id": "ktp_hw_returned",
+                    "title": "Returned HW",
+                    "course": "Math",
+                    "type": "作业",
+                    "type_raw": "assignment",
+                    "url": "https://www.ketangpai.com/#/courseHome?courseId=c1&tabActive=4",
+                    "submitted": False,
+                    "mstatus": "3",
+                },
+                {
+                    "id": "ktp_hw_graded_4",
+                    "title": "Graded Unpublished HW",
+                    "course": "Math",
+                    "type": "作业",
+                    "type_raw": "assignment",
+                    "url": "https://www.ketangpai.com/#/courseHome?courseId=c1&tabActive=4",
+                    "submitted": False,
+                    "mstatus": 4,
+                },
+                {
+                    "id": "ktp_hw_graded_str4",
+                    "title": "Graded Unpublished Str HW",
+                    "course": "Math",
+                    "type": "作业",
+                    "type_raw": "assignment",
+                    "url": "https://www.ketangpai.com/#/courseHome?courseId=c1&tabActive=4",
+                    "submitted": False,
+                    "mstatus": "4",
+                },
+            ],
+        },
+    )
+
+    # 1. Read from fresh cache (logged in)
+    res = ketangpai_client.fetch_assignments(user, force_fetch=False)
+    assert res["ok"] is True
+    assert res["cached"] is True
+    assert [i["id"] for i in res["items"]] == ["ktp_hw_pending", "ktp_hw_returned"]
+
+    # 2. Read from fallback cache (logged out / disconnected)
+    ketangpai_client.logout(user)
+    fallback_res = ketangpai_client.fetch_assignments(user, force_fetch=False)
+    assert fallback_res["ok"] is True
+    assert fallback_res["disconnected"] is True
+    assert [i["id"] for i in fallback_res["items"]] == ["ktp_hw_pending", "ktp_hw_returned"]
+
+

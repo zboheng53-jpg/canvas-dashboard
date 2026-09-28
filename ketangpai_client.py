@@ -344,6 +344,22 @@ def _parse_ketangpai_time(val) -> tuple[str, str, str | None]:
     return "", "", None
 
 
+def _is_homework_completed(rec: dict) -> bool:
+    """Return True if a Ketangpai homework record is submitted or graded."""
+    mstatus_raw = rec.get("mstatus", 0)
+    mstatus_str = str(mstatus_raw if mstatus_raw is not None else 0).strip()
+    if mstatus_str == "3":
+        return False
+    if mstatus_str in ("1", "2", "4"):
+        return True
+    submit_state = str(rec.get("submit_state", "") or "").strip()
+    if submit_state in ("4", "5", "6", "7", "8", "9", "10", "11"):
+        return True
+    if rec.get("submitted") is True:
+        return True
+    return False
+
+
 def _parse_assignment(rec: dict, course_id: str, course_name: str) -> dict | None:
     """Parse homework record (contenttype=4)."""
     title = rec.get("title", "未命名作业")
@@ -351,8 +367,7 @@ def _parse_assignment(rec: dict, course_id: str, course_name: str) -> dict | Non
     endtime = rec.get("endtime")
     mstatus = rec.get("mstatus", 0)
 
-    is_submitted = mstatus in (1, 2)
-    if is_submitted:
+    if _is_homework_completed(rec):
         return None
 
     due_str, due_date, due_ts = _parse_ketangpai_time(endtime)
@@ -477,7 +492,10 @@ def fetch_assignments(username: str, course_id: str = None, force_fetch: bool = 
             pass
 
     if cached is not None:
-        items = cached.get("items", [])
+        items = [
+            i for i in cached.get("items", [])
+            if not (i.get("type_raw") == "assignment" and _is_homework_completed(i))
+        ]
     else:
         courses_res = fetch_courses(username)
         if not courses_res.get("ok"):
@@ -571,7 +589,10 @@ def _fallback_assignments_cache(cache_file, course_id):
         return None
     try:
         cached = read_json_file(cache_file, {})
-        items = list(cached.get("items", []))
+        items = [
+            i for i in cached.get("items", [])
+            if not (i.get("type_raw") == "assignment" and _is_homework_completed(i))
+        ]
         if course_id:
             items = [i for i in items if f"courseId={course_id}" in i.get("url", "")]
         return {"ok": True, "items": items, "cached": True, "stale": True, "sync_complete": False}

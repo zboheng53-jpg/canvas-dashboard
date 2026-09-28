@@ -366,31 +366,27 @@ function renderForwardAgenda() {
   container.setAttribute('aria-busy', 'false'); container.replaceChildren();
   const capacity = Math.min(9, Math.max(5, Math.floor((container.clientHeight || 420) / 68)));
   let count = 0; let shownDays = 0;
-  const currentTime = new Intl.DateTimeFormat('en-GB', {timeZone:'Asia/Shanghai', hour:'2-digit', minute:'2-digit'}).format(new Date());
 
   data.days.forEach((day, index) => {
     if (index === 0) {
-      const group = wNode('section', 'forward-day');
-      group.append(wNode('h3', '', workspaceDateLabel(day.date)));
-
       const timed = [...day.timed].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
       const allday = [...day.deadlines, ...day.planned.filter(p => !day.deadlines.some(d => d.ref === p.ref))];
-
       if (!timed.length && !allday.length) {
-        group.append(wNode('p', 'muted', '今天暂无安排，可以提前规划后续事项。'));
-      } else {
-        if (timed.length) {
-          const timedHead = wNode('div', 'agenda-section-label', '时段安排');
-          timedHead.style.cssText = 'font-size: 11px; font-weight: 600; color: var(--text-muted, #888); margin: 6px 0 4px 2px;';
-          group.append(timedHead);
-          timed.forEach(event => group.append(agendaEventButton(event)));
-        }
-        if (allday.length) {
-          const alldayHead = wNode('div', 'agenda-section-label', '全天截止与计划');
-          alldayHead.style.cssText = 'font-size: 11px; font-weight: 600; color: var(--text-muted, #888); margin: 10px 0 4px 2px;';
-          group.append(alldayHead);
-          allday.forEach(event => group.append(agendaEventButton(event)));
-        }
+        return;
+      }
+      const group = wNode('section', 'forward-day');
+      group.append(wNode('h3', '', workspaceDateLabel(day.date)));
+      if (timed.length) {
+        const timedHead = wNode('div', 'agenda-section-label', '时段安排');
+        timedHead.style.cssText = 'font-size: 11px; font-weight: 600; color: var(--text-muted, #888); margin: 6px 0 4px 2px;';
+        group.append(timedHead);
+        timed.forEach(event => group.append(agendaEventButton(event)));
+      }
+      if (allday.length) {
+        const alldayHead = wNode('div', 'agenda-section-label', '全天截止与计划');
+        alldayHead.style.cssText = 'font-size: 11px; font-weight: 600; color: var(--text-muted, #888); margin: 10px 0 4px 2px;';
+        group.append(alldayHead);
+        allday.forEach(event => group.append(agendaEventButton(event)));
       }
       container.append(group);
       count += timed.length + allday.length;
@@ -409,11 +405,10 @@ function renderForwardAgenda() {
   });
 
   const todayCount = data.days[0].timed.length + data.days[0].deadlines.length + data.days[0].planned.length;
-  document.getElementById('today-schedule-sub').textContent = shownDays > 1 ? '含未来安排' : `${todayCount} 项`;
-  const footer = wNode('div', 'forward-footer');
-  const full = wNode('button', 'ui-button ui-button--text', '查看完整周排程 →'); full.type = 'button'; full.onclick = () => switchDashboardView('schedule');
-  const search = wNode('button', 'ui-button ui-button--text', '查找事项'); search.type = 'button'; search.onclick = openActionSearch;
-  footer.append(full, search); container.append(footer);
+  document.getElementById('today-schedule-sub').textContent = shownDays > 1 || (todayCount === 0 && count > 0) ? '含未来安排' : `${todayCount} 项`;
+  if (count === 0 && typeof renderTodayScheduleState === 'function') {
+    renderTodayScheduleState('今天没有日程', '课程、固定事项和一次性事项会显示在这里');
+  }
 }
 
 let workspaceSearchOpener = null;
