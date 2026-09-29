@@ -148,8 +148,17 @@ if [ ! -x "$release/.venv/bin/python" ] || [ ! -f "$release/dependencies.txt" ];
 fi
 "$release/.venv/bin/python" "$release/scripts/build_assets.py"
 
+current=""
 if [ -L "$root/current" ]; then
-    previous=$(readlink -f "$root/current")
+    current=$(readlink -f "$root/current")
+    if [ "$current" = "$release" ]; then
+        # SSH may lose the response after activation and the deploy runner may
+        # retry this idempotent installer. Keep the recorded rollback target
+        # instead of replacing it with the release that is already active.
+        previous=$(cat "$root/.previous-release")
+    else
+        previous=$current
+    fi
 else
     legacy="$releases/legacy-$(date -u +%Y%m%dT%H%M%SZ)"
     mkdir "$legacy"
@@ -177,7 +186,9 @@ case "$previous" in
     *) echo "Refusing unsafe previous release: $previous" >&2; exit 2 ;;
 esac
 prior_previous=$(cat "$root/.previous-release" 2>/dev/null || true)
-printf '%s\n' "$previous" > "$root/.previous-release"
+if [ "$previous" != "$current" ]; then
+    printf '%s\n' "$previous" > "$root/.previous-release"
+fi
 
 if ! build_browser_login_image "$release"; then
     echo "Browser login image build failed; release was not activated" >&2

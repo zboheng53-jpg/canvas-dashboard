@@ -26,16 +26,16 @@ server {
     ssl_session_tickets off;
     add_header Strict-Transport-Security "max-age=31536000" always;
 
-    location ^~ /static/built/ {
-        alias /home/ubuntu/canvas-dashboard/current/frontend/assets/built/;
-        expires 1y;
+    location ^~ /static/ {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host "";
+        proxy_set_header X-Forwarded-Prefix "";
         gzip on;
         gzip_types text/css application/javascript;
-    }
-
-    location ^~ /static/ {
-        alias /home/ubuntu/canvas-dashboard/current/frontend/assets/;
-        expires 0;
     }
 
     location = /_zhihuishu_vnc_auth {
