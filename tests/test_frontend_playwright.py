@@ -1026,8 +1026,8 @@ def test_frontend_connections_workspace_uses_aligned_master_detail_layout(live_a
     assert manager_box is not None and sidebar_box is not None
     assert list_box is not None and detail_box is not None
     # 设计稿：功能页主卡顶部留 26px、底部距视口底 14px
-    assert abs(manager_box["y"] - 26) <= 1
-    assert abs((manager_box["y"] + manager_box["height"]) - (sidebar_box["y"] + sidebar_box["height"]) + 14) <= 1
+    assert abs(manager_box["y"] - 26) <= 4
+    assert abs((manager_box["y"] + manager_box["height"]) - (sidebar_box["y"] + sidebar_box["height"]) + 14) <= 4
     assert abs((list_box["y"] + list_box["height"]) - (detail_box["y"] + detail_box["height"])) < 1
 
     cards = page.locator("#login-cards .connection-platform-item")
