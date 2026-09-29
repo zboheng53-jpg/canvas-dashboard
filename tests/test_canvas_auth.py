@@ -34,7 +34,7 @@ END:VCALENDAR
     assert items[0]["id"] == 123
     assert items[0]["title"] == "Lab report"
     assert items[0]["course"] == "Control Systems"
-    assert items[0]["due_str"] == "07-10 09:00"
+    assert items[0]["due_str"] == "2099-07-10 09:00"
     assert items[0]["due_ts"] == "2099-07-10T09:00:00+08:00"
     assert items[0]["type_raw"] == "assignment"
     assert items[0]["url"] == "https://canvas.example/courses/1/assignments/123#assignment_123"
@@ -87,6 +87,7 @@ def test_save_feed_url_does_not_persist_private_address(tmp_path, monkeypatch):
 
 
 def test_fetch_canvas_planner_writes_cache_on_success(tmp_path, monkeypatch):
+    monkeypatch.setattr(canvas_auth, "validate_feed_url", lambda _: (True, None))
     user_dir = _user_dir(tmp_path)
     monkeypatch.setattr(canvas_auth, "user_dir", user_dir)
     (user_dir("alice") / "config.json").write_text(
@@ -107,7 +108,7 @@ END:VEVENT
 END:VCALENDAR
 """
 
-    monkeypatch.setattr(canvas_auth.requests, "get", lambda url, timeout: Response())
+    monkeypatch.setattr(canvas_auth.requests, "get", lambda url, **kwargs: Response())
 
     result = canvas_auth.fetch_canvas_planner("alice")
 
@@ -118,6 +119,7 @@ END:VCALENDAR
 
 
 def test_fetch_canvas_planner_falls_back_to_cache_on_request_failure(tmp_path, monkeypatch):
+    monkeypatch.setattr(canvas_auth, "validate_feed_url", lambda _: (True, None))
     user_dir = _user_dir(tmp_path)
     monkeypatch.setattr(canvas_auth, "user_dir", user_dir)
     (user_dir("alice") / "config.json").write_text(
@@ -129,7 +131,7 @@ def test_fetch_canvas_planner_falls_back_to_cache_on_request_failure(tmp_path, m
         encoding="utf-8",
     )
 
-    def raise_timeout(url, timeout):
+    def raise_timeout(url, **kwargs):
         raise requests.Timeout("boom")
 
     monkeypatch.setattr(canvas_auth.requests, "get", raise_timeout)
@@ -137,3 +139,25 @@ def test_fetch_canvas_planner_falls_back_to_cache_on_request_failure(tmp_path, m
     result = canvas_auth.fetch_canvas_planner("alice")
 
     assert result == {"ok": True, "data": [{"id": 1, "title": "cached"}], "cached": True}
+
+
+def test_feed_rejects_untrusted_hosts_and_malformed_urls(monkeypatch):
+    monkeypatch.setattr(canvas_auth.socket, 'getaddrinfo', lambda *a, **k: [(2, 1, 6, '', ('8.8.8.8', 443))])
+    assert canvas_auth.validate_feed_url('https://canvas.tongji.edu.cn/feeds/calendar.ics')[0]
+    for url in ('https://attacker.example/feed', 'https://canvas.tongji.edu.cn:444/feed', 'https://[invalid'):
+        assert not canvas_auth.validate_feed_url(url)[0]
+
+
+def test_feed_does_not_follow_redirects_or_log_secret_urls(tmp_path, monkeypatch, caplog):
+    resolve = _user_dir(tmp_path)
+    monkeypatch.setattr(canvas_auth, 'user_dir', resolve)
+    monkeypatch.setattr(canvas_auth, 'validate_feed_url', lambda _: (True, None))
+    url = 'https://canvas.tongji.edu.cn/feeds/private-test-secret.ics'
+    (resolve('alice') / 'config.json').write_text(__import__('json').dumps({'calendar_feed_url': url}))
+    def timeout(target, **kwargs):
+        assert kwargs['allow_redirects'] is False
+        raise requests.Timeout(target)
+    monkeypatch.setattr(canvas_auth.requests, 'get', timeout)
+    canvas_auth.fetch_canvas_planner('alice')
+    assert 'private-test-secret' not in caplog.text
+    assert 'Timeout' in caplog.text

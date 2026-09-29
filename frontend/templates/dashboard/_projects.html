@@ -1,0 +1,137 @@
+<section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-projects" data-view-panel="projects">
+  <div class="card project-manager-card">
+    <div class="project-manager-heading">
+      <div>
+        <h1>长期项目</h1>
+        <p>在左侧快速切换项目，在右侧持续推进下一步行动。</p>
+      </div>
+      <div class="project-header-actions">
+        <button type="button" class="ui-button ui-button--secondary project-button-secondary" id="project-new-group-header-btn" onclick="if (selectedProjectId) openProjectGroupModal(selectedProjectId)">新建分组</button>
+        <button type="button" class="ui-button ui-button--primary project-button-primary" id="project-new-header-btn" onclick="openProjectModal()">＋ 新建项目</button>
+      </div>
+    </div>
+    <p id="project-manager-status" class="ui-feedback ui-feedback--neutral project-manager-status" role="status" aria-live="polite"></p>
+    <div class="project-manager-layout">
+      <aside class="project-browser" aria-label="项目列表">
+        <div class="project-tabs" role="tablist">
+          <button type="button" class="ui-button ui-button--choice project-tab-btn active" data-tab="active" onclick="switchProjectTab('active')">进行中 <span id="active-project-count">0</span></button>
+          <button type="button" class="ui-button ui-button--choice project-tab-btn" data-tab="completed" onclick="switchProjectTab('completed')">已完成 <span id="completed-project-count">0</span></button>
+          <button type="button" class="ui-button ui-button--choice project-tab-btn" data-tab="archived" onclick="switchProjectTab('archived')">暂放 <span id="archived-project-count">0</span></button>
+        </div>
+        <div id="project-manager-list" class="project-manager-list" aria-live="polite" aria-busy="false">
+          <div class="ui-empty ui-empty--compact project-list-empty"><strong>还没有进行中的项目</strong></div>
+        </div>
+      </aside>
+      <section id="project-detail" class="project-detail" aria-live="polite">
+        <div class="ui-empty project-detail-empty">
+          <span class="ui-empty__art" aria-hidden="true">
+            <svg width="72" height="64" viewBox="0 0 72 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="36" cy="32" r="28" fill="#EFF6FF" opacity="0.9"/>
+              <rect x="18" y="18" width="36" height="30" rx="6" fill="#FFFFFF" stroke="#93C5FD" stroke-width="1.5" stroke-dasharray="3 3"/>
+              <path d="M26 33H46" stroke="#BFDBFE" stroke-width="1.5"/>
+              <circle cx="26" cy="33" r="3" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.5"/>
+              <circle cx="36" cy="33" r="3" fill="#FFFFFF" stroke="#3B82F6" stroke-width="1.5"/>
+              <circle cx="46" cy="33" r="3" fill="#FFFFFF" stroke="#60A5FA" stroke-width="1.5"/>
+              <path d="M22 18V15C22 13.8954 22.8954 13 24 13H30C31.1046 13 32 13.8954 32 15V18" stroke="#93C5FD" stroke-width="1.5"/>
+              <path d="M52 14L52.7 16.3L55 17L52.7 17.7L52 20L51.3 17.7L49 17L51.3 16.3L52 14Z" fill="#60A5FA"/>
+            </svg>
+          </span>
+          <strong>暂无长期项目</strong>
+          <p>新建一个项目，开始组织长期目标。</p>
+          <button type="button" class="ui-button ui-button--primary project-button-primary" onclick="openProjectModal()">新建项目</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+
+<div class="project-modal-backdrop hidden" id="project-editor-modal">
+  <div class="project-modal-card" role="dialog" aria-modal="true" aria-labelledby="project-editor-title">
+    <div class="project-modal-header">
+      <div><h2 id="project-editor-title">新建项目</h2></div>
+      <button type="button" class="ui-icon-button project-modal-close" onclick="closeProjectModal()" aria-label="关闭">×</button>
+    </div>
+    <form id="project-editor-form" class="project-modal-form">
+      <input type="hidden" name="project_id">
+      <label class="ui-field ui-label">项目名称<input name="name" required maxlength="100" autocomplete="off" class="ui-control"></label>
+      <label class="ui-field ui-label">一句话目标<textarea name="objective" maxlength="240" rows="3" placeholder="这个项目最终希望达成什么？" class="ui-control"></textarea></label>
+      <label class="ui-field ui-label">项目资料与说明<textarea name="materials" rows="5" maxlength="20000" class="ui-control" placeholder="长期方法、参考材料和暂缓决定"></textarea></label>
+      <label class="ui-field ui-label">项目截止日期（可选）<input name="due_date" type="date" class="ui-control"></label>
+      <p class="ui-error project-modal-error" id="project-editor-error" role="alert"></p>
+      <div class="project-modal-actions">
+        <button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="closeProjectModal()">取消</button>
+        <button type="submit" class="ui-button ui-button--primary project-button-primary">保存项目</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="project-modal-backdrop hidden" id="project-task-modal">
+  <div class="project-modal-card" role="dialog" aria-modal="true" aria-labelledby="project-task-title">
+    <div class="project-modal-header">
+      <div><h2 id="project-task-title">添加任务</h2></div>
+      <button type="button" class="ui-icon-button project-modal-close" onclick="closeProjectTaskModal()" aria-label="关闭">×</button>
+    </div>
+    <form id="project-task-form" class="project-modal-form">
+      <input type="hidden" name="project_id">
+      <input type="hidden" name="task_id">
+      <label class="ui-field ui-label">任务名称<input name="name" required maxlength="40" autocomplete="off" class="ui-control"></label>
+      <label class="ui-field ui-label">详细说明<textarea name="details" rows="5" maxlength="12000" class="ui-control" placeholder="步骤、材料与完成标准"></textarea></label>
+      <label class="action-todo-choice ui-checkbox-label"><input type="checkbox" name="show_in_todos" class="ui-checkbox">同时加入待办清单</label>
+      <div class="action-date-fields"><label class="ui-field ui-label">计划日期<input name="planned_on" type="date" class="ui-control"></label><label class="ui-field ui-label">预计分钟数<input name="estimate_minutes" type="number" min="1" max="1440" class="ui-control"></label></div>
+      <label class="ui-field ui-label">所属分组<select name="group_id" class="ui-control"></select></label>
+      <label class="ui-field ui-label">最晚截止日期（可选）<input name="due_date" type="date" class="ui-control"></label>
+      <label class="ui-checkbox-label project-check-option"><input name="is_next_action" type="checkbox" class="ui-checkbox"> 设为下一步行动</label>
+      <p class="ui-error project-modal-error" id="project-task-error" role="alert"></p>
+      <div class="project-modal-actions">
+        <button type="button" class="ui-button ui-button--danger is-danger hidden" id="project-task-delete-btn">删除任务</button>
+        <button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="closeProjectTaskModal()">取消</button>
+        <button type="submit" class="ui-button ui-button--primary project-button-primary">保存任务</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="project-modal-backdrop hidden" id="project-group-modal">
+  <div class="project-modal-card project-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="project-group-title">
+    <div class="project-modal-header">
+      <div><h2 id="project-group-title">新建分组</h2></div>
+      <button type="button" class="ui-icon-button project-modal-close" onclick="closeProjectGroupModal()" aria-label="关闭">×</button>
+    </div>
+    <form id="project-group-form" class="project-modal-form">
+      <input type="hidden" name="project_id">
+      <input type="hidden" name="group_id">
+      <label class="ui-field ui-label">分组名称<input name="name" required maxlength="80" autocomplete="off" class="ui-control"></label>
+      <p class="ui-error project-modal-error" id="project-group-error" role="alert"></p>
+      <div class="project-modal-actions">
+        <button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="closeProjectGroupModal()">取消</button>
+        <button type="submit" class="ui-button ui-button--primary project-button-primary">保存分组</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="project-modal-backdrop hidden" id="project-choice-modal">
+  <div class="project-modal-card project-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="project-choice-title">
+    <div class="project-modal-header">
+      <div><h2 id="project-choice-title">选择下一步</h2></div>
+      <button type="button" class="ui-icon-button project-modal-close" onclick="closeProjectChoiceModal()" aria-label="关闭">×</button>
+    </div>
+    <div class="project-choice-list" id="project-choice-list"></div>
+  </div>
+</div>
+
+<div class="project-modal-backdrop hidden" id="project-confirm-modal">
+  <div class="project-modal-card project-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="project-confirm-title">
+    <div class="project-modal-header">
+      <div><h2 id="project-confirm-title">确认操作</h2></div>
+      <button type="button" class="ui-icon-button project-modal-close" onclick="closeProjectConfirmModal(false)" aria-label="关闭">×</button>
+    </div>
+    <p class="project-confirm-copy" id="project-confirm-copy"></p>
+    <div class="project-modal-actions">
+      <button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="closeProjectConfirmModal(false)">取消</button>
+      <button type="button" class="ui-button ui-button--danger project-button-danger" id="project-confirm-submit">确认</button>
+    </div>
+  </div>
+</div>
+

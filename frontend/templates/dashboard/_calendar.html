@@ -1,0 +1,60 @@
+{% if apple_calendar_enabled %}
+<section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-calendar" data-view-panel="calendar">
+  <div class="card console-manager-card business-manager-card calendar-subscription-card" id="calendar-subscription-card">
+    <div class="console-manager-heading business-manager-heading">
+      <div>
+        <h1 id="calendar-subscription-title">日历订阅</h1>
+        <p>通过通用 iCalendar（.ics）链接，将带日期的未完成任务和日程只读订阅到 Apple、Google 等支持链接订阅的日历。</p>
+      </div>
+      <span class="ui-tag calendar-privacy-badge">私密链接</span>
+    </div>
+
+    <div class="calendar-subscription-layout">
+      <section class="calendar-guide" aria-labelledby="calendar-guide-title">
+        <h2 class="ui-card__title" id="calendar-guide-title">三步完成订阅</h2>
+        <a href="#guide-calendar" data-open-view="guide" class="connection-trust-card__link">查看上手指南：手机日历订阅教程 →</a>
+        <p class="ui-card__copy">订阅会持续更新，无需重复导入；撤销链接后，旧地址将立即失效。</p>
+        <ol class="calendar-step-list">
+          <li class="ui-list-item calendar-step">
+            <span class="ui-count-pill calendar-step-index">1</span>
+            <div><strong>生成私密链接</strong><p>链接只属于当前账号，请勿公开分享。</p></div>
+          </li>
+          <li class="ui-list-item calendar-step">
+            <span class="ui-count-pill calendar-step-index">2</span>
+            <div><strong>添加到你的日历</strong><p>Apple 日历可直接打开；Google 日历请在电脑网页版通过“其他日历 → ＋ → 通过网址”添加复制的链接。安卓其他日历需支持通过网址订阅。</p></div>
+          </li>
+          <li class="ui-list-item calendar-step">
+            <span class="ui-count-pill calendar-step-index">3</span>
+            <div><strong>按需撤销访问</strong><p>重新生成或撤销后，旧链接不再可用。</p></div>
+          </li>
+        </ol>
+      </section>
+
+      <section class="ui-card calendar-subscription-workspace" aria-labelledby="calendar-subscription-link-heading">
+        <div class="calendar-subscription-copy">
+          <span class="ui-section-label manager-section-index">订阅管理</span>
+          <h2 class="ui-card__title" id="calendar-subscription-link-heading">私密订阅与分类日历</h2>
+          <p class="ui-card__copy">分别订阅各分类，可在日历应用中单独开关和设置颜色；颜色显示取决于应用支持。</p>
+        </div>
+        <div class="calendar-subscription-actions">
+          <button type="button" class="ui-button ui-button--primary calendar-panel-primary console-stateful-button" id="calendar-subscription-create" aria-busy="false" onclick="createCalendarSubscription()">生成订阅链接</button>
+          <button type="button" id="calendar-subscription-open" onclick="openCalendarSubscription()" disabled class="ui-button ui-button--secondary">在日历中打开综合订阅</button>
+          <button type="button" class="ui-button ui-button--secondary console-stateful-button" id="calendar-subscription-copy" aria-busy="false" onclick="copyCalendarSubscription()" disabled>复制综合链接</button>
+          <button type="button" class="ui-button ui-button--danger calendar-panel-revoke console-stateful-button" id="calendar-subscription-revoke" aria-busy="false" onclick="revokeCalendarSubscription()" disabled>撤销所有链接</button>
+        </div>
+        <p class="ui-feedback ui-feedback--info calendar-subscription-status" id="calendar-subscription-status" role="status" aria-live="polite">生成后复制链接到日历应用订阅；“在日历中打开”需要设备支持 webcal。</p>
+
+        <div id="calendar-feeds-container" class="calendar-feeds-container hidden">
+          <!-- 动态分类日历列表 -->
+        </div>
+
+        <div class="calendar-subscription-url" id="calendar-subscription-url-wrap">
+          <label class="ui-label settings-field-label" for="calendar-subscription-url">全能综合订阅地址（包含全部日程）</label>
+          <input type="text" id="calendar-subscription-url" readonly aria-describedby="calendar-subscription-status" placeholder="尚未生成订阅链接" class="ui-control">
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+{% endif %}
+

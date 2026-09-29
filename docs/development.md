@@ -75,12 +75,13 @@
 
 | 功能 | 前端入口 | 后端与存储 | 优先检查 |
 | --- | --- | --- | --- |
-| 待办 | `features/todos.js`、首页模板 | `app.py`、`platform_state.py` | `test_custom_todo_subtasks.py`、`test_platform_state.py`、`test_frontend_playwright.py` |
-| 项目 | `projects.js` | `app.py`、`project_store.py` | `test_projects.py`、`test_project_todos.py` |
+| 待办 | `features/todos.js`、`dashboard/_overview.html` | `routes/planning.py`、`services/workspace.py`、`platform_state.py` | `test_custom_todo_subtasks.py`、`test_platform_state.py`、`test_frontend_playwright.py` |
+| 项目 | `projects.js`、`dashboard/_projects.html` | `routes/planning.py`、`services/workspace.py`、`project_store.py` | `test_projects.py`、`test_project_todos.py` |
 | 事项与排程 | `features/workspace.js`、`features/schedule.js` | `action_contract.py`、`workspace_agenda.py`、`schedule_store.py` | `test_action_workspace.py`、`test_schedule.py`、`test_workspace_layout.py` |
 | 账户与数据 | 设置、认证模板 | `auth.py`、`user_paths.py`、`storage.py` | `test_account_lifecycle.py`、`test_p0_safety.py`、`test_concurrent_writes.py` |
 | 平台同步 | `features/connections.js` | 各平台 client/store/worker、`platform_sync.py` | 对应平台测试、`test_session_and_platform_sync.py` |
-| Agent | `features/agent.js` | `agent_auth.py`、`agent_mcp.py`、`app.py` | `test_agent_api.py`、`test_agent_mcp.py` |
+| Agent | `features/agent.js` | `agent_auth.py`、`agent_mcp.py`、`routes/agent.py`（接口）、`app.py`（下载） | `test_agent_api.py`、`test_agent_mcp.py` |
+| 新手与公开展示 | `dashboard/_guide.html`、`_auth_landing_showcase.html` | `app.py`、`login_capacity.py`、`settings.py` | `test_release_onboarding.py`、`test_login_capacity.py` |
 | 样式与响应式 | `frontend/assets/css/` | `frontend/DESIGN_SYSTEM.md` | `test_control_components.py`、`test_visual_regression.py` |
 | 开发与发布 | `scripts/dev.ps1`、`scripts/test.ps1` | `scripts/check_release.py`、部署 skill 脚本 | `test_development_workflow.py`、`test_scripts.py`、`test_deploy_configs.py` |
 

@@ -1,3 +1,5 @@
+from source_helpers import dashboard_source, template_source, TEMPLATES
+from services import workspace as workspace_service
 import json
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -32,6 +34,7 @@ def test_env(tmp_path, monkeypatch):
     monkeypatch.setattr(ketangpai_client, "user_dir", _user_dir(tmp_path))
     monkeypatch.setattr(dashboard_app, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard_app, "user_dir", _user_dir(tmp_path))
+    monkeypatch.setattr(workspace_service, "user_dir", _user_dir(tmp_path))
     return tmp_path
 
 
@@ -452,7 +455,7 @@ def test_agent_complete_ketangpai_todo(client_with_user, test_env):
     write_json_file(user_p / "ketangpai_cache.json", {"items": [{"id": "item100", "title": "Homework", "due_ts": "2026-09-22T23:59:00"}]})
 
     # Test completion helper
-    ok = dashboard_app._complete_agent_todo(user, "item100", source="ketangpai")
+    ok = workspace_service._complete_agent_todo(user, "item100", source="ketangpai")
     assert ok is True
 
     state = ketangpai_client.load_state(user)
@@ -462,8 +465,8 @@ def test_agent_complete_ketangpai_todo(client_with_user, test_env):
 def test_ketangpai_frontend_login_entries():
     views_path = Path(__file__).parents[1] / "frontend" / "templates" / "dashboard" / "_placeholder_views.html"
     index_path = Path(__file__).parents[1] / "frontend" / "templates" / "index.html"
-    views_html = views_path.read_text(encoding="utf-8")
-    index_html = index_path.read_text(encoding="utf-8")
+    views_html = template_source(views_path)
+    index_html = dashboard_source()
 
     # Platform navigation button exists
     assert 'data-od-id="connection-platform-ketangpai"' in views_html

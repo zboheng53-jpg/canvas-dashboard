@@ -1,3 +1,5 @@
+from services import workspace as workspace_service
+
 import json
 import logging
 import threading
@@ -16,6 +18,7 @@ def client_with_user(tmp_path, monkeypatch):
     (user_dir / "custom_todos.json").write_text("[]", encoding="utf-8")
     monkeypatch.setattr(dashboard_app, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard_app, "user_dir", lambda username: user_dir)
+    monkeypatch.setattr(workspace_service, "user_dir", lambda username: user_dir)
     dashboard_app.app.config.update(TESTING=True)
     with dashboard_app.app.test_client() as client:
         with client.session_transaction() as sess:

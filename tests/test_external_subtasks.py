@@ -1,3 +1,5 @@
+from services import workspace as workspace_service
+
 """Unit tests for external platform subtasks storage and API."""
 import pytest
 import external_subtasks
@@ -49,6 +51,7 @@ def client_with_user(tmp_path, monkeypatch):
         path.mkdir(parents=True, exist_ok=True)
         return path
     monkeypatch.setattr(dashboard_app, "user_dir", resolve_user_dir)
+    monkeypatch.setattr(workspace_service, "user_dir", resolve_user_dir)
     monkeypatch.setattr(external_subtasks, "user_dir", resolve_user_dir)
     dashboard_app.app.config.update(TESTING=True)
     with dashboard_app.app.test_client() as client:

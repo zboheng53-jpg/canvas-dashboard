@@ -1,3 +1,4 @@
+from source_helpers import dashboard_source, template_source, TEMPLATES
 """Static analysis and lint suite for design system compliance.
 
 Prevents hardcoded colors, !important leaks, and ID selectors in core design system layers.
@@ -106,7 +107,7 @@ def test_empty_art_not_hidden():
 
 def test_todo_group_heading_has_no_redundant_dot():
     """Ensure index.html template does not contain redundant separator dot in todo group heading."""
-    template = Path("frontend/templates/index.html").read_text(encoding="utf-8")
+    template = dashboard_source()
     assert "todo-group-count-dot" not in template, "Found todo-group-count-dot in index.html"
     heading_section = template.split("todo-group-heading-left")[1].split("ui-count-pill")[0]
     assert "·" not in heading_section, "Found separator dot in todo-group-heading-left"

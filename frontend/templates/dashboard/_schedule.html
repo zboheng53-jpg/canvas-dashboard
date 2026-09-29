@@ -1,0 +1,226 @@
+<section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-schedule" data-view-panel="schedule">
+  <div class="card schedule-manager-card">
+    <div class="schedule-manager-heading">
+      <div>
+        <h1>周排程与课表</h1>
+        <div class="schedule-meta-line">
+          <p id="schedule-term-meta">尚未导入本学期课表</p>
+        </div>
+      </div>
+      <div class="schedule-header-actions">
+        <button type="button" class="ui-button ui-button--danger btn-schedule-action" id="schedule-header-clear-btn" onclick="clearAllCourses()">清空课表</button>
+        <button type="button" class="ui-button ui-button--secondary btn-schedule-action btn-schedule-secondary" id="schedule-management-open" onclick="openScheduleManagementModal()">课表管理</button>
+        <button type="button" class="ui-button ui-button--primary btn-schedule-action btn-schedule-primary" id="btn-add-schedule-item" onclick="openScheduleItemModal('one-off')">＋ 添加事项</button>
+      </div>
+    </div>
+    <p class="ui-feedback ui-feedback--neutral schedule-manager-status" id="schedule-manager-status" role="status" aria-live="polite"></p>
+
+    <div class="schedule-toolbar">
+      <div class="schedule-week-nav">
+        <button type="button" class="ui-button ui-button--secondary schedule-nav-btn" onclick="navigateScheduleWeek(-1)" title="上一周">‹ 上一周</button>
+        <button type="button" class="ui-button ui-button--choice schedule-nav-btn is-current" onclick="navigateScheduleWeek(0)" title="回到本周">本周</button>
+        <button type="button" class="ui-button ui-button--secondary schedule-nav-btn" onclick="navigateScheduleWeek(1)" title="下一周">下一周 ›</button>
+        <span class="schedule-week-label" id="schedule-week-label"></span>
+      </div>
+      <div class="schedule-legend">
+        <button type="button" class="ui-button ui-button--secondary schedule-nav-btn" id="schedule-header-search-btn" onclick="openActionSearch()" title="查找事项">🔍 查找事项</button>
+        <span class="legend-item legend-course"><i class="legend-dot"></i>课表</span>
+        <span class="legend-item legend-recurring"><i class="legend-dot"></i>每周重复</span>
+        <span class="legend-item legend-weekly"><i class="legend-dot"></i>单次事项</span>
+      </div>
+    </div>
+
+    <div class="schedule-grid-wrapper">
+      <div class="schedule-grid schedule-grid-header" id="schedule-grid-header" aria-hidden="true"></div>
+      <div class="schedule-scroll-viewport" id="schedule-scroll-viewport">
+        <div class="schedule-grid schedule-grid-body" id="schedule-timetable-grid">
+          <!-- Rendered dynamically by JS -->
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Modal for adding/editing schedule items -->
+<div class="schedule-modal-backdrop hidden" id="schedule-item-modal" onclick="if(event.target===this)closeScheduleItemModal()">
+  <div class="schedule-modal-card" role="dialog" aria-modal="true" aria-labelledby="schedule-modal-title">
+    <div class="schedule-modal-header">
+      <h3 id="schedule-modal-title">添加排程事项</h3>
+      <button type="button" class="ui-icon-button schedule-modal-close" onclick="closeScheduleItemModal()" aria-label="关闭">×</button>
+    </div>
+    <form class="schedule-modal-form" id="schedule-modal-form">
+      <p id="schedule-form-error" class="ui-error hidden" role="alert"></p>
+      <input type="hidden" name="id" id="schedule-form-id">
+      <input type="hidden" name="action_ref" id="schedule-form-action-ref">
+      <div class="schedule-link-bar" id="schedule-link-bar">
+        <span id="schedule-link-hint" class="muted schedule-link-hint">当前为独立日程，仅在日程中显示。</span>
+        <div class="schedule-link-actions">
+          <button type="button" id="schedule-btn-pick-action" class="ui-button ui-button--secondary ui-button--sm schedule-btn-compact" onclick="openScheduleActionPicker()">安排已有待办…</button>
+          <button type="button" id="schedule-btn-unlink-action" class="ui-button ui-button--text ui-button--sm schedule-btn-unlink hidden" onclick="unlinkScheduleAction()">解除关联</button>
+        </div>
+      </div>
+      <div class="form-group schedule-create-todo-wrap" id="field-schedule-create-todo-wrap">
+        <label class="schedule-checkbox-label ui-checkbox-label">
+          <input type="checkbox" name="create_todo" id="schedule-form-create-todo" class="ui-checkbox">
+          <span>同时加入待办清单</span>
+        </label>
+      </div>
+      <div class="form-group">
+        <label for="schedule-form-title" class="ui-label">事项名称</label>
+        <input name="title" id="schedule-form-title" required maxlength="40" placeholder="例如：蓝桥杯讨论" class="ui-control">
+      </div>
+<label class="ui-field ui-label">详细说明<textarea name="details" id="schedule-form-details" maxlength="12000" rows="4" class="ui-control" placeholder="安排的具体内容、地点说明或材料"></textarea></label>
+      <div class="form-row" id="field-recurring-weekday">
+        <div class="form-group flex-1">
+          <label for="schedule-form-weekday" class="ui-label">重复星期</label>
+          <select name="weekday" id="schedule-form-weekday" class="ui-control">
+            <option value="0">周一</option>
+            <option value="1">周二</option>
+            <option value="2">周三</option>
+            <option value="3">周四</option>
+            <option value="4">周五</option>
+            <option value="5">周六</option>
+            <option value="6">周日</option>
+          </select>
+        </div>
+        <div class="form-group flex-1">
+          <label for="schedule-form-repeat-start" class="ui-label">开始日期</label>
+          <input name="start_date" type="date" id="schedule-form-repeat-start" class="ui-control">
+        </div>
+        <div class="form-group flex-1">
+          <label for="schedule-form-repeat-end" class="ui-label">结束日期（可选）</label>
+          <input name="end_date" type="date" id="schedule-form-repeat-end" class="ui-control">
+        </div>
+      </div>
+      <div class="form-row hidden" id="field-one-off-date">
+        <div class="form-group flex-1">
+          <label for="schedule-form-date" class="ui-label">日期</label>
+          <input name="date" type="date" id="schedule-form-date" class="ui-control">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group flex-1">
+          <label for="schedule-form-start" class="ui-label">开始时间</label>
+          <input name="start_time" type="time" id="schedule-form-start" required value="09:00" class="ui-control">
+        </div>
+        <div class="form-group flex-1">
+          <label for="schedule-form-end" class="ui-label">结束时间</label>
+          <input name="end_time" type="time" id="schedule-form-end" required value="10:00" class="ui-control">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="schedule-form-location" class="ui-label">地点（可选）</label>
+        <input name="location" id="schedule-form-location" maxlength="120" placeholder="例如：四平路校区 · 北229" class="ui-control">
+      </div>
+      <div class="form-group">
+        <label>事项类型</label>
+        <div class="schedule-kind-selector">
+          <label class="kind-option">
+            <input type="radio" name="kind" value="one-off" checked>
+            <span>单次事项</span>
+          </label>
+          <label class="kind-option">
+            <input type="radio" name="kind" value="recurring">
+            <span>每周重复</span>
+          </label>
+        </div>
+      </div>
+      <fieldset class="schedule-edit-scope hidden" id="schedule-edit-scope">
+        <legend>应用到</legend>
+        <label><input type="radio" name="scope" value="occurrence" checked> 仅本次</label>
+        <label><input type="radio" name="scope" value="series"> 整个重复事项</label>
+      </fieldset>
+      <div class="schedule-modal-actions">
+        <button type="button" class="ui-button ui-button--danger btn-delete hidden" id="schedule-item-delete" onclick="deleteScheduleItemFromModal()">删除事项</button>
+        <span class="schedule-modal-action-spacer"></span>
+        <button type="button" class="ui-button ui-button--secondary btn-cancel" onclick="closeScheduleItemModal()">取消</button>
+        <button type="submit" class="ui-button ui-button--primary btn-submit">保存事项</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal for viewing course details and deleting course -->
+<div class="schedule-modal-backdrop hidden" id="schedule-course-modal" onclick="if(event.target===this)closeScheduleCourseModal()">
+  <div class="schedule-modal-card schedule-course-modal-card" role="dialog" aria-modal="true" aria-labelledby="schedule-course-title">
+    <div class="schedule-modal-header">
+      <div>
+        <span class="schedule-course-badge">课程详情</span>
+        <h3 id="schedule-course-title">课程名称</h3>
+      </div>
+      <button type="button" class="ui-icon-button schedule-modal-close" onclick="closeScheduleCourseModal()" aria-label="关闭">×</button>
+    </div>
+    <div class="schedule-course-details" id="schedule-course-details">
+      <div class="schedule-detail-row">
+        <span class="schedule-detail-label">授课教师</span>
+        <span class="schedule-detail-value" id="schedule-course-teacher">-</span>
+      </div>
+      <div class="schedule-detail-row">
+        <span class="schedule-detail-label">上课时间</span>
+        <span class="schedule-detail-value" id="schedule-course-time">-</span>
+      </div>
+      <div class="schedule-detail-row">
+        <span class="schedule-detail-label">上课地点</span>
+        <span class="schedule-detail-value" id="schedule-course-location">-</span>
+      </div>
+      <div class="schedule-detail-row" id="schedule-course-weeks-row">
+        <span class="schedule-detail-label">周次安排</span>
+        <span class="schedule-detail-value" id="schedule-course-weeks">-</span>
+      </div>
+    </div>
+    <div class="schedule-modal-actions">
+      <button type="button" class="ui-button ui-button--danger btn-delete" id="schedule-course-delete" onclick="deleteCourseFromModal()">删除此课程</button>
+      <span class="schedule-modal-action-spacer"></span>
+      <button type="button" class="ui-button ui-button--secondary btn-cancel" onclick="closeScheduleCourseModal()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="schedule-modal-backdrop hidden" id="schedule-management-modal" onclick="if(event.target===this)closeScheduleManagementModal()">
+  <div class="schedule-modal-card schedule-management-modal-card" role="dialog" aria-modal="true" aria-labelledby="schedule-management-title">
+    <div class="schedule-modal-header">
+      <div>
+        <h3 id="schedule-management-title">课表管理</h3>
+      </div>
+      <button type="button" class="ui-icon-button schedule-modal-close" onclick="closeScheduleManagementModal()" aria-label="关闭">×</button>
+    </div>
+    <p class="schedule-management-summary" id="schedule-management-summary">尚未导入课程</p>
+    <div class="schedule-management-actions">
+      <button type="button" class="ui-button ui-button--secondary schedule-refresh-button" id="schedule-refresh-button" onclick="openTongjiLoginSession()">统一身份认证登录</button>
+      <input class="schedule-file-input" id="schedule-file-input" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+      <button type="button" class="ui-button ui-button--secondary schedule-refresh-button schedule-import-button" id="schedule-import-button" onclick="document.getElementById('schedule-file-input').click()">从插件导入</button>
+      <a class="ui-button ui-button--secondary schedule-refresh-button schedule-download-link" id="schedule-download-link" href="/static/downloads/tongji-timetable-exporter-v1.2.zip" download>下载插件</a>
+    </div>
+    <div class="schedule-courses-section hidden" id="schedule-courses-section">
+      <div class="schedule-courses-section-header">
+        <h4>已导入课程</h4>
+        <span class="schedule-courses-count" id="schedule-courses-count"></span>
+      </div>
+      <div class="schedule-courses-list" id="schedule-courses-list">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+    <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note connection-trust-card schedule-login-note">
+      <div class="connection-trust-card__head">
+        <strong>同济课表连接说明</strong>
+        <a href="/privacy" target="_blank" rel="noopener noreferrer" class="connection-trust-card__link">查看隐私说明 →</a>
+      </div>
+      <dl class="connection-trust-grid">
+        <div class="connection-trust-row"><dt>保存内容</dt><dd>导入后的课程表安排数据</dd></div>
+        <div class="connection-trust-row"><dt>用途</dt><dd>仅用于展示周课表与生成今日日程</dd></div>
+        <div class="connection-trust-row"><dt>不会保存</dt><dd>同济统一身份认证密码与长期登录 Session</dd></div>
+        <div class="connection-trust-row"><dt>认证结束后</dt><dd>临时登录窗口立即销毁，可随时一键清空课表</dd></div>
+      </dl>
+    </div>
+  </div>
+</div>
+
+<div class="schedule-overlap-popover hidden" id="schedule-overlap-popover" role="dialog" aria-label="重叠事项">
+  <div class="schedule-overlap-heading">
+    <strong>同一时段的事项</strong>
+    <button type="button" onclick="closeScheduleOverlapPopover()" aria-label="关闭" class="ui-icon-button">×</button>
+  </div>
+  <div id="schedule-overlap-list"></div>
+</div>
+

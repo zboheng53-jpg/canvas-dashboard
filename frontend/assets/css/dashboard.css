@@ -12,3 +12,4 @@
 @import url("./action-workspace.css") layer(design-system);
 @import url("./mobile-dock.css") layer(design-system);
 @import url("./appearance.css") layer(design-system);
+@import url("./guide.css") layer(design-system);

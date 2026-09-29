@@ -693,7 +693,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
 .f-chip.is-on .n, .f-chip.is-active .n { color: var(--ds-accent-ink, #1d4fd7); }
 
 /* ---------- 登录 / 注册页面 (Auth Login & Register Page) ---------- */
-.auth-page {
+.auth-page:not(.auth-landing-page) {
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
@@ -701,7 +701,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   padding: 40px 20px !important;
   background: var(--ds-page, #f7f8fa) !important;
 }
-.auth-card {
+.auth-page:not(.auth-landing-page) .auth-card {
   width: 100% !important;
   max-width: 400px !important;
   padding: 28px 32px !important;
@@ -1699,12 +1699,13 @@ section.card.listcard,
   letter-spacing: 0 !important;
   line-height: 1.3 !important;
   padding: 0 10px !important;
-  margin-bottom: 4px !important;
+  margin: 0 0 var(--space-1) !important;
   text-transform: none !important;
 }
 
 /* ---------- 4. 侧边栏导航几何（设计稿 .nav-item：padding 9/10、gap 10、svg 18） ---------- */
-.academic-sidebar .sidebar-nav { padding: 0 !important; gap: 0 !important; }
+.academic-sidebar .sidebar-nav { padding: 0 !important; gap: var(--space-4) !important; }
+.academic-sidebar .sidebar-nav-group { gap: var(--space-1); align-content: start; flex-shrink: 0; }
 .academic-sidebar .sidebar-nav-item,
 .academic-sidebar .sidebar-footer-action {
   min-height: 0 !important;
@@ -3633,391 +3634,6 @@ body:has(.auth-landing-page, .privacy-center-page, .privacy-shell) {
   overflow-y: auto !important;
 }
 
-.dashboard.auth-page.auth-landing-page {
-  max-width: none !important;
-  width: 100vw !important;
-  min-height: 100vh !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  display: block !important;
-  box-sizing: border-box;
-}
-
-.auth-landing-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(400px, 36vw);
-  min-height: 100vh;
-  width: 100%;
-  gap: 0;
-  align-items: stretch;
-}
-
-/* 左侧全幅展示区：撑满左半屏，顶栏+居中核心内容+底栏 */
-.auth-landing-intro {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-height: 100vh;
-  padding: 28px clamp(32px, 4.5vw, 68px);
-  box-sizing: border-box;
-  color: var(--color-text-primary);
-  background-color: var(--color-surface);
-  background-image:
-    radial-gradient(circle at 12% 16%, var(--color-action-soft) 0%, transparent 46%),
-    radial-gradient(circle at 88% 86%, var(--color-surface-subtle) 0%, transparent 52%),
-    linear-gradient(180deg, var(--color-surface) 0%, var(--color-surface-subtle) 100%);
-}
-
-.auth-landing-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.auth-landing-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.auth-landing-brand__mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  background: var(--color-action);
-  color: #ffffff;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  box-shadow: 0 2px 6px rgba(29, 79, 215, 0.22);
-}
-
-.auth-landing-brand__name {
-  font-family: var(--font-title);
-  font-size: 16px;
-  font-weight: 650;
-  color: var(--color-text-primary);
-  letter-spacing: -0.01em;
-}
-
-.auth-landing-center {
-  width: 100%;
-  max-width: 780px;
-  margin: auto;
-  padding: 20px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.auth-landing-hero {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 2px;
-}
-
-.auth-landing-kicker-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.auth-landing-kicker {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 11px;
-  border-radius: var(--radius-pill);
-  background: var(--color-action-soft);
-  border: 1px solid var(--color-action-border);
-  color: var(--color-action-hover);
-  font-family: var(--font-kicker);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-}
-
-.auth-landing-question {
-  display: inline-flex;
-  align-items: center;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-action-hover);
-  letter-spacing: 0.02em;
-}
-
-.auth-landing-title {
-  font-family: var(--font-title);
-  font-size: clamp(24px, 2.4vw, 32px);
-  font-weight: 650;
-  line-height: 1.28;
-  letter-spacing: -0.02em;
-  color: var(--color-text-primary);
-  margin: 0;
-}
-
-.auth-landing-subtitle {
-  font-size: 13.5px;
-  line-height: 1.6;
-  color: var(--color-text-secondary);
-  margin: 0;
-  max-width: 66ch;
-}
-
-.auth-landing-block {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--ds-radius, 10px);
-  padding: 14px 16px;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
-}
-
-.auth-landing-section-title {
-  font-family: var(--font-title);
-  font-size: 14px;
-  font-weight: 650;
-  color: var(--color-text-primary);
-  margin: 0 0 10px 0;
-  line-height: 1.35;
-}
-
-/* 三列等高核心价值卡片，紧凑工整 */
-.auth-landing-values {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.auth-landing-value-item {
-  padding: 11px 12px;
-  border-radius: var(--ds-radius-sm, 7px);
-  background: var(--color-surface-subtle);
-  border: 1px solid var(--ds-line-soft);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.auth-landing-value-item strong {
-  display: block;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.auth-landing-value-item p {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.52;
-  color: var(--color-text-secondary);
-}
-
-.auth-landing-value-item code {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  padding: 1px 4px;
-  border-radius: 4px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-text-primary);
-}
-
-/* 下排双栏对称 Bento：左支持平台，右账号安全 */
-.auth-landing-bento {
-  display: grid;
-  grid-template-columns: minmax(220px, 0.88fr) minmax(0, 1.32fr);
-  gap: 14px;
-  align-items: stretch;
-}
-
-.auth-landing-bento > .auth-landing-block {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.auth-landing-platforms {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  align-content: flex-start;
-}
-
-.auth-landing-platforms .ui-badge--source {
-  background: var(--color-surface-subtle);
-  border-color: var(--color-border);
-  padding: 4px 10px;
-  font-size: 12px;
-  color: var(--color-text-primary);
-}
-
-.auth-landing-trust-list {
-  margin: 0;
-  padding-left: 16px;
-  display: grid;
-  gap: 5px;
-  font-size: 12px;
-  line-height: 1.55;
-  color: var(--color-text-secondary);
-}
-
-.auth-landing-trust-list strong {
-  color: var(--color-text-primary);
-  font-weight: 600;
-}
-
-.auth-landing-privacy-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 10px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-action-hover);
-  text-decoration: none;
-}
-
-.auth-landing-privacy-link:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.auth-landing-footbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--color-text-muted);
-}
-
-/* 右侧全高认证面板：撑满右半屏背景，登录框垂直水平居中 */
-.auth-landing-right {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: center;
-  padding: 28px 36px;
-  box-sizing: border-box;
-  border-left: 1px solid var(--color-border);
-  background: linear-gradient(180deg, #e9effa 0%, #dde6f6 100%);
-}
-
-html[data-theme="moss"] .auth-landing-right {
-  background: linear-gradient(180deg, #e8ede7 0%, #dce4db 100%);
-}
-
-.auth-landing-right-top {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  font-size: 12.5px;
-}
-
-.auth-landing-right-top a {
-  color: var(--color-text-secondary);
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.auth-landing-right-top a:hover {
-  color: var(--color-text-primary);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.auth-landing-layout .auth-card {
-  margin: auto !important;
-  width: 100% !important;
-  max-width: 380px !important;
-  position: static !important;
-  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08) !important;
-}
-
-.auth-landing-right-foot {
-  width: 100%;
-  min-height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.auth-card-privacy-note {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--ds-line-soft);
-  text-align: center;
-  font-size: 12px;
-}
-
-.auth-card-meta-sep {
-  color: var(--color-text-muted);
-}
-
-.auth-card-github-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--color-text-secondary);
-  text-decoration: none;
-}
-
-.auth-card-github-link svg {
-  width: 13px;
-  height: 13px;
-  fill: currentColor;
-  stroke: none;
-  opacity: 0.8;
-}
-
-.auth-card-github-link:hover {
-  color: var(--color-text-primary);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-@media (max-width: 1024px) {
-  .auth-landing-values {
-    grid-template-columns: 1fr;
-  }
-  .auth-landing-bento {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 900px) {
-  .auth-landing-layout {
-    grid-template-columns: 1fr;
-  }
-  .auth-landing-intro {
-    min-height: auto;
-    padding: 24px 20px 28px;
-  }
-  .auth-landing-right {
-    min-height: auto;
-    padding: 28px 20px 36px;
-    border-left: none;
-    border-top: 1px solid var(--color-border);
-  }
-  .auth-landing-layout .auth-card {
-    max-width: 440px !important;
-    margin: 16px auto !important;
-  }
-}
-
 /* ---------- 平台连接结构化信任卡片 (Connection Trust Card) ---------- */
 .connection-trust-card {
   display: flex;
@@ -4171,3 +3787,18 @@ html[data-theme="moss"] .auth-landing-right {
   }
 }
 
+
+/* Native disclosure keeps platform data details available without crowding setup. */
+.connection-data-disclosure > summary {
+  display: list-item !important;
+  list-style-position: inside;
+  cursor: pointer;
+  padding-block: var(--space-2);
+}
+.connection-data-disclosure > summary:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.connection-data-disclosure:not([open]) > summary {
+  margin-bottom: 0 !important;
+}

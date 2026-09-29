@@ -7,7 +7,6 @@
   {% include "_favicon.html" %}
   {% include "_font_assets.html" %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
   <script>window.CSRF_TOKEN = "{{ csrf_token() }}";</script>
   <script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
 </head>
@@ -18,6 +17,11 @@
 
       <section class="auth-landing-right" aria-label="账号登录">
         <div class="auth-landing-right-top">
+          <div class="auth-theme-toggle" role="group" aria-label="外观模式">
+            <button type="button" class="ui-button ui-button--choice auth-theme-btn" data-appearance-theme="blue" title="蓝白外观" aria-label="切换为蓝白外观">蓝白</button>
+            <button type="button" class="ui-button ui-button--choice auth-theme-btn" data-appearance-theme="moss" title="苔绿外观" aria-label="切换为苔绿外观">苔绿</button>
+          </div>
+          <span class="auth-card-meta-sep" aria-hidden="true">·</span>
           <a href="/privacy">数据与隐私中心</a>
           <span class="auth-card-meta-sep" aria-hidden="true">·</span>
           <a href="https://github.com/zboheng53-jpg/canvas-dashboard" target="_blank" rel="noopener noreferrer" class="auth-card-github-link" title="GitHub 仓库" aria-label="访问 GitHub 仓库">
@@ -27,8 +31,11 @@
         </div>
 
         <div class="card auth-card">
-          <div class="card-head section-header" style="padding: 0 0 12px; border-bottom: 1px solid var(--ds-line-soft, #eef0f3);">
-            <div class="header-left-group"><h2 style="font-size: 20px; font-weight: 600;">账号登录</h2></div>
+          <div class="card-head section-header auth-card-head">
+            <div class="header-left-group">
+              <h2 class="auth-card-title">账号登录</h2>
+            </div>
+            <span class="auth-card-badge">个人空间</span>
           </div>
 
           <form class="auth-form" id="login-form">
@@ -40,22 +47,17 @@
               <label class="field-label" for="login-password">密码</label>
               <input type="password" id="login-password" placeholder="请输入密码" autocomplete="current-password" class="ui-control input">
             </div>
-            <button type="submit" class="ui-button ui-button--primary ui-button--block btn-quiet" style="height:40px; font-size:14px; width:100%; margin-top:6px;">登录</button>
+            <button type="submit" class="ui-button ui-button--primary ui-button--block auth-submit-btn">登录</button>
           </form>
 
-          <p class="ui-help setup-hint" style="margin-top:16px; text-align:center; font-size:13px;">还没有账号？<a href="/register" style="color:var(--ds-accent-ink, #1d4fd7); font-weight:600;">立即注册</a></p>
-          <p class="ui-help auth-card-privacy-note">
-            <a href="/privacy">数据与隐私中心</a>
-            <span class="auth-card-meta-sep" aria-hidden="true">·</span>
-            <a href="https://github.com/zboheng53-jpg/canvas-dashboard" target="_blank" rel="noopener noreferrer" class="auth-card-github-link">GitHub</a>
-          </p>
-
-          <div class="ui-alert ui-alert--danger ui-alert--compact error-banner hidden" id="login-error" role="alert" style="margin-top:12px;"></div>
+          <p class="ui-help setup-hint auth-switch-hint">还没有账号？<a href="/register" class="auth-switch-link">立即注册</a></p>
+          <p class="ui-help auth-switch-hint"><a href="/reset-password" class="auth-switch-link">忘记密码？</a> 联系维护者获取重置凭据</p>
+          <div class="ui-alert ui-alert--danger ui-alert--compact error-banner hidden auth-error-banner" id="login-error" role="alert"></div>
         </div>
 
         <div class="auth-landing-right-foot">
           {% if icp_number %}
-          <footer class="site-footer" style="margin: 0;">
+          <footer class="site-footer auth-site-footer">
             <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">{{ icp_number }}</a>
           </footer>
           {% endif %}

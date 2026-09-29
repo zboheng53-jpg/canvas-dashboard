@@ -1,25 +1,16 @@
-/* Calm entry: opacity only, so cards never create transformed scroll containers. */
-@keyframes workspace-reveal {
-  from { opacity: 0.35; }
-  to { opacity: 1; }
+/* One entrance for the workspace, independent of data arrival or view changes.
+   No fill-mode: transforms must not remain on ancestors of fixed dialogs. */
+@keyframes workspace-arrive {
+  from { opacity: 0; transform: translateY(var(--space-4)); }
+  to { opacity: 1; transform: none; }
 }
 
-.enter-top-bar,
-.enter-kpis,
-.enter-main-card,
-.enter-right-card {
-  animation: workspace-reveal var(--duration-enter) var(--ease-standard) backwards;
+.workspace-stack {
+  animation: workspace-arrive var(--duration-enter) var(--ease-enter);
 }
-
-.enter-kpis { animation-delay: var(--delay-enter-step); }
-.enter-main-card { animation-delay: calc(var(--delay-enter-step) * 2); }
-.enter-right-card { animation-delay: calc(var(--delay-enter-step) * 3); }
 
 @media (prefers-reduced-motion: reduce) {
-  .enter-top-bar,
-  .enter-kpis,
-  .enter-main-card,
-  .enter-right-card {
+  .workspace-stack {
     animation: none;
   }
 }

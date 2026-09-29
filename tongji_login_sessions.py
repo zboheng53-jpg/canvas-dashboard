@@ -184,6 +184,12 @@ def load_session(username: str) -> dict | None:
 
 
 def create_session(username: str, now: float | None = None) -> dict:
+    from login_capacity import startup_slot
+    with startup_slot(DATA_DIR, _session_file(username)):
+        return _create_session(username, now)
+
+
+def _create_session(username: str, now: float | None = None) -> dict:
     now = time.time() if now is None else now
     cleanup_expired_sessions(now)
     stop_session(username)

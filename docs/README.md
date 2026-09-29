@@ -3,6 +3,8 @@
 ## Current
 
 - `development.md`: development, isolated acceptance scenarios, test suites, failure evidence, release source checks and feature entry points.
+- `small-group-launch.md`: measured server snapshot, local capacity probe, first-cohort guidance and maintenance tradeoffs.
+- `../CHANGELOG.md`: user-visible changes; unreleased work is not a deployment record.
 
 - `../README.md`: project entry point and local quick start.
 - `architecture.md`: runtime architecture, data boundaries, refresh flows, and release layout.
@@ -17,6 +19,6 @@
 
 `superpowers/plans/` and `superpowers/specs/` preserve dated design and implementation context. They are not task trackers or current runbooks. Unchecked boxes record the drafting state, not the current completion state. Each plan with superseded operational assumptions has a status note at the top.
 
-The external-platform-subtask plan is an unimplemented proposal. Current editable subtasks belong only to custom todos.
+External-platform subtasks are implemented for all six platforms; historical plans do not describe current completion status. See `architecture.md` and `external_subtasks.py`.
 
 When behavior changes, update the current document that owns the contract and add or update matching tests. Keep historical records unchanged except for a short status boundary when they could mislead an operator.

@@ -1,3 +1,4 @@
+
 """Shared test profiles, isolated data, deterministic browser time and failure evidence."""
 import hashlib
 import json
@@ -17,6 +18,10 @@ _session_data = tempfile.TemporaryDirectory(prefix="canvas-dashboard-tests-")
 os.environ["CANVAS_DASHBOARD_DATA_DIR"] = str(Path(_session_data.name) / "data")
 
 import app as dashboard_app
+from routes import agent as agent_routes
+from routes import planning as planning_routes
+from services import workspace as workspace_service
+from services import academic as academic_service
 import user_paths
 import auth
 import agent_auth
@@ -53,7 +58,7 @@ def pytest_collection_modifyitems(config, items):
     suite = config.getoption("--suite")
     safety = {"test_p0_safety.py", "test_security_auth.py", "test_action_workspace.py",
               "test_account_lifecycle.py", "test_project_focus.py", "test_concurrent_writes.py", "test_scripts.py",
-              "test_development_workflow.py", "test_deploy_configs.py",
+              "test_development_workflow.py", "test_deploy_configs.py", "test_login_capacity.py", "test_release_onboarding.py",
               "test_control_components.py", "test_design_system_lint.py", "test_css_architecture.py",
               "test_frontend_text_integrity.py", "test_dashboard_localization.py",
               "test_ui_refactor.py", "test_business_components.py"}
@@ -89,8 +94,8 @@ def isolated_data(tmp_path, monkeypatch):
     for module in (haoke_client, zhixuemeng_client, ketangpai_client, tongji_oj_client):
         monkeypatch.setattr(module, "KEY_FILE", tmp_path / ".encryption_key")
     monkeypatch.setattr(zhihuishu_worker, "LOCK_FILE", tmp_path / "zhihuishu_worker.lock")
-    monkeypatch.setattr(dashboard_app, "_TERM_CONFIG_FILE", tmp_path / "term_config.json")
-    monkeypatch.setattr(dashboard_app, "_HOLIDAY_CACHE_FILE", tmp_path / "holiday_cache.json")
+    monkeypatch.setattr(academic_service, "_TERM_CONFIG_FILE", tmp_path / "term_config.json")
+    monkeypatch.setattr(academic_service, "_HOLIDAY_CACHE_FILE", tmp_path / "holiday_cache.json")
     return tmp_path
 
 
@@ -101,9 +106,10 @@ def live_app(isolated_data, monkeypatch, test_now, request):
         def now(cls, tz=None):
             return test_now.astimezone(tz) if tz else test_now.replace(tzinfo=None)
 
-    monkeypatch.setattr(dashboard_app, "datetime", FixedDateTime)
+    for module in (dashboard_app, academic_service, workspace_service, planning_routes, agent_routes):
+        monkeypatch.setattr(module, "datetime", FixedDateTime)
     dashboard_app._rate_limit_buckets.clear()
-    monkeypatch.setattr(dashboard_app, "_get_holidays", lambda: [])
+    monkeypatch.setattr(academic_service, "_get_holidays", lambda: [])
     class WeatherResponse:
         def json(self):
             return {

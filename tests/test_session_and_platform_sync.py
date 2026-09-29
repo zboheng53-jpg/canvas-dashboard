@@ -1,3 +1,4 @@
+import web_common
 import json
 from datetime import datetime, timedelta
 
@@ -58,7 +59,7 @@ def test_expired_activity_is_rejected_without_waiting_for_browser_cookie(tmp_pat
     with dashboard_app.app.test_client() as client:
         _register(client)
         with client.session_transaction() as current:
-            current["last_active_at"] = (datetime.now(dashboard_app.CST) - timedelta(days=31)).isoformat()
+            current["last_active_at"] = (datetime.now(web_common.CST) - timedelta(days=31)).isoformat()
         assert client.get("/api/clock").status_code == 401
 
 

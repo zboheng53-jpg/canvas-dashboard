@@ -93,7 +93,7 @@ def test_build_platform_todos_response_auto_deletes_expired_hidden_item():
         now=now,
     )
 
-    assert response["data"] == [{"id": 2, "due_ts": (now + timedelta(hours=1)).isoformat()}]
+    assert response["data"] == [{"id": 2, "due_ts": (now + timedelta(hours=1)).isoformat(), "due_str": "2026-07-09 13:00"}]
     assert response["hidden"] == []
     assert response["deleted"] == [1]
     assert saved == [{"hidden": [], "highlighted": [], "deleted": [1], "completed": [], "overrides": {}}]
@@ -113,4 +113,14 @@ def test_platform_local_completion_and_overrides_survive_source_refresh(tmp_path
     assert item["done"] is True
     assert item["title"] == "本地标题"
     assert item["platform_title"] == "平台标题"
+    assert item["due_str"] == "2026-07-12 09:00"
     assert item["course"] == "不可修改"
+
+
+def test_cached_dates_are_normalized_without_mutating_upstream():
+    raw = {"ok": True, "data": [{"id": 1, "due_str": "12-31 16:30", "due_ts": "2026-12-31T16:30:00Z"}]}
+    response = build_platform_todos_response(raw, {})
+    assert response['data'][0]['due_str'] == '2027-01-01 00:30'
+    assert raw['data'][0]['due_str'] == '12-31 16:30'
+    cleared = build_platform_todos_response(raw, {'overrides': {'1': {'due_ts': None}}})
+    assert cleared['data'][0]['due_str'] == '—'

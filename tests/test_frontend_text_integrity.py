@@ -1,3 +1,4 @@
+from source_helpers import dashboard_source, template_source, TEMPLATES
 from pathlib import Path
 import re
 
@@ -6,9 +7,9 @@ import settings
 
 def test_index_template_has_valid_visible_chinese_and_no_leaked_tags():
     templates = Path(__file__).parents[1] / "frontend" / "templates"
-    index_text = (templates / "index.html").read_text(encoding="utf-8")
+    index_text = dashboard_source()
     sidebar_text = (templates / "dashboard" / "_academic_sidebar.html").read_text(encoding="utf-8")
-    views_text = (templates / "dashboard" / "_placeholder_views.html").read_text(encoding="utf-8")
+    views_text = template_source(TEMPLATES / "dashboard/_placeholder_views.html")
     text = "\n".join((index_text, sidebar_text, views_text))
 
     assert "&#24453;&#21150;&#28165;&#21333;" in index_text
@@ -42,16 +43,14 @@ def test_default_term_label_is_readable_chinese():
 
 
 def test_dashboard_template_never_treats_production_domain_as_demo():
-    index_text = (Path(__file__).parents[1] / "frontend" / "templates" / "index.html").read_text(
-        encoding="utf-8"
-    )
+    index_text = dashboard_source()
 
     assert "canvas-dashboard.xyz" not in index_text
 
 
 def test_todo_frontend_keeps_platform_sync_and_dynamic_content_boundaries():
     templates = Path(__file__).parents[1] / "frontend" / "templates"
-    index_text = (templates / "index.html").read_text(encoding="utf-8")
+    index_text = dashboard_source()
     login_text = (templates / "login_zhixuemeng.html").read_text(encoding="utf-8")
 
     expected_syncs = {
@@ -92,8 +91,8 @@ def test_todo_frontend_keeps_platform_sync_and_dynamic_content_boundaries():
 def test_dashboard_p1_feature_modules_own_new_event_bindings_and_request_contract():
     project_root = Path(__file__).parents[1]
     assets = project_root / "frontend" / "assets" / "js"
-    index_text = (project_root / "frontend" / "templates" / "index.html").read_text(encoding="utf-8")
-    views_text = (project_root / "frontend" / "templates" / "dashboard" / "_placeholder_views.html").read_text(encoding="utf-8")
+    index_text = dashboard_source()
+    views_text = template_source(TEMPLATES / "dashboard/_placeholder_views.html")
 
     api_text = (assets / "api" / "client.js").read_text(encoding="utf-8")
     assert "function requestJson" in api_text
@@ -114,9 +113,7 @@ def test_dashboard_p1_feature_modules_own_new_event_bindings_and_request_contrac
 
 def test_schedule_login_and_connection_primary_actions_have_shared_contract():
     project_root = Path(__file__).parents[1]
-    views_text = (project_root / "frontend" / "templates" / "dashboard" / "_placeholder_views.html").read_text(
-        encoding="utf-8"
-    )
+    views_text = template_source(TEMPLATES / "dashboard/_placeholder_views.html")
     shell_css = (project_root / "frontend" / "assets" / "css" / "dashboard-shell.css").read_text(encoding="utf-8")
 
     assert 'id="schedule-refresh-button" onclick="openTongjiLoginSession()">统一身份认证登录<' in views_text

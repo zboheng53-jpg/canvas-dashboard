@@ -1,3 +1,4 @@
+from services import workspace as workspace_service
 import io
 import json
 import os
@@ -105,7 +106,7 @@ def test_custom_todo_idempotency_key_prevents_duplicate(test_env):
     assert r2.get_json()["todo"]["id"] == created_id
 
     # Verify only one item was persisted
-    todos = dashboard._load_todos("alice")
+    todos = workspace_service._load_todos("alice")
     matching = [t for t in todos if t["text"] == "Idempotent Task"]
     assert len(matching) == 1
 
@@ -226,7 +227,7 @@ def test_agent_todos_contains_subtasks_and_sync_status(test_env):
     assert comp_res.status_code == 200
 
     # Verify subtask is done
-    updated_todos = dashboard._load_todos("alice")
+    updated_todos = workspace_service._load_todos("alice")
     parent = next(item for item in updated_todos if item["id"] == t["id"])
     assert parent["subtasks"][0]["done"] is True
 

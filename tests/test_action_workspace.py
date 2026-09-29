@@ -1,3 +1,5 @@
+from services import workspace as workspace_service
+
 import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
@@ -15,6 +17,7 @@ def workspace(tmp_path, monkeypatch):
     monkeypatch.setattr(user_paths, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard, "user_dir", user_paths.user_dir)
+    monkeypatch.setattr(workspace_service, "user_dir", user_paths.user_dir)
     monkeypatch.setattr(agent_auth, "user_dir", user_paths.user_dir)
     monkeypatch.setattr(agent_auth, "DATA_DIR", tmp_path)
     monkeypatch.setattr(agent_auth.auth, "account_metadata", lambda username: {"status": "active"})

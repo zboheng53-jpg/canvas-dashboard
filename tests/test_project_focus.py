@@ -1,3 +1,5 @@
+from services import workspace as workspace_service
+import web_common
 """Project focus and reversible cleanup share the production stores and API."""
 from datetime import timedelta
 from unittest.mock import Mock
@@ -17,7 +19,7 @@ def task(project, name="练习听力", **fields):
 def test_focus_deduplicates_today_and_separates_old_plans(workspace):
     c, h = workspace
     p = create_project(c, h)
-    day = dashboard.datetime.now(dashboard.CST).date()
+    day = dashboard.datetime.now(web_common.CST).date()
     a = task(p, planned_on=day.isoformat(), due_date=day.isoformat(), is_next_action=True)
     ref = f"project:{p['id']}:{a['id']}"
     for hour in (10, 14):
@@ -37,7 +39,7 @@ def test_focus_deduplicates_today_and_separates_old_plans(workspace):
 def test_focus_candidates_do_not_assign_dates_or_repeat_completed_occurrences(workspace):
     c, h = workspace
     p = create_project(c, h)
-    day = dashboard.datetime.now(dashboard.CST).date()
+    day = dashboard.datetime.now(web_common.CST).date()
     a = task(p, is_next_action=True)
     ref = f"project:{p['id']}:{a['id']}"
     assert c.get("/api/actions/focus").get_json()["candidates"][0]["planned_on"] is None
@@ -52,7 +54,7 @@ def test_focus_candidates_do_not_assign_dates_or_repeat_completed_occurrences(wo
 def test_inactive_project_filters_linked_agenda_and_calendar_without_deleting(workspace, operation):
     c, h = workspace
     p = create_project(c, h)
-    day = dashboard.datetime.now(dashboard.CST).date().isoformat()
+    day = dashboard.datetime.now(web_common.CST).date().isoformat()
     a = task(p, planned_on=day, is_next_action=True)
     ref = f"project:{p['id']}:{a['id']}"
     item = schedule_store.create_item("alice", "one_off", {"title": a["name"], "action_ref": ref, "date": day, "start_time": "19:00", "end_time": "19:30"})
@@ -62,7 +64,7 @@ def test_inactive_project_filters_linked_agenda_and_calendar_without_deleting(wo
     agenda = c.get(f"/api/agenda?start={day}&end={day}").get_json()
     assert not agenda["days"][0]["timed"] and not agenda["days"][0]["planned"]
     assert not c.get("/api/actions/focus").get_json()["today"]
-    assert not any(i["uid"] == f"schedule-oneoff-{item['id']}@canvas-dashboard" for i in dashboard._calendar_items("alice", category="schedule"))
+    assert not any(i["uid"] == f"schedule-oneoff-{item['id']}@canvas-dashboard" for i in workspace_service._calendar_items("alice", category="schedule"))
     assert schedule_store.load_items("alice")["one_off"][0]["action_ref"] == ref
     c.post(f"/api/projects/{p['id']}/reopen", headers=h)
     assert c.get(f"/api/agenda?start={day}&end={day}").get_json()["days"][0]["timed"][0]["action_ref"] == ref
@@ -73,7 +75,7 @@ def test_inactive_project_filters_linked_agenda_and_calendar_without_deleting(wo
 def test_permanent_delete_filters_agenda_and_cleans_project(workspace):
     c, h = workspace
     p = create_project(c, h)
-    day = dashboard.datetime.now(dashboard.CST).date().isoformat()
+    day = dashboard.datetime.now(web_common.CST).date().isoformat()
     a = task(p, planned_on=day, is_next_action=True)
     ref = f"project:{p['id']}:{a['id']}"
     schedule_store.create_item("alice", "one_off", {"title": a["name"], "action_ref": ref, "date": day, "start_time": "19:00", "end_time": "19:30"})

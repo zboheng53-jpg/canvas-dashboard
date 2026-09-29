@@ -1,3 +1,5 @@
+from services import academic as academic_service
+import web_common
 import datetime as dt
 import json
 
@@ -10,9 +12,9 @@ def test_calendar_inference_july_18_is_week_20(tmp_path, monkeypatch):
     config = tmp_path / "term_config.json"
     config.write_text(json.dumps({"semesters": [{"term_label": "2025-2026学年 第二学期",
                                                "start_date": "2026-03-02", "weeks": 22}]}), encoding="utf-8")
-    monkeypatch.setattr(dashboard_app, "_TERM_CONFIG_FILE", config)
-    target_dt = dt.datetime(2026, 7, 18, 12, 0, tzinfo=dashboard_app.CST)
-    term_label, week_num, semester_start = dashboard_app.get_term_info(target_dt)
+    monkeypatch.setattr(academic_service, "_TERM_CONFIG_FILE", config)
+    target_dt = dt.datetime(2026, 7, 18, 12, 0, tzinfo=web_common.CST)
+    term_label, week_num, semester_start = academic_service.get_term_info(target_dt)
 
     assert term_label == "2025-2026学年 第二学期"
     assert week_num == 20
@@ -38,32 +40,32 @@ def test_load_term_config_multi_semester(tmp_path, monkeypatch):
         }),
         encoding="utf-8",
     )
-    monkeypatch.setattr(dashboard_app, "_TERM_CONFIG_FILE", config_file)
+    monkeypatch.setattr(academic_service, "_TERM_CONFIG_FILE", config_file)
 
     # First day of 2025-2026 2nd semester
-    label1, week1, _ = dashboard_app._load_term_config(dt.date(2026, 3, 2))
+    label1, week1, _ = academic_service._load_term_config(dt.date(2026, 3, 2))
     assert label1 == "2025-2026学年 第二学期"
     assert week1 == 1
 
     # July 18, 2026 (Week 20)
-    label20, week20, _ = dashboard_app._load_term_config(dt.date(2026, 7, 18))
+    label20, week20, _ = academic_service._load_term_config(dt.date(2026, 7, 18))
     assert label20 == "2025-2026学年 第二学期"
     assert week20 == 20
 
     # The days before classes start are displayed as the coming term's week 0.
-    label_zero, week_zero, start_zero = dashboard_app._load_term_config(dt.date(2026, 9, 3))
+    label_zero, week_zero, start_zero = academic_service._load_term_config(dt.date(2026, 9, 3))
     assert label_zero == "2026-2027学年 第一学期"
     assert week_zero == 0
     assert start_zero == "2026-09-14"
 
     # First day of 2026-2027 1st semester
-    label_next, week_next, _ = dashboard_app._load_term_config(dt.date(2026, 9, 14))
+    label_next, week_next, _ = academic_service._load_term_config(dt.date(2026, 9, 14))
     assert label_next == "2026-2027学年 第一学期"
     assert week_next == 1
 
     # The calendar ends on Friday in week 18; the remaining weekend is still
     # part of the same academic week rather than a nineteenth week.
-    label_final, week_final, _ = dashboard_app._load_term_config(dt.date(2027, 1, 17))
+    label_final, week_final, _ = academic_service._load_term_config(dt.date(2027, 1, 17))
     assert label_final == "2026-2027学年 第一学期"
     assert week_final == 18
 
@@ -77,9 +79,9 @@ def test_load_term_config_single_override_fallback(tmp_path, monkeypatch):
         }),
         encoding="utf-8",
     )
-    monkeypatch.setattr(dashboard_app, "_TERM_CONFIG_FILE", config_file)
+    monkeypatch.setattr(academic_service, "_TERM_CONFIG_FILE", config_file)
 
-    label, week_num, start_str = dashboard_app._load_term_config(dt.date(2026, 9, 7))
+    label, week_num, start_str = academic_service._load_term_config(dt.date(2026, 9, 7))
 
     assert label == "2026-2027 test term"
     assert week_num == 1
@@ -89,9 +91,9 @@ def test_load_term_config_single_override_fallback(tmp_path, monkeypatch):
 def test_default_term_uses_week_zero_before_classes_start(tmp_path, monkeypatch):
     config_file = tmp_path / "term_config.json"
     config_file.write_text("{}", encoding="utf-8")
-    monkeypatch.setattr(dashboard_app, "_TERM_CONFIG_FILE", config_file)
+    monkeypatch.setattr(academic_service, "_TERM_CONFIG_FILE", config_file)
 
-    label, week_num, start_str = dashboard_app._load_term_config(dt.date(2026, 9, 3))
+    label, week_num, start_str = academic_service._load_term_config(dt.date(2026, 9, 3))
 
     assert label == "2026-2027学年 第一学期"
     assert week_num == 0

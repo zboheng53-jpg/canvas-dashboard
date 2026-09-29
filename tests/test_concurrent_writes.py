@@ -1,3 +1,4 @@
+from services import workspace as workspace_service
 import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
@@ -21,6 +22,7 @@ def isolated_app(tmp_path, monkeypatch):
     user_dir.mkdir(parents=True)
     (user_dir / "custom_todos.json").write_text("[]", encoding="utf-8")
     monkeypatch.setattr(dashboard_app, "user_dir", lambda username: user_dir)
+    monkeypatch.setattr(workspace_service, "user_dir", lambda username: user_dir)
     dashboard_app.app.config.update(TESTING=True)
     return user_dir
 
@@ -94,7 +96,7 @@ def test_expired_custom_todo_cleanup_preserves_active_todos(isolated_app):
         encoding="utf-8",
     )
 
-    todos = dashboard_app._remove_expired_completed_todos("alice", date(2026, 7, 10))
+    todos = workspace_service._remove_expired_completed_todos("alice", date(2026, 7, 10))
 
     assert [todo["id"] for todo in todos] == [2]
     assert [todo["id"] for todo in json.loads(todo_file.read_text(encoding="utf-8"))] == [2]

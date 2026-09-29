@@ -1,3 +1,4 @@
+from source_helpers import dashboard_source, template_source, TEMPLATES
 import re
 from pathlib import Path
 
@@ -253,7 +254,7 @@ def test_sidebar_icons_and_todo_row_actions_keep_their_compact_patterns():
     sidebar = (TEMPLATE_ROOT / "dashboard" / "_academic_sidebar.html").read_text(
         encoding="utf-8"
     )
-    dashboard = (TEMPLATE_ROOT / "index.html").read_text(encoding="utf-8")
+    dashboard = dashboard_source()
 
     assert re.search(
         r"\.sidebar-nav-item svg,[^{]+?\{[^}]*height:\s*20px;[^}]*fill:\s*none;"

@@ -1,3 +1,5 @@
+from services import workspace as workspace_service
+
 import pytest
 
 import app as dashboard_app
@@ -21,6 +23,7 @@ def client_with_user(tmp_path, monkeypatch):
     (user_dir / "custom_todos.json").write_text("[]", encoding="utf-8")
     monkeypatch.setattr(dashboard_app, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard_app, "user_dir", lambda username: user_dir)
+    monkeypatch.setattr(workspace_service, "user_dir", lambda username: user_dir)
     if hasattr(dashboard_app, "_rate_limit_buckets"):
         dashboard_app._rate_limit_buckets.clear()
     dashboard_app.app.config.update(TESTING=True)
@@ -307,12 +310,12 @@ def test_public_auth_pages_render_product_landing_showcase_and_privacy_link(
     monkeypatch.setattr(dashboard_app.settings, "ICP_NUMBER", "闽ICP备2026026558号-1")
 
     expected_fragments = (
-        "TONGJI ACADEMIC WORKSPACE",
-        "这是什么",
-        "为什么值得注册",
-        "支持哪些平台",
-        "我的账号安全吗",
-        "把散落在各教学平台的课程死线，收进同一张今日清单",
+        "给同学们的学习工作台",
+        "待办清单",
+        "长期项目",
+        "今日日程",
+        "数据如何保存",
+        "今天要做什么，一眼清楚。",
         "Canvas",
         "好课",
         "智学盟",
@@ -365,7 +368,7 @@ def test_public_privacy_and_welcome_pages_are_accessible_without_login(
 
     welcome_resp = anonymous_client.get("/welcome")
     assert welcome_resp.status_code == 200
-    assert "把散落在各教学平台的课程死线，收进同一张今日清单" in welcome_resp.get_data(as_text=True)
+    assert "今天要做什么，一眼清楚。" in welcome_resp.get_data(as_text=True)
 
 
 def test_authenticated_privacy_and_welcome_routes(client_with_user):

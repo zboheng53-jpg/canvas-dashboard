@@ -1,3 +1,5 @@
+from services import workspace as workspace_service
+
 import json
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -20,6 +22,7 @@ def client_with_user(tmp_path, monkeypatch):
     monkeypatch.setattr(user_paths, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard_app, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard_app, "user_dir", lambda username: user_dir)
+    monkeypatch.setattr(workspace_service, "user_dir", lambda username: user_dir)
     monkeypatch.setattr(recurring_todo_store, "user_paths", user_paths)
     monkeypatch.setattr(agent_auth, "DATA_DIR", tmp_path)
     monkeypatch.setattr(agent_auth, "user_dir", lambda username: user_dir)

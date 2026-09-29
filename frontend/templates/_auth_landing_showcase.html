@@ -4,66 +4,159 @@
       <span class="auth-landing-brand__mark" aria-hidden="true">CD</span>
       <span class="auth-landing-brand__name">Canvas Dashboard</span>
     </div>
-    <span class="auth-landing-kicker">TONGJI ACADEMIC WORKSPACE</span>
+    <div class="auth-landing-topbar__meta">
+      <span class="auth-landing-kicker">给同学们的学习工作台</span>
+    </div>
   </div>
 
   <div class="auth-landing-center">
     <header class="auth-landing-hero">
       <div class="auth-landing-kicker-row">
-        <span class="auth-landing-question">这是什么？</span>
+        <span class="auth-landing-tag">少一些切换，多一点专注</span>
       </div>
-      <h1 class="auth-landing-title">把散落在各教学平台的课程死线，收进同一张今日清单</h1>
+      <h1 class="auth-landing-title">
+        <span class="auth-title-chunk">课业和计划，放在一起</span><br><span class="auth-title-chunk">今天要做什么，一眼清楚。</span>
+      </h1>
       <p class="auth-landing-subtitle">
-        Canvas Dashboard 是面向同济与高校同学的一站式课业聚合与个人日程工作台——告别每天轮流打开七八个网站查漏补缺。
+        为同济同学准备的个人工作台。把平台作业、长期计划和课表放在一起；每个账户独立使用，从今天的一件事开始。
       </p>
     </header>
 
-    <div class="auth-landing-block">
-      <h2 class="auth-landing-section-title">为什么值得注册？</h2>
-      <div class="auth-landing-values">
-        <div class="auth-landing-value-item">
-          <strong>跨平台未交作业自动汇总</strong>
-          <p>按「已逾期 / 今日截止 / 未来 7 天」智能归类，支持本地拆分子任务、自定义改期与完成划除，绝不污染原教学平台。</p>
+    <div class="auth-landing-examples" aria-label="核心能力与实例演示">
+      <div class="auth-example-card auth-example-card--todo">
+        <div class="auth-example-card__header">
+          <span class="auth-example-type">待办清单</span>
+          <span class="auth-example-pill auth-example-pill--due">今日截止</span>
         </div>
-        <div class="auth-landing-value-item">
-          <strong>一网通办课表与长期项目联动</strong>
-          <p>一键导入同济课表，结合每周/隔周重复待办与长期项目 Next Action，在一个屏幕内安排今天该做的事。</p>
+        <div class="auth-example-specimen">
+          <div class="auth-specimen-title">
+            <span class="ui-badge ui-badge--source ui-source--canvas">Canvas</span>
+            <span class="auth-specimen-heading">物理实验报告</span>
+          </div>
+          <div class="auth-specimen-subtasks" aria-label="本地子任务">
+            <div class="auth-subtask-item auth-subtask-item--done">
+              <span class="auth-subtask-check" aria-hidden="true">✓</span>
+              <span>整理实验数据</span>
+            </div>
+            <div class="auth-subtask-item">
+              <span class="auth-subtask-check" aria-hidden="true">○</span>
+              <span>完成报告初稿</span>
+            </div>
+          </div>
         </div>
-        <div class="auth-landing-value-item">
-          <strong>Apple 日历订阅 &amp; AI Agent 接入</strong>
-          <p>生成专属 <code>.ics</code> 订阅链接同步至 iPhone/Mac 日历，或通过标准 MCP 协议接入 Claude / Cursor。</p>
+        <p class="auth-example-caption">
+          <strong>平台作业 · 本地拆步</strong>
+          <span>集中查看平台作业，也能记自己的事。勾选只更新本地状态，作业仍需到原平台提交。</span>
+        </p>
+      </div>
+
+      <div class="auth-example-card auth-example-card--project">
+        <div class="auth-example-card__header">
+          <span class="auth-example-type">长期项目</span>
+          <span class="auth-example-pill auth-example-pill--action">当前一步</span>
         </div>
+        <div class="auth-example-specimen">
+          <div class="auth-specimen-title">
+            <span class="ui-badge ui-badge--source ui-source--project">长期项目</span>
+            <span class="auth-specimen-heading">英语六级准备</span>
+          </div>
+          <div class="auth-specimen-action-box">
+            <div class="auth-action-focus">
+              <span class="auth-action-focus__label">当前推进</span>
+              <span class="auth-action-focus__text">练一段听力，整理错词</span>
+            </div>
+            <div class="auth-specimen-material-hint">
+              <span class="auth-specimen-dot" aria-hidden="true"></span>
+              <span>真题与学习方法放进项目资料</span>
+            </div>
+          </div>
+        </div>
+        <p class="auth-example-caption">
+          <strong>大目标 · 小步推进</strong>
+          <span>为持续几周的目标保留资料和步骤，选定当前一步，再按需要安排时间。</span>
+        </p>
+      </div>
+
+      <div class="auth-example-card auth-example-card--schedule">
+        <div class="auth-example-card__header">
+          <span class="auth-example-type">今日日程</span>
+          <span class="auth-example-pill auth-example-pill--schedule">时段排程</span>
+        </div>
+        <div class="auth-example-specimen">
+          <div class="auth-specimen-schedule-list">
+            <div class="auth-schedule-item">
+              <span class="auth-schedule-time">10:00</span>
+              <span class="auth-schedule-name">高等数学</span>
+              <span class="auth-schedule-tag">课程</span>
+            </div>
+            <div class="auth-schedule-item">
+              <span class="auth-schedule-time">15:00</span>
+              <span class="auth-schedule-name">完成实验报告</span>
+              <span class="auth-schedule-tag">计划</span>
+            </div>
+          </div>
+        </div>
+        <p class="auth-example-caption">
+          <strong>课表联动 · 跨端同步</strong>
+          <span>导入同济课表，为待办或项目留出时间。也可订阅到日历，或接入 AI Agent。</span>
+        </p>
       </div>
     </div>
 
-    <div class="auth-landing-bento">
-      <div class="auth-landing-block auth-landing-platforms-block">
-        <h2 class="auth-landing-section-title">支持哪些平台？</h2>
-        <div class="auth-landing-platforms" aria-label="支持平台列表">
+    <div class="auth-platforms-bar" aria-label="支持平台与可以连接">
+      <div class="auth-platforms-bar__label">
+        <span class="auth-platforms-bar__icon" aria-hidden="true">↗</span>
+        <span>可以连接</span>
+      </div>
+      <div class="auth-platforms-bar__group" aria-label="作业同步平台">
+        <span class="auth-platforms-bar__sublabel">作业同步</span>
+        <div class="auth-platforms-bar__badges">
           <span class="ui-badge ui-badge--source ui-source--canvas">Canvas</span>
           <span class="ui-badge ui-badge--source ui-source--haoke">好课</span>
           <span class="ui-badge ui-badge--source ui-source--zhixuemeng">智学盟</span>
           <span class="ui-badge ui-badge--source ui-source--zhihuishu">智慧树</span>
           <span class="ui-badge ui-badge--source ui-source--ketangpai">课堂派</span>
           <span class="ui-badge ui-badge--source ui-source--tongjioj">同济OJ</span>
-          <span class="ui-badge ui-badge--source ui-source--project">同济一网通办课表</span>
-          <span class="ui-badge ui-badge--source ui-source--custom">自定义与重复待办</span>
         </div>
       </div>
+      <div class="auth-platforms-bar__divider" aria-hidden="true"></div>
+      <div class="auth-platforms-bar__group" aria-label="课表与日程工具">
+        <span class="auth-platforms-bar__sublabel">课表与排程</span>
+        <div class="auth-platforms-bar__badges">
+          <span class="ui-badge ui-badge--source ui-source--project">同济一网通办课表</span>
+          <span class="auth-platform-pill">Apple 日历 (.ics)</span>
+          <span class="auth-platform-pill">AI Agent (MCP)</span>
+        </div>
+      </div>
+    </div>
 
-      <div class="auth-landing-block auth-landing-trust-block">
-        <h2 class="auth-landing-section-title">我的账号安全吗？</h2>
-        <ul class="auth-landing-trust-list">
-          <li><strong>最小化采集</strong>：Canvas 仅保存只读日历订阅链接；智学盟、课堂派仅在登录瞬间换取加密令牌，<strong>不保存密码</strong>。</li>
-          <li><strong>隔离认证窗口</strong>：智慧树与同济课表在受控临时浏览器窗口中完成登录，网站<strong>不接触明文密码</strong>，课表导入后立即销毁临时环境。</li>
-          <li><strong>加密与随时销毁</strong>：好课与同济OJ凭据采用服务端密钥加密存储且仅只读拉取作业；随时可一键断开连接、清除平台缓存或永久注销销毁账号。</li>
-        </ul>
-        <a href="/privacy" class="auth-landing-privacy-link">查看完整「数据与隐私中心」（保存什么 / 保存在哪 / 如何删除）→</a>
+    <div class="auth-privacy-panel" aria-label="数据如何保存">
+      <div class="auth-privacy-panel__head">
+        <div class="auth-privacy-panel__title-group">
+          <span class="auth-privacy-panel__shield" aria-hidden="true"></span>
+          <h2 class="auth-privacy-panel__title">数据如何保存</h2>
+        </div>
+        <a href="/privacy" class="auth-privacy-panel__more">了解详情 →</a>
+      </div>
+      <div class="auth-privacy-grid">
+        <div class="auth-privacy-col">
+          <div class="auth-privacy-col__label">按需连接</div>
+          <p class="auth-privacy-col__text">无需连接所有平台。部分平台需保存加密凭据或登录状态，用于后续同步；密钥由服务器管理，并非端到端加密。</p>
+        </div>
+        <div class="auth-privacy-col">
+          <div class="auth-privacy-col__label">登录状态</div>
+          <p class="auth-privacy-col__text">课表认证使用临时环境；智慧树保留登录状态以便后台刷新。你可以断开连接，或清除平台数据。</p>
+        </div>
+        <div class="auth-privacy-col">
+          <div class="auth-privacy-col__label">由你管理</div>
+          <p class="auth-privacy-col__text">各账户数据独立。注销会删除在线账户数据；历史备份按保留周期过期，恢复时遵循删除记录。</p>
+        </div>
       </div>
     </div>
   </div>
 
   <div class="auth-landing-footbar">
     <span>Canvas Dashboard · 高校课程作业与个人日程工作台</span>
+    <span class="auth-landing-footbar__hint">页面中的任务仅为示例</span>
   </div>
 </section>

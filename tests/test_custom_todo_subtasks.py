@@ -1,3 +1,4 @@
+from services import workspace as workspace_service
 import json
 import tempfile
 import unittest
@@ -13,8 +14,8 @@ class CustomTodoSubtasksTest(unittest.TestCase):
         self.user_dir.mkdir(parents=True)
         self.todos_file = self.user_dir / "custom_todos.json"
         self.todos_file.write_text("[]", encoding="utf-8")
-        self.original_user_dir = dashboard_app.user_dir
-        dashboard_app.user_dir = lambda username: self.user_dir
+        self.original_user_dir = workspace_service.user_dir
+        workspace_service.user_dir = lambda username: self.user_dir
         self.previous_testing = dashboard_app.app.config.get("TESTING", False)
         dashboard_app.app.config.update(TESTING=True)
         self.client = dashboard_app.app.test_client()
@@ -25,7 +26,7 @@ class CustomTodoSubtasksTest(unittest.TestCase):
 
     def tearDown(self):
         dashboard_app.app.config.update(TESTING=self.previous_testing)
-        dashboard_app.user_dir = self.original_user_dir
+        workspace_service.user_dir = self.original_user_dir
         self.tmpdir.cleanup()
 
     def read_stored_todos(self):
@@ -43,7 +44,7 @@ class CustomTodoSubtasksTest(unittest.TestCase):
             }
         ], ensure_ascii=False), encoding="utf-8")
 
-        todos = dashboard_app._load_todos("alice")
+        todos = workspace_service._load_todos("alice")
 
         self.assertEqual(todos[0]["labels"], [])
         self.assertEqual(todos[0]["subtasks"], [])

@@ -242,8 +242,8 @@
   --shadow-dialog: 0 22px 54px rgba(15, 23, 42, 0.16);
   --duration-fast: 120ms;
   --duration-normal: 160ms;
-  --duration-enter: 280ms;
-  --delay-enter-step: 40ms;
+  --duration-enter: 700ms;
+  --ease-enter: cubic-bezier(0.2, 0.7, 0.2, 1);
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --focus-ring: 0 0 0 3px var(--color-focus-ring);
 

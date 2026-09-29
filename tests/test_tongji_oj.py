@@ -1,3 +1,5 @@
+from source_helpers import dashboard_source, template_source, TEMPLATES
+from services import workspace as workspace_service
 import base64
 import time
 from threading import Event
@@ -36,6 +38,7 @@ def test_env(tmp_path, monkeypatch):
     monkeypatch.setattr(platform_sync, "user_dir", _user_dir(tmp_path))
     monkeypatch.setattr(dashboard_app, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard_app, "user_dir", _user_dir(tmp_path))
+    monkeypatch.setattr(workspace_service, "user_dir", _user_dir(tmp_path))
     return tmp_path
 
 
@@ -679,7 +682,7 @@ def test_api_clear_platform_data_override_and_agent_complete(client_with_user, t
     )
 
     # Agent complete
-    ok = dashboard_app._complete_agent_todo(user, "tjoj_590", source="tongjioj")
+    ok = workspace_service._complete_agent_todo(user, "tjoj_590", source="tongjioj")
     assert ok is True
     assert "tjoj_590" in tongji_oj_client.load_state(user)["completed"]
 
@@ -811,8 +814,8 @@ def test_iam_xml_response_and_second_auth_flow(monkeypatch, test_env):
 def test_tongjioj_frontend_login_entries():
     views_path = Path(__file__).parents[1] / "frontend" / "templates" / "dashboard" / "_placeholder_views.html"
     index_path = Path(__file__).parents[1] / "frontend" / "templates" / "index.html"
-    views_html = views_path.read_text(encoding="utf-8")
-    index_html = index_path.read_text(encoding="utf-8")
+    views_html = template_source(views_path)
+    index_html = dashboard_source()
 
     assert 'data-od-id="connection-platform-tongjioj"' in views_html
     assert "同济OJ" in views_html

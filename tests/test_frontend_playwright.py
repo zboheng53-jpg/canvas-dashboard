@@ -1,3 +1,6 @@
+from routes import planning as planning_routes
+from services import workspace as workspace_service
+
 import json
 import os
 import re
@@ -387,10 +390,10 @@ def test_frontend_console_navigation_groups_features_without_overview_duplicates
     page.on("pageerror", lambda error: page_errors.append(str(error)))
     register_dashboard_user(page, live_app, "consolev2")
 
-    expect(page.locator(".sidebar-nav-group")).to_have_count(3)
-    expect(page.locator(".sidebar-section-label")).to_have_text(["工作区", "计划", "管理"])
+    expect(page.locator(".sidebar-nav-group")).to_have_count(4)
+    expect(page.locator(".sidebar-section-label")).to_have_text(["工作区", "计划", "管理", "帮助"])
     expect(page.locator("[data-dashboard-view] .sidebar-label")).to_have_text(
-        ["今日总览", "长期项目", "日程与课表", "连接与同步", "日历订阅", "Agent 接入", "偏好设置"]
+        ["今日总览", "长期项目", "日程与课表", "连接与同步", "日历订阅", "Agent 接入", "偏好设置", "上手指南"]
     )
     expect(page.locator("#dashboard-view-overview .login-trigger")).to_have_count(0)
     expect(page.locator("#dashboard-view-overview .account-row")).to_have_count(0)
@@ -406,7 +409,7 @@ def test_frontend_console_navigation_groups_features_without_overview_duplicates
     expect(page.locator("#schedule-timetable-grid")).to_be_visible()
     expect(page.locator("#schedule-week-label")).to_be_visible()
 
-    for view_name in ("overview", "projects", "schedule", "connections", "calendar", "agent", "settings"):
+    for view_name in ("overview", "projects", "schedule", "connections", "calendar", "agent", "settings", "guide"):
         button = page.locator(f'[data-dashboard-view="{view_name}"]')
         button.click()
         expect(page.locator(f'[data-view-panel="{view_name}"]')).to_be_visible()
@@ -671,11 +674,12 @@ def test_imported_reference_timetable_renders_weeks_1_to_16(live_app, browser, m
         for name, code, raw_time in reference
     ]
     monkeypatch.setattr(
-        dashboard_app.tongji_timetable,
+        tongji_timetable,
         "fetch_selected_courses_with_credentials",
         lambda username, password: courses if (username, password) == ("student", "password") else [],
     )
-    monkeypatch.setattr(dashboard_app, "get_term_info", lambda *_: ("2025-2026学年 第二学期", 1, "2026-03-02"))
+    monkeypatch.setattr(workspace_service, "get_term_info", lambda *_: ("2025-2026学年 第二学期", 1, "2026-03-02"))
+    monkeypatch.setattr(planning_routes, "get_term_info", lambda *_: ("2025-2026学年 第二学期", 1, "2026-03-02"))
 
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "referenceweeks")

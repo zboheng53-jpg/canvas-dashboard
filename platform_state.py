@@ -1,7 +1,7 @@
 """Shared helpers for platform item state and todo responses."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Callable
 
@@ -131,6 +131,18 @@ def build_platform_todos_response(
             item["platform_due_ts"] = item.get("due_ts")
             item.update(override)
             item["has_local_override"] = True
+        # Normalize the response projection, including old Canvas caches and
+        # local date overrides. Never rewrite the upstream cache for display.
+        if item.get("due_ts"):
+            try:
+                due = datetime.fromisoformat(str(item["due_ts"]).replace("Z", "+00:00"))
+                if due.tzinfo:
+                    due = due.astimezone(timezone(timedelta(hours=8)))
+                item["due_str"] = due.strftime("%Y-%m-%d" if due.hour == due.minute == 0 else "%Y-%m-%d %H:%M")
+            except (ValueError, TypeError):
+                pass
+        elif "due_ts" in override:
+            item["due_str"] = "—"
         if item.get("id") in completed:
             item["done"] = True
             item["local_completed"] = True

@@ -1,3 +1,5 @@
+from services import workspace as workspace_service
+
 import app as dashboard_app
 import user_paths
 
@@ -10,6 +12,7 @@ def _client(tmp_path, monkeypatch, username="alice"):
 
     monkeypatch.setattr(user_paths, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard_app, "user_dir", resolve)
+    monkeypatch.setattr(workspace_service, "user_dir", resolve)
     dashboard_app.app.config.update(TESTING=True)
     client = dashboard_app.app.test_client()
     with client.session_transaction() as session:

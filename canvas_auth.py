@@ -10,6 +10,7 @@ import hashlib
 import ipaddress
 import requests
 import socket
+import settings
 from icalendar import Calendar
 from urllib.parse import urlsplit
 
@@ -29,7 +30,11 @@ def get_feed_url(username):
 
 
 def validate_feed_url(url: str) -> tuple[bool, str | None]:
-    parsed = urlsplit(url)
+    try:
+        parsed = urlsplit(url)
+        port = parsed.port
+    except (ValueError, TypeError):
+        return False, "日历链接格式无效"
     if parsed.scheme != "https":
         return False, "calendar feed URL must use HTTPS"
     if not parsed.hostname or parsed.username or parsed.password:
@@ -41,6 +46,8 @@ def validate_feed_url(url: str) -> tuple[bool, str | None]:
         return False, "calendar feed hostname could not be resolved"
     if not resolved or any(not ipaddress.ip_address(address).is_global for address in resolved):
         return False, "calendar feed URL must resolve to public addresses"
+    if parsed.hostname.lower() not in settings.CANVAS_FEED_HOSTS or port not in (None, 443):
+        return False, "请使用受支持的 Canvas 日历链接；其他学校需由维护者配置域名"
     return True, None
 
 
@@ -149,7 +156,14 @@ def fetch_canvas_planner(username):
         return {"ok": False, "error": "请先设置日历馈送源 URL", "data": [], "need_setup": True}
 
     try:
-        resp = requests.get(feed_url, timeout=30)
+        valid, error = validate_feed_url(feed_url)
+        if not valid:
+            result = _fallback_cache(username)
+            result.update(error=error, refresh_failed=True)
+            return result
+        # Feed URLs contain a secret. Do not forward it through redirects or
+        # allow an arbitrary registered account to target internal services.
+        resp = requests.get(feed_url, timeout=30, allow_redirects=False)
         if resp.status_code != 200:
             logger.warning(f"Calendar feed returned {resp.status_code}")
             return _fallback_cache(username)
@@ -161,10 +175,10 @@ def fetch_canvas_planner(username):
         return {"ok": True, "data": items, "cached": False}
 
     except requests.RequestException as e:
-        logger.warning(f"Calendar feed request failed: {e}")
+        logger.warning("Calendar feed request failed (%s)", type(e).__name__)
         return _fallback_cache(username)
     except Exception as e:
-        logger.error(f"Calendar feed parse error: {e}")
+        logger.error("Calendar feed parse error (%s)", type(e).__name__)
         return _fallback_cache(username)
 
 
@@ -210,9 +224,9 @@ def _parse_ical(raw):
             continue  # expired beyond 30-day retention window
         due_ts = due_dt
         if due_dt.hour == 0 and due_dt.minute == 0:
-            due_str = due_dt.strftime("%m-%d")
+            due_str = due_dt.strftime("%Y-%m-%d")
         else:
-            due_str = due_dt.strftime("%m-%d %H:%M")
+            due_str = due_dt.strftime("%Y-%m-%d %H:%M")
 
         results.append({
             "id": _extract_stable_id(url, uid),

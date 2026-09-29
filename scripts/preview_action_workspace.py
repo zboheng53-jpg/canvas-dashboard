@@ -36,6 +36,8 @@ if not seed_preview:
         parser.error("Existing data belongs to a different/legacy scenario. Start a fresh preview.")
 
 import app as dashboard
+from services import academic as academic_service
+from services import workspace as workspace_service
 import project_store
 import schedule_store
 from flask import redirect, session, jsonify
@@ -45,7 +47,7 @@ dashboard.app.jinja_env.auto_reload = True
 # Deliberate fixture values: this preview does not fetch live weather.
 dashboard.app.view_functions["api_weather"] = lambda: jsonify(ok=True, temperature=26.3, humidity=62, weather_desc="晴间多云（示例）", weather_emoji="☀️", weather_code=2)
 # The acceptance preview never uses the local authenticated CDP holiday browser.
-dashboard._get_holidays = lambda: []
+academic_service._get_holidays = lambda: []
 if seed_preview:
     auth.register("preview", "local-preview-only-2026")
     metadata.write_text(json.dumps({"scenario": args.scenario}), encoding="utf-8")
@@ -61,8 +63,8 @@ if seed_preview and args.scenario != "empty":
     project_store.create_project("preview", {"name": "科研｜导师沟通到真实项目", "objective": "等待资料，收到后整理问题"})
     project_store.create_project("preview", {"name": "竞赛｜TU 主线与技术积累", "objective": "逐步沉淀技术笔记"})
     project_store.set_main_project("preview", english["id"])
-    homework = dashboard._create_custom_action("preview", {"text": "提交自动控制实验报告", "details": "示例责任事项：核对实验图表并提交报告。\n请勿将此数据视为真实课程要求。", "due_date": day(2), "request_id": "preview-homework"})
-    dashboard._create_custom_action("preview", {"text": "确认项目组会材料", "due_date": day(5), "request_id": "preview-meeting"})
+    homework = workspace_service._create_custom_action("preview", {"text": "提交自动控制实验报告", "details": "示例责任事项：核对实验图表并提交报告。\n请勿将此数据视为真实课程要求。", "due_date": day(2), "request_id": "preview-homework"})
+    workspace_service._create_custom_action("preview", {"text": "确认项目组会材料", "due_date": day(5), "request_id": "preview-meeting"})
     schedule_store.create_item("preview", "one_off", {"title": "提交自动控制实验报告", "action_ref": homework["ref"], "date": day(0), "start_time": "16:00", "end_time": "16:45", "location": "图书馆"})
     schedule_store.create_item("preview", "one_off", {"title": listening["name"], "action_ref": f"project:{english['id']}:{listening['id']}", "date": day(1), "start_time": "19:00", "end_time": "19:25", "location": ""})
     schedule_store.create_item("preview", "recurring", {"title": "每周英语练习", "action_ref": f"project:{english['id']}:{listening['id']}", "weekday": (today.weekday()+3)%7, "start_date": day(0), "end_date": day(20), "start_time": "19:00", "end_time": "19:25", "enabled": True})
@@ -80,7 +82,7 @@ if seed_preview and args.scenario != "empty":
 
     if args.scenario == "dense":
         for index in range(30):
-            dashboard._create_custom_action("preview", {
+            workspace_service._create_custom_action("preview", {
                 "text": f"密集验收 {index + 1}：核对自动控制实验报告与课程资料中的长标题展示",
                 "due_date": day(index % 7 - 2), "request_id": f"dense-{index}",
             })

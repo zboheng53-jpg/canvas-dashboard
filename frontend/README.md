@@ -2,10 +2,13 @@
 
 这里集中放置 Canvas Dashboard 的所有可视化界面文件，日常设计只需打开此文件夹：
 
-- `templates/`：页面结构与内联交互（Jinja / HTML）。主控制台在 `templates/index.html`。
+- `templates/`：页面结构（Jinja / HTML）。`index.html` 只保留壳层；`dashboard/` 按总览、项目、日程、连接、日历、Agent、设置、指南分别维护视图，`_placeholder_views.html` 仅汇总 include。
 - `assets/css/`：样式。`dashboard-v103.css` 是当前界面主题，`dashboard-shell.css` 管理壳层与侧栏，`style.css` 保留登录与基础组件样式。
 - `assets/js/`：浏览器端逻辑。`weather-icons.js` 提供统一的 Soft Monoline 描边天气图标。
 - `assets/downloads/`：前端直接下载的文件。
+- `assets/guide/`：上手指南里的界面截图（Canvas 日历馈送三步）。第三张的私有订阅链接已打码，重新裁剪时必须保留打码，流程见 `scripts/prepare_guide_shots.py`。
+
+控制台脚本按职责拆分：`core/utils.js` 放公共工具，`core/shell.js` 管导航和手机菜单，`core/context.js` 管时间、天气、学期；`features/todos.js`、`projects.js`、`features/schedule.js`、`features/integrations.js` 分别负责待办、项目、日程和平台请求，其他管理页有各自脚本，`bootstrap.js` 统一启动。当前仍是共享全局的普通脚本，模板中的加载顺序是依赖约定：`integrations.js` 必须先于待办事件绑定，启动脚本最后加载。没有引入打包器或改成前端框架。
 
 Flask 从该目录加载前端，但浏览器 URL 仍是 `/static/...`：例如 `assets/css/dashboard-v103.css` 对应 `/static/css/dashboard-v103.css`。调整目录或文件名时，请同步修改模板中的 `url_for('static', filename=...)`。
 
@@ -40,6 +43,7 @@ Open Design 不会执行 Flask 或 Jinja，因此不要直接导入 `templates/i
 - `assets/css/components.css` 是交互控件、字段文本、标签、状态、反馈、加载、空状态与禁用状态的唯一视觉来源。
 - `assets/css/patterns.css` 只处理这些控件进入待办、子任务、项目和连接表单后的宽度、flex 与对齐。
 - `assets/css/app.css` 是认证页和平台登录页的唯一入口。
+- `assets/css/auth-pages.css` 经 `app.css` 的 pages 层加载，专门处理登录／注册展示页；`guide.css` 经控制台入口加载。
 - `assets/css/dashboard.css` 是控制台的唯一入口。
 - `style.css`、`dashboard-shell.css`、`dashboard-v103.css` 作为 `legacy` layer 继续承载尚未迁移的旧组件与布局。
 

@@ -1,3 +1,5 @@
+from services import workspace as workspace_service
+
 """Unit and API regression tests for cross-module linkage fixes (LINK-01 ~ LINK-09)."""
 from datetime import date, timedelta
 import json
@@ -17,6 +19,7 @@ def linkage_env(tmp_path, monkeypatch):
     monkeypatch.setattr(user_paths, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard, "user_dir", user_paths.user_dir)
+    monkeypatch.setattr(workspace_service, "user_dir", user_paths.user_dir)
     monkeypatch.setattr(agent_auth, "user_dir", user_paths.user_dir)
     monkeypatch.setattr(agent_auth, "DATA_DIR", tmp_path)
     monkeypatch.setattr(agent_auth.auth, "account_metadata", lambda username: {"status": "active"})

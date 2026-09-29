@@ -5,3 +5,4 @@
 @import url("./foundation.css") layer(foundation);
 @import url("./components.css") layer(components);
 @import url("./design-system.css") layer(design-system);
+@import url("./auth-pages.css") layer(pages);

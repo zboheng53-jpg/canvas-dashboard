@@ -1,3 +1,5 @@
+from routes import planning as planning_routes
+from services import workspace as workspace_service
 import json
 from io import BytesIO
 from datetime import date, timedelta
@@ -18,6 +20,7 @@ def _client(tmp_path, monkeypatch, username="alice"):
     monkeypatch.setattr(user_paths, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard_app, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard_app, "user_dir", resolve_user_dir)
+    monkeypatch.setattr(workspace_service, "user_dir", resolve_user_dir)
     dashboard_app.app.config.update(TESTING=True)
     client = dashboard_app.app.test_client()
     with client.session_transaction() as session:
@@ -252,7 +255,8 @@ def test_parse_live_timetable_split_tables_and_xingqi_time_format():
 
 def test_import_exported_timetable_xlsx_replaces_only_current_users_courses(tmp_path, monkeypatch):
     client, resolve_user_dir = _client(tmp_path, monkeypatch)
-    monkeypatch.setattr(dashboard_app, "get_term_info", lambda: ("2025-2026学年第2学期", 1, "2026-03-02"))
+    monkeypatch.setattr(workspace_service, "get_term_info", lambda: ("2025-2026学年第2学期", 1, "2026-03-02"))
+    monkeypatch.setattr(planning_routes, "get_term_info", lambda: ("2025-2026学年第2学期", 1, "2026-03-02"))
     content = _exported_timetable_xlsx([
         ["新课程序号", "课程名称", "教师", "上课时间", "上课地点", "校区"],
         ["AUTO1001", "自动控制原理", "匿名教师", "星期一 1-2节 [1-16]，星期三 7-8节 [2-16双]", "匿名教室", "四平路校区"],
@@ -294,7 +298,7 @@ def test_refresh_failure_keeps_previous_course_cache(tmp_path, monkeypatch):
     def fail_login(username, password):
         assert (username, password) == ("alice_no", "wrong")
         raise tongji_timetable.TimetableLoginError("登录未完成")
-    monkeypatch.setattr(dashboard_app.tongji_timetable, "fetch_selected_courses_with_credentials", fail_login)
+    monkeypatch.setattr(tongji_timetable, "fetch_selected_courses_with_credentials", fail_login)
     response = client.post("/api/schedule/refresh", json={"username": "alice_no", "password": "wrong"}, headers=client.csrf_headers)
     assert response.status_code == 401
     assert json.loads((resolve_user_dir("alice") / "course_schedule.json").read_text(encoding="utf-8"))["courses"][0]["name"] == "旧课程"
@@ -303,7 +307,7 @@ def test_refresh_failure_keeps_previous_course_cache(tmp_path, monkeypatch):
 def test_refresh_uses_entered_credentials_and_keeps_them_out_of_storage(tmp_path, monkeypatch):
     client, resolve_user_dir = _client(tmp_path, monkeypatch)
     monkeypatch.setattr(
-        dashboard_app.tongji_timetable,
+        tongji_timetable,
         "fetch_selected_courses_with_credentials",
         lambda username, password: [{"name": f"{username}:{password}", "sessions": []}],
     )
@@ -355,7 +359,7 @@ def test_tongji_login_session_completion_imports_courses_then_stops_session(tmp_
         lambda token: {"username": "alice", "token": token, "debug_port": 6307},
     )
     monkeypatch.setattr(
-        dashboard_app.tongji_timetable,
+        tongji_timetable,
         "fetch_selected_courses_from_cdp",
         lambda endpoint: [{"name": "自动控制原理", "sessions": []}],
     )
@@ -364,7 +368,8 @@ def test_tongji_login_session_completion_imports_courses_then_stops_session(tmp_
         "stop_session",
         lambda username, token: stopped.append((username, token)) or True,
     )
-    monkeypatch.setattr(dashboard_app, "get_term_info", lambda: ("测试学期", 1, "2026-03-02"))
+    monkeypatch.setattr(workspace_service, "get_term_info", lambda: ("测试学期", 1, "2026-03-02"))
+    monkeypatch.setattr(planning_routes, "get_term_info", lambda: ("测试学期", 1, "2026-03-02"))
 
     response = client.post(
         "/api/schedule/login-session/tok_123456789012/complete",
@@ -386,7 +391,9 @@ def test_timetable_extension_is_linked_and_downloadable(tmp_path, monkeypatch):
     assert package_url in page
     assert 'id="schedule-import-button"' in page
     assert 'id="schedule-file-input"' in page
-    assert "/api/schedule/import" in page
+    script = client.get('/static/js/features/schedule.js')
+    assert script.status_code == 200
+    assert "/api/schedule/import" in script.get_data(as_text=True)
     response = client.get(package_url)
     assert response.status_code == 200
     with ZipFile(BytesIO(response.data)) as archive:
@@ -492,8 +499,9 @@ def test_today_schedule_only_returns_busy_items_and_date_only_deadlines(tmp_path
     schedule_store.save_courses("alice", "测试学期", semester_start.isoformat(), [{"name": "自动控制", "location": "北229", "sessions": [{"weekday": today.weekday(), "weeks": [1], "parity": None, "start_time": "08:00", "end_time": "09:35", "date_start": None, "date_end": None, "location": "北229"}]}], "2026-07-01T00:00:00+08:00")
     schedule_store.create_item("alice", "recurring", {"title": "实验", "weekday": today.weekday(), "start_time": "10:00", "end_time": "11:00", "location": "电信楼", "enabled": True})
     schedule_store.create_item("alice", "one_off", {"title": "组会", "date": today.isoformat(), "start_time": "14:00", "end_time": "15:00", "location": "图书馆"})
-    dashboard_app._save_todos("alice", [{"id": 1, "text": "Python学习", "done": False, "due_date": None, "subtasks": [{"id": 1, "text": "周度复盘", "done": False, "due_date": today.isoformat()}]}, {"id": 2, "text": "实验报告", "done": False, "due_date": today.isoformat(), "subtasks": []}])
-    monkeypatch.setattr(dashboard_app, "get_term_info", lambda: ("测试学期", 1, semester_start.isoformat()))
+    workspace_service._save_todos("alice", [{"id": 1, "text": "Python学习", "done": False, "due_date": None, "subtasks": [{"id": 1, "text": "周度复盘", "done": False, "due_date": today.isoformat()}]}, {"id": 2, "text": "实验报告", "done": False, "due_date": today.isoformat(), "subtasks": []}])
+    monkeypatch.setattr(workspace_service, "get_term_info", lambda: ("测试学期", 1, semester_start.isoformat()))
+    monkeypatch.setattr(planning_routes, "get_term_info", lambda: ("测试学期", 1, semester_start.isoformat()))
     data = client.get("/api/schedule/today").get_json()
     assert [item["title"] for item in data["timed"]] == ["自动控制", "实验", "组会"]
     assert [item["location"] for item in data["timed"]] == ["北229", "电信楼", "图书馆"]

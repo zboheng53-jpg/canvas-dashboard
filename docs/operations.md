@@ -49,6 +49,12 @@ The two services enable `PrivateTmp`, kernel/control-group protection, `NoNewPri
 
 The Chromium worker also starts after `user@1000.service` and receives `XDG_RUNTIME_DIR=/run/user/1000` for the production `ubuntu` account (UID 1000). This directory must belong to that user and remain available for background browser sessions; production already enables lingering for `ubuntu`. A worker without this runtime environment can time out reading a page body even when navigation returns HTTP 200. Compare actual session checks under the service environment before weakening protection settings or clearing status files.
 
+## Small-group admission controls
+
+Set overrides in `/etc/canvas-dashboard/canvas-dashboard.env`, then restart `canvas-dashboard.service` for them to take effect. `CANVAS_DASHBOARD_REGISTRATION_ENABLED=0` pauses new registrations without blocking existing logins. `CANVAS_DASHBOARD_LOGIN_MAX_SESSIONS=1` (default) caps the combined Tongji/智慧树 interactive login windows; full capacity returns 429 with a retry message. This is a single-Web-process guard, not a cluster semaphore.
+
+Canvas feed hosts are restricted to `canvas.tongji.edu.cn` by default. For another institution, set `CANVAS_DASHBOARD_CANVAS_FEED_HOSTS` to comma-separated, operator-verified hostnames. Only HTTPS on port 443 is accepted; redirects are not followed. Do not add user-controlled hosts. Existing untrusted feed URLs retain their old cache but will fail refresh until corrected. See [small-group launch notes](small-group-launch.md) for measured capacity context and operating thresholds.
+
 ## Release Inspection And Rollback
 
 Inspect the active and previous releases:

@@ -1,0 +1,153 @@
+          <section class="dashboard-view" id="dashboard-view-overview" data-view-panel="overview">
+    <!-- Top Bar -->
+    <div class="card context-card">
+    <header class="top-bar opt1-header enter-top-bar">
+     <div class="opt1-col left">
+        <div class="weather-campus-switch" role="tablist" aria-label="选择天气校区">
+         <button type="button" class="ui-button weather-campus-option is-active" data-campus="siping" role="tab" aria-selected="true">四平路校区</button>
+          <span class="weather-campus-separator" aria-hidden="true">·</span>
+         <button type="button" class="ui-button weather-campus-option" data-campus="jiading" role="tab" aria-selected="false">嘉定校区</button>
+        </div>
+       <div class="opt1-temp-row">
+          <span class="weather-icn-opt1 weather-emoji" id="weather-emoji" role="img" aria-label="天气">
+            <svg class="weather-outline-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5"></circle><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.28 5.28l1.42 1.42M17.3 17.3l1.42 1.42M18.72 5.28 17.3 6.7M6.7 17.3l-1.42 1.42"></path></svg>
+          </span>
+          <span class="weather-temp" id="weather-temp">--&deg;</span>
+        </div>
+       <div class="opt1-weather-detail">
+         <span id="weather-desc" class="weather-desc">&#21152;&#36733;&#20013;...</span>
+          <span id="weather-detail" class="weather-detail"></span>
+        </div>
+      </div>
+      <div class="opt1-col center">
+        <div class="opt1-time" id="time">--:--:--</div>
+        <div class="opt1-date">
+          <span id="date">----&#24180;--&#26376;--&#26085;</span>
+          <span id="weekday">&#26143;&#26399;-</span>
+        </div>
+      </div>
+      <div class="opt1-col right">
+        <div class="opt1-week-pill" id="term-week-badge">--</div>
+        <div class="opt1-term" id="term-info">&#21152;&#36733;&#20013;...</div>
+      </div>
+    </header>
+    </div>
+
+    <!-- KPI 概览 -->
+    <div class="kpis enter-kpis" id="dashboard-kpis">
+      <div class="kpi">
+        <div class="k-label">待完成</div>
+        <div class="k-value" id="stat-pending-count">0</div>
+        <div class="k-hint" id="stat-pending-diff">未有新变化</div>
+      </div>
+      <div class="kpi">
+        <div class="k-label">48 小时内截止</div>
+        <div class="k-value" id="stat-due-count">0</div>
+        <div class="k-hint warn" id="stat-due-overdue">含 0 项已逾期</div>
+      </div>
+      <div class="kpi">
+        <div class="k-label">今日课程</div>
+        <div class="k-value" id="stat-course-count">0</div>
+        <div class="k-hint" id="stat-course-next">无更多课程</div>
+      </div>
+    </div>
+
+    <!-- 移动端平台同步关注横幅 (Mobile Platform Attention Banner) -->
+    <div class="mobile-attention-banner hidden" id="mobile-attention-banner" onclick="switchDashboardView('connections')" role="button" tabindex="0">
+      <div class="mobile-attention-banner-left">
+        <span class="mobile-attention-badge">!</span>
+        <span id="mobile-attention-text">需要处理平台同步配置</span>
+      </div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+
+    <!-- Main Content -->
+    <main>
+      <section class="column main-column">
+        <!-- Unified Main Card -->
+        <section class="card listcard enter-main-card">
+          <div class="card-head section-header">
+            <div class="header-left-group"><h2 style="font-size: 22px;">&#24453;&#21150;&#28165;&#21333;</h2></div>
+            <div class="right header-right">
+              <button type="button" class="ui-button ui-button--primary mobile-add-toggle" id="mobile-add-toggle" aria-controls="todo-composer" aria-expanded="false">＋ 新增</button>
+              <button type="button" class="ui-button ui-button--text muted last-updated sync-status-button hidden" id="list-updated" style="font-size:12px; background:none; border:none; cursor:pointer;" aria-label="查看平台同步状态"></button>
+              <button class="ui-icon-button icon-btn btn-refresh" id="btn-refresh" title="刷新待办" aria-label="刷新待办"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"></path></svg></button>
+            </div>
+          </div>
+
+          <div class="todo-composer" id="todo-composer">
+          <form class="add-row add-todo-form" id="add-todo-form">
+            <input type="text" id="new-todo-input" placeholder="添加新待办…" autocomplete="off" class="ui-control input todo-title-input">
+            <input type="date" id="new-todo-due" class="ui-control input date date-input" aria-label="截止日期" title="截止日期">
+            <select id="new-todo-repeat" class="ui-control select new-todo-repeat-select" aria-label="重复设置" title="重复设置" style="padding: 4px 8px; font-size: 13px; height: 32px; border-radius: 6px;">
+              <option value="none">不重复</option>
+              <option value="weekly">每周</option>
+              <option value="biweekly">隔周</option>
+            </select>
+            <button type="submit" class="ui-button ui-button--primary btn-quiet" id="btn-add-todo">添加</button>
+          </form>
+          <p class="ui-feedback ui-feedback--danger add-todo-error" id="add-todo-error" role="alert" style="display: none; font-size: 13px; margin: 4px 0 8px 0;"></p>
+          </div>
+
+          <select id="todo-source-select" class="ui-control todo-source-select" style="position: absolute; opacity: 0; pointer-events: auto; width: 1px; height: 1px; margin: -1px; overflow: hidden;" aria-label="按来源筛选待办">
+            <option value="all">全部</option>
+            <option value="canvas" hidden disabled>Canvas</option>
+            <option value="haoke" hidden disabled>好课</option>
+            <option value="zhixuemeng" hidden disabled>智学盟</option>
+            <option value="zhihuishu" hidden disabled>智慧树</option>
+            <option value="ketangpai" hidden disabled>课堂派</option>
+            <option value="tongjioj" hidden disabled>同济OJ</option>
+            <option value="project">项目</option>
+            <option value="custom">自定义</option>
+          </select>
+
+          <div class="stats-bar-under-add hidden" id="stats-bar" style="display:none;">
+            <span class="ui-count-pill stat-pill">待完成 <b class="stat-count" id="stat-total">0</b> 项</span>
+            <span class="ui-count-pill ui-count-pill--danger stat-pill urgent">即将到期 <b class="stat-count urgent" id="stat-urgent">0</b> 项</span>
+          </div>
+
+          <!-- 来源筛选 Chips -->
+          <div class="src-filters todo-source-filters" id="todo-source-filters" role="group" aria-label="按来源筛选待办">
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter is-on" data-todo-source="all" aria-pressed="true">全部 <span class="n" id="src-count-all">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter hidden" data-todo-source="canvas" aria-pressed="false"><span class="dot" style="background:var(--src-canvas)"></span>Canvas <span class="n" id="src-count-canvas">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter hidden" data-todo-source="haoke" aria-pressed="false"><span class="dot" style="background:var(--src-haoke)"></span>好课 <span class="n" id="src-count-haoke">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter hidden" data-todo-source="zhixuemeng" aria-pressed="false"><span class="dot" style="background:var(--src-zxm)"></span>智学盟 <span class="n" id="src-count-zhixuemeng">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter hidden" data-todo-source="zhihuishu" aria-pressed="false"><span class="dot" style="background:var(--src-zhs)"></span>智慧树 <span class="n" id="src-count-zhihuishu">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter hidden" data-todo-source="ketangpai" aria-pressed="false"><span class="dot" style="background:var(--src-ketangpai)"></span>课堂派 <span class="n" id="src-count-ketangpai">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter hidden" data-todo-source="tongjioj" aria-pressed="false"><span class="dot" style="background:var(--src-tongjioj)"></span>同济OJ <span class="n" id="src-count-tongjioj">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="project" aria-pressed="false"><span class="dot" style="background:var(--src-project)"></span>项目 <span class="n" id="src-count-project">0</span></button>
+            <button type="button" class="ui-button ui-button--choice f-chip todo-source-filter" data-todo-source="custom" aria-pressed="false"><span class="dot" style="background:var(--src-custom)"></span>自定义 <span class="n" id="src-count-custom">0</span></button>
+            <details class="todo-source-manager" id="todo-source-manager">
+              <summary class="todo-source-manager-trigger" aria-label="管理今日总览来源标签">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6"></path></svg>
+                管理标签
+              </summary>
+              <div class="todo-source-manager-panel" id="todo-source-manager-panel">
+                <div class="todo-source-manager-heading">
+                  <div><strong>今日总览标签</strong><span>只显示你会用到的来源</span></div>
+                  <button type="button" class="ui-icon-button todo-source-manager-close" aria-label="关闭标签管理" onclick="document.getElementById('todo-source-manager').removeAttribute('open')">×</button>
+                </div>
+                <div class="todo-source-visibility-options" id="todo-source-visibility-options">
+                  <label class="todo-source-visibility-option hidden" data-todo-source-option="canvas"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="canvas" checked><span class="dot" style="background:var(--src-canvas)"></span><span>Canvas</span><small>来自连接与同步</small></label>
+                  <label class="todo-source-visibility-option hidden" data-todo-source-option="haoke"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="haoke" checked><span class="dot" style="background:var(--src-haoke)"></span><span>好课</span><small>来自连接与同步</small></label>
+                  <label class="todo-source-visibility-option hidden" data-todo-source-option="zhixuemeng"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="zhixuemeng" checked><span class="dot" style="background:var(--src-zxm)"></span><span>智学盟</span><small>来自连接与同步</small></label>
+                  <label class="todo-source-visibility-option hidden" data-todo-source-option="zhihuishu"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="zhihuishu" checked><span class="dot" style="background:var(--src-zhs)"></span><span>智慧树</span><small>来自连接与同步</small></label>
+                  <label class="todo-source-visibility-option hidden" data-todo-source-option="ketangpai"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="ketangpai" checked><span class="dot" style="background:var(--src-ketangpai)"></span><span>课堂派</span><small>来自连接与同步</small></label>
+                  <label class="todo-source-visibility-option hidden" data-todo-source-option="tongjioj"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="tongjioj" checked><span class="dot" style="background:var(--src-tongjioj)"></span><span>同济OJ</span><small>来自连接与同步</small></label>
+                  <label class="todo-source-visibility-option" data-todo-source-option="project"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="project" checked><span class="dot" style="background:var(--src-project)"></span><span>项目</span><small>长期项目</small></label>
+                  <label class="todo-source-visibility-option" data-todo-source-option="custom"><input type="checkbox" class="ui-checkbox" data-todo-source-visibility="custom" checked><span class="dot" style="background:var(--src-custom)"></span><span>自定义</span><small>手动添加</small></label>
+                </div>
+                <p class="todo-source-manager-status" id="todo-source-manager-status" role="status" aria-live="polite">连接过的平台会自动出现在这里。</p>
+              </div>
+            </details>
+          </div>
+
+          <!-- Unified todo list -->
+          <div class="listscroll todo-list" id="todo-list" data-layout-mode="hybrid">
+            <div class="ui-loading ui-loading--block empty-state" role="status">加载中...</div>
+          </div>
+        </section><!-- /.card -->
+
+      </section>
+    </main>
+          </section>

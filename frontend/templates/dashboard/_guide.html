@@ -1,0 +1,444 @@
+<section class="dashboard-view dashboard-placeholder-view hidden guide-view" id="dashboard-view-guide" data-view-panel="guide" aria-labelledby="guide-title">
+  <article class="card console-manager-card business-manager-card guide-card">
+    <span id="guide-top" class="guide-top-anchor" aria-hidden="true"></span>
+    <nav class="guide-toc" aria-label="上手指南目录">
+      <span class="ui-section-label">目录</span>
+      <ol class="guide-toc-list">
+        <li><a href="#guide-start">1 · 从这里开始</a></li>
+        <li class="guide-toc-group">
+          <span class="guide-toc-group__label">功能介绍</span>
+          <ol>
+            <li><a href="#guide-overview">2 · 今日总览</a></li>
+            <li><a href="#guide-todos">3 · 待办与重复待办</a></li>
+            <li><a href="#guide-projects">4 · 长期项目</a></li>
+            <li><a href="#guide-schedule">5 · 日程与课表</a></li>
+            <li><a href="#guide-connections">6 · 连接与同步</a></li>
+            <li><a href="#guide-calendar">7 · 日历订阅</a></li>
+            <li><a href="#guide-agent">8 · Agent 接入</a></li>
+            <li><a href="#guide-account">9 · 偏好设置与账号</a></li>
+          </ol>
+        </li>
+        <li><a href="#guide-help">10 · 常见问题</a></li>
+        <li><a href="#guide-opensource">11 · 开源与更新</a></li>
+      </ol>
+    </nav>
+    <div class="guide-content">
+      <header class="guide-intro">
+        <span class="ui-section-label">使用教程</span>
+        <h1 id="guide-title" tabindex="-1">上手指南</h1>
+        <p>把 Canvas、好课、智学盟、智慧树、课堂派、同济 OJ 的未完成作业，和你自己的待办、项目、日程放在同一张清单上。</p>
+        <p class="guide-reading-hint">第一次使用读第 1 节和第 2 节；想查某个功能怎么用，点目录里的对应编号。</p>
+      </header>
+
+      <section id="guide-start" class="guide-section" aria-labelledby="guide-start-title">
+        <h2 id="guide-start-title" tabindex="-1">1 · 从这里开始</h2>
+        <p>这里只有三样东西：一件<span class="guide-key">完成</span>，一个<span class="guide-key">目标</span>，一段<span class="guide-key">时间</span>。先分清它们，之后点哪个入口都不会迷路。</p>
+        <div class="guide-concepts">
+          <div class="guide-concept">
+            <div class="guide-concept__head">
+              <span class="guide-entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg></span>
+              <span class="guide-concept__label">待办</span>
+            </div>
+            <h3>完成</h3>
+            <p>只回答一件事：做完没有。平台作业和自己的事在同一张清单里，勾选即完成。</p>
+          </div>
+          <div class="guide-concept">
+            <div class="guide-concept__head">
+              <span class="guide-entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7Z"></path></svg></span>
+              <span class="guide-concept__label">长期项目</span>
+            </div>
+            <h3>目标</h3>
+            <p>放的是要持续几周的目标。它不管哪天做，只管推进到哪一步、下一步是什么。</p>
+          </div>
+          <div class="guide-concept">
+            <div class="guide-concept__head">
+              <span class="guide-entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M8 3v4m8-4v4M4 10h16"></path></svg></span>
+              <span class="guide-concept__label">日程</span>
+            </div>
+            <h3>时间</h3>
+            <p>回答什么时候做。给一件事留出时间段，课程表也在这一层。</p>
+          </div>
+        </div>
+        <p>同一件事可以同时出现在三处：作为待办，它记录完成；作为项目的一步，它服务于一个目标；安排时间后，它占住一段时间。三者指向同一条记录，标题不会各写各的。</p>
+
+        <h3>入口速查</h3>
+        <dl class="guide-definitions guide-entries">
+          <div>
+            <dt><span class="guide-entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg></span>今日总览</dt>
+            <dd>所有来源的未完成事项合成一张清单，按时间排开。回答“现在要做什么”。</dd>
+          </div>
+          <div>
+            <dt><span class="guide-entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7Z"></path></svg></span>长期项目</dt>
+            <dd>持续推进的目标，和单个待办不是一回事。回答“这件事推进到哪一步了”。</dd>
+          </div>
+          <div>
+            <dt><span class="guide-entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M8 3v4m8-4v4M4 10h16"></path></svg></span>日程与课表</dt>
+            <dd>回答“什么时候做”，同济课表也在这里导入。和总览看的是同一批事，只是换成了时间视图。</dd>
+          </div>
+          <div>
+            <dt><span class="guide-entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 17a4 4 0 1 1 .6-7.97A5.5 5.5 0 0 1 18.3 11 3.5 3.5 0 0 1 17.5 17H7Z"></path></svg></span>连接与同步</dt>
+            <dd>把教学平台的作业读进来，方向是“平台 → 这里”。</dd>
+          </div>
+          <div>
+            <dt><span class="guide-entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M8 3v4m8-4v4M4 10h16m-6 6h4"></path></svg></span>日历订阅</dt>
+            <dd>把这里的事项送到你手机上的日历，方向是“这里 → 日历”，和「连接与同步」正好相反，别找错。</dd>
+          </div>
+          <div>
+            <dt><span class="guide-entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4m-4 5v.01m8-.01v.01"></path></svg></span>Agent 接入</dt>
+            <dd>让 AI 助手帮你查询和整理，可选功能，不用它也不影响别的。</dd>
+          </div>
+          <div>
+            <dt><span class="guide-entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M12 2.5v3m0 13v3M2.5 12h3m13 0h3M5.3 5.3l2.1 2.1m9.2 9.2 2.1 2.1m0-13.4-2.1 2.1M7.4 16.6l-2.1 2.1"></path></svg></span>偏好设置</dt>
+            <dd>外观、账号、退出登录。</dd>
+          </div>
+        </dl>
+
+        <div class="guide-start-cta">
+          <button type="button" class="ui-button ui-button--primary" data-open-view="overview">去添加第一件事</button>
+          <p>在今日总览的输入框里写一句话就能开始，不连接任何平台也能用。</p>
+        </div>
+      </section>
+
+      <p class="guide-group-label">功能介绍 · 第 2～9 节</p>
+
+      <section id="guide-overview" class="guide-section guide-block" aria-labelledby="guide-overview-title">
+        <div class="guide-block__copy">
+          <h2 id="guide-overview-title" tabindex="-1">2 · 今日总览</h2>
+          <p class="guide-block__lead">所有来源汇成一张清单，按截止时间排开，先看见最要紧的事。</p>
+          <ul class="guide-points">
+            <li>逾期、今天、之后分段排列；顶部可以只看某个平台，也可以隐藏、标红、按来源筛选。</li>
+            <li>勾选只记录你的进度，不会替你提交作业，也不会改写教学平台的数据。</li>
+            <li>手机上打开就是这张清单；连接、设置和这份指南都在左上角菜单里。</li>
+          </ul>
+          <button type="button" class="ui-button ui-button--secondary" data-open-view="overview">打开今日总览</button>
+        </div>
+        <div class="guide-block__visual">
+          <div class="guide-specimen" aria-hidden="true">
+            <div class="guide-specimen__head">
+              <span class="guide-specimen__title">今日清单</span>
+              <span class="guide-pill guide-pill--warning">1 项逾期</span>
+            </div>
+            <div class="guide-specimen__group">逾期</div>
+            <div class="guide-mock-row">
+              <span class="ui-badge ui-badge--source ui-source--canvas">Canvas</span>
+              <span class="guide-mock-name">物理实验报告</span>
+              <span class="guide-mock-meta guide-mock-meta--late">逾期 1 天</span>
+            </div>
+            <div class="guide-specimen__group">今天</div>
+            <div class="guide-mock-row">
+              <span class="ui-badge ui-badge--source ui-source--zhihuishu">智慧树</span>
+              <span class="guide-mock-name">形势与政策测验</span>
+              <span class="guide-mock-meta">今天 23:59</span>
+            </div>
+            <div class="guide-specimen__group">之后</div>
+            <div class="guide-mock-row">
+              <span class="ui-badge ui-badge--source ui-source--custom">自定义</span>
+              <span class="guide-mock-name">报名英语考试</span>
+              <span class="guide-mock-meta">无日期</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="guide-todos" class="guide-section guide-block" aria-labelledby="guide-todos-title">
+        <div class="guide-block__copy">
+          <h2 id="guide-todos-title" tabindex="-1">3 · 待办与重复待办</h2>
+          <p class="guide-block__lead">平台作业之外，也可以记自己的事，还能把一件事拆成几步。</p>
+          <ul class="guide-points">
+            <li>写标题就能存，日期可以不填；有明确要求时再填真实截止日期。</li>
+            <li>展开任意一条可以加子任务，子任务能单独勾选、改期，作业本身不动。</li>
+            <li>每周、隔周重复的事：第一次的截止日期决定星期几；这次不做可以跳过，不影响下一次。</li>
+          </ul>
+          <button type="button" class="ui-button ui-button--secondary" data-open-view="overview">打开今日总览</button>
+        </div>
+        <div class="guide-block__visual">
+          <div class="guide-specimen" aria-hidden="true">
+            <div class="guide-specimen__head">
+              <span class="guide-specimen__title">添加待办</span>
+              <span class="guide-pill guide-pill--action">每周重复</span>
+            </div>
+            <div class="guide-field">完成物理实验报告</div>
+            <div class="guide-mock-row guide-mock-row--spread">
+              <span class="guide-chip">截止 · 10 月 14 日</span>
+              <span class="guide-chip">重复 · 每周三</span>
+            </div>
+            <div class="guide-specimen__group">子任务</div>
+            <div class="guide-mock-row guide-mock-row--done">
+              <span class="guide-check">✓</span>
+              <span class="guide-mock-name">整理实验数据</span>
+            </div>
+            <div class="guide-mock-row">
+              <span class="guide-check">○</span>
+              <span class="guide-mock-name">完成报告初稿</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="guide-projects" class="guide-section guide-block" aria-labelledby="guide-projects-title">
+        <div class="guide-block__copy">
+          <h2 id="guide-projects-title" tabindex="-1">4 · 长期项目</h2>
+          <p class="guide-block__lead">持续几周的目标放在这里：需要做的事、参考资料和现在推进到哪一步。</p>
+          <ul class="guide-points">
+            <li>建分组、加任务，标出下一步行动；这一步完成后自动顺延到其他未完成步骤，也可以手动切换。</li>
+            <li>选定下一步不等于今天就做：要它进今日清单，勾选“同时加入待办清单”，或把计划日期设在今天。</li>
+            <li>远期方向和方法写进项目资料；项目和任务删除后没有回收站。</li>
+          </ul>
+          <button type="button" class="ui-button ui-button--secondary" data-open-view="projects">打开长期项目</button>
+        </div>
+        <div class="guide-block__visual">
+          <div class="guide-specimen" aria-hidden="true">
+            <div class="guide-specimen__head">
+              <span class="guide-specimen__title">英语六级准备</span>
+              <span class="guide-pill guide-pill--action">当前一步</span>
+            </div>
+            <div class="guide-focus-box">
+              <span class="guide-focus-label">当前推进</span>
+              <span class="guide-focus-text">练一段听力，整理错词</span>
+            </div>
+            <div class="guide-mock-row">
+              <span class="guide-dot"></span>
+              <span class="guide-mock-name guide-mock-name--muted">真题与学习方法放进项目资料</span>
+            </div>
+            <div class="guide-mock-row guide-mock-row--spread">
+              <span class="guide-chip">已完成 3 / 7 步</span>
+              <span class="guide-mock-meta">下一步已选定</span>
+            </div>
+            <div class="guide-steps"><i class="is-done"></i><i class="is-done"></i><i class="is-done"></i><i></i><i></i><i></i><i></i></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="guide-schedule" class="guide-section guide-block" aria-labelledby="guide-schedule-title">
+        <div class="guide-block__copy">
+          <h2 id="guide-schedule-title" tabindex="-1">5 · 日程与课表</h2>
+          <p class="guide-block__lead">一周的时间格子，按全天、上午、下午、晚上分段，课程和自己的安排同屏。</p>
+          <ul class="guide-points">
+            <li>给待办或项目行动“安排时间”，标题跟随原事项，不用重复创建。</li>
+            <li>“完成本次”只结束这一段安排；真正完成整个任务，要回原事项勾选。</li>
+            <li>导入同济课表：点“统一身份认证登录”，扫码或短信认证完成后读取；失败会保留上一次成功的课表。</li>
+          </ul>
+          <button type="button" class="ui-button ui-button--secondary" data-open-view="schedule">打开日程与课表</button>
+        </div>
+        <div class="guide-block__visual">
+          <div class="guide-specimen" aria-hidden="true">
+            <div class="guide-specimen__head">
+              <span class="guide-specimen__title">本周</span>
+              <span class="guide-pill">第 4 教学周</span>
+            </div>
+            <div class="guide-specimen__group">上午</div>
+            <div class="guide-mock-row">
+              <span class="guide-mock-time">09:50</span>
+              <span class="guide-mock-name">自动控制原理</span>
+              <span class="guide-chip guide-chip--course">课程</span>
+            </div>
+            <div class="guide-specimen__group">下午</div>
+            <div class="guide-mock-row">
+              <span class="guide-mock-time">15:00</span>
+              <span class="guide-mock-name">完成实验报告</span>
+              <span class="guide-chip">计划</span>
+            </div>
+            <div class="guide-specimen__group">晚上</div>
+            <div class="guide-mock-row">
+              <span class="guide-mock-time">19:00</span>
+              <span class="guide-mock-name">练一段听力</span>
+              <span class="guide-chip">项目</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="guide-connections" class="guide-section guide-block guide-block--stacked" aria-labelledby="guide-connections-title">
+        <div class="guide-block__copy">
+          <h2 id="guide-connections-title" tabindex="-1">6 · 连接与同步</h2>
+          <p class="guide-block__lead">把教学平台的作业读进来。只连你实际在用的平台，连不上也不影响手动记待办。</p>
+          <ul class="guide-points guide-points--columns">
+            <li><strong>Canvas</strong>：不用填密码，粘贴只读的日历订阅地址即可，地址怎么找见下方截图。</li>
+            <li><strong>好课、智学盟、课堂派</strong>填账号；<strong>智慧树</strong>走远程登录窗口认证；<strong>同济 OJ</strong> 用统一身份认证。</li>
+            <li>页面顶部写着最近成功时间。上游出错或变慢时会继续显示上次的缓存，看到数据不代表刚刚更新过。</li>
+            <li>“断开连接”只删凭据、保留历史作业；“清除平台数据”会连本地勾选、隐藏、标红一起删。</li>
+          </ul>
+        </div>
+        <div class="guide-block__visual guide-block__visual--full">
+          <div class="guide-platforms" aria-hidden="true">
+            <span class="guide-platforms__label">作业同步</span>
+            <span class="ui-badge ui-badge--source ui-source--canvas">Canvas</span>
+            <span class="ui-badge ui-badge--source ui-source--haoke">好课</span>
+            <span class="ui-badge ui-badge--source ui-source--zhixuemeng">智学盟</span>
+            <span class="ui-badge ui-badge--source ui-source--zhihuishu">智慧树</span>
+            <span class="ui-badge ui-badge--source ui-source--ketangpai">课堂派</span>
+            <span class="ui-badge ui-badge--source ui-source--tongjioj">同济OJ</span>
+            <span class="guide-platforms__divider"></span>
+            <span class="guide-platforms__label">课表与排程</span>
+            <span class="guide-chip">同济一网通办课表</span>
+            <span class="guide-chip">日历订阅 (.ics)</span>
+            <span class="guide-chip">AI Agent (MCP)</span>
+          </div>
+          <div class="guide-shots">
+            <figure class="guide-shot">
+              <span class="guide-shot-frame">
+                <img src="{{ url_for('static', filename='guide/canvas-calendar-entry.jpg') }}" alt="Canvas 左侧导航栏，红色箭头指向日历图标" width="660" height="452" loading="lazy" decoding="async">
+              </span>
+              <figcaption><b>1</b> 在 Canvas 左侧导航点「日历」</figcaption>
+            </figure>
+            <figure class="guide-shot">
+              <span class="guide-shot-frame">
+                <img src="{{ url_for('static', filename='guide/canvas-calendar-feed.jpg') }}" alt="Canvas 日历页面右下角，红框标出「日历馈送」按钮" width="1060" height="520" loading="lazy" decoding="async">
+              </span>
+              <figcaption><b>2</b> 点页面右下角的「日历馈送」</figcaption>
+            </figure>
+            <figure class="guide-shot">
+              <span class="guide-shot-frame">
+                <img src="{{ url_for('static', filename='guide/canvas-calendar-feed-copy.jpg') }}" alt="Canvas 日历馈送弹窗，链接内容已打码" width="860" height="500" loading="lazy" decoding="async">
+              </span>
+              <figcaption><b>3</b> 复制弹窗里的链接，粘贴到连接配置</figcaption>
+            </figure>
+          </div>
+          <p class="guide-note">一句话记法：Canvas → 左侧「日历」→ 右下角「日历馈送」→ 复制链接。这个地址等同于密码，不要分享给别人。</p>
+          <button type="button" class="ui-button ui-button--secondary" data-open-view="connections">打开连接与同步</button>
+        </div>
+      </section>
+
+      {% if apple_calendar_enabled %}
+      <section id="guide-calendar" class="guide-section guide-block" aria-labelledby="guide-calendar-title">
+        <div class="guide-block__copy">
+          <h2 id="guide-calendar-title" tabindex="-1">7 · 日历订阅</h2>
+          <p class="guide-block__lead">生成一条只属于你的私密链接，把带日期的未完成事项和日程订阅到手机日历里。</p>
+          <ul class="guide-points">
+            <li>在 iPhone、iPad、Mac 上，生成后点“在日历中打开”最省事；其他日历应用复制链接手动添加。</li>
+            <li>可以整站订阅一条，也可以按分类订阅多条，在日历里显示成不同颜色。</li>
+            <li>订阅是只读的，日历按自己的周期刷新；链接等同于密码，撤销后旧链接立即失效。</li>
+          </ul>
+          <div class="guide-linkcard">
+            <div class="guide-linkcard__head">
+              <span class="guide-linkcard__icon" aria-hidden="true">↗</span>
+              <span class="guide-linkcard__title">怎么加到手机日历？</span>
+            </div>
+            <p class="guide-linkcard__text">Google 日历需先在电脑网页版选择“其他日历 → ＋ → 通过网址”，粘贴本站复制的 HTTPS 订阅链接，再在安卓端使用同一 Google 账号查看。Google 手机 App 不能直接新增网址订阅；安卓自带或其他日历是否支持，取决于具体应用。请选择“订阅”，仅导入 .ics 文件不会持续更新。</p>
+            <div class="guide-linkcard__actions">
+              <a class="guide-chip guide-chip--link" href="https://support.apple.com/zh-cn/102301" target="_blank" rel="noopener noreferrer">iPhone / iPad 教程<span aria-hidden="true">↗</span></a>
+              <a class="guide-chip guide-chip--link" href="https://support.google.com/calendar/answer/37100?hl=zh-CN" target="_blank" rel="noopener noreferrer">Google 日历教程（电脑添加）<span aria-hidden="true">↗</span></a>
+            </div>
+          </div>
+          <button type="button" class="ui-button ui-button--secondary" data-open-view="calendar">打开日历订阅</button>
+        </div>
+        <div class="guide-block__visual">
+          <div class="guide-specimen" aria-hidden="true">
+            <div class="guide-specimen__head">
+              <span class="guide-specimen__title">私密订阅地址</span>
+              <span class="guide-pill guide-pill--quiet">只读</span>
+            </div>
+            <div class="guide-field guide-field--mono">https://…/calendar/••••••••.ics</div>
+            <div class="guide-mock-row guide-mock-row--spread">
+              <span class="guide-fake-button guide-fake-button--primary">在日历中打开</span>
+              <span class="guide-fake-button">复制链接</span>
+            </div>
+            <div class="guide-specimen__group">按分类订阅</div>
+            <div class="guide-feeds">
+              <span class="guide-feed guide-feed--canvas"><i></i>作业与考试</span>
+              <span class="guide-feed guide-feed--project"><i></i>长期项目</span>
+              <span class="guide-feed guide-feed--course"><i></i>课程与日程</span>
+            </div>
+          </div>
+        </div>
+      </section>
+      {% else %}
+      <section id="guide-calendar" class="guide-section guide-block" aria-labelledby="guide-calendar-title">
+        <div class="guide-block__copy">
+          <h2 id="guide-calendar-title" tabindex="-1">7 · 日历订阅</h2>
+          <p class="guide-block__lead">当前站点没有开放日历订阅，需要时请联系维护者。</p>
+        </div>
+      </section>
+      {% endif %}
+
+      <section id="guide-agent" class="guide-section guide-block" aria-labelledby="guide-agent-title">
+        <div class="guide-block__copy">
+          <h2 id="guide-agent-title" tabindex="-1">8 · Agent 接入（可选）</h2>
+          <p class="guide-block__lead">让 Claude、Cursor、Cline 这类 AI 助手直接查课表、加待办、推进项目。</p>
+          <ul class="guide-points">
+            <li>生成专属 Token，然后二选一：Skill（一段提示词，最简单）或 MCP（通用协议，能接的工具更多）。</li>
+            <li>Token 能读写你的账户数据，等同于密码；不用了随时撤销，页面更新后按提示重新下载接入包。</li>
+          </ul>
+          <button type="button" class="ui-button ui-button--secondary" data-open-view="agent">打开 Agent 接入</button>
+        </div>
+        <div class="guide-block__visual">
+          <div class="guide-specimen" aria-hidden="true">
+            <div class="guide-specimen__head">
+              <span class="guide-specimen__title">向助手提问</span>
+              <span class="guide-pill">Token 已生成</span>
+            </div>
+            <div class="guide-bubble">我今天有哪些课和待办？</div>
+            <div class="guide-bubble guide-bubble--reply">今天 16:00 提交实验报告，19:00 练听力；还有 2 项待办未完成。</div>
+            <div class="guide-mock-row guide-mock-row--spread">
+              <span class="guide-chip">Skill</span>
+              <span class="guide-chip">MCP</span>
+              <span class="guide-mock-meta">cda_••••••</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="guide-account" class="guide-section guide-block" aria-labelledby="guide-account-title">
+        <div class="guide-block__copy">
+          <h2 id="guide-account-title" tabindex="-1">9 · 偏好设置与账号</h2>
+          <p class="guide-block__lead">站点账号独立于教学平台账号，一个账号只对应这一站的数据。</p>
+          <ul class="guide-points">
+            <li>外观在蓝白与苔绿之间切换，选择只保存在当前浏览器。</li>
+            <li>忘记密码：联系维护者拿一次性重置凭据，再到<a href="/reset-password">密码重置页</a>设置新密码。</li>
+            <li>公共电脑用完后点左下角退出登录；也可以在偏好设置里让其他设备下线。</li>
+            <li>永久注销会删除账号和全部数据，不可撤销。</li>
+          </ul>
+          <button type="button" class="ui-button ui-button--secondary" data-open-view="settings">打开偏好设置</button>
+        </div>
+        <div class="guide-block__visual">
+          <div class="guide-specimen" aria-hidden="true">
+            <div class="guide-specimen__head">
+              <span class="guide-specimen__title">外观</span>
+              <span class="guide-pill guide-pill--quiet">仅此浏览器</span>
+            </div>
+            <div class="guide-themes">
+              <span class="guide-theme is-selected"><i class="guide-theme__swatch guide-theme__swatch--blue"></i>蓝白</span>
+              <span class="guide-theme"><i class="guide-theme__swatch guide-theme__swatch--moss"></i>苔绿</span>
+            </div>
+            <div class="guide-specimen__group">登录安全</div>
+            <div class="guide-mock-row guide-mock-row--spread">
+              <span class="guide-mock-name">其他设备</span>
+              <span class="guide-chip">已退出</span>
+            </div>
+            <div class="guide-mock-row guide-mock-row--spread">
+              <span class="guide-mock-name">永久注销</span>
+              <span class="guide-mock-meta guide-mock-meta--late">不可撤销</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="guide-help" class="guide-section guide-details" aria-labelledby="guide-help-title">
+        <h2 id="guide-help-title" tabindex="-1">10 · 常见问题</h2>
+        <p>只列最常被问到的三个问题。</p>
+        <details>
+          <summary>Canvas 的日历馈送链接在哪找？</summary>
+          <p>Canvas 左侧导航点「日历」，页面右下角有「日历馈送」，点开复制里面的链接。</p>
+          <p><a class="guide-chip guide-chip--link" href="#guide-connections">查看带截图的三步 →</a></p>
+        </details>
+        <details><summary>认证窗口提示忙碌，或者平台登录过期？</summary><p>忙碌表示远程认证窗口正被占用，稍后重试即可。登录过期时回到“连接与同步”重新认证，不需要清除数据。</p></details>
+        <details><summary>我在用的作业网站不在列表里？</summary><p>插件生态和反馈渠道会在后续陆续开放，敬请期待。</p></details>
+      </section>
+
+      <section id="guide-opensource" class="guide-section" aria-labelledby="guide-opensource-title">
+        <h2 id="guide-opensource-title" tabindex="-1">11 · 开源与更新</h2>
+        <p>Canvas Dashboard 的源代码公开在 GitHub，可以查看实现、反馈问题，也可以自己部署一份给身边同学用。</p>
+        <div class="guide-linkchips">
+          <a class="guide-chip guide-chip--link" href="https://github.com/zboheng53-jpg/canvas-dashboard" target="_blank" rel="noopener noreferrer">GitHub 开源仓库<span aria-hidden="true">↗</span></a>
+          <a class="guide-chip guide-chip--link" href="https://github.com/zboheng53-jpg/canvas-dashboard/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">完整更新记录<span aria-hidden="true">↗</span></a>
+          <a class="guide-chip guide-chip--link" href="https://github.com/zboheng53-jpg/canvas-dashboard/issues" target="_blank" rel="noopener noreferrer">反馈问题与建议<span aria-hidden="true">↗</span></a>
+          <a class="guide-chip guide-chip--link" href="/privacy" target="_blank" rel="noopener noreferrer">数据与隐私中心<span aria-hidden="true">↗</span></a>
+        </div>
+        <h3 id="guide-updates-title">最近更新</h3>
+        <p>重写了这份指南：按功能分成第 2～9 节，配上界面示意、Canvas 日历馈送的三步截图和手机日历订阅教程；调整登录页展示与入场动画；统一待办日期显示；修复后台刷新时子任务保存后不显示的问题。</p>
+        <p class="guide-updates-note">更新会先写进仓库的 <a href="https://github.com/zboheng53-jpg/canvas-dashboard/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">CHANGELOG</a>，部署上线后才在这里生效。</p>
+        <a class="guide-back-top" href="#guide-top">返回顶部 ↑</a>
+      </section>
+    </div>
+  </article>
+</section>

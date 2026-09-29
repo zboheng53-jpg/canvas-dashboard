@@ -91,12 +91,26 @@ def test_mobile_composer_retains_draft_and_failure_then_collapses_after_success(
 def test_entry_fade_finishes_and_respects_reduced_motion(live_app, browser):
     page = browser.new_page(reduced_motion='no-preference')
     register_dashboard_user(page, live_app, 'appearancemotion')
-    for selector in ('.enter-top-bar', '.enter-kpis', '.enter-main-card', '.enter-right-card'):
-        element = page.locator(selector).first
-        expect(element).to_have_css('animation-name', 'workspace-reveal')
-        expect(element).to_have_css('animation-duration', '0.28s')
-    page.wait_for_function("document.getAnimations().filter(a => a.animationName === 'workspace-reveal').length === 0")
-    expect(page.locator('.enter-main-card')).to_have_css('opacity', '1')
+    workspace = page.locator('.workspace-stack')
+    expect(workspace).to_have_css('animation-name', 'workspace-arrive')
+    expect(workspace).to_have_css('animation-duration', '0.7s')
+    # Replay only within this test to inspect the actual start and middle frames.
+    workspace.evaluate('''e => {
+        e.style.animationName = 'none'; void e.offsetWidth;
+        e.style.animationName = '';
+        const animation = e.getAnimations()[0];
+        animation.pause(); animation.currentTime = 0;
+    }''')
+    expect(workspace).to_have_css('opacity', '0')
+    expect(workspace).to_have_css('transform', 'matrix(1, 0, 0, 1, 0, 16)')
+    workspace.evaluate('e => { e.getAnimations()[0].currentTime = 350; }')
+    assert 0 < float(workspace.evaluate('e => getComputedStyle(e).opacity')) < 1
+    workspace.evaluate('e => e.getAnimations()[0].play()')
+    page.wait_for_function("document.getAnimations().filter(a => a.animationName === 'workspace-arrive').length === 0")
+    expect(workspace).to_have_css('opacity', '1')
+    expect(workspace).to_have_css('transform', 'none')
+    page.locator('[data-dashboard-view="guide"]').click()
+    page.locator('[data-open-view="overview"]').first.click()
+    assert page.evaluate("document.getAnimations().filter(a => a.animationName === 'workspace-arrive').length") == 0
     page.emulate_media(reduced_motion='reduce')
-    for selector in ('.enter-top-bar', '.enter-kpis', '.enter-main-card', '.enter-right-card'):
-        expect(page.locator(selector).first).to_have_css('animation-name', 'none')
+    expect(workspace).to_have_css('animation-name', 'none')

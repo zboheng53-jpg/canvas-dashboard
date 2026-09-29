@@ -28,7 +28,11 @@ Flask webapp for aggregating unfinished assignments and exams from Canvas, 好�
 
 ```text
 canvas-dashboard/
-├── app.py                         # Flask 主路由与 API 接口
+├── app.py                         # Flask 组装、认证边界、账户/平台路由与导出
+├── routes/                        # planning / agent Blueprint；保持既有 API URL
+├── services/                      # workspace 共用操作/投影、academic 学期/节假日
+├── web_common.py                  # HTTP 校验、错误与 Agent 认证工具
+├── login_capacity.py              # 单 Web 进程共享的远程认证窗口容量限制
 ├── auth.py                        # 站点多用户系统、密码哈希与旧数据迁移
 ├── user_paths.py                  # 用户独立数据路径管理 (data/users/<username>/)
 ├── storage.py                     # 并发安全 JSON 读写与原子替换
@@ -52,7 +56,7 @@ canvas-dashboard/
 ├── agent_auth.py                  # Agent API 独立安全凭据与 Token 管理
 ├── agent_mcp.py                   # 零依赖通用 MCP Server 脚本 (JSON-RPC stdio)
 ├── frontend/                      # 可独立打开的前端工作区
-│   ├── templates/                 # Jinja 页面 (index.html 主控制台, auth_*, login_*)
+│   ├── templates/                 # index.html 壳层；dashboard 各视图独立模板
 │   └── assets/                    # css、js 与 downloads；仍通过 /static/ 提供
 ├── tests/                         # Pytest 单元测试与 Playwright 回归测试
 ├── deploy/                        # Nginx 与 systemd 部署参考配置
@@ -91,6 +95,9 @@ canvas-dashboard/
   ```
 
 ## 架构与平台核心机制
+
+- **小范围开放与维护**：账户各自独立，不提供团队共享。左侧「上手指南」先辨析待办、项目、日程与各入口的分工，再按功能逐段说明，附 Canvas 日历馈送截图与手机日历订阅教程，底部提供最近更新；用户可感知的变化同步 `CHANGELOG.md`，实际部署后才标注发布日期。容量与运营判断见 `docs/small-group-launch.md`。`CANVAS_DASHBOARD_REGISTRATION_ENABLED` 控制新注册；两类 noVNC 窗口共享 `CANVAS_DASHBOARD_LOGIN_MAX_SESSIONS`（默认 1），满载返回可重试的 429。Canvas 馈送仅接受管理员信任域名的 HTTPS/443，禁止重定向。
+- **文件边界**：`app.py` 保留全局 Session/CSRF/限流中间件；事项和 Agent API 分别注册到 `routes/`，共享操作位于 `services/`。`index.html` 仅组装视图与脚本；普通脚本仍共享全局，依赖顺序明确保留在模板中，启动统一在 `bootstrap.js`，不在业务视图重复初始化。
 
 - **存储与并发 (`storage.py`)**：
   - JSON 读写使用绝对路径加锁，写操作采用临时文件 + 原子替换 (`atomic replace`)。

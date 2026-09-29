@@ -1,3 +1,5 @@
+from services import workspace as workspace_service
+import web_common
 import json
 
 import pytest
@@ -20,6 +22,7 @@ def calendar_client(tmp_path, monkeypatch):
     monkeypatch.setattr(user_paths, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard_app, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard_app, "user_dir", resolve_user_dir)
+    monkeypatch.setattr(workspace_service, "user_dir", resolve_user_dir)
     monkeypatch.setattr(apple_calendar, "DATA_DIR", tmp_path)
     monkeypatch.setattr(apple_calendar, "user_dir", resolve_user_dir)
     monkeypatch.setattr(zhihuishu_store, "DATA_DIR", tmp_path)
@@ -293,7 +296,7 @@ def test_calendar_subscription_includes_courses_and_schedule_items(calendar_clie
 
 def test_calendar_subscription_includes_recent_assignments_and_midnight(calendar_client):
     client, user_dir = calendar_client
-    now = dashboard_app.datetime.now(dashboard_app.CST)
+    now = dashboard_app.datetime.now(web_common.CST)
     today_iso = now.date().isoformat()
     user_dir("alice").joinpath("canvas_cache.json").write_text(
         json.dumps([

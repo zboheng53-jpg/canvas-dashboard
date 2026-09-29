@@ -1,3 +1,4 @@
+import web_common
 """Verify focus actions and reversible project history in the real page."""
 from datetime import timedelta
 import pytest
@@ -14,7 +15,7 @@ def test_focus_select_today_complete_and_finished_group(live_app, browser, width
     try:
         username = register_dashboard_user(page, live_app, "focus")
         p = project_store.create_project(username, {"name": "探索项目"})
-        today = dashboard.datetime.now(dashboard.CST).date()
+        today = dashboard.datetime.now(web_common.CST).date()
         a = project_store.create_task(username, p["id"], {
             "name": "整理一个问题", "is_next_action": True,
             "commitment": "obligation", "planned_on": today.isoformat(),
@@ -89,7 +90,7 @@ def test_todo_delete_and_date_edit_for_project_task(live_app, browser):
     try:
         username = register_dashboard_user(page, live_app, 'deletelinked')
         p = project_store.create_project(username, {"name": "同步项目"})
-        day = dashboard.datetime.now(dashboard.CST).date().isoformat()
+        day = dashboard.datetime.now(web_common.CST).date().isoformat()
         a = project_store.create_task(username, p['id'], {"name": "今天的原任务", "planned_on": day})
         b = project_store.create_task(username, p['id'], {"name": "修改日期的任务", "planned_on": day})
         page.reload()
@@ -105,7 +106,7 @@ def test_todo_delete_and_date_edit_for_project_task(live_app, browser):
         expect(row_b).to_be_visible()
         row_b.get_by_role('button', name='修改计划日期', exact=True).click()
         date_input = row_b.locator('input[type="date"]')
-        next_day = (dashboard.datetime.now(dashboard.CST).date() + timedelta(days=1)).isoformat()
+        next_day = (dashboard.datetime.now(web_common.CST).date() + timedelta(days=1)).isoformat()
         date_input.fill(next_day)
         page.evaluate('renderUnifiedList()')
         expect(date_input).to_have_value(next_day)
@@ -123,7 +124,7 @@ def test_recurring_occurrence_completion_keeps_original_action(live_app, browser
         username = register_dashboard_user(page, live_app, 'repeatlinked')
         p = project_store.create_project(username, {"name": "重复项目"})
         a = project_store.create_task(username, p['id'], {"name": "一次练习"})
-        day = dashboard.datetime.now(dashboard.CST).date()
+        day = dashboard.datetime.now(web_common.CST).date()
         schedule_store.create_item(username, 'recurring', {
             'title': a['name'], 'action_ref': f"project:{p['id']}:{a['id']}",
             'weekday': day.weekday(), 'start_date': day.isoformat(),

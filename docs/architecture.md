@@ -1,6 +1,6 @@
 # Architecture
 
-Canvas Dashboard is a single-process Flask/Waitress application that aggregates unfinished work from Canvas, 好课, 智学盟, 智慧树, 课堂派, and user-created todos. Production uses nginx for TLS and reverse proxying, while a separate systemd worker refreshes 智慧树 data.
+Canvas Dashboard is a single-process Flask/Waitress application for a small group of independent users. It aggregates work from Canvas, 好课, 智学盟, 智慧树, 课堂派, 同济 OJ, and personal todos. It does not share tasks between accounts. Production uses nginx for TLS and reverse proxying, while a separate systemd worker refreshes 智慧树 data.
 
 ## Runtime Topology
 
@@ -26,17 +26,20 @@ zhihuishu-worker.service
         +--> cache/status JSON consumed by Flask
 ```
 
-The Flask request path never launches a 智慧树 browser. Platform caches let the dashboard keep serving local data when an upstream service is slow or unavailable.
+The 智慧树 todo request path reads caches; interactive authentication explicitly starts a short-lived browser. Platform caches let the dashboard keep serving local data when an upstream service is slow or unavailable.
 
 ## Main Components
 
 | Component | Responsibility |
 | --- | --- |
-| `app.py` | Routes, authentication boundary, response aggregation, health check, and ICS item selection |
+| `app.py` | Application composition, global session/CSRF/rate-limit boundary, account/platform routes, health check, and ICS HTTP export |
+| `routes/planning.py`, `routes/agent.py` | Blueprints for browser planning APIs and Bearer-authenticated Agent workspace APIs; existing URLs are preserved |
+| `services/workspace.py`, `services/academic.py` | Shared workspace operations/projections and academic context; workspace still uses Flask request context where needed |
+| `web_common.py`, `login_capacity.py` | Shared HTTP validation/auth helpers and the process-wide interactive browser startup budget |
 | `auth.py`, `user_paths.py` | Site accounts, password hashes, persistent session key, and per-user paths |
 | `storage.py` | Locked JSON reads/updates, atomic replacement, and fail-closed corruption handling |
 | `agent_auth.py` | Cryptographic Agent Token lifecycle (high-entropy key generation, SHA-256 hashed storage, per-user isolation, constant-time validation, and instant revocation) |
-| `agent_mcp.py` | Zero-dependency MCP server implementing JSON-RPC 2.0 stdio over Python standard library with 7 core tools |
+| `agent_mcp.py` | Zero-dependency MCP server implementing JSON-RPC 2.0 stdio over Python standard library |
 | `canvas_auth.py` | Canvas iCalendar validation, fetch, parse, cache, and item state |
 | `haoke_client.py` | Encrypted credentials, cache-first assignment fetch, and guarded background refresh |
 | `zhixuemeng_client.py` | Token login, course selection, assignment fetch, cache, and logout cleanup |
@@ -47,10 +50,11 @@ The Flask request path never launches a 智慧树 browser. Platform caches let t
 | `tongji_login_sessions.py` | Short tokenized Docker/noVNC enhanced-auth windows with ephemeral per-user profiles |
 | `apple_calendar.py` | Hashed subscription-token lifecycle and RFC 5545 serialization |
 | `tongji_timetable.py`, `schedule_store.py` | Authenticated CDP timetable parsing plus per-user course and schedule-item storage |
-| `project_store.py` | Atomic per-user long-term projects and weekly goals |
+| `project_store.py` | Atomic per-user long-term projects, task groups, current next action, and materials |
 | `recurring_todo_store.py` | Atomic per-user native recurring todo series, range expansion, and occurrence state (skip/complete) |
-| `frontend/templates/index.html` | Vanilla-JavaScript unified list, responsive dashboard shell, and all dashboard interactions |
-| `frontend/templates/dashboard/*.html`, `frontend/assets/css/dashboard-shell.css` | Isolated sidebar, live right-rail modules, management views, and shell layout styles |
+| `frontend/templates/index.html` | Dashboard shell, view includes, and explicit script loading order |
+| `frontend/templates/dashboard/*.html`, `frontend/assets/css/dashboard-shell.css` | Separate overview, projects, schedule, connections, calendar, Agent, settings and guide views; shared sidebar and right rail |
+| `frontend/assets/js/core/`, `features/`, `projects.js`, `bootstrap.js` | Shell/context utilities, domain interactions, and startup; classic scripts retain shared globals during this incremental split |
 | `frontend/assets/js/features/agent.js` | Agent management frontend module (token generation, revocation, MCP configuration preview, and clipboard copying) |
 
 ## Accounts And Data Isolation
@@ -86,18 +90,18 @@ Malformed or non-UTF-8 JSON is fail-closed:
 3. `JsonFileCorruptionError` stops the operation.
 4. Flask returns HTTP 503 for API requests instead of writing an empty default.
 
-These locks are process-local. A future multi-process application deployment must add a cross-process lock or move runtime state to a database.
+These locks are process-local. A future multi-process application deployment must add a cross-process lock or move runtime state to a database. The interactive login budget is also process-local: one Web process admits at most `CANVAS_DASHBOARD_LOGIN_MAX_SESSIONS` (default 1) total Tongji/智慧树 windows. Concurrent starts return 429; existing containers count until stopped and cleaned up.
 
 ## Refresh Paths
 
-- Canvas fetches and parses the configured iCalendar feed, then stores a local cache.
+- Canvas fetches and parses the configured iCalendar feed, then stores a local cache. This request remains synchronous. Only configured trusted HTTPS hosts on port 443 are accepted, with redirects disabled; the default host is `canvas.tongji.edu.cn`.
 - 好课 serves an existing cache immediately; a stale cache starts at most one in-process refresh per user. The first load without a cache remains synchronous.
-- 智学盟 caches assignments for 30 minutes and clears both token and cache on logout.
+- 智学盟 caches assignments for 30 minutes; disconnect removes credentials while retaining cache and local state.
 - 智慧树 runs outside Flask. Every all-user round rediscovers account directories. Each user runs in a child process with a 180-second default timeout, so one stuck account does not block later users. Per-user `last_success_at` values are summarized by `/healthz`.
 
 ## Unified Todo Semantics
 
-`platform_sync_status.json` is a per-user, non-secret durable status record for Canvas, 好课, 智学盟, and 智慧树. It records connection/data state, timezone-aware attempts and successes, failures, a safe error summary, and `calendar_eligible`; it never contains credentials, URLs, cookies, or tokens. Existing accounts are inferred lazily and retain calendar export until an explicit disconnect. Disconnect deletes only the platform credential/login state and keeps its trusted cache plus local item state; it sets `calendar_eligible=false`. Reconnecting remains ineligible until a fresh successful sync. Clearing platform data deletes the named platform's credential, cache and state only, and still fails closed if any JSON targeted for removal is corrupt.
+`platform_sync_status.json` is a per-user, non-secret durable status record for all six platforms. It records connection/data state, timezone-aware attempts and successes, failures, a safe error summary, and `calendar_eligible`; it never contains credentials, URLs, cookies, or tokens. Existing accounts are inferred lazily and retain calendar export until an explicit disconnect. Disconnect deletes only the platform credential/login state and keeps its trusted cache plus local item state; it sets `calendar_eligible=false`. Reconnecting remains ineligible until a fresh successful sync. Clearing platform data deletes the named platform's credential, cache and state only, and still fails closed if any JSON targeted for removal is corrupt.
 
 Imported platform items retain their upstream fields in each platform cache. Per-user platform state is stored separately and survives a refresh: users may hide, highlight, delete, complete, or uncomplete an imported item without mutating upstream data. A completed imported item is returned as `done: true`; a later cache refresh does not clear that local completion state.
 
@@ -117,7 +121,7 @@ The private Apple Calendar feed includes:
 
 Completed parents suppress all their subtasks. Completed or undated subtasks are not exported. Only the SHA-256 hash of a subscription token is persisted, and nginx disables access logging for `/calendar/`.
 
-The dated external-platform-subtask proposal under `docs/superpowers/` is not implemented; imported platform assignments do not currently have locally editable subtasks.
+All six imported platforms support local subtasks via `external_subtasks.py` and `/api/external-subtasks`. Records use stable `source:item_id` keys and never modify upstream caches. Dates in platform todo responses use Shanghai time and a full `YYYY-MM-DD` date, with time included when present; legacy cached display strings are normalized during projection.
 
 ## AI Agent Integration (MCP and Skills)
 
@@ -135,11 +139,11 @@ The Agent integration enables external AI assistants (such as Claude Desktop, Cu
 
 - **MCP Server (`agent_mcp.py`)**: A standalone, zero-dependency script written with the Python 3 standard library. It speaks JSON-RPC 2.0 over standard I/O (stdio) to interact with tools like Claude Desktop, Cursor, and Cline. It exposes tools for querying today's schedule, full semester timetables, aggregated multi-platform todos, adding and completing todos, inspecting long-term projects, and retrieving platform sync statuses.
 - **Agent Skill**: Standard `SKILL.md` packaging for agent platforms (e.g. Claude Code, Antigravity) with self-contained client scripts.
-- **Export Packaging**: The web endpoints `/api/agent/export/mcp` and `/api/agent/export/skill` generate ready-to-run `.zip` bundles containing the server/client scripts and user-specific configuration.
+- **Export Packaging**: The web endpoints `/api/agent/export/mcp-bundle.zip` and `/api/agent/export/skill-bundle.zip` generate ready-to-run bundles containing the server/client scripts and configuration.
 
 ## Dashboard V2 Schedule And Projects
 
-Dashboard V2 keeps unified todos in the central column, with a derived project focus panel above them (`/api/actions/focus`, also available under `/api/agent/v1`). The independent right-rail modules read per-user data through:
+Dashboard V2 keeps unified todos in the central column. Today/overdue project actions are projected into that same list and deduplicated through unified action references; there is no extra focus card above it. `/api/actions/focus` remains a data endpoint, also available under `/api/agent/v1`. The independent right-rail modules read per-user data through:
 
 - `/api/projects` and `/api/projects/overview` for active, paused (`archived`), and completed projects with one current next action;
 - `/api/schedule`, `/api/schedule/refresh`, and `/api/schedule/today` for courses, recurring items, one-off items, and today's deadlines.

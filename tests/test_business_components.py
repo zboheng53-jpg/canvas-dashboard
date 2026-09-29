@@ -1,3 +1,4 @@
+from source_helpers import dashboard_source, template_source, TEMPLATES
 import re
 from pathlib import Path
 
@@ -25,8 +26,8 @@ def test_business_layer_uses_tokens_without_specificity_escalation():
 
 
 def test_business_modules_compose_confirmed_base_components():
-    dashboard = read(TEMPLATES / "index.html")
-    placeholders = read(TEMPLATES / "dashboard" / "_placeholder_views.html")
+    dashboard = dashboard_source()
+    placeholders = template_source(TEMPLATES / "dashboard/_placeholder_views.html")
     projects = read(ROOT / "frontend" / "assets" / "js" / "projects.js")
 
     expected_dashboard_fragments = (
@@ -58,7 +59,7 @@ def test_business_modules_compose_confirmed_base_components():
 
 
 def test_migrated_template_has_no_active_inline_visual_css():
-    placeholders = read(TEMPLATES / "dashboard" / "_placeholder_views.html")
+    placeholders = template_source(TEMPLATES / "dashboard/_placeholder_views.html")
     assert "<style" not in placeholders
     assert not re.search(r"\sstyle\s*=", placeholders)
 
