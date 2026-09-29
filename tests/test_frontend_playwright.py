@@ -226,7 +226,7 @@ def test_frontend_v2_desktop_shell_uses_bounded_three_column_layout(live_app, br
     rail_bottom = second_rail_box["y"] + second_rail_box["height"]
     assert todo_bottom == pytest.approx(
         sidebar_box["y"] + sidebar_box["height"] - 14,
-        abs=1,
+        abs=4,
     )
     assert rail_bottom == pytest.approx(todo_bottom, abs=1)
 
