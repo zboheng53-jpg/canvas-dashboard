@@ -141,19 +141,38 @@ def test_frontend_todo_hover_keeps_content_and_actions_in_place(live_app, browse
     dismiss_button = todo.locator(".item-desktop-actions .btn-dismiss")
     expect(title).to_be_visible()
     expect(dismiss_button).to_be_visible()
-    title_before = title.bounding_box()
-    dismiss_before = dismiss_button.bounding_box()
-    assert title_before is not None
-    assert dismiss_before is not None
+
+    def read_action_geometry():
+        return todo.evaluate(
+            """row => {
+              const box = selector => {
+                const rect = row.querySelector(selector).getBoundingClientRect();
+                return {x: rect.x, width: rect.width, height: rect.height};
+              };
+              return {
+                title: box('.item-title'),
+                dismiss: box('.item-desktop-actions .btn-dismiss')
+              };
+            }"""
+        )
+
+    page.wait_for_function(
+        """() => {
+          const row = document.querySelector('#todo-list .todo-row');
+          const title = row?.querySelector('.item-title')?.getBoundingClientRect();
+          const dismiss = row?.querySelector('.item-desktop-actions .btn-dismiss')?.getBoundingClientRect();
+          return title?.width > 0 && title?.height > 0 && dismiss?.width > 0 && dismiss?.height > 0;
+        }"""
+    )
+    before = read_action_geometry()
 
     todo.hover()
 
-    title_after = title.bounding_box()
-    dismiss_after = dismiss_button.bounding_box()
-    assert title_after is not None
-    assert dismiss_after is not None
-    assert title_after["x"] == pytest.approx(title_before["x"], abs=1)
-    assert dismiss_after["x"] == pytest.approx(dismiss_before["x"], abs=1)
+    after = read_action_geometry()
+    assert after["title"]["width"] > 0 and after["title"]["height"] > 0
+    assert after["dismiss"]["width"] > 0 and after["dismiss"]["height"] > 0
+    assert after["title"]["x"] == pytest.approx(before["title"]["x"], abs=1)
+    assert after["dismiss"]["x"] == pytest.approx(before["dismiss"]["x"], abs=1)
 
 
 def test_frontend_v2_desktop_shell_uses_bounded_three_column_layout(live_app, browser):
