@@ -310,7 +310,8 @@ def test_public_auth_pages_render_product_landing_showcase_and_privacy_link(
     monkeypatch.setattr(dashboard_app.settings, "ICP_NUMBER", "闽ICP备2026026558号-1")
 
     expected_fragments = (
-        "给同学们的学习工作台",
+        "多平台作业与日程面板",
+        "自动同步多平台作业与学校课表，整合长期规划。剥离杂音，一眼看清今天该做什么。",
         "待办清单",
         "长期项目",
         "今日日程",
