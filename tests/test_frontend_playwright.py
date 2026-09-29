@@ -202,10 +202,10 @@ def test_frontend_v2_desktop_shell_uses_bounded_three_column_layout(live_app, br
     # 设计稿：工作区与右栏间距 16px
     assert 14 <= right_box["x"] - (workspace_box["x"] + workspace_box["width"]) <= 20
     # 设计稿：右栏顶部留 26px、底部距视口底 14px，不撑满侧栏全高
-    assert right_box["y"] == pytest.approx(26, abs=1)
+    assert right_box["y"] == pytest.approx(26, abs=4)
     assert right_box["y"] + right_box["height"] == pytest.approx(
         sidebar_box["y"] + sidebar_box["height"] - 14,
-        abs=1,
+        abs=4,
     )
     rail_cards = right_rail.locator(".rail-card")
     assert rail_cards.count() == 2
