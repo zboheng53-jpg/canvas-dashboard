@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import expect
 
+import browser_env
 from test_frontend_playwright import register_dashboard_user
 
 
@@ -78,6 +79,50 @@ def test_registration_can_be_paused_without_blocking_login(isolated_data, monkey
     assert '暂时停止新注册' in client.get('/register').get_data(as_text=True)
 
 
+@pytest.mark.parametrize('width', [1440, 390])
+def test_capacity_guard_keeps_showcase_and_explains_closure(live_app, browser, width, monkeypatch):
+    import auth
+    import capacity_guard
+    import settings
+
+    monkeypatch.setattr(settings, 'CAPACITY_MAX_TOTAL_USERS', 1)
+    monkeypatch.setattr(settings, 'CAPACITY_MAX_ACTIVE_USERS', 0)
+    monkeypatch.setattr(settings, 'CAPACITY_MAX_CONNECTED_PLATFORMS', 0)
+    capacity_guard.reset_cache()
+    assert auth.register('capacityfull', 'password1')[0]
+
+    page = browser.new_page(viewport={'width': width, 'height': 950})
+    errors = []
+    page.on('pageerror', lambda error: errors.append(str(error)))
+    page.goto(f'{live_app}/register')
+
+    notice = page.locator('#register-closed-notice')
+    expect(notice).to_be_visible()
+    expect(page.locator('#register-form')).to_have_count(0)
+    expect(notice).to_contain_text('用户上限')
+    expect(notice).to_contain_text('谢谢你的期待与谅解')
+    expect(notice.locator('.auth-capacity-body p')).to_have_count(2)
+    expect(notice.locator('.auth-capacity-note')).to_contain_text('已有账号不受影响')
+    expect(page.locator('.auth-landing-hero')).to_be_visible()
+    expect(page.locator('.auth-landing-examples')).to_be_visible()
+    expect(page.locator('.auth-privacy-panel')).to_be_visible()
+    expect(page.get_by_role('link', name='直接登录')).to_be_visible()
+    browser_env.wait_for_layout_settled(page)
+    assert page.evaluate('document.documentElement.scrollWidth') <= width
+    assert errors == []
+
+    page.goto(f'{live_app}/login')
+    expect(page.get_by_role('link', name='查看说明')).to_be_visible()
+    assert errors == []
+
+    artifacts = os.environ.get('CANVAS_TEST_ARTIFACTS')
+    if artifacts:
+        page.goto(f'{live_app}/register')
+        page.wait_for_function(
+            "document.getAnimations().filter(a => a.animationName === 'showcase-arrive').length === 0")
+        page.screenshot(path=str(Path(artifacts) / f'register-capacity-{width}.png'), full_page=True)
+
+
 def test_subtask_save_survives_concurrent_list_refresh(live_app, browser):
     page = browser.new_page()
     register_dashboard_user(page, live_app, 'subtaskrefresh')
@@ -103,7 +148,9 @@ def test_subtask_save_survives_concurrent_list_refresh(live_app, browser):
 
 @pytest.mark.parametrize('width', [1440, 390, 320])
 def test_public_showcase_and_auth_are_usable(live_app, browser, width):
-    page = browser.new_page(viewport={'width': width, 'height': 950})
+    # 本用例专门验证入场动效生命周期（animation-name 与 reduced-motion 覆写），
+    # 因此显式要求 no-preference，跳过共享上下文的动效冻结。
+    page = browser.new_page(viewport={'width': width, 'height': 950}, reduced_motion='no-preference')
     errors = []
     page.on('pageerror', lambda error: errors.append(str(error)))
     for path in ('login', 'register'):
@@ -159,8 +206,10 @@ def test_contextual_guide_links_and_connection_disclosures(live_app, browser, wi
     assert page.evaluate('document.documentElement.scrollWidth') <= width
     if width <= 960:
         page.locator('#mobile-menu-toggle').click()
+    browser_env.wait_for_layout_settled(page)
     gaps = page.locator('.sidebar-nav-group').evaluate_all("""nodes => nodes.slice(1).map((n, i) =>
         n.getBoundingClientRect().top - nodes[i].getBoundingClientRect().bottom)""")
+    # 导航分组间距应完全一致，<1px 只容纳亚像素取整
     assert max(gaps) - min(gaps) < 1
     artifacts = os.environ.get('CANVAS_TEST_ARTIFACTS')
     if artifacts:

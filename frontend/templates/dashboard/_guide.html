@@ -106,7 +106,8 @@
           <h2 id="guide-overview-title" tabindex="-1">2 · 今日总览</h2>
           <p class="guide-block__lead">所有来源汇成一张清单，按截止时间排开，先看见最要紧的事。</p>
           <ul class="guide-points">
-            <li>逾期、今天、之后分段排列；顶部可以只看某个平台，也可以隐藏、标红、按来源筛选。</li>
+            <li>所有来源汇成一份清单，固定按「已逾期 → 今天 → 本周内 → 无日期」分段，与事项来自哪个平台无关；清单里没有「明天」和「此前未完成」分段。</li>
+            <li><strong>看颜色就知道急不急</strong>：每个截止日期都是同一枚小胶囊，只换颜色——逾期和今天红色，三天内黄色，其余灰蓝；只有逾期那一行还带红底。</li>
             <li>勾选只记录你的进度，不会替你提交作业，也不会改写教学平台的数据。</li>
             <li>手机上打开就是这张清单；连接、设置和这份指南都在左上角菜单里。</li>
           </ul>
@@ -118,23 +119,29 @@
               <span class="guide-specimen__title">今日清单</span>
               <span class="guide-pill guide-pill--warning">1 项逾期</span>
             </div>
-            <div class="guide-specimen__group">逾期</div>
+            <div class="guide-specimen__group">逾期 · 红底 + 红标签</div>
             <div class="guide-mock-row">
               <span class="ui-badge ui-badge--source ui-source--canvas">Canvas</span>
               <span class="guide-mock-name">物理实验报告</span>
-              <span class="guide-mock-meta guide-mock-meta--late">逾期 1 天</span>
+              <span class="guide-mock-meta guide-mock-meta--danger">逾期 1 天</span>
             </div>
-            <div class="guide-specimen__group">今天</div>
+            <div class="guide-specimen__group">今天 · 白底 + 红标签</div>
             <div class="guide-mock-row">
               <span class="ui-badge ui-badge--source ui-source--zhihuishu">智慧树</span>
               <span class="guide-mock-name">形势与政策测验</span>
-              <span class="guide-mock-meta">今天 23:59</span>
+              <span class="guide-mock-meta guide-mock-meta--today">今天 23:59</span>
             </div>
-            <div class="guide-specimen__group">之后</div>
+            <div class="guide-specimen__group">本周内 · 近三天黄标签</div>
+            <div class="guide-mock-row">
+              <span class="ui-badge ui-badge--source ui-source--zhihuishu">智慧树</span>
+              <span class="guide-mock-name">实验报告初稿</span>
+              <span class="guide-mock-meta guide-mock-meta--warning">9月30日</span>
+            </div>
+            <div class="guide-specimen__group">无日期 · 灰蓝标签</div>
             <div class="guide-mock-row">
               <span class="ui-badge ui-badge--source ui-source--custom">自定义</span>
               <span class="guide-mock-name">报名英语考试</span>
-              <span class="guide-mock-meta">无日期</span>
+              <span class="guide-mock-meta guide-mock-meta--plain">无日期</span>
             </div>
           </div>
         </div>
@@ -148,7 +155,7 @@
             <li>写标题就能存，日期可以不填；有明确要求时再填真实截止日期。</li>
             <li>展开任意一条可以加子任务，子任务能单独勾选、改期，作业本身不动。</li>
             <li>每周、隔周重复的事：第一次的截止日期决定星期几；这次不做可以跳过，不影响下一次。</li>
-            <li>完成且未到截止的事项沉底；完成且过截止的事项自动删除，不能恢复。未完成逾期标红，未来 72 小时内截止标黄；只有日期时按当天结束计算。</li>
+            <li>完成且未到截止的事项沉底；完成且过截止的事项自动删除，不能恢复。未完成逾期和今天截止标红，3 天内截止标黄；只有日期时按当天结束计算。</li>
           </ul>
           <button type="button" class="ui-button ui-button--secondary" data-open-view="overview">打开今日总览</button>
         </div>

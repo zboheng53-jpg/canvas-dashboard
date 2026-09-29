@@ -58,6 +58,14 @@ LOGIN_MAX_SESSIONS = max(1, env_int("CANVAS_DASHBOARD_LOGIN_MAX_SESSIONS", 1))
 HTTP_SYNC_MAX_WORKERS = max(1, env_int("HTTP_SYNC_MAX_WORKERS", 2))
 HTTP_SYNC_MAX_JOBS = max(HTTP_SYNC_MAX_WORKERS, env_int("HTTP_SYNC_MAX_JOBS", 32))
 REGISTRATION_ENABLED = env_bool("CANVAS_DASHBOARD_REGISTRATION_ENABLED", True)
+# Pre-launch capacity guard: close new registrations as soon as one admission
+# threshold is reached, so parallel load cannot take the single Web process
+# down. A threshold of 0 (or a negative value) disables only that threshold.
+CAPACITY_GUARD_ENABLED = env_bool("CANVAS_DASHBOARD_CAPACITY_GUARD_ENABLED", True)
+CAPACITY_MAX_TOTAL_USERS = env_int("CANVAS_DASHBOARD_CAPACITY_MAX_TOTAL_USERS", 15)
+CAPACITY_MAX_ACTIVE_USERS = env_int("CANVAS_DASHBOARD_CAPACITY_MAX_ACTIVE_USERS", 10)
+CAPACITY_MAX_CONNECTED_PLATFORMS = env_int("CANVAS_DASHBOARD_CAPACITY_MAX_CONNECTED_PLATFORMS", 40)
+CAPACITY_ACTIVE_WINDOW_DAYS = max(1, env_int("CANVAS_DASHBOARD_CAPACITY_ACTIVE_WINDOW_DAYS", 14))
 CANVAS_FEED_HOSTS = frozenset(host.strip().lower() for host in env_str(
     "CANVAS_DASHBOARD_CANVAS_FEED_HOSTS", "canvas.tongji.edu.cn"
 ).split(",") if host.strip())

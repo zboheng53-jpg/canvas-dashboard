@@ -35,22 +35,46 @@
 | 阶段 | 命令 | 覆盖范围 |
 | --- | --- | --- |
 | 修改中 | `.\scripts\test.ps1 -PytestArgs tests/test_projects.py` | 指定模块；优先选能复现问题的测试 |
-| 快速反馈 | `.\scripts\test.ps1 -Suite quick` | 不依赖 browser fixture 的测试，首个失败即停止 |
+| 快速反馈 | `.\scripts\test.ps1 -ChangedOnly` | 由 `scripts/recommend_tests.py` 按 git 改动只挑相关文件；改 CSS/文案通常落在静态前端检查，实测数秒级 |
+| 快速反馈（全量非浏览器） | `.\scripts\test.ps1 -Suite quick` | 不依赖 browser fixture 的测试，首个失败即停止 |
+| 前端改动（提交前） | `.\scripts\test.ps1 -Suite ui` | 全部浏览器交互/布局用例，加上 CSS 架构、设计规范、文案与组件等静态前端检查 |
 | 本地验收前 | `.\scripts\test.ps1 -Suite acceptance` | 浏览器交互/布局、前端规范及账户、安全、统一事项、并发与流程检查 |
 | 最终回归 | `.\scripts\test.ps1` | 完整 tests/；部署脚本也执行此入口 |
 | 查看选择 | `.\scripts\test.ps1 -Suite acceptance -List` | 仅列出用例，不算测试通过 |
 
 `-PytestArgs` 后可传多个 pytest 参数。与 `-Suite` 同用时，选择的是指定路径和套件的交集。套件筛选定义在 `tests/conftest.py`；新增浏览器测试使用共享 `browser` fixture，不自行启动 Chromium。quick 并非承诺固定秒数，输出的最慢十项用于发现实际瓶颈。
 
+反馈速度参考（2026-09 在本机实测，4 worker 并行）：静态前端检查 4 个文件 25 用例 3.6s；单个浏览器文件约 13–165s（`tests/test_workspace_layout.py` 13s，改造后 `tests/test_frontend_playwright.py` 165s）；`-Suite ui` 172 用例约 3 分钟；完整回归 621 用例 178s（改造前 672s）。据此选择：改样式和文案先用 `-ChangedOnly` 或定向文件，提交前再跑 `-Suite ui`，不要用全量回归做每次迭代。
+
+默认并行：脚本用 pytest-xdist 以 `-n <workers> --dist loadfile` 运行，worker 数取 `-Workers`，否则取 `CANVAS_TEST_WORKERS`，默认 4；缺少 pytest-xdist 时自动退回串行并给出提示，`-List` 固定单 worker。运行结束后轮转证据目录：保留最新一次、最近 10 次成功轮次（`-KeepSuccessRuns`）与 30 次失败轮次（`-KeepFailedRuns`），无法判定证据的轮次一律保留；轮转只删除 `test-results/` 的直接子目录，`scripts/clean_test_artifacts.py` 会额外校验目录名并默认 dry-run。溯源失败证据前不要降低这两个上限。
+
 需要快速套件汇总全部失败时，使用 `-Suite quick -PytestArgs @('tests', '-q', '--maxfail=0')`；显式 maxfail 会覆盖默认的首个失败即停止。传自定义参数时保留测试路径，避免 pytest 扫描运行数据和临时目录。
+
+### 按影响面分级
+
+按改动位置选择最小够用的套件，避免每次改动都跑完整回归：
+
+| 改动 | 建议命令 |
+| --- | --- |
+| CSS、模板、前端脚本、界面文案 | `.\scripts\test.ps1 -Suite ui` |
+| `storage.py`、`auth.py`、`routes/`、`services/` 及平台客户端 | `.\scripts\test.ps1 -Suite acceptance` |
+| 跨模块、依赖或发布 | `.\scripts\test.ps1` 全量回归 |
+
+`scripts/recommend_tests.py` 是这张映射表的唯一实现：`--files <路径>...` 直接给出路径对应的套件、命令和一句话理由，`--files-from-diff` 用未提交改动（`-ChangedOnly` 就是这样调用它，并用 `--pytest-args` 取回具体测试文件；显式 `-PytestArgs` 优先于自动挑选）。映射读取 `tests/conftest.py` 的套件集合和实际使用 `browser` fixture 的测试文件，不另行维护清单。
+
+配套工具：`scripts/check_test_env.py` 诊断解释器、TEMP/TMP、`CANVAS_TEST_ARTIFACTS`、pytest-xdist 与临时目录能否清理，退出码 1 表示必须先修；`scripts/clean_test_artifacts.py` 默认 dry-run，打印将被保留/删除的轮次与仓库根 `.pytest-tmp-*` / `.codex-pytest-*` 空残留目录，加 `--apply` 才删除。
+
+仓库根目前有 11 个 `.pytest-tmp-*` / `.codex-pytest-*` 残留目录，是旧沙箱运行留下的 ACL 拒绝访问对象（当前账户既不能列出也不能删除，`scripts/clean_test_artifacts.py` 会报告但删不掉）。它们不在 git 索引中，不影响提交与打包；但仓库级 `rg`／glob 在扫到它们时会报 `拒绝访问` 并以 exit 2 失败，检索时用 `-g` 限定路径或忽略这些目录，不要误判成代码问题。彻底清理需要修 ACL 或把工作区换到新目录。
+
+`browser` fixture 只在失败时收集证据：通过用例不再录制 trace，失败用例保存 `failure.json`、页面截图 `page-*.png` 与失败时的最终 DOM `dom-*.html`。之所以不再事后补录 trace，是因为在页面或 context 上挂 `response`／tracing 监听本身会改变被测行为（实测曾导致同济 OJ 的后台任务不启动），失败时的 DOM 转储既能复盘又不影响运行中的用例。需要交互回放时，在对应用例里显式开启 Playwright tracing。
 
 共享 `live_app` 提供独立账户目录、模拟平台响应和固定服务端日期；`browser` 使用同一天及上海时区。默认日期只在 `FIXED_NOW` 定义；特殊场景用 `@pytest.mark.now("2026-03-02T12:00:00+08:00")` 同时覆盖前后端日期，不在各测试粘贴 Date 模拟代码。真实平台集成问题仍需单独验证。
 
 每次脚本运行产生独立的 `test-results/<时间-随机标识>/`：
 
-- `run.json`：提交、工作区是否有改动、参数、退出码和是否仅收集；它是追溯记录，不是免测凭证。
+- `run.json`：提交、工作区是否有改动、参数、并行 worker 数、是否按改动挑选、退出码和是否仅收集；它是追溯记录，不是免测凭证。
 - `results.xml`、`pytest.log`：测试结果和日志，末尾显示耗时最慢的用例。
-- 浏览器用例失败时，在以用例散列命名的子目录保存用例名、控制台错误，并尽力保存仍打开的页面截图和 trace。已在测试中关闭的上下文可能无法捕获；不要为了截图掩盖原失败。
+- 浏览器用例失败时，在以用例散列命名的子目录保存用例名、控制台错误、页面截图与失败时的最终 DOM（`dom-*.html`），并通过 `capture-*.txt` 说明未能保存的部分。证据只在失败时收集；通过用例不录制 trace，因为录制与响应监听会改变被测行为。不要为了截图掩盖原失败。
 
 查看 trace：`.\.venv\Scripts\python.exe -m playwright show-trace <trace.zip>`。这些产物不提交 Git；仅保留本次排错需要的证据，避免上传含凭据的诊断文件。
 
@@ -85,7 +109,7 @@
 | Agent | `features/agent.js` | `agent_auth.py`、`agent_mcp.py`、`routes/agent.py`（接口）、`app.py`（下载） | `test_agent_api.py`、`test_agent_mcp.py` |
 | 新手与公开展示 | `dashboard/_guide.html`、`_auth_landing_showcase.html` | `app.py`、`login_capacity.py`、`settings.py` | `test_release_onboarding.py`、`test_login_capacity.py` |
 | 样式与响应式 | `frontend/assets/css/` | `frontend/DESIGN_SYSTEM.md` | `test_control_components.py`、`test_visual_regression.py` |
-| 开发与发布 | `scripts/dev.ps1`、`scripts/test.ps1` | `scripts/check_release.py`、部署 skill 脚本 | `test_development_workflow.py`、`test_scripts.py`、`test_deploy_configs.py` |
+| 开发与发布 | `scripts/dev.ps1`、`scripts/test.ps1` | `scripts/check_release.py`、`scripts/check_test_env.py`、`scripts/clean_test_artifacts.py`、`scripts/recommend_tests.py`、部署 skill 脚本 | `test_development_workflow.py`、`test_scripts.py`、`test_deploy_configs.py` |
 
 表内 JS 路径相对 `frontend/assets/js/`，测试路径相对 `tests/`。变更行为时同步负责该约定的当前文档；历史计划保留，不作为新任务清单。
 
@@ -105,7 +129,9 @@ Canvas、好课、智学盟、课堂派和同济 OJ 的冷缓存也立即返回 
 
 平台 GET 列表不再自动删除过期隐藏项。日期解析将无时区校园时间按上海时区处理，纯日期表示当天结束；过期判断使用本地覆盖后的有效截止。Canvas 新稳定 ID 区分 assignment/calendar_event，迁移包含本地状态、覆盖、子任务和排程引用；旧 ID 歧义保留原数据并记录诊断，不自动猜归属。
 
-完成待办的截止规则：已完成且超过有效截止后自动删除，不提供撤销或恢复；已完成但尚未截止继续沉底，无截止则保留。自定义待办物理删除，不因刚完成、幂等键或关联安排延长保留；平台通过独立状态文件记录永久删除标识，不修改上游缓存，旧完成／撤销／改期操作不能复活自动删除项。重复待办只删除已完成的过期单次，系列及后续次数不变。清理发生在本地列表读取时；只有日期按上海当日结束，未完成逾期保留并标红，未来 72 小时内截止（含今日）标黄。长期项目及其步骤的存储规则仍见项目章节。
+完成待办的截止规则：已完成且超过有效截止后自动删除，不提供撤销或恢复；已完成但尚未截止继续沉底，无截止则保留。自定义待办物理删除，不因刚完成、幂等键或关联安排延长保留；平台通过独立状态文件记录永久删除标识，不修改上游缓存，旧完成／撤销／改期操作不能复活自动删除项。重复待办只删除已完成的过期单次，系列及后续次数不变。清理发生在本地列表读取时；只有日期按上海当日结束，未完成逾期保留并标红。长期项目及其步骤的存储规则仍见项目章节。
+
+待办清单的分组与标色只有一套规则，与事项来自哪个平台无关：固定按「已逾期 → 今天 → 本周内（滚动 7 天）→ 无日期 → 更晚 → 已完成」排列，无日期固定在本周内之后，不设「明天」「此前未完成」分段。截止日期始终是同一枚胶囊标签（淡底色 + 圆角），只换字色与底色深浅：逾期与今天红色，3 天内（含今天之后第 1–3 天）截止黄色，其余灰蓝；行底色只区分逾期（红底）与今天（白底），近三天不铺黄底。分组与颜色共用同一个有效截止判断。
 
 静态资源以 `frontend/assets/css`、`js` 为源；`scripts/build_assets.py` 展开分层 CSS import 并生成内容指纹与 manifest 到忽略的 `frontend/assets/built/`。开发启动和发布安装会构建。直接运行 app 或导出预览前若修改了 CSS/JS，应先运行构建脚本并重启进程，使加载的 manifest 与源码一致。源文件结构和普通脚本依赖顺序不变。
 

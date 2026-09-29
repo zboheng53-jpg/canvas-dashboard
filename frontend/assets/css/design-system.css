@@ -865,8 +865,8 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   background: var(--ds-line, #e6e8ec) !important;
 }
 
-/* 已逾期组：标题、Chevron与点变红，计数胶囊微红调 */
-.todo-group.is-overdue .todo-group-heading h3.ui-card__title { color: var(--ds-danger, #d64545) !important; }
+/* 已逾期 / 今天：标题、Chevron与点变红，计数胶囊微红调
+   （标题红色的取胜规则在 legacy 层，见 dashboard-v103.css） */
 .todo-group.is-overdue .todo-group-heading .ui-count-pill { color: var(--ds-danger, #d64545) !important; background: rgba(214, 69, 69, 0.12) !important; opacity: .95; }
 .todo-group.is-overdue .todo-group-heading .todo-group-chevron-wrap { color: var(--ds-danger, #d64545) !important; opacity: .85; }
 .todo-group.is-overdue .todo-group-heading .todo-group-divider-line { background: rgba(214, 69, 69, 0.16) !important; }
@@ -1051,20 +1051,22 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   text-align: center;
   flex: none;
 }
+/* 待办截止标签的视觉语言（与来源无关）：标签始终是带底色的胶囊，只换字色——
+   逾期/今天 = 红字粉底，近三天 = 黄字黄底，更远 = 灰蓝字浅灰底（基础规则）。
+   行底色只用来区分「逾期 = 红底」和「今天 = 白底」，不给近三天整行上黄底。 */
 .todo-row.urgent.is-overdue .item-due,
-.todo-row.is-overdue .item-due {
-  color: var(--ds-danger, #d64545) !important;
-  background: var(--todo-date-background, var(--ds-danger-soft, #fdf0f0)) !important;
-}
+.todo-row.is-overdue .item-due,
 .todo-row.urgent.is-today .item-due,
 .todo-row.is-today .item-due {
-  color: #b07208 !important;
-  background: var(--todo-date-background, var(--color-warning-soft)) !important;
+  color: var(--ds-danger, #d64545) !important;
+  background: var(--ds-danger-soft, #fdf0f0) !important;
+  border: 1px solid var(--ds-danger-border, #f0c7c4) !important;
 }
 .todo-row.approaching .item-due,
 .todo-row.is-approaching .item-due {
-  color: #b07208 !important;
-  background: var(--todo-date-background, var(--color-warning-soft)) !important;
+  color: var(--ds-amber, #b07208) !important;
+  background: var(--amber-soft, #fdf6e7) !important;
+  border: 1px solid var(--color-warning-border, #efd9ac) !important;
 }
 
 /* 待办行：标题和课程文字微调，贴近设计稿 */

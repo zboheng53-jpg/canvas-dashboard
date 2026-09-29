@@ -9,12 +9,12 @@ Flask webapp for aggregating unfinished assignments and exams from Canvas, 好�
 日常流程与功能定位统一见 `docs/development.md`；生产操作见 `docs/operations.md`。按以下顺序推进：
 
 1. **复现与范围**：从需求整理当前现象、预期行为与验收步骤；先看工作区状态和相关入口，保留用户已有修改。使用 `codex/` 功能分支，小任务不强制新建计划文件。
-2. **实现与反馈**：优先运行能复现问题的相关测试；快速反馈用 `scripts/test.ps1 -Suite quick`。新增浏览器测试复用 `tests/conftest.py` 的 `live_app`、`browser` 和统一日期，不复制服务器、账户隔离或 Date 初始化。
-3. **本地效果验收**：UI/交互优先用 `scripts/dev.ps1 -Preview -Scenario normal`（另有 `empty`、`dense` 场景），默认地址 http://127.0.0.1:5000/preview-login。完成受影响检查（跨模块改动运行 `-Suite acceptance`）后，提供地址、操作步骤、预期结果与限制，请用户验收；已经明确验收的相同结果不重复询问。
+2. **实现与反馈**：优先运行能复现问题的相关测试；日常迭代用 `scripts/test.ps1 -ChangedOnly` 或指定文件（数秒到十几秒级），不要用全量回归做每次迭代。按影响面选套件：CSS／模板／前端脚本／文案提交前用 `-Suite ui`（约 3 分钟），`storage.py`、`auth.py`、`routes/`、`services/` 及平台客户端用 `-Suite acceptance`。测试默认按 `CANVAS_TEST_WORKERS`（默认 4）并行，完整回归实测约 3 分钟。新增浏览器测试复用 `tests/conftest.py` 的 `live_app`、`browser` 和统一日期，不复制服务器、账户隔离或 Date 初始化。
+3. **本地效果验收**：UI/交互优先用 `scripts/dev.ps1 -Preview -Scenario normal`（另有 `empty`、`dense` 场景），默认地址 http://127.0.0.1:5000/preview-login。完成受影响检查（前端改动过 `-Suite ui`，跨模块改动运行 `-Suite acceptance`）后，提供地址、操作步骤、预期结果与限制，请用户验收；已经明确验收的相同结果不重复询问。
 4. **合并、推送与部署**：验收完成后合并到 `main`，确认 `git push origin main` 成功，再运行既有部署脚本。脚本要求干净工作区且提交等于实时远端 main，跑完整测试并打包固定提交；不得跳过来源检查。合并或修订改变结果时复验受影响部分。
 5. **交付与同步**：说明实际修改、验证结果和仍影响使用的限制；行为约定变化时同步负责该约定的当前文档。截图生成不等于视觉验收，测试收集不等于通过。
 
-测试证据在忽略的 `test-results/` 中按次保存提交、工作区状态、退出码、JUnit 和日志；浏览器失败时尽力保存截图和 trace。检查通过后不重复无关测试；最终发布仍执行完整回归、备份和健康检查。
+测试证据在忽略的 `test-results/` 中按次保存提交、工作区状态、退出码、JUnit 和日志；浏览器用例失败时保存页面截图与失败时的最终 DOM（通过用例不录制，避免监听改变被测行为）；脚本自动轮转旧的成功轮次，失败与无法判定的轮次保留。检查通过后不重复无关测试；最终发布仍执行完整回归、备份和健康检查。环境或工作区异常时先运行 `scripts/check_test_env.py`，产物清理用 `scripts/clean_test_artifacts.py`（默认 dry-run）。
 
 ## 开发原则与数据安全
 
@@ -33,6 +33,7 @@ canvas-dashboard/
 ├── services/                      # workspace 共用操作/投影、academic 学期/节假日
 ├── web_common.py                  # HTTP 校验、错误与 Agent 认证工具
 ├── login_capacity.py              # 单 Web 进程共享的远程认证窗口容量限制
+├── capacity_guard.py              # 上线前注册容量保护：准入阈值、fail-closed 判断与公开说明
 ├── auth.py                        # 站点多用户系统、密码哈希与旧数据迁移
 ├── user_paths.py                  # 用户独立数据路径管理 (data/users/<username>/)
 ├── storage.py                     # 并发安全 JSON 读写与原子替换
@@ -80,10 +81,16 @@ canvas-dashboard/
 - **自动化测试**：
   ```powershell
   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1
-  # 快速反馈 / 验收回归 / 仅列出用例：
+  # 快速反馈 / 前端改动 / 验收回归 / 按 git 改动挑选 / 仅列出用例：
   .\scripts\test.ps1 -Suite quick
+  .\scripts\test.ps1 -Suite ui
   .\scripts\test.ps1 -Suite acceptance
+  .\scripts\test.ps1 -ChangedOnly
   .\scripts\test.ps1 -Suite acceptance -List
+  # 测试环境诊断 / 产物清理（默认 dry-run）/ 影响面建议：
+  .\.venv\Scripts\python.exe scripts\check_test_env.py
+  .\.venv\Scripts\python.exe scripts\clean_test_artifacts.py
+  .\.venv\Scripts\python.exe scripts\recommend_tests.py --files storage.py
   # 单独运行特定测试：
   .\.venv\Scripts\python.exe -m pytest tests\test_p0_safety.py -q
   .\.venv\Scripts\python.exe -m pytest tests\test_design_system_lint.py -q
@@ -96,7 +103,7 @@ canvas-dashboard/
 
 ## 架构与平台核心机制
 
-- **小范围开放与维护**：账户各自独立，不提供团队共享。左侧「上手指南」先辨析待办、项目、日程与各入口的分工，再按功能逐段说明，附 Canvas 日历馈送截图与手机日历订阅教程，底部提供最近更新；用户可感知的变化同步 `CHANGELOG.md`，实际部署后才标注发布日期。容量与运营判断见 `docs/small-group-launch.md`。`CANVAS_DASHBOARD_REGISTRATION_ENABLED` 控制新注册；两类 noVNC 窗口共享 `CANVAS_DASHBOARD_LOGIN_MAX_SESSIONS`（默认 1），满载返回可重试的 429。Canvas 馈送仅接受管理员信任域名的 HTTPS/443，禁止重定向。
+- **小范围开放与维护**：账户各自独立，不提供团队共享。左侧「上手指南」先辨析待办、项目、日程与各入口的分工，再按功能逐段说明，附 Canvas 日历馈送截图与手机日历订阅教程，底部提供最近更新；用户可感知的变化同步 `CHANGELOG.md`，实际部署后才标注发布日期。容量与运营判断见 `docs/small-group-launch.md`。`CANVAS_DASHBOARD_REGISTRATION_ENABLED` 控制新注册；`capacity_guard.py` 在总账户 15、近 14 天活跃账户 10 或已连接平台合计 40 达到时自动关闭新注册（`CANVAS_DASHBOARD_CAPACITY_*` 覆盖，单条设 0 表示不限制），注册页左侧介绍不变、右侧改为说明，登录页同步提示，已有账户不受影响；两类 noVNC 窗口共享 `CANVAS_DASHBOARD_LOGIN_MAX_SESSIONS`（默认 1），满载返回可重试的 429。Canvas 馈送仅接受管理员信任域名的 HTTPS/443，禁止重定向。
 - **文件边界**：`app.py` 保留全局 Session/CSRF/限流中间件；事项和 Agent API 分别注册到 `routes/`，共享操作位于 `services/`。`index.html` 仅组装视图与脚本；普通脚本仍共享全局，依赖顺序明确保留在模板中，启动统一在 `bootstrap.js`，不在业务视图重复初始化。
 
 - **存储与并发 (`storage.py`)**：
@@ -109,7 +116,8 @@ canvas-dashboard/
   - 生产 Session 必须校验不可变 `account_id` 与 `session_version`；永久删除必须经 `auth.delete_account()`，并保留不参与常规备份的删除账本以防旧备份复活账户。
 - **统一待办状态**：
   - 平台缓存不得被本地完成、隐藏、标红、删除或标题/截止时间覆盖直接改写；统一通过各平台 `PlatformStateStore` 状态文件叠加，并允许恢复上游显示值。
-  - 已完成且超过有效截止的普通待办自动永久删除，不可撤销或恢复；尚未截止则沉底，无截止则保留。未完成逾期标红，未来 72 小时内截止标黄。纯日期按上海当日结束，重复待办只清理过期的已完成单次。
+  - 已完成且超过有效截止的普通待办自动永久删除，不可撤销或恢复；尚未截止则沉底，无截止则保留。纯日期按上海当日结束，重复待办只清理过期的已完成单次。
+  - 待办清单只有一套分组与标色规则，与来源平台无关：固定「已逾期 → 今天 → 本周内（滚动 7 天）→ 无日期 → 更晚 → 已完成」，无日期固定在本周内之后，不设「明天」「此前未完成」分段；截止日期始终是同一枚胶囊标签（淡底色 + 圆角），只换字色与底色深浅：逾期和今天红色，3 天内截止黄色，其余灰蓝。行底色只区分逾期（红底）与今天（白底），近三天不铺黄底。
   - 普通 HTTP 平台通过 `http_sync.py` 共用全站有界预算（默认 2 个执行任务、32 个运行及排队任务），按账户、平台及任务类型去重；读取缓存后提交后台刷新。账户锁仅覆盖身份变更和最终关键写入，不覆盖整段读取或网络操作。
 - **外部作业子任务 (`external_subtasks.py`)**：
   - 存储位于 `data/users/<username>/external_subtasks.json`，以 `source:item_id` 为稳定键，采用锁 + 原子写。

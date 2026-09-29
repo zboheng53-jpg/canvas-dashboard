@@ -1,5 +1,5 @@
-from datetime import datetime, timedelta, timezone
 import re
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -84,14 +84,17 @@ def test_recurring_expiry_deletes_only_completed_occurrence(isolated_data):
 
 def test_dashboard_four_deadline_states(live_app, isolated_data, browser, test_now):
     # Actual renderer, server cleanup, and computed colors; no production data.
+    # Offsets stay inside the 3-day yellow window so the case does not depend on
+    # where the rolling 7-day "本周内" boundary falls on the real clock.
     auth.register("deadlineuser", "strong-password")
     day = lambda offset: (test_now.date() + timedelta(days=offset)).isoformat()
     write_json_file(isolated_data / "users/deadlineuser/custom_todos.json", [
         {"id": 1, "text": "完成过期应删除", "done": True, "due_date": day(-1), "request_id": "fixture-old"},
         {"id": 2, "text": "完成未截止应沉底", "done": True, "due_date": day(3)},
         {"id": 3, "text": "未完成逾期应标红", "done": False, "due_date": day(-1)},
-        {"id": 4, "text": "未完成近期应标黄", "done": False, "due_date": day(1)},
-        {"id": 5, "text": "未完成今日应标黄", "done": False, "due_date": day(0)},
+        {"id": 4, "text": "未完成三天内应标黄", "done": False, "due_date": day(2)},
+        {"id": 5, "text": "未完成今日应标红", "done": False, "due_date": day(0)},
+        {"id": 6, "text": "未完成无日期沉底", "done": False, "due_date": None},
     ])
     page = browser.new_page()
     page.goto(live_app + "/login")
@@ -107,11 +110,34 @@ def test_dashboard_four_deadline_states(live_app, isolated_data, browser, test_n
     if completed.locator('.todo-group-heading').get_attribute('aria-expanded') == 'false':
         completed.locator('.todo-group-heading').click()
     expect(completed).to_contain_text("完成未截止应沉底")
-    overdue = page.locator('.todo-row').filter(has_text="未完成逾期应标红")
-    expect(overdue).to_have_class(re.compile(r"is-overdue"))
-    assert overdue.locator('.item-due').evaluate("e => getComputedStyle(e).color") == "rgb(214, 69, 69)"
-    for title in ("未完成近期应标黄", "未完成今日应标黄"):
-        due = page.locator('.todo-row').filter(has_text=title).locator('.item-due')
-        assert due.evaluate("e => getComputedStyle(e).color") == "rgb(176, 114, 8)"
-    assert [t["id"] for t in read_json_file(isolated_data / "users/deadlineuser/custom_todos.json", [])] == [2, 3, 4, 5]
+    # 固定分组层次：已逾期 → 今天 → 无日期，且不再有「明天」「此前未完成」。
+    keys = page.locator(".todo-group").evaluate_all("nodes => nodes.map(n => n.dataset.groupKey)")
+    assert "tomorrow" not in keys and "previous" not in keys
+    assert keys == [k for k in ["overdue", "today", "week", "nodate", "later", "completed"] if k in keys]
+    assert keys.index("overdue") < keys.index("today")
+    assert keys.index("today") < keys.index("nodate")
+    assert "completed" not in keys or keys[-1] == "completed"
+    # 视觉语言：截止标签始终是同一枚胶囊（圆角 999px + 淡底色），只换字色与底色深浅——
+    # 逾期＝红字粉底且整行红底，今天＝红字粉底但整行白底，三天内＝黄字黄底，无日期＝灰蓝字浅灰底。
+    expected = {
+        "未完成逾期应标红": ("rgb(214, 69, 69)", "rgb(253, 240, 240)"),
+        "未完成今日应标红": ("rgb(214, 69, 69)", "rgb(253, 240, 240)"),
+        "未完成三天内应标黄": ("rgb(176, 114, 8)", "rgb(253, 246, 231)"),
+        "未完成无日期沉底": ("rgb(91, 100, 114)", "rgb(243, 246, 249)"),
+    }
+    for title, (color, background) in expected.items():
+        row = page.locator('.todo-row').filter(has_text=title)
+        due = row.locator('.item-due')
+        expect(due).to_have_css("color", color)
+        expect(due).to_have_css("background-color", background)
+        expect(due).to_have_css("border-radius", "999px")
+    # 行底色只区分逾期与今天：逾期整行红底，今天与三天内都不铺底色。
+    overdue_row = page.locator('.todo-row').filter(has_text="未完成逾期应标红")
+    expect(overdue_row).to_have_class(re.compile(r"\bui-list-item--danger\b"))
+    expect(overdue_row).to_have_css("background-color", "rgb(253, 240, 240)")
+    for title in ["未完成今日应标红", "未完成三天内应标黄"]:
+        plain_row = page.locator('.todo-row').filter(has_text=title)
+        expect(plain_row).not_to_have_class(re.compile(r"\bui-list-item--(danger|warning)\b"))
+        expect(plain_row).to_have_css("background-color", "rgba(0, 0, 0, 0)")
+    assert [t["id"] for t in read_json_file(isolated_data / "users/deadlineuser/custom_todos.json", [])] == [2, 3, 4, 5, 6]
     page.close()

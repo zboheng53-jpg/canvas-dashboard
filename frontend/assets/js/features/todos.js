@@ -202,9 +202,10 @@
         project: '项目',
         custom: '自定义',
       };
-      const counts = { all: items.filter(it => !it.is_previous).length, canvas: 0, haoke: 0, zhixuemeng: 0, zhihuishu: 0, ketangpai: 0, tongjioj: 0, project: 0, custom: 0 };
-      items.forEach((item) => {
-        if (item.is_previous) return;
+      // 计数只反映真正进入清单的事项：未被选为今日行动的项目步骤不占待办，也不计入统计。
+      const listed = items.filter((item) => !item.is_scheduled_action || item.isTodayAction);
+      const counts = { all: listed.length, canvas: 0, haoke: 0, zhixuemeng: 0, zhihuishu: 0, ketangpai: 0, tongjioj: 0, project: 0, custom: 0 };
+      listed.forEach((item) => {
         if (counts[item.source] !== undefined) counts[item.source] += 1;
       });
       const displayedSources = new Set(
@@ -253,6 +254,20 @@
       });
     }
 
+    function todoDueDate(item) {
+      // 唯一截止时间来源：优先精确时间戳，其次可解析的日期字符串。
+      if (item.due_ts) {
+        const parsed = new Date(String(item.due_ts).slice(0, 10) + 'T00:00:00');
+        if (!Number.isNaN(parsed.getTime())) return parsed;
+      }
+      const raw = (item.due_str || '').trim();
+      if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+        const parsed = new Date(raw.slice(0, 10) + 'T00:00:00');
+        if (!Number.isNaN(parsed.getTime())) return parsed;
+      }
+      return null;
+    }
+
     function timeGroupForTodo(item) {
       const today = window.customToday || new Date().toISOString().slice(0, 10);
       const weekEnd = new Date(`${today}T00:00:00Z`);
@@ -265,33 +280,35 @@
     }
 
     function buildTodoGroups(items) {
-      // 设计稿分组：已逾期 / 今天 / 此前未完成 / 明天 / 本周内 / 更晚 / 无日期 / 已完成
-      const labels = { overdue: '已逾期', today: '今天', previous: '此前未完成', tomorrow: '明天', week: '本周内', later: '更晚', nodate: '无日期', completed: '已完成' };
-      const groups = { overdue: [], today: [], previous: [], tomorrow: [], week: [], later: [], nodate: [], completed: [] };
+      // 固定层次：已逾期 / 今天 / 本周内 / 无日期 / 更晚；无日期固定排在本周内之后。
+      // 分组只看有效截止时间，与来源（平台 / 项目 / 自定义）无关。
+      const labels = { overdue: '已逾期', today: '今天', week: '本周内', nodate: '无日期', later: '更晚', completed: '已完成' };
+      const groups = { overdue: [], today: [], week: [], nodate: [], later: [], completed: [] };
       const todayStr = window.customToday || new Date().toISOString().slice(0, 10);
       const today = new Date(todayStr + 'T00:00:00');
-      const tomorrow = new Date(today.getTime() + 86400000);
       const weekEnd = new Date(today.getTime() + 7 * 86400000);
-      const dueKey = (item) => item.due_ts || '9999-12-31T23:59:59';
+      const dueDateOf = (item) => todoDueDate(item);
       items.forEach((item) => {
         if (item.done) { groups.completed.push(item); return; }
-        if (item.isTodayAction && (!item.due_ts || item.due_ts.slice(0, 10) >= todayStr)) { groups.today.push(item); return; }
-        if (item.is_previous) { groups.previous.push(item); return; }
-        if (!item.due_ts) { groups.nodate.push(item); return; }
-        const dueDate = new Date(item.due_ts.slice(0, 10) + 'T00:00:00');
-        if (dueDate < today) { groups.overdue.push(item); return; }
-        if (dueDate.getTime() === today.getTime()) { groups.today.push(item); return; }
-        if (dueDate.getTime() === tomorrow.getTime()) { groups.tomorrow.push(item); return; }
+        // 项目行动的「计划日期」是排期而不是截止：没被今日总览选为今日行动的项目步骤不占待办，
+        // 但仍会出现在对应项目的下一步与「查看所有项目」里。
+        if (item.is_scheduled_action && !item.isTodayAction) return;
+        const dueDate = dueDateOf(item);
+        if (dueDate && !Number.isNaN(dueDate.getTime()) && dueDate < today) { groups.overdue.push(item); return; }
+        if (dueDate && !Number.isNaN(dueDate.getTime()) && dueDate.getTime() === today.getTime()) { groups.today.push(item); return; }
+        if (item.isTodayAction) { groups.today.push(item); return; }
+        if (!dueDate || Number.isNaN(dueDate.getTime())) { groups.nodate.push(item); return; }
         if (dueDate <= weekEnd) { groups.week.push(item); return; }
         groups.later.push(item);
       });
+      const dueKey = (item) => item.due_ts || '9999-12-31T23:59:59';
       const sortGroup = (arr) => arr.sort((a, b) =>
         (a.done ? 1 : 0) - (b.done ? 1 : 0) ||
         (b.manualHighlighted ? 1 : 0) - (a.manualHighlighted ? 1 : 0) ||
         dueKey(a).localeCompare(dueKey(b)) || a._stableIndex - b._stableIndex
       );
       Object.values(groups).forEach(sortGroup);
-      const order = ['overdue', 'today', 'previous', 'tomorrow', 'week', 'later', 'nodate', 'completed'];
+      const order = ['overdue', 'today', 'week', 'nodate', 'later', 'completed'];
       return order
         .filter((k) => groups[k].length)
         .map((k) => ({ key: k, title: labels[k], items: groups[k] }));
@@ -577,6 +594,7 @@
             projectKind: 'project_task',
             isTodayAction: false,
             is_previous: true,
+            is_scheduled_action: true,
             plannedOn: item.planned_on || '',
             occurrences: item.occurrences || [],
             ref: item.ref,
@@ -592,7 +610,7 @@
       renderTodoSourceFilters(unified);
       updateStatsBar(unified);
       // 侧栏 nav-count 数字：今日总览的未完成待办数；长期项目的进行中数（从 #active-project-count 读）
-      const overviewCount = unified.filter((it) => !it.done && !it.hidden && !it.is_previous).length;
+      const overviewCount = unified.filter((it) => !it.done && !it.hidden && (!it.is_scheduled_action || it.isTodayAction)).length;
       const overviewEl = document.querySelector('[data-nav-count="overview"]');
       if (overviewEl) {
         if (overviewCount > 0) { overviewEl.textContent = overviewCount; overviewEl.hidden = false; }
@@ -636,26 +654,24 @@
         const isDismissed = item.done || item.hidden;
         const manualFlag = item.manualHighlighted || false;
 
+        // 颜色只由有效截止时间决定，与来源无关：
+        // 已逾期 / 今天标红；3 天内截止标黄；其余不标色。
         let urgencyClass = '';
         if (!isDismissed) {
-          const effectiveDueTs = item.due_ts;
-          if (effectiveDueTs) {
-            const dueStr = effectiveDueTs.split('T')[0];
-            const dueTime = new Date(effectiveDueTs).getTime();
-            const now = Date.now();
-            const hoursLeft = (dueTime - now) / 3600000;
-
-            if (dueStr < todayStr || hoursLeft < 0) {
+          const dueDate = todoDueDate(item);
+          if (dueDate) {
+            const daysLeft = Math.round((dueDate.getTime() - new Date(todayStr + 'T00:00:00').getTime()) / 86400000);
+            if (daysLeft < 0) {
               urgencyClass = 'urgent is-overdue';
-            } else if (dueStr === todayStr || (hoursLeft >= 0 && hoursLeft <= 24)) {
-              urgencyClass = 'is-today';
-            } else if (hoursLeft <= 72) {
+            } else if (daysLeft === 0) {
+              urgencyClass = 'urgent is-today';
+            } else if (daysLeft <= 3) {
               urgencyClass = 'approaching is-approaching';
             } else {
               urgencyClass = 'remote is-normal';
             }
           } else if (item.isTodayAction) {
-            urgencyClass = 'is-today';
+            urgencyClass = 'urgent is-today';
           } else {
             urgencyClass = 'remote';
           }
@@ -665,11 +681,8 @@
         const flagTitle = manualFlag ? '\u53d6\u6d88\u6807\u7ea2' : '\u6807\u7ea2';
         const flagClass = manualFlag ? 'btn-flag active' : 'btn-flag';
         const dismissTitle = isDismissed ? '\u53d6\u6d88\u5b8c\u6210' : '\u5b8c\u6210';
-        const uiListStateClass = urgencyClass.includes('is-overdue')
-          ? ' ui-list-item--danger'
-          : urgencyClass.includes('approaching')
-            ? ' ui-list-item--warning'
-            : '';
+        // 只有逾期行保留红底与左侧强调线；今天与近三天只用截止标签的颜色区分，行底色保持正常。
+        const uiListStateClass = urgencyClass.includes('is-overdue') ? ' ui-list-item--danger' : '';
         const uiListMutedClass = isDismissed ? ' ui-list-item--muted' : '';
 
         let actionsHtml = '';
@@ -836,7 +849,7 @@
       container.innerHTML = buildTodoGroups(filteredItems).map((group) => {
         const isCollapsed = collapsedTodoGroups.has(group.key);
         return `
-        <section class="todo-group ${group.key === 'overdue' ? 'is-overdue' : ''} ${group.key === 'completed' ? 'is-completed' : ''} ${isCollapsed ? 'is-collapsed' : ''}" data-group-key="${group.key}">
+        <section class="todo-group ${['overdue', 'today'].includes(group.key) ? 'is-overdue' : ''} ${group.key === 'completed' ? 'is-completed' : ''} ${isCollapsed ? 'is-collapsed' : ''}" data-group-key="${group.key}">
           <div class="todo-group-heading" onclick="toggleTodoGroup('${group.key}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTodoGroup('${group.key}');}" role="button" tabindex="0" aria-expanded="${!isCollapsed}" title="点击${isCollapsed ? '展开' : '折叠'}">
             <div class="todo-group-heading-left">
               <span class="todo-group-chevron-wrap" aria-hidden="true">
@@ -877,13 +890,13 @@
     }
 
     function updateStatsBar(unified) {
-      const activeItems = unified.filter(item => !item.done && !item.hidden && !item.is_previous);
+      const activeItems = unified.filter(item => !item.done && !item.hidden && (!item.is_scheduled_action || item.isTodayAction));
       const pending = activeItems.length;
 
       const todayStr = window.customToday || new Date().toISOString().slice(0, 10);
       const now = Date.now();
 
-      let due48h = 0;
+      let due72h = 0;
       let overdue = 0;
       activeItems.forEach(item => {
         if (item.due_ts) {
@@ -892,9 +905,9 @@
           const hoursLeft = (dueTime - now) / 3600000;
           if (dueStr < todayStr || hoursLeft < 0) {
             overdue++;
-            due48h++;
-          } else if (hoursLeft <= 48) {
-            due48h++;
+            due72h++;
+          } else if (hoursLeft <= 72) {
+            due72h++;
           }
         }
       });
@@ -902,7 +915,7 @@
       const totalEl = document.getElementById('stat-total');
       const urgentEl = document.getElementById('stat-urgent');
       if (totalEl) totalEl.textContent = pending;
-      if (urgentEl) urgentEl.textContent = overdue + due48h;
+      if (urgentEl) urgentEl.textContent = overdue + due72h;
 
       // Update Top KPI Cards
       const pendingCountEl = document.getElementById('stat-pending-count');
@@ -912,7 +925,7 @@
 
       if (pendingCountEl) pendingCountEl.textContent = pending;
       if (pendingDiffEl) pendingDiffEl.textContent = pending > 0 ? `${pending} 项待处理` : '待办已清空';
-      if (dueCountEl) dueCountEl.textContent = due48h;
+      if (dueCountEl) dueCountEl.textContent = due72h;
       if (dueOverdueEl) {
         dueOverdueEl.textContent = overdue > 0 ? `含 ${overdue} 项已逾期` : '无逾期事项';
         dueOverdueEl.classList.toggle('warn', overdue > 0);

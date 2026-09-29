@@ -6,6 +6,7 @@ import pytest
 from playwright.sync_api import expect
 
 import project_store
+import browser_env
 from test_frontend_playwright import register_dashboard_user
 
 
@@ -42,9 +43,12 @@ def test_mobile_overview_has_aligned_readable_content(live_app, browser, test_no
     expect(page.locator('.todo-row', has_text='项目今天的计划')).to_be_visible()
     expect(page.locator('.todo-row', has_text='项目今天的计划').locator('.todo-date-mobile')).to_have_text('计划 今天')
     expect(page.locator('.todo-row', has_text='没有截止日期的资料整理').locator('.todo-date-mobile')).to_have_text('未设截止')
-    page.wait_for_function("Object.values(platformRequests).every(count => count === 0) && workspaceRefreshing === false")
+    # 主题切换与后台刷新都会重排列表，等布局稳定后再测量同一帧。
+    browser_env.wait_for_layout_settled(page)
 
     # Take all measurements in one frame; asynchronous platform refresh can replace rows.
+    # The +1px allowances below only cover sub-pixel rounding of the badge/date baselines
+    # and of scrollWidth vs clientWidth, not a layout drift.
     page.wait_for_function("""() => {
       const rows = [...document.querySelectorAll('.todo-row')].filter(e => e.checkVisibility());
       return rows.length >= 4 && rows.every(row => {
@@ -91,6 +95,8 @@ def test_mobile_project_tasks_keep_title_space_and_working_actions(live_app, bro
     row = page.locator(f'.project-task-item[data-task-id="{task["id"]}"]')
     expect(row).to_be_visible()
     row.scroll_into_view_if_needed()
+    browser_env.wait_for_layout_settled(page)
+    # +1px 只覆盖 scrollWidth/clientWidth 的亚像素取整，避免把不换行的标题误判为溢出。
     assert row.evaluate("""e => {
       const title = e.querySelector('.project-task-name-btn');
       const actions = e.querySelector('.project-task-actions').getBoundingClientRect();
@@ -111,6 +117,9 @@ def test_mobile_project_tasks_keep_title_space_and_working_actions(live_app, bro
     page.locator('[data-mobile-tab="schedule"]').click()
     expect(page.locator('.period-day')).to_have_count(7)
     expect(page.locator('.period-cell:visible')).to_have_count(4)
+    # 切换到周视图会重建整周网格（列宽有过渡），等布局稳定后再判断是否横向溢出，
+    # 否则会读到过渡起始帧里更宽的日期列。
+    browser_env.wait_for_layout_settled(page)
     assert page.locator('.period-day').evaluate_all(
         'nodes => nodes.every(e => e.getBoundingClientRect().right <= innerWidth)'
     )

@@ -70,6 +70,30 @@ Set overrides in `/etc/canvas-dashboard/canvas-dashboard.env`, then restart the 
 
 `CANVAS_DASHBOARD_LOGIN_MAX_SESSIONS=1` (default) caps both interactive login platforms and the 智慧树 background browser. Capacity/profile coordination uses cross-process locks and resource records under the shared data root. It is local-machine coordination, not a distributed semaphore. An active login record blocks the same user's worker even if the global limit is raised. Docker stop failure retains metadata/occupation for retry; do not erase leases or profiles to make room without confirming their resources have exited. Startup and completion are background operations: the initial request returns 202, and task status reports any capacity rejection as 429. The retired password-based timetable refresh endpoint returns 410 and never starts Chromium.
 
+### Registration capacity guard
+
+`capacity_guard.py` is the admission brake for new registrations. It aggregates three metrics from the data root (counts only, never usernames) and closes `/api/auth/register` as soon as one threshold is reached. `/register` then renders the explanation panel instead of the form — the left showcase is unchanged — and the login page replaces its “立即注册” hint. Login, logout and all existing-account data access are unaffected, and the API rejects direct calls with `registration_closed` plus the same reason, so the UI cannot be bypassed.
+
+| Variable | Default | Metric |
+| --- | --- | --- |
+| `CANVAS_DASHBOARD_CAPACITY_GUARD_ENABLED` | `1` | Evaluate the thresholds; `0` disables automatic closure (the manual pause still applies) |
+| `CANVAS_DASHBOARD_CAPACITY_MAX_TOTAL_USERS` | `15` | Registered accounts, any status except `deleting` |
+| `CANVAS_DASHBOARD_CAPACITY_MAX_ACTIVE_USERS` | `10` | Accounts active within the window below |
+| `CANVAS_DASHBOARD_CAPACITY_MAX_CONNECTED_PLATFORMS` | `40` | Sum of `connected` platform entries across accounts |
+| `CANVAS_DASHBOARD_CAPACITY_ACTIVE_WINDOW_DAYS` | `14` | Activity window; activity is the later of `last_login_at` and the per-user presence stamp (`.capacity_presence.json`, entries pruned after 90 days) |
+
+A threshold of `0` (or a negative value) disables that single gate. `CANVAS_DASHBOARD_REGISTRATION_ENABLED=0` stays the manual pause and takes precedence. These are admission limits for the current single-process deployment, not a measured maximum concurrency; revise them with the operating thresholds in [small-group launch notes](small-group-launch.md).
+
+Inspect the current decision on the host:
+
+```bash
+cd /home/ubuntu/canvas-dashboard/current
+.venv/bin/python scripts/capacity_guard.py status
+.venv/bin/python scripts/capacity_guard.py status --json
+```
+
+`data/.capacity_guard_state.json` records a username-free latch of the last state change (counts, thresholds, reason codes). An unreadable metric file (corrupt JSON) closes registration with reason `capacity_check_failed` instead of assuming there is room left; repair the file per [backup and restore](backup-and-restore.md) before expecting an automatic reopen. Registration reopens by itself once the counts drop below the thresholds, or when an operator raises the limits after the capacity work is finished.
+
 Canvas, 好课, 智学盟, 课堂派 and 同济 OJ share the `HTTP_SYNC_MAX_WORKERS=2` / `HTTP_SYNC_MAX_JOBS=32` budget, including queued and running jobs. Jobs deduplicate by username, platform and job type. Platforms no longer create their own HTTP fetch pools or per-user sync threads. Refresh, weather and explicit slow login operations use this budget; reads return cached/pending responses immediately. `cache_only=1` polls never restart a failed refresh. Set either limit in the Web service environment and restart to apply it. This budget belongs to the single Web process; do not run extra Web instances as a way to increase capacity.
 
 ## Static resources, request boundaries and retired applications
@@ -84,7 +108,7 @@ The discontinued `/daily-english` and `/life-list` paths return 410. After succe
 
 `canvas-dashboard-monitor.timer` runs every minute. Its journal contains JSON resource samples: MemAvailable, swap use and in/out rates, load average, disk use, OOM counter changes, active browser occupation, aggregate queue status, recent Web status and the number of accounts repeatedly failing per platform. The Web log records endpoint name (no URL parameters), status and duration; sync events include platform, job type, queued/running/success/failed/cancelled, duration and last success. Browser events include startup duration, global available-memory change and end reason; the memory delta is an observation of the whole machine, not exclusive Chromium RSS.
 
-Authenticated `GET /api/diagnostics/runtime` returns current aggregate system/Web/sync/browser status, including the real Waitress queued/active/thread counts. It excludes usernames, credentials and task tokens. Last Web and sync snapshots are local JSON files for the independent sampler. After process restart, inspect durable per-user sync metadata for failure history; executor counters describe the current Web process.
+Authenticated `GET /api/diagnostics/runtime` returns current aggregate system/Web/sync/browser status, including the real Waitress queued/active/thread counts, plus an `admission` block with the registration-capacity decision, thresholds and metrics. It excludes usernames, credentials and task tokens. Last Web and sync snapshots are local JSON files for the independent sampler. After process restart, inspect durable per-user sync metadata for failure history; executor counters describe the current Web process.
 
 ```bash
 journalctl -u canvas-dashboard-monitor.service --since '15 minutes ago' -o cat

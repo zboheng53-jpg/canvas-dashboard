@@ -1,5 +1,6 @@
 ﻿param(
-    [switch]$SkipPreDeployBackup
+    [switch]$SkipPreDeployBackup,
+    [switch]$SkipLocalRegression
 )
 
 $ErrorActionPreference = "Stop"
@@ -50,8 +51,16 @@ $TarFile = Join-Path $RepoRoot "$ReleaseName.tar.gz"
 Write-Host "Verified pushed main commit: $ReleaseCommit"
 
 Write-Host "Running local regression and compilation gates..." -ForegroundColor Yellow
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1 -Suite all
-if ($LASTEXITCODE -ne 0) { throw "Local tests failed. Deployment aborted." }
+if ($SkipLocalRegression) {
+    # Only an accepted evidence gate may replace the rerun: same commit, clean tree, recorded full-suite pass.
+    $EvidenceCommit = & .\.venv\Scripts\python.exe .\scripts\check_release.py --test-evidence --expected $ReleaseCommit
+    if ($LASTEXITCODE -ne 0) { throw "No acceptable full-suite test evidence for this commit. Run .\scripts\test.ps1 -Suite all, or deploy without -SkipLocalRegression." }
+    if (($EvidenceCommit | Out-String).Trim() -ne $ReleaseCommit) { throw "Test evidence does not cover the checked release commit. Deployment aborted." }
+    Write-Host "Skipped the local full regression: recorded full-suite evidence for $ReleaseCommit was verified." -ForegroundColor Green
+} else {
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1 -Suite all
+    if ($LASTEXITCODE -ne 0) { throw "Local tests failed. Deployment aborted." }
+}
 $PythonFiles = @(& git ls-files -- "*.py")
 if ($LASTEXITCODE -ne 0 -or $PythonFiles.Count -eq 0) { throw "Failed to enumerate tracked Python files." }
 & .\.venv\Scripts\python.exe -m py_compile @PythonFiles

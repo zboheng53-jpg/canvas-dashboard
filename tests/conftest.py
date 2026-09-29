@@ -12,6 +12,8 @@ from datetime import datetime, timezone, timedelta
 import pytest
 from werkzeug.serving import make_server
 
+import browser_env
+
 # Isolation must precede app imports, which create the session secret.
 _previous_data_root = os.environ.get("CANVAS_DASHBOARD_DATA_DIR")
 _session_data = tempfile.TemporaryDirectory(prefix="canvas-dashboard-tests-")
@@ -52,7 +54,7 @@ def test_now(request):
 
 
 def pytest_addoption(parser):
-    parser.addoption("--suite", choices=("all", "quick", "acceptance"), default="all")
+    parser.addoption("--suite", choices=("all", "quick", "acceptance", "ui"), default="all")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -60,16 +62,23 @@ def pytest_collection_modifyitems(config, items):
     safety = {"test_p0_safety.py", "test_security_auth.py", "test_action_workspace.py",
               "test_account_lifecycle.py", "test_project_focus.py", "test_concurrent_writes.py", "test_scripts.py",
               "test_development_workflow.py", "test_deploy_configs.py", "test_login_capacity.py", "test_release_onboarding.py",
+              "test_capacity_guard.py",
               "test_control_components.py", "test_design_system_lint.py", "test_css_architecture.py",
               "test_frontend_text_integrity.py", "test_dashboard_localization.py",
               "test_ui_refactor.py", "test_business_components.py", "test_prelaunch_foundations.py",
               "test_sync_remediation.py", "test_review_remediation_sync_edges.py", "test_review_remediation_accounts.py",
               "test_todo_deadlines.py"}
+    # The ui suite is the fast loop for CSS/template/copy changes: browser interaction and layout
+    # checks plus the cheap static frontend guards, without the account/storage/security gates.
+    ui = {"test_design_system_lint.py", "test_css_architecture.py", "test_frontend_text_integrity.py",
+          "test_dashboard_localization.py", "test_control_components.py", "test_component_lab.py"}
     selected, deselected = [], []
     for item in items:
         browser_test = "browser" in item.fixturenames
+        ui_test = browser_test or item.path.name in ui
         include = (suite == "all" or (suite == "quick" and not browser_test)
-                   or (suite == "acceptance" and (browser_test or item.path.name in safety)))
+                   or (suite == "acceptance" and (browser_test or item.path.name in safety))
+                   or (suite == "ui" and ui_test))
         (selected if include else deselected).append(item)
     items[:] = selected
     config.hook.pytest_deselected(items=deselected)
@@ -246,6 +255,30 @@ def chromium():
         instance.close()
 
 
+def _capture_failure_evidence(contexts, folder):
+    """Save final DOM and screenshots for a failed browser test.
+
+    Evidence is collected on failure only: tracing or response listeners on every test are both
+    expensive and observable, and a listener attached to the page really did stop the dashboard
+    from starting a background request in test_tongji_oj_browser. A finishing DOM dump keeps the
+    failure debuggable without touching the running test.
+    """
+    captured = []
+    for index, context in enumerate(contexts):
+        for number, page in enumerate(context.pages):
+            try:
+                if page.is_closed():
+                    continue
+                page.screenshot(path=str(folder / f"page-{index}-{number}.png"), timeout=5000)
+            except Exception as error:
+                captured.append(f"page-{index}-{number}.png: {error}")
+            try:
+                (folder / f"dom-{index}-{number}.html").write_text(page.content(), encoding="utf-8")
+            except Exception as error:
+                captured.append(f"dom-{index}-{number}.html: {error}")
+    return captured
+
+
 @pytest.fixture
 def browser(chromium, request, test_now):
     # Keep existing browser.new_page/new_context callers while sharing one launch.
@@ -255,6 +288,10 @@ def browser(chromium, request, test_now):
     class TestBrowser:
         def new_context(self, **kwargs):
             kwargs.setdefault("timezone_id", "Asia/Shanghai")
+            # Deterministic viewport, device scale and motion for every context so
+            # geometry is measured on the final frame instead of mid-animation.
+            # See tests/browser_env.py for the rationale and the opt-out.
+            freeze_motion = browser_env.apply_stable_defaults(kwargs)
             context = chromium.new_context(**kwargs)
             context.add_init_script("""(() => {
                 const RealDate = Date;
@@ -268,7 +305,9 @@ def browser(chromium, request, test_now):
                 re.compile(r"^https?://fonts\.(?:googleapis|gstatic)\.com/.*"),
                 lambda route: route.fulfill(status=200, content_type="text/css", body=""),
             )
-            context.tracing.start(screenshots=True, snapshots=True, sources=True)
+            if freeze_motion:
+                context.add_init_script(browser_env.STABLE_MOTION_SCRIPT)
+
             def observe(page):
                 page.on("pageerror", lambda error: errors.append(str(error)))
                 page.on("console", lambda msg: errors.append(msg.text) if msg.type == "error" else None)
@@ -286,17 +325,11 @@ def browser(chromium, request, test_now):
     if failed:
         folder.mkdir(parents=True, exist_ok=True)
         (folder / "failure.json").write_text(json.dumps({"test": request.node.nodeid, "errors": errors}, ensure_ascii=False, indent=2), encoding="utf-8")
-    for index, context in enumerate(contexts):
+        captured = _capture_failure_evidence(contexts, folder)
+        if captured:
+            (folder / "capture-0.txt").write_text("\n".join(captured), encoding="utf-8")
+    for context in contexts:
         try:
-            if failed:
-                for number, page in enumerate(context.pages):
-                    if not page.is_closed():
-                        page.screenshot(path=str(folder / f"page-{index}-{number}.png"), timeout=5000)
-                context.tracing.stop(path=str(folder / f"trace-{index}.zip"))
-            else:
-                context.tracing.stop()
-        except Exception as error:
-            if failed:
-                (folder / f"capture-{index}.txt").write_text(str(error), encoding="utf-8")
-        finally:
             context.close()
+        except Exception:
+            pass

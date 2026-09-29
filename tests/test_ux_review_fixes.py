@@ -3,6 +3,8 @@ import uuid
 import pytest
 from playwright.sync_api import expect
 
+import browser_env
+
 
 def register_user(page, live_app, prefix="ux"):
     uid = uuid.uuid4().hex[:6]
@@ -12,6 +14,7 @@ def register_user(page, live_app, prefix="ux"):
     page.fill("#register-password", "password123")
     page.click("#register-form button")
     page.wait_for_selector(".dashboard-shell")
+    browser_env.wait_for_layout_settled(page)
     return username
 
 
@@ -27,6 +30,8 @@ def test_mobile_todo_input_geometry_and_wrapping(live_app, browser, width):
     btn_loc = page.locator("#btn-add-todo")
 
     expect(input_loc).to_be_visible()
+    # 展开输入区会改变容器高度，等布局稳定后再测量换行关系。
+    browser_env.wait_for_layout_settled(page)
     input_box = input_loc.bounding_box()
     due_box = due_loc.bounding_box()
     btn_box = btn_loc.bounding_box()

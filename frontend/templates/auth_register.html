@@ -30,6 +30,7 @@
           </a>
         </div>
 
+        {% if registration_notice.open %}
         <div class="card auth-card">
           <div class="card-head section-header auth-card-head">
             <div class="header-left-group">
@@ -38,9 +39,6 @@
             <span class="auth-card-badge">免费创建</span>
           </div>
 
-          {% if not registration_enabled %}
-          <p class="ui-alert ui-alert--warning" role="status">暂时停止新注册，已有账号仍可登录。请联系站点维护者。</p>
-          {% endif %}
           <form class="auth-form" id="register-form">
             <div class="field-group">
               <label class="field-label" for="register-username">用户名</label>
@@ -50,12 +48,32 @@
               <label class="field-label" for="register-password">密码</label>
               <input type="password" id="register-password" placeholder="至少6位" autocomplete="new-password" class="ui-control input">
             </div>
-            <button type="submit" class="ui-button ui-button--primary ui-button--block auth-submit-btn" {% if not registration_enabled %}disabled{% endif %}>注册</button>
+            <button type="submit" class="ui-button ui-button--primary ui-button--block auth-submit-btn">注册</button>
           </form>
 
           <p class="ui-help setup-hint auth-switch-hint">已有账号？<a href="/login" class="auth-switch-link">直接登录</a></p>
           <div class="ui-alert ui-alert--danger ui-alert--compact error-banner hidden auth-error-banner" id="register-error" role="alert"></div>
         </div>
+        {% else %}
+        <div class="card auth-card auth-capacity-notice" id="register-closed-notice" role="status" aria-live="polite">
+          <div class="card-head section-header auth-card-head">
+            <div class="header-left-group">
+              <h2 class="auth-card-title">{{ registration_notice.title }}</h2>
+            </div>
+            <span class="auth-card-badge auth-card-badge--notice">{{ registration_notice.badge }}</span>
+          </div>
+
+          <div class="auth-capacity-body">
+            {% for paragraph in registration_notice.paragraphs %}
+            <p>{{ paragraph }}</p>
+            {% endfor %}
+          </div>
+          <p class="auth-capacity-note">{{ registration_notice.note }}</p>
+          <p class="auth-capacity-thanks">{{ registration_notice.thanks }}</p>
+
+          <p class="ui-help setup-hint auth-switch-hint">已有账号？<a href="/login" class="auth-switch-link">直接登录</a></p>
+        </div>
+        {% endif %}
 
         <div class="auth-landing-right-foot">
           {% if icp_number %}
@@ -101,7 +119,11 @@
       }
     }
 
-    document.getElementById('register-form').addEventListener('submit', doRegister);
+    // The capacity guard renders an explanation instead of the form.
+    const registerForm = document.getElementById('register-form');
+    if (registerForm) {
+      registerForm.addEventListener('submit', doRegister);
+    }
   </script>
 </body>
 </html>

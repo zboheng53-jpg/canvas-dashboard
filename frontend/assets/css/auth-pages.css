@@ -669,6 +669,54 @@
   padding: 2px 8px;
 }
 
+/* ---------- 容量保护：注册关闭说明面板 ---------- */
+.auth-card-badge--notice {
+  color: var(--color-warning);
+  background: var(--color-warning-soft);
+  border-color: var(--color-warning-border);
+}
+
+/* 共享 .card-head 规则把标题下边距固定为 0，这里补出与注册表单一致的间距。 */
+.auth-capacity-notice .auth-capacity-body {
+  margin-top: var(--space-4);
+}
+
+.auth-capacity-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.auth-capacity-body p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--color-text-secondary);
+}
+
+.auth-capacity-note {
+  margin: var(--space-5) 0 0;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-surface);
+  background: var(--color-surface-subtle);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.auth-capacity-thanks {
+  margin: var(--space-5) 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.auth-capacity-notice .auth-switch-hint {
+  margin-top: var(--space-5);
+}
+
 .auth-submit-btn {
   min-height: 44px;
   font-size: 15px;

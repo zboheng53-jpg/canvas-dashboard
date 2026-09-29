@@ -5,6 +5,7 @@ import pytest
 from playwright.sync_api import expect
 
 import app as dashboard
+import browser_env
 import project_store
 import schedule_store
 from test_visual_regression import register_dashboard_user
@@ -28,6 +29,9 @@ def test_dense_week_fits_and_overflow_opens_same_action(live_app, browser, width
         page.reload()
         page.get_by_role("button", name="日程与课表", exact=True).click()
         page.wait_for_selector(".period-cell")
+        expect(page.locator("#schedule-timetable-grid")).to_be_visible()
+        # 周视图的四段高度按容器均分，重载后要等布局与后台刷新都停下来再量。
+        browser_env.wait_for_layout_settled(page)
         evening = page.locator(f'.period-cell[data-date="{day}"][data-period="eve"]')
         expect(evening.get_by_role("button", name="19:00–19:30 晚间复盘", exact=True)).to_be_visible()
         rects = page.locator(f'.period-cell[data-date="{day}"]').evaluate_all(
@@ -35,6 +39,7 @@ def test_dense_week_fits_and_overflow_opens_same_action(live_app, browser, width
         )
         assert len(rects) == 4
         assert all(0 <= r["top"] < r["bottom"] <= height for r in rects)
+        # 四段均分容器高度，<1px 只容纳亚像素取整
         assert max(r["height"] for r in rects) - min(r["height"] for r in rects) < 1
         assert page.evaluate("document.documentElement.scrollWidth") <= width
         grid = page.locator("#schedule-timetable-grid")

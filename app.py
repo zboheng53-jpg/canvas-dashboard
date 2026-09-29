@@ -2,6 +2,7 @@
 import agent_auth
 import apple_calendar
 import auth
+import capacity_guard
 import dashboard_preferences
 import hmac
 import io
@@ -447,6 +448,8 @@ def _refresh_session_activity(*, force: bool = False) -> bool:
         return False
     session[_SESSION_ACTIVITY_KEY] = now.isoformat()
     session.permanent = True
+    # Capacity guard input only; a failure here must never break the request.
+    capacity_guard.remember_activity(session.get("username"))
     return True
 
 
@@ -814,14 +817,20 @@ def calendar_category_subscription(token, category):
 def site_login_page():
     if session.get("username"):
         return redirect("/")
-    return render_template("auth_login.html", icp_number=settings.ICP_NUMBER)
+    return render_template(
+        "auth_login.html", icp_number=settings.ICP_NUMBER,
+        registration_open=capacity_guard.registration_open(),
+    )
 
 
 @app.route("/register")
 def site_register_page():
     if session.get("username"):
         return redirect("/")
-    return render_template("auth_register.html", icp_number=settings.ICP_NUMBER, registration_enabled=settings.REGISTRATION_ENABLED)
+    return render_template(
+        "auth_register.html", icp_number=settings.ICP_NUMBER,
+        registration_notice=capacity_guard.registration_notice(),
+    )
 
 
 @app.route("/privacy")
@@ -837,13 +846,18 @@ def site_privacy_page():
 def site_welcome_page():
     if session.get("username"):
         return redirect("/")
-    return render_template("auth_login.html", icp_number=settings.ICP_NUMBER)
+    return render_template(
+        "auth_login.html", icp_number=settings.ICP_NUMBER,
+        registration_open=capacity_guard.registration_open(),
+    )
 
 
 @app.route("/api/auth/register", methods=["POST"])
 def api_auth_register():
-    if not settings.REGISTRATION_ENABLED:
-        return api_error("registration_closed", "暂时停止新账户注册，已有账户仍可登录。", 403)
+    decision = capacity_guard.evaluate()
+    if not decision.registration_open:
+        return api_error("registration_closed", capacity_guard.closed_summary(decision), 403,
+                         reason=decision.reason, reasons=list(decision.reasons))
     data = read_json_request()
     if data is None:
         return invalid_request_response()
@@ -873,6 +887,7 @@ def api_auth_register():
     if csrf_token:
         session[_CSRF_SESSION_KEY] = csrf_token
     _refresh_session_activity(force=True)
+    capacity_guard.reset_cache()
     return jsonify({"ok": True})
 
 
@@ -1025,7 +1040,8 @@ def api_runtime_diagnostics():
     from system_monitor import system_snapshot
     from login_capacity import capacity_snapshot
     return jsonify({"ok": True, "system": system_snapshot(DATA_DIR), "web": runtime_metrics.web_snapshot(),
-                    "sync": http_sync.snapshot(), "browsers": capacity_snapshot(DATA_DIR)})
+                    "sync": http_sync.snapshot(), "browsers": capacity_snapshot(DATA_DIR),
+                    "admission": capacity_guard.diagnostics(DATA_DIR)})
 
 
 @app.route("/api/clock")

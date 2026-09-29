@@ -50,7 +50,11 @@
             <button type="submit" class="ui-button ui-button--primary ui-button--block auth-submit-btn">登录</button>
           </form>
 
+          {% if registration_open %}
           <p class="ui-help setup-hint auth-switch-hint">还没有账号？<a href="/register" class="auth-switch-link">立即注册</a></p>
+          {% else %}
+          <p class="ui-help setup-hint auth-switch-hint">新注册暂时关闭，<a href="/register" class="auth-switch-link">查看说明</a></p>
+          {% endif %}
           <p class="ui-help auth-switch-hint"><a href="/reset-password" class="auth-switch-link">忘记密码？</a> 联系维护者获取重置凭据</p>
           <div class="ui-alert ui-alert--danger ui-alert--compact error-banner hidden auth-error-banner" id="login-error" role="alert"></div>
         </div>

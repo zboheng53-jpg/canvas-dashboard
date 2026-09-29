@@ -2,6 +2,7 @@
 import pytest
 from playwright.sync_api import expect
 
+import browser_env
 from test_frontend_playwright import register_dashboard_user
 
 
@@ -22,7 +23,9 @@ def test_theme_persists_across_pages_and_tabs_without_rearranging_dashboard(live
     _set_theme(page, 'moss')
     expect(other.locator('html')).to_have_attribute('data-theme', 'moss')
     page.evaluate("switchDashboardView('overview')")
+    browser_env.wait_for_layout_settled(page)
     after = card.bounding_box()
+    # 主题切换只改配色，几何必须逐像素一致；<1px 仅容纳亚像素取整
     assert all(abs(before[key] - after[key]) < 1 for key in ('x', 'y', 'width', 'height'))
     assert card.evaluate('(e) => getComputedStyle(e).backgroundColor') != original_color
     expect(card).to_have_css('background-color', 'rgb(255, 254, 249)')

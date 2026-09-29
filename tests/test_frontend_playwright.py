@@ -4,11 +4,12 @@ from services import workspace as workspace_service
 import json
 import os
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import pytest
 
 import app as dashboard_app
+import browser_env
 import tongji_timetable
 
 playwright_api = pytest.importorskip("playwright.sync_api")
@@ -21,6 +22,11 @@ def register_dashboard_user(page, live_app, username):
     page.fill("#register-password", "strong-password")
     page.click("#register-form button")
     page.wait_for_url(f"{live_app}/")
+    # The dashboard paints its shell first and then fills the platform cards,
+    # todo list and side rails from asynchronous refreshes.  Waiting for the
+    # layout to settle here removes the race that every geometry assertion
+    # downstream used to work around with per-test polling or 4px tolerances.
+    browser_env.wait_for_layout_settled(page)
 
 
 def test_timetable_dom_reader_ignores_hidden_tables_and_expands_rowspans(browser):
@@ -63,6 +69,8 @@ def test_frontend_todo_heading_is_centered_in_header(live_app, browser):
 
     header_center = header_box["y"] + header_box["height"] / 2
     title_center = title_box["y"] + title_box["height"] / 2
+    # ±10px 是设计容差：头部含状态行与图标，标题只需视觉居中，
+    # 不是逐像素对齐约束。
     assert abs(header_center - title_center) <= 10
 
 
@@ -81,6 +89,7 @@ def test_frontend_mobile_header_shows_compact_weather_and_term(live_app, browser
       const rect = selector => document.querySelector(selector).getBoundingClientRect();
       const date = rect('.opt1-date'), week = rect('.opt1-week-pill');
       const weather = rect('.opt1-temp-row'), campus = rect('.weather-campus-switch');
+      // 2px 仅覆盖亚像素抗锯齿与基线取整；105px 是设计稿对 context-card 的高度上限。
       return Math.abs(date.bottom - week.bottom) <= 2
         && Math.abs((weather.top + weather.bottom) / 2 - (campus.top + campus.bottom) / 2) <= 2
         && weather.top >= date.bottom
@@ -141,7 +150,6 @@ def test_frontend_todo_hover_keeps_content_and_actions_in_place(live_app, browse
     dismiss_button = todo.locator(".item-desktop-actions .btn-dismiss")
     expect(title).to_be_visible()
     expect(dismiss_button).to_be_visible()
-    page.wait_for_function("Object.values(platformRequests).every(count => count === 0) && workspaceRefreshing === false")
     todo.scroll_into_view_if_needed()
 
     def read_action_geometry():
@@ -173,8 +181,10 @@ def test_frontend_todo_hover_keeps_content_and_actions_in_place(live_app, browse
     after = read_action_geometry()
     assert after["title"]["width"] > 0 and after["title"]["height"] > 0
     assert after["dismiss"]["width"] > 0 and after["dismiss"]["height"] > 0
-    assert after["title"]["x"] == pytest.approx(before["title"]["x"], abs=1)
-    assert after["dismiss"]["x"] == pytest.approx(before["dismiss"]["x"], abs=1)
+    # 1px is sub-pixel anti-aliasing of the row border; hover transitions are
+    # frozen by the shared context, so the hover state cannot animate geometry.
+    browser_env.assert_close(after["title"]["x"], before["title"]["x"], 1, label="hover title x")
+    browser_env.assert_close(after["dismiss"]["x"], before["dismiss"]["x"], 1, label="hover dismiss x")
 
 
 def test_frontend_v2_desktop_shell_uses_bounded_three_column_layout(live_app, browser):
@@ -194,18 +204,22 @@ def test_frontend_v2_desktop_shell_uses_bounded_three_column_layout(live_app, br
     assert sidebar_box is not None
     assert workspace_box is not None
     assert right_box is not None
-    assert sidebar_box["x"] == pytest.approx(0, abs=1)
+    # 1px 内为亚像素抗锯齿误差：布局已在 register_dashboard_user 中稳定
+    browser_env.assert_close(sidebar_box["x"], 0, 1, label="侧栏左边界")
     assert 220 <= sidebar_box["width"] <= 260
     assert 800 <= workspace_box["width"] <= 825
     assert 320 <= right_box["width"] <= 360
     assert 20 <= workspace_box["x"] - (sidebar_box["x"] + sidebar_box["width"]) <= 24
     # 设计稿：工作区与右栏间距 16px
     assert 14 <= right_box["x"] - (workspace_box["x"] + workspace_box["width"]) <= 20
-    # 设计稿：右栏顶部留 26px、底部距视口底 14px，不撑满侧栏全高
-    assert right_box["y"] == pytest.approx(26, abs=4)
-    assert right_box["y"] + right_box["height"] == pytest.approx(
+    # 设计稿：右栏顶部留 26px、底部距视口底 14px，不撑满侧栏全高。
+    # 容差 1px 只覆盖 Chromium 布局系统的分数像素取整，几何在渲染完成后读取。
+    browser_env.assert_close(right_box["y"], 26, 1, label="右栏顶部偏移")
+    browser_env.assert_close(
+        right_box["y"] + right_box["height"],
         sidebar_box["y"] + sidebar_box["height"] - 14,
-        abs=4,
+        1,
+        label="右栏底部偏移",
     )
     rail_cards = right_rail.locator(".rail-card")
     assert rail_cards.count() == 2
@@ -213,8 +227,8 @@ def test_frontend_v2_desktop_shell_uses_bounded_three_column_layout(live_app, br
     second_rail_box = rail_cards.nth(1).bounding_box()
     assert first_rail_box is not None
     assert second_rail_box is not None
-    assert first_rail_box["width"] == pytest.approx(second_rail_box["width"], abs=1)
-    assert first_rail_box["height"] == pytest.approx(second_rail_box["height"], abs=1)
+    browser_env.assert_close(first_rail_box["width"], second_rail_box["width"], 1, label="右栏卡片宽度")
+    browser_env.assert_close(first_rail_box["height"], second_rail_box["height"], 1, label="右栏卡片高度")
     todo_card = page.locator(".workspace-main .enter-main-card")
     expect(todo_card).to_have_css(
         "transform", "none"
@@ -224,25 +238,32 @@ def test_frontend_v2_desktop_shell_uses_bounded_three_column_layout(live_app, br
     # 设计稿：主卡底部距视口底 14px
     todo_bottom = todo_card_box["y"] + todo_card_box["height"]
     rail_bottom = second_rail_box["y"] + second_rail_box["height"]
-    assert todo_bottom == pytest.approx(
+    browser_env.assert_close(
+        todo_bottom,
         sidebar_box["y"] + sidebar_box["height"] - 14,
-        abs=4,
+        1,
+        label="主卡底部偏移",
     )
-    assert rail_bottom == pytest.approx(todo_bottom, abs=1)
+    browser_env.assert_close(rail_bottom, todo_bottom, 1, label="右栏与主卡底对齐")
 
     collapse = page.locator("#sidebar-collapse-toggle")
+    browser_env.wait_for_layout_settled(page)
     collapse.click()
     expect(collapse).to_have_attribute("aria-expanded", "false")
+    expect(page.locator("#dashboard-shell")).to_have_class(re.compile(r"\bsidebar-collapsed\b"))
+    # 折叠后的宽度来自 grid-template-columns，Chromium 会为它建立过渡：类名切换
+    # 之后必须先等过渡跑完再量宽度，否则读到的是过渡起始值 240px（实测在高负载、
+    # 帧节奏变慢时必现，此时类名已是 sidebar-collapsed）。
+    browser_env.wait_for_layout_settled(page)
     collapsed_box = sidebar.bounding_box()
     assert collapsed_box is not None
-    assert 64 <= collapsed_box["width"] <= 80
+    assert 64 <= collapsed_box["width"] <= 80, f"折叠态侧栏宽度异常: {collapsed_box}"
     expect(sidebar.locator(".sidebar-label").first).to_be_hidden()
 
 
 def test_frontend_desktop_todo_card_scrolls_without_outgrowing_sidebars(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "todocardscroll")
-    page.wait_for_function("Object.values(platformRequests).every(count => count === 0) && workspaceRefreshing === false")
 
     page.evaluate(
         """() => {
@@ -260,15 +281,18 @@ def test_frontend_desktop_todo_card_scrolls_without_outgrowing_sidebars(live_app
     expect(todo_card).to_have_css(
         "transform", "none"
     )
+    browser_env.wait_for_layout_settled(page)
 
     todo_card_box = todo_card.bounding_box()
     sidebar_box = sidebar.bounding_box()
     assert todo_card_box is not None
     assert sidebar_box is not None
-    # 设计稿：主卡底部距视口底 14px。Chromium 的亚像素布局在独立运行时会有
-    # 约 2-3px 漂移，这里只约束主卡不超出侧栏（不锁定精确像素）。
-    assert todo_card_box["y"] + todo_card_box["height"] == pytest.approx(
-        sidebar_box["y"] + sidebar_box["height"] - 14, abs=4
+    # 设计稿：主卡底部距视口底 14px，容差 1px 仅为亚像素取整
+    browser_env.assert_close(
+        todo_card_box["y"] + todo_card_box["height"],
+        sidebar_box["y"] + sidebar_box["height"] - 14,
+        1,
+        label="主卡底部偏移",
     )
     assert todo_list.evaluate("element => element.scrollHeight > element.clientHeight")
     assert todo_list.evaluate("element => getComputedStyle(element).overflowY") == "auto"
@@ -501,12 +525,14 @@ def test_frontend_source_filters_and_focus_views(live_app, browser):
 
     overview_width = page.locator(".workspace-main").bounding_box()["width"]
     page.locator('[data-dashboard-view="projects"]').click()
-    projects_width = page.locator(".workspace-main").bounding_box()["width"]
     expect(page.locator("#dashboard-view-projects")).to_be_visible()
+    browser_env.wait_for_layout_settled(page)
+    projects_width = page.locator(".workspace-main").bounding_box()["width"]
     assert projects_width > overview_width + 300
 
     page.locator('[data-dashboard-view="schedule"]').click()
     expect(page.locator("#dashboard-view-schedule")).to_be_visible()
+    browser_env.wait_for_layout_settled(page)
     schedule_box = page.locator(".schedule-manager-card").bounding_box()
     assert schedule_box is not None and schedule_box["width"] > 800
 
@@ -526,6 +552,7 @@ def test_frontend_source_labels_follow_connections_and_persist_visibility(live_a
 
     page.locator("#todo-source-manager summary").click()
     expect(page.locator(".todo-source-visibility-option:visible")).to_have_count(4)
+    browser_env.wait_for_layout_settled(page)
     filter_box = page.locator("#todo-source-filters").bounding_box()
     panel_box = page.locator("#todo-source-manager-panel").bounding_box()
     assert filter_box is not None and panel_box is not None
@@ -614,9 +641,11 @@ def test_frontend_schedule_is_fixed_height_precise_and_editable(live_app, browse
     expect(page.locator("#schedule-import-button")).to_be_hidden()
     expect(page.locator(".schedule-range-hint")).to_have_count(0)
     expect(page.locator(".schedule-header-actions > button")).to_have_count(3)
+    browser_env.wait_for_layout_settled(page)
     assert page.locator(".schedule-header-actions > button").evaluate_all(
         """buttons => {
           const boxes = buttons.map(button => button.getBoundingClientRect());
+          // 按钮高度设计值 36px，±2px 只覆盖亚像素取整与边框渲染差异。
           return buttons[0].id === 'schedule-header-clear-btn'
             && buttons[1].id === 'schedule-management-open'
             && buttons[2].id === 'btn-add-schedule-item'
@@ -929,6 +958,8 @@ def test_frontend_mobile_alignment_places_controls_on_the_right(live_app, browse
       const title = rect('.item-title', item), subtask = rect('.item-subtask-slot', item);
       const heading = rect('.section-header h2'), header = rect('.section-header');
       const emoji = rect('.weather-emoji'), temp = rect('.weather-temp');
+      // 35px 是「标题大致落在头部中线」的设计容差（头部含状态行、图标与换行），
+      // 5px 是天气图标与温度文字的中线对齐容差；两者都不是逐像素约束。
       return title.width > 0 && subtask.width > 0 && subtask.x > title.x
         && Math.abs((heading.y + heading.height / 2) - (header.y + header.height / 2)) <= 35
         && emoji.x < temp.x
@@ -940,8 +971,8 @@ def test_frontend_mobile_alignment_places_controls_on_the_right(live_app, browse
 def test_frontend_mobile_todo_layout_is_compact_and_tappable(live_app, browser, width):
     page = browser.new_page(viewport={"width": width, "height": 844})
     register_dashboard_user(page, live_app, f"mobiletodo{width}")
-    page.wait_for_function("Object.values(platformRequests).every(count => count === 0) && workspaceRefreshing === false")
     page.locator("#mobile-add-toggle").click()
+    browser_env.wait_for_layout_settled(page)
 
     todo = page.locator(".todo-row").first
     expect(todo).to_have_css("display", re.compile(r"^(grid|flex)$"))
@@ -1020,6 +1051,7 @@ def test_frontend_connections_workspace_uses_aligned_master_detail_layout(live_a
     expect(manager).to_be_visible()
     expect(list_panel).to_be_visible()
     expect(detail_panel).to_be_visible()
+    browser_env.wait_for_layout_settled(page)
 
     manager_box = manager.bounding_box()
     sidebar_box = sidebar.bounding_box()
@@ -1027,9 +1059,15 @@ def test_frontend_connections_workspace_uses_aligned_master_detail_layout(live_a
     detail_box = detail_panel.bounding_box()
     assert manager_box is not None and sidebar_box is not None
     assert list_box is not None and detail_box is not None
-    # 设计稿：功能页主卡顶部留 26px、底部距视口底 14px
-    assert abs(manager_box["y"] - 26) <= 4
-    assert abs((manager_box["y"] + manager_box["height"]) - (sidebar_box["y"] + sidebar_box["height"]) + 14) <= 4
+    # 设计稿：功能页主卡顶部留 26px、底部距视口底 14px；
+    # 容差 1px 只覆盖亚像素取整，布局在渲染完成后读取。
+    browser_env.assert_close(manager_box["y"], 26, 1, label="功能页主卡顶部偏移")
+    browser_env.assert_close(
+        manager_box["y"] + manager_box["height"],
+        sidebar_box["y"] + sidebar_box["height"] - 14,
+        1,
+        label="功能页主卡底部偏移",
+    )
     assert abs((list_box["y"] + list_box["height"]) - (detail_box["y"] + detail_box["height"])) < 1
 
     cards = page.locator("#login-cards .connection-platform-item")
@@ -1089,13 +1127,19 @@ def test_frontend_connections_detail_scrolls_inside_fixed_workspace(live_app, br
     expect(sidebar).to_be_visible()
     expect(manager).to_be_visible()
     expect(detail_panel).to_be_visible()
+    browser_env.wait_for_layout_settled(page)
 
     sidebar_box = sidebar.bounding_box()
     manager_box = manager.bounding_box()
     assert sidebar_box is not None and manager_box is not None
-    # 设计稿：功能页主卡顶部留 26px、底部距视口底 14px
-    assert abs(manager_box["y"] - 26) <= 1
-    assert abs((manager_box["y"] + manager_box["height"]) - (sidebar_box["y"] + sidebar_box["height"]) + 14) <= 1
+    # 设计稿：功能页主卡顶部留 26px、底部距视口底 14px，容差 1px 仅为亚像素取整
+    browser_env.assert_close(manager_box["y"], 26, 1, label="功能页主卡顶部偏移")
+    browser_env.assert_close(
+        manager_box["y"] + manager_box["height"],
+        sidebar_box["y"] + sidebar_box["height"] - 14,
+        1,
+        label="功能页主卡底部偏移",
+    )
     assert detail_panel.evaluate("element => getComputedStyle(element).overflowY") == "auto"
     assert detail_panel.evaluate("element => element.scrollHeight > element.clientHeight")
 
@@ -1105,6 +1149,8 @@ def test_frontend_connections_workspace_stacks_cleanly_on_narrow_desktop(live_ap
     register_dashboard_user(page, live_app, "connectionsnarrow")
     page.locator("#mobile-menu-toggle").click()
     page.locator('[data-dashboard-view="connections"]').click()
+    expect(page.locator("#dashboard-view-connections")).to_be_visible()
+    browser_env.wait_for_layout_settled(page)
 
     list_box = page.locator(".connections-list-panel").bounding_box()
     detail_box = page.locator(".connections-detail-panel").bounding_box()
@@ -1117,8 +1163,8 @@ def test_frontend_connections_workspace_stacks_cleanly_on_narrow_desktop(live_ap
 def test_frontend_mobile_compact_controls_and_action_menu(live_app, browser, width):
     page = browser.new_page(viewport={"width": width, "height": 844})
     register_dashboard_user(page, live_app, f"compact{width}")
-    page.wait_for_function("Object.values(platformRequests).every(count => count === 0) && workspaceRefreshing === false")
     page.locator("#mobile-add-toggle").click()
+    browser_env.wait_for_layout_settled(page)
 
     expect(page.locator("#term-info")).to_be_hidden()
     form_box = page.locator("#add-todo-form").bounding_box()
@@ -1336,6 +1382,7 @@ def test_account_deletion_confirmation_panel_stacks_on_mobile(live_app, browser)
     page.locator("#settings-danger-disclosure summary").click()
     expect(password).to_be_visible()
     expect(confirmation).to_be_visible()
+    browser_env.wait_for_layout_settled(page)
     password_box = password.bounding_box()
     confirmation_box = confirmation.bounding_box()
     assert password_box is not None and confirmation_box is not None
@@ -1544,6 +1591,26 @@ def test_frontend_today_and_overdue_visual_consistency(live_app, browser, width,
     expect(today_row).not_to_have_class(re.compile(r"\bis-overdue\b"))
     expect(today_row).to_have_class(re.compile(r"\bis-today\b"))
 
+    # 3b. 近三天只把截止标签标成黄色胶囊，行底色必须保持白底，不能是黄底警示行
+    soon_str = (datetime.strptime(today_str, "%Y-%m-%d") + timedelta(days=2)).strftime("%Y-%m-%d")
+    page.fill("#new-todo-input", "近三天的待办事项")
+    page.fill("#new-todo-due", soon_str)
+    page.click("#add-todo-form button")
+    soon_row = page.locator(".todo-row").filter(has_text="近三天的待办事项")
+    expect(soon_row).to_be_visible()
+    expect(soon_row).to_have_class(re.compile(r"\bis-approaching\b"))
+    expect(soon_row).not_to_have_class(re.compile(r"\bui-list-item--warning\b"))
+    expect(soon_row).not_to_have_class(re.compile(r"\bui-list-item--danger\b"))
+    soon_due = soon_row.locator(".item-due")
+    expect(soon_due).to_have_css("color", "rgb(176, 114, 8)")
+    expect(soon_due).to_have_css("background-color", "rgb(253, 246, 231)")
+    expect(soon_due).to_have_css("border-radius", "999px")
+    # 今日同样保留胶囊底色，只有字色与底色变红；行本身不铺色。
+    today_due = today_row.locator(".item-due")
+    expect(today_due).to_have_css("color", "rgb(214, 69, 69)")
+    expect(today_due).to_have_css("background-color", "rgb(253, 240, 240)")
+    expect(today_due).to_have_css("border-radius", "999px")
+
     # 4. 创建一个计划在今天推进的项目任务，验证其日期胶囊为纯净日期文本且无计划汉字前缀
     page.evaluate("""async (todayStr) => {
         const csrf = window.CSRF_TOKEN || '';
@@ -1632,14 +1699,17 @@ def test_desktop_refinement_keeps_colored_tags_and_readable_rows(live_app, brows
     page.evaluate("switchDashboardView('overview')")
     row = page.locator('.todo-row', has_text=title)
     expect(row).to_be_visible()
-    # Initial platform refresh can detach a row between locator resolution and measurement.
-    page.wait_for_function("Object.values(platformRequests).every(count => count === 0) && workspaceRefreshing === false")
+    # The initial platform refresh can detach a row between locator resolution
+    # and measurement, so read the layout only once it is final.
+    browser_env.wait_for_layout_settled(page)
     expect(row.locator('.ui-source-tag--custom')).to_be_visible()
     expect(row.locator('.item-source-badge')).to_be_visible()
     expect(page.locator('#stat-pending-diff')).to_contain_text('项待处理')
     assert row.locator('.item-title').evaluate('e => getComputedStyle(e).fontSize') == '13.5px'
     assert row.locator('.ui-source-tag--custom').evaluate('e => getComputedStyle(e).backgroundColor') != 'rgba(0, 0, 0, 0)'
     if width >= 1280:
+        # 105px / 76px 是设计稿对各卡片的高度上限；KPI 数值同行取
+        # max-min <= 1 仅容纳亚像素取整。
         assert page.locator('.context-card').bounding_box()['height'] <= 105
         for card in page.locator('.kpi').all():
             assert card.bounding_box()['height'] <= 76
