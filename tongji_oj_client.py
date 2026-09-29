@@ -1165,3 +1165,4 @@ load_state = _STATE.load
 save_state = _STATE.save
 update_state = _STATE.update
 update_override = _STATE.update_override
+delete_expired_hidden = _STATE.delete_expired_hidden

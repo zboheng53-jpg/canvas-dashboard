@@ -43,6 +43,7 @@ The standard policy intentionally excludes rebuildable or volatile data:
 - `zhihuishu_status.json`, login-session metadata, and the worker lock;
 - `.corrupt-*` forensic copies and server logs;
 - every `zhihuishu_chromium_profile/`.
+- every `tongji_login_profile/` and `tongji_login_session.json`, including active Chromium lock files.
 
 After a full restore, platform caches refill and 智慧树 users may need to sign in again. If preserving a browser profile for a special migration is required, copy it separately while the app, worker, and login containers are stopped; do not add it casually to the routine encrypted archive.
 
@@ -51,7 +52,11 @@ After a full restore, platform caches refill and 智慧树 users may need to sig
 Production has two layers:
 
 1. `canvas-dashboard-backup.timer` stops the app and worker, creates an encrypted server-side backup, restarts both services, and verifies local health. Server retention is 14 backups.
-2. The Windows scheduled task `Canvas Dashboard Encrypted Backup` asks the server to create a backup, downloads the newest `.cdbak`, verifies authenticated encryption plus every manifest entry, and retains 30 local copies.
+2. The Windows scheduled task `Canvas Dashboard Encrypted Backup` asks the server to create a backup, downloads the newest `.cdbak` and the independently encrypted latest deletion ledger from `backups/recovery-guards/`, verifies authenticated encryption plus every manifest entry, and retains 30 local data copies. Guard copies live in the local `recovery-guards/` subdirectory.
+
+The latest downloaded guard is the deletion recovery boundary. A deletion after that copy is not protected against total server loss until a newer guard is saved off-server. This flow is not a synchronous remote deletion journal; do not claim zero-loss disaster recovery from a daily download. Preserve the newest guard independently of the historical data snapshot selected for restoration.
+
+Backup, activation and rollback take the same `$root/.maintenance.lock` with a bounded wait. New releases own their Python dependency environments; this lock does not by itself coordinate arbitrary manual file copies.
 
 Inspect automation:
 
@@ -97,10 +102,14 @@ Verify or restore a selected local archive manually:
   --input "$HOME\CanvasDashboardBackups\canvas-dashboard-data-....cdbak" `
   --private-key "$HOME\.canvas-dashboard-backup\private.pem" `
   --output-dir "$env:TEMP\canvas-dashboard-restore-review" `
-  --deletion-ledger ".\data\.account_deletion_ledger.json"
+  --deletion-ledger "<directory restored from latest guard>\data\deletion-ledger.json"
 ```
 
 The restore output contains a `data/` directory. Inspect it in isolation and delete the decrypted temporary copy securely after the exercise.
+
+First restore the newest local `recovery-guards/*.cdbak` to a separate empty directory using the same `restore` command. Pass its `data/deletion-ledger.json` to the historical snapshot restore. An explicitly supplied missing or invalid ledger fails restoration; account-data cleanup failures also fail rather than silently reporting success.
+
+Every restore invalidates site sessions and password-reset links, clears restored Agent/calendar tokens and removes the old Flask session key. Users must sign in again and reconnect Agent/calendar subscriptions. Password hashes and the encryption key for saved platform configuration remain intact. This conservative reset prevents credentials revoked after the snapshot from becoming usable again.
 
 ## JSON Corruption Recovery
 
@@ -121,18 +130,26 @@ Do not decrypt a backup on the server by uploading the private key. Restore loca
 1. Restore the selected `.cdbak` locally into a new empty directory.
 2. Confirm the command reports `ok: true` and the expected file count.
 3. Upload the restored `data/` to `/home/ubuntu/canvas-dashboard/data.restore-stage`.
-   Before activation, copy the current live
-   `data/.account_deletion_ledger.json` into that stage. The normal restore
-   command above can also apply it while preparing the stage; this step keeps
-   the ledger durable across the directory swap.
+   Before activation, apply the latest independently saved deletion ledger;
+   `restore --deletion-ledger` automatically saves it to
+   `data.restore-stage/.account_deletion_ledger.json`. Use a current
+   live ledger if the server survived; after total server loss, use the newest
+   off-server guard, never the older data snapshot's ledger. Preserve newer
+   ledger entries if combining sources. This keeps deletion history durable
+   across the directory swap.
 4. On the server, stop the application and worker, preserve the current directory, and activate the staged copy:
 
 ```bash
 set -e
 cd /home/ubuntu/canvas-dashboard
+sudo touch .maintenance.lock
+sudo chown ubuntu:ubuntu .maintenance.lock
+exec 9>.maintenance.lock
+flock -w 300 9
 sudo systemctl stop canvas-dashboard.service zhihuishu-worker.service
 test -d data.restore-stage
 test -f data.restore-stage/users.json
+test -f data.restore-stage/.account_deletion_ledger.json
 mv data "data.restore-safety-$(date -u +%Y%m%dT%H%M%SZ)"
 mv data.restore-stage data
 sudo chown -R ubuntu:ubuntu data
@@ -150,4 +167,4 @@ curl -fsS https://canvas-dashboard.xyz/healthz
 6. Test one site login, one custom todo, and platform configuration decryption before removing the safety copy.
 7. Remove the decrypted local restore directory and server safety copy only after explicit review.
 
-If `.encryption_key` was not restored with `config.json`, existing encrypted platform credentials cannot be recovered from that data set. If `.flask_secret_key` changed, all sessions are invalidated.
+If `.encryption_key` was not restored with `config.json`, existing encrypted platform credentials cannot be recovered from that data set. Restore always replaces the session identity boundary; old sessions are invalidated.

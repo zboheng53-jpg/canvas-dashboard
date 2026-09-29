@@ -2,6 +2,10 @@
 set -euo pipefail
 
 root=/home/ubuntu/canvas-dashboard
+sudo touch "$root/.maintenance.lock"
+sudo chown ubuntu:ubuntu "$root/.maintenance.lock"
+exec 9>"$root/.maintenance.lock"
+flock -w 300 9
 target=${1:-}
 if [ -z "$target" ]; then
     target=$(cat "$root/.previous-release")

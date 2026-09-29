@@ -17,7 +17,9 @@ def load_courses(username):
 def save_courses(username, term, semester_start, courses, updated_at):
     if not courses:
         return False
-    write_json_file(_courses_file(username), {"term": term, "semester_start": semester_start, "updated_at": updated_at, "courses": courses})
+    default = {"term": "", "semester_start": "", "updated_at": None, "courses": []}
+    payload = {"term": term, "semester_start": semester_start, "updated_at": updated_at, "courses": courses}
+    locked_json_update(_courses_file(username), default, lambda _data: payload)
     return True
 
 

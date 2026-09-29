@@ -80,13 +80,14 @@ def test_custom_todo_delete_confirmation_flow(live_app, browser):
     page.close()
 
 
-def test_collapsible_groups_and_counts(live_app, browser):
+def test_collapsible_groups_and_counts(live_app, browser, test_now):
     """UI-05: Verify collapsible todo groups and group count badges."""
     page = browser.new_page(viewport={"width": 1280, "height": 800})
     register_user(page, live_app, "grp_collapse")
 
     # Add items
     page.fill("#new-todo-input", "今天待办测试")
+    page.fill("#new-todo-due", test_now.date().isoformat())
     page.click("#btn-add-todo")
     expect(page.locator(".todo-row", has_text="今天待办测试")).to_be_visible()
 

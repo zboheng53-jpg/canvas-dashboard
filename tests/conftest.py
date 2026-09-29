@@ -124,12 +124,12 @@ def live_app(isolated_data, monkeypatch, test_now, request):
     monkeypatch.setattr(dashboard_app.requests, "get", lambda *args, **kwargs: WeatherResponse())
     monkeypatch.setattr(
         dashboard_app,
-        "fetch_canvas_planner",
+        "get_canvas_cached_todos",
         lambda username: {
             "ok": True,
             "data": [
                 {
-                    "id": 101,
+                    "id": "canvas:assignment:101",
                     "title": "Canvas seeded",
                     "course": "Canvas",
                     "due_str": "07-10",
@@ -138,9 +138,12 @@ def live_app(isolated_data, monkeypatch, test_now, request):
                     "url": "",
                 }
             ],
-            "cached": False,
+            "cached": True,
+            "has_cache": True,
+            "stale": False,
         },
     )
+    monkeypatch.setattr(dashboard_app, 'has_feed_url', lambda username: True)
     monkeypatch.setattr(dashboard_app, "load_state", lambda username: {"hidden": [], "highlighted": [], "deleted": []})
     monkeypatch.setattr(dashboard_app, "save_state", lambda username, state: None)
     monkeypatch.setattr(dashboard_app, "fetch_haoke_todos", lambda username: {"ok": True, "data": [], "cached": False})

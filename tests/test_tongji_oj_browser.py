@@ -205,6 +205,7 @@ def test_slow_oj_refresh_leaves_production_request_threads_available(live_app, b
         page.reload()
         expect(page.locator("#todo-list")).to_contain_text("Cached OJ homework")
         page.wait_for_function("tongjiojPending === null")
+        page.wait_for_function("Object.values(platformRequests).every(count => count === 0) && workspaceRefreshing === false")
         page.click("#btn-refresh")
         assert started.wait(2)
         # Four concurrent slow refreshes previously filled all four Waitress threads.
@@ -234,26 +235,34 @@ def test_slow_oj_refresh_leaves_production_request_threads_available(live_app, b
 def test_refresh_burst_keeps_local_requests_responsive(live_app, browser, monkeypatch):
     page = browser.new_page()
     _open_connected_oj(page, live_app, "refreshburst")
-    entered, release = Barrier(7), Event()
-    normal_fetch = dashboard_app.fetch_canvas_planner
-    def slow_canvas(username):
-        entered.wait(timeout=5)
-        assert release.wait(5)
-        return normal_fetch(username)
-    monkeypatch.setattr(dashboard_app, "fetch_canvas_planner", slow_canvas)
+    import http_sync
+    entered, release, finished = Event(), Event(), Event()
+    calls = []
+    def slow_canvas():
+        calls.append('refreshburst')
+        entered.set()
+        try:
+            assert release.wait(5)
+        finally:
+            finished.set()
+    monkeypatch.setattr(dashboard_app, "start_canvas_background_refresh",
+                        lambda username: http_sync.submit_http_sync(username, 'canvas', slow_canvas))
     try:
         page.evaluate("""() => {
             window.slowPlatformsDone = false;
-            Promise.all(Array.from({length: 6}, () => fetch('/api/canvas/todos').then(r => r.json())))
+            Promise.all(Array.from({length: 6}, () => fetch('/api/canvas/todos?refresh=1').then(r => r.json())))
               .then(() => { window.slowPlatformsDone = true; });
         }""")
-        entered.wait(timeout=5)
+        assert entered.wait(timeout=5)
+        page.wait_for_function('window.slowPlatformsDone === true', timeout=2000)
+        assert calls == ['refreshburst']
         started = time.monotonic()
         assert page.request.get(f"{live_app}/api/clock", timeout=2000).ok
         assert page.request.get(f"{live_app}/api/actions", timeout=2000).ok
         assert time.monotonic() - started < 2
     finally:
         release.set()
+        assert finished.wait(5)
     page.wait_for_function("window.slowPlatformsDone === true")
 
 
@@ -308,12 +317,13 @@ def test_haoke_background_failure_stops_polling_without_restarting_stale_refresh
     started, release, finished = Event(), Event(), Event()
     calls = []
     original_worker = haoke_client._run_background_refresh
-    def observed(username):
+    def observed(username, identity, revision):
         try:
-            original_worker(username)
+            original_worker(username, identity, revision)
         finally:
             finished.set()
-    def slow_fetch(username):
+    def slow_fetch(username, *, publish):
+        assert publish is False
         calls.append(username)
         started.set()
         assert release.wait(10)

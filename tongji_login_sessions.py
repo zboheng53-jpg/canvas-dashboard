@@ -25,6 +25,8 @@ NOVNC_READY_TIMEOUT_SECONDS = settings.TONGJI_NOVNC_READY_TIMEOUT_SECONDS
 NOVNC_READY_INTERVAL_SECONDS = settings.TONGJI_NOVNC_READY_INTERVAL_SECONDS
 LOGIN_URL = "https://1.tongji.edu.cn/GraduateStudentTimeTable"
 TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
+DOCKER_TIMEOUT_SECONDS = 30.0
+STARTUP_GRACE_PERIOD_SECONDS = 60.0
 
 
 def _user_dir(username: str) -> Path:
@@ -56,9 +58,11 @@ def _find_free_port(start: int, end: int) -> int:
     raise RuntimeError("没有可用的同济认证窗口端口")
 
 
-def _run_docker(command: list[str]) -> None:
+def _run_docker(command: list[str], timeout: float = DOCKER_TIMEOUT_SECONDS) -> None:
     try:
-        subprocess.run(command, check=True)
+        subprocess.run(command, check=True, timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError("Docker 命令执行超时，请检查 Docker 服务状态。") from exc
     except FileNotFoundError as exc:
         raise RuntimeError("Docker 未准备好，无法启动同济认证窗口") from exc
     except subprocess.CalledProcessError as exc:
@@ -86,12 +90,8 @@ def _wait_for_novnc(port: int) -> None:
 
 
 def _stop_container(container_name: str) -> None:
-    if not container_name:
-        return
-    try:
-        subprocess.run(["docker", "rm", "-f", container_name], check=False)
-    except FileNotFoundError:
-        pass
+    from login_capacity import stop_container
+    stop_container(container_name)
 
 
 def _remove_profile(username: str) -> None:
@@ -108,10 +108,17 @@ def _iter_session_files():
                 yield user_dir / "tongji_login_session.json"
 
 
-def _remove_session_file(session_file: Path, login_session: dict) -> None:
-    _stop_container(login_session.get("container_name", ""))
-    _remove_profile(login_session.get("username", ""))
-    session_file.unlink(missing_ok=True)
+def _remove_session_file(session_file: Path, login_session: dict) -> bool:
+    from login_capacity import account_profile_lock
+    username = session_file.parent.name
+    with account_profile_lock(DATA_DIR, username, timeout=5.0):
+        current = read_json_file(session_file, None)
+        if not current or (current.get('token'), current.get('container_name')) != (login_session.get('token'), login_session.get('container_name')):
+            return False
+        _stop_container(current.get("container_name", ""))
+        _remove_profile(username)
+        session_file.unlink(missing_ok=True)
+        return True
 
 
 def cleanup_expired_sessions(now: float | None = None) -> int:
@@ -122,17 +129,21 @@ def cleanup_expired_sessions(now: float | None = None) -> int:
             login_session = json.loads(session_file.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
+        if login_session.get("status") == "starting" and (now - float(login_session.get("created_at", 0)) < STARTUP_GRACE_PERIOD_SECONDS):
+            continue
         if float(login_session.get("expires_at", 0)) < now:
-            _remove_session_file(session_file, login_session)
-            removed += 1
+            try:
+                removed += int(_remove_session_file(session_file, login_session))
+            except TimeoutError:
+                continue
     return removed
 
 
 def _list_login_containers() -> list[str]:
     command = ["docker", "ps", "-a", "--filter", "label=canvas-dashboard=tongji-login", "--format", "{{.Names}}"]
     try:
-        result = subprocess.run(command, check=False, capture_output=True, text=True)
-    except FileNotFoundError:
+        result = subprocess.run(command, check=False, capture_output=True, text=True, timeout=15)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
         return []
     return result.stdout.splitlines() if result.returncode == 0 else []
 
@@ -145,7 +156,8 @@ def cleanup_orphaned_containers(now: float | None = None) -> int:
             login_session = json.loads(session_file.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
-        if float(login_session.get("expires_at", 0)) >= now:
+        is_starting_grace = login_session.get("status") == "starting" and (now - float(login_session.get("created_at", 0)) < STARTUP_GRACE_PERIOD_SECONDS)
+        if float(login_session.get("expires_at", 0)) >= now or is_starting_grace:
             active.add(login_session.get("container_name", ""))
     orphans = [name for name in _list_login_containers() if name not in active]
     for name in orphans:
@@ -184,9 +196,10 @@ def load_session(username: str) -> dict | None:
 
 
 def create_session(username: str, now: float | None = None) -> dict:
-    from login_capacity import startup_slot
+    from login_capacity import startup_slot, account_profile_lock
     with startup_slot(DATA_DIR, _session_file(username)):
-        return _create_session(username, now)
+        with account_profile_lock(DATA_DIR, username, timeout=5.0):
+            return _create_session(username, now)
 
 
 def _create_session(username: str, now: float | None = None) -> dict:
@@ -196,17 +209,28 @@ def _create_session(username: str, now: float | None = None) -> dict:
     token = secrets.token_urlsafe(32)
     port = _find_free_port(PORT_START, PORT_END)
     debug_port = _find_free_port(DEBUG_PORT_START, DEBUG_PORT_END)
-    command = build_docker_command(username, token, port, debug_port)
-    _run_docker(command)
+    container_name = _container_name(token)
+
+    starting_session = {
+        "username": username, "token": token, "port": port, "debug_port": debug_port,
+        "container_name": container_name, "status": "starting", "created_at": now,
+        "expires_at": now + SESSION_TTL_SECONDS, "url": f"/schedule/session/{token}/",
+    }
+    write_json_file(_session_file(username), starting_session)
+
     try:
+        command = build_docker_command(username, token, port, debug_port)
+        _run_docker(command)
         _wait_for_novnc(port)
     except Exception:
-        _stop_container(_container_name(token))
+        _stop_container(container_name)
         _remove_profile(username)
+        _session_file(username).unlink(missing_ok=True)
         raise
+
     login_session = {
         "username": username, "token": token, "port": port, "debug_port": debug_port,
-        "container_name": _container_name(token), "created_at": now,
+        "container_name": container_name, "status": "ready", "created_at": now,
         "expires_at": now + SESSION_TTL_SECONDS, "url": f"/schedule/session/{token}/",
     }
     write_json_file(_session_file(username), login_session)
@@ -248,8 +272,7 @@ def stop_session(username: str, token: str | None = None) -> bool:
     login_session = load_session(username)
     if not login_session or (token is not None and login_session.get("token") != token):
         return False
-    _remove_session_file(_session_file(username), login_session)
-    return True
+    return _remove_session_file(_session_file(username), login_session)
 
 
 if __name__ == "__main__":

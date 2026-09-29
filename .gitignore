@@ -61,4 +61,5 @@ drafts/*
 frontend/open-design-preview/
 
 test-results/
+frontend/assets/built/
 release-*.tar.gz

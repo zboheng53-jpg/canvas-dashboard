@@ -64,8 +64,8 @@ def test_get_token_uses_per_user_cache_and_save_credentials_invalidates_only_tha
     future = datetime.now(haoke_client.CST) + timedelta(hours=1)
     haoke_client._token_cache.update(
         {
-            "alice": {"token": "alice-token", "expires_at": future},
-            "bob": {"token": "bob-token", "expires_at": future},
+            "alice": {"token": "alice-token", "expires_at": future, 'identity': haoke_client.auth.session_identity('alice'), 'revision': 0},
+            "bob": {"token": "bob-token", "expires_at": future, 'identity': haoke_client.auth.session_identity('bob'), 'revision': 0},
         }
     )
 
@@ -122,27 +122,24 @@ def test_get_cached_todos_returns_none_when_cache_missing(tmp_path, monkeypatch)
     assert haoke_client.get_cached_todos("alice") is None
 
 
-def test_start_background_refresh_starts_once_per_user(monkeypatch):
-    started = []
-    runners = []
-
-    class FakeThread:
-        def __init__(self, target, args, daemon):
-            self.target = target
-            self.args = args
-            self.daemon = daemon
-
-        def start(self):
-            started.append((self.args, self.daemon))
-            runners.append((self.target, self.args))
-
-    monkeypatch.setattr(haoke_client.threading, "Thread", FakeThread)
-
+def test_start_background_refresh_uses_shared_executor(isolated_data, monkeypatch):
+    import auth
+    import http_sync
+    auth.register("alice", "password1")
+    auth.register("bob", "password1")
+    started, runners = [], []
+    monkeypatch.setattr(haoke_client, "has_credentials", lambda _: True)
+    monkeypatch.setattr(haoke_client, "fetch_haoke_todos", lambda _, **kwargs: {"ok": True, "data": []})
+    def submit(username, platform, callback, **kwargs):
+        started.append((username, platform))
+        runners.append(callback)
+        return True
+    monkeypatch.setattr(http_sync, "submit_http_sync", submit)
     assert haoke_client.start_background_refresh("alice") is True
     assert haoke_client.start_background_refresh("alice") is False
     assert haoke_client.start_background_refresh("bob") is True
-
-    assert started == [(("alice",), True), (("bob",), True)]
-    runners[0][0](*runners[0][1])
-
+    assert started == [("alice", "haoke"), ("bob", "haoke")]
+    for callback in runners:
+        callback()
     assert haoke_client.start_background_refresh("alice") is True
+    haoke_client._refreshing_users.clear()

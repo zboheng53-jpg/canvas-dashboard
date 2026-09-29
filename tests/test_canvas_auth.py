@@ -31,7 +31,7 @@ END:VCALENDAR
     items = canvas_auth._parse_ical(raw)
 
     assert len(items) == 1
-    assert items[0]["id"] == 123
+    assert items[0]["id"] == "canvas:assignment:123"
     assert items[0]["title"] == "Lab report"
     assert items[0]["course"] == "Control Systems"
     assert items[0]["due_str"] == "2099-07-10 09:00"
@@ -65,7 +65,7 @@ def test_extract_stable_id_hashes_uid_when_url_has_no_canvas_fragment():
 
     assert first == second
     assert first != other
-    assert 0 <= first < 1000000
+    assert first.startswith("canvas:event:")
 
 
 def test_validate_feed_url_rejects_non_https_urls():
@@ -114,7 +114,7 @@ END:VCALENDAR
 
     assert result["ok"] is True
     assert result["cached"] is False
-    assert result["data"][0]["id"] == 456
+    assert result["data"][0]["id"] == "canvas:assignment:456"
     assert "Cached item" in (user_dir("alice") / "canvas_cache.json").read_text(encoding="utf-8")
 
 
@@ -138,7 +138,7 @@ def test_fetch_canvas_planner_falls_back_to_cache_on_request_failure(tmp_path, m
 
     result = canvas_auth.fetch_canvas_planner("alice")
 
-    assert result == {"ok": True, "data": [{"id": 1, "title": "cached"}], "cached": True}
+    assert result == {"ok": True, "data": [{"id": "canvas:legacy:1", "title": "cached"}], "cached": True}
 
 
 def test_feed_rejects_untrusted_hosts_and_malformed_urls(monkeypatch):

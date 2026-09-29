@@ -124,6 +124,19 @@
       if (sync.error_code || sync.error_message) return 2;
       return 99;
     }
+    function isPlatformConfigured(platform) {
+      const sync = platformSyncs[platform];
+      if (!sync) return true;
+      return sync.connection_state !== 'unconfigured';
+    }
+    window.isPlatformConfigured = isPlatformConfigured;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      if (platformSyncs.canvas?.refreshing) fetchCanvasTodos(false, true);
+      if (platformSyncs.haoke?.refreshing) fetchHaokeTodos(false, true);
+      if (platformSyncs.tongjioj?.refreshing) fetchTongjiojTodos();
+    });
+
     function renderDashboardSyncStatus() {
       const refreshing = workspaceRefreshing || connectionsRequestsPending || Object.values(platformRequests).some(count => count > 0)
         || Object.values(platformSyncs).some(sync => sync.refreshing);
@@ -170,12 +183,24 @@
       if (target && typeof selectConnectionPlatform === 'function') selectConnectionPlatform(target);
     }
 
-    async function fetchCanvasTodos() {
+    let canvasPollTimer = null;
+    let canvasLoadVersion = 0;
+    async function fetchCanvasTodos(force = false, cacheOnly = false) {
+      if (cacheOnly && document.visibilityState === 'hidden') return;
+      const version = ++canvasLoadVersion;
+      clearTimeout(canvasPollTimer);
       const finish = beginPlatformRequest('canvas');
       try {
-        const resp = await fetch('/api/canvas/todos');
+        const params = new URLSearchParams();
+        if (force) params.set('refresh', '1');
+        if (cacheOnly) params.set('cache_only', '1');
+        const resp = await fetch(`/api/canvas/todos${params.size ? '?' + params : ''}`);
         const result = await resp.json();
+        if (version !== canvasLoadVersion) return;
         recordPlatformSync('canvas', result);
+        if (result.sync?.refreshing) {
+          canvasPollTimer = setTimeout(() => fetchCanvasTodos(false, true), 2000);
+        }
 
         if (result.need_setup && result.sync?.connection_state !== 'disconnected') {
           setCardStatus('canvas', '未关联', 'attention');
@@ -187,36 +212,43 @@
         }
 
         if (!result.ok) {
-          setCardStatus('canvas', result.error || '\u83b7\u53d6\u5931\u8d25', 'attention');
+          setCardStatus('canvas', result.error || '获取失败', 'attention');
+        } else if (result.sync?.refreshing) {
+          setCardStatus('canvas', '同步中…', 'connected');
         } else {
           setCardStatus('canvas', '已连接', 'connected');
         }
 
-        canvasItems = result.data || [];
-        canvasItems.forEach(item => {
-          if (item.subtasks) {
-            item.subtasks.forEach((subtask, idx) => {
-              if (subtask.id == null) subtask.id = idx + 1;
-            });
-            item.subtasks = sortSubtasks(item.subtasks);
-          }
-        });
-        hiddenIds = result.hidden || [];
-        highlightedIds = result.highlighted || [];
-        canvasDeletedIds = result.deleted || [];
+        if (result.data && (result.data.length > 0 || !result.sync?.refreshing || !canvasItems.length)) {
+          canvasItems = result.data || [];
+          canvasItems.forEach(item => {
+            if (item.subtasks) {
+              item.subtasks.forEach((subtask, idx) => {
+                if (subtask.id == null) subtask.id = idx + 1;
+              });
+              item.subtasks = sortSubtasks(item.subtasks);
+            }
+          });
+          hiddenIds = result.hidden || [];
+          highlightedIds = result.highlighted || [];
+          canvasDeletedIds = result.deleted || [];
+        }
         renderUnifiedList();
       } catch (e) {
-        setCardStatus('canvas', '\u7f51\u7edc\u9519\u8bef', 'attention');
+        if (version !== canvasLoadVersion) return;
+        setCardStatus('canvas', '网络错误', 'attention');
         recordPlatformFailure('canvas');
       } finally {
         finish();
       }
     }
 
+
     // ---- Haoke Todos ----
     let haokePollTimer = null;
     let haokeLoadVersion = 0;
     async function fetchHaokeTodos(force = false, cacheOnly = false) {
+      if (cacheOnly && document.visibilityState === 'hidden') return;
       const version = ++haokeLoadVersion;
       clearTimeout(haokePollTimer);
       const finish = beginPlatformRequest('haoke');
@@ -501,6 +533,7 @@
       if (!result.sync?.refreshing || version !== tongjiojLoadVersion) return;
       clearTimeout(tongjiojPollTimer);
       tongjiojPollTimer = setTimeout(async () => {
+        if (document.visibilityState === 'hidden') return;
         if (version !== tongjiojLoadVersion) return;
         try {
           const params = new URLSearchParams({cache_only: '1'});
@@ -1616,6 +1649,7 @@
       const loaders = {canvas: fetchCanvasTodos, haoke: fetchHaokeTodos, zhixuemeng: fetchZhixuemengTodos, zhihuishu: fetchZhihuishuTodos, ketangpai: fetchKetangpaiTodos, tongjioj: fetchTongjiojTodos};
       if (platform === 'tongjioj') await fetchTongjiojTodos('', true);
       else if (platform === 'haoke') await fetchHaokeTodos(true);
+      else if (platform === 'canvas') await fetchCanvasTodos(true);
       else if (loaders[platform]) await loaders[platform]();
       if (typeof selectConnectionPlatform === 'function') selectConnectionPlatform(platform);
     }

@@ -7,7 +7,7 @@ import schedule_store
 import workspace_agenda
 import zhihuishu_store
 from action_contract import ActionValidationError, action_fields, check_version, fingerprint, replay, short_title
-from canvas_auth import has_feed_url, load_state, update_state
+from canvas_auth import cached_items as canvas_cached_items, has_feed_url, load_state, resolve_item_id as resolve_canvas_item_id, update_state
 from datetime import date, datetime, timedelta
 from flask import abort, jsonify, request, session
 from haoke_client import (
@@ -227,7 +227,15 @@ def _calendar_items(username, category=None):
                 due_ts = override.get("due_ts", item.get("due_ts"))
                 due_at = _parse_calendar_due(due_ts)
                 due_date = item.get("due_date")
-                if item_id in hidden or item_id in deleted or item_id in completed or item.get("done"):
+                if (
+                    item_id in hidden
+                    or str(item_id) in hidden
+                    or item_id in deleted
+                    or str(item_id) in deleted
+                    or item_id in completed
+                    or str(item_id) in completed
+                    or item.get("done")
+                ):
                     continue
                 if due_at is not None:
                     if due_at < now - timedelta(days=30):
@@ -251,7 +259,7 @@ def _calendar_items(username, category=None):
                     "url": item.get("url"),
                 })
 
-        add_cached("Canvas", "canvas", read_json_file(user_dir(username) / "canvas_cache.json", []), load_state(username), True)
+        add_cached("Canvas", "canvas", canvas_cached_items(username), load_state(username), True)
         add_cached("Haoke", "haoke", read_json_file(user_dir(username) / "haoke_cache.json", []), load_haoke_state(username), True)
         zxm_cache = read_json_file(user_dir(username) / "zhixuemeng_cache.json", {})
         add_cached("Zhixuemeng", "zhixuemeng", zxm_cache.get("items", []) if isinstance(zxm_cache, dict) else [], load_zxm_state(username), True)
@@ -677,15 +685,17 @@ def _custom_action_ref(todo):
 
 def _next_todo_id(username: str, current: list[dict]) -> int:
     meta_path = user_dir(username) / "custom_todos_meta.json"
-    meta = read_json_file(meta_path, {})
     current_max = max(
         (t.get("id", 0) for t in current if isinstance(t.get("id"), int) and not isinstance(t.get("id"), bool)),
         default=0,
     )
-    stored_next = meta.get("next_id", 0) if isinstance(meta.get("next_id"), int) else 0
-    next_id = max(current_max + 1, stored_next)
-    write_json_file(meta_path, {"next_id": next_id + 1})
-    return next_id
+    selected = {}
+    def allocate(meta):
+        stored_next = meta.get("next_id", 0) if isinstance(meta.get("next_id"), int) else 0
+        selected["id"] = max(current_max + 1, stored_next)
+        return {"next_id": selected["id"] + 1}
+    locked_json_update(meta_path, {}, allocate)
+    return selected["id"]
 
 
 def _create_custom_action(username, data):
@@ -776,6 +786,9 @@ def _workspace_actions(username, range_bounds=None):
 
 
 def _get_workspace_action(username, ref):
+    if ref and ref.startswith("canvas:"):
+        canvas_cached_items(username)
+        ref = "canvas:" + resolve_canvas_item_id(username, ref[len("canvas:"):])
     if ref and ref.startswith("recurring:"):
         return recurring_todo_store.get_occurrence_by_ref(username, ref)
     return next((action for action in _workspace_actions(username) if action["ref"] == ref and not action.get("deleted_at")), None)
@@ -1005,7 +1018,7 @@ def _aggregate_agent_todos(username: str, source: str = "all", status: str = "pe
         cache_path = user_dir(username) / cache_file
         if not cache_path.exists():
             return
-        cached = read_json_file(cache_path, [] if platform_name not in ("zhixuemeng", "ketangpai", "tongjioj") else {})
+        cached = canvas_cached_items(username) if platform_name == "canvas" else read_json_file(cache_path, [] if platform_name not in ("zhixuemeng", "ketangpai", "tongjioj") else {})
         items = cached.get("items", []) if isinstance(cached, dict) else (cached if isinstance(cached, list) else [])
         state = state_loader(username)
         completed_set = set(state.get("completed", []))
@@ -1015,12 +1028,21 @@ def _aggregate_agent_todos(username: str, source: str = "all", status: str = "pe
 
         for item in items:
             item_id = item.get("id")
-            if item_id in hidden_set or item_id in deleted_set:
+            if (
+                item_id in hidden_set
+                or str(item_id) in hidden_set
+                or item_id in deleted_set
+                or str(item_id) in deleted_set
+            ):
                 continue
             override = overrides.get(str(item_id), {}) if isinstance(overrides, dict) else {}
             title = override.get("title", item.get("title", ""))
             due_ts = override.get("due_ts", item.get("due_ts"))
-            is_done = item_id in completed_set or bool(item.get("done"))
+            is_done = (
+                item_id in completed_set
+                or str(item_id) in completed_set
+                or bool(item.get("done"))
+            )
             all_todos.append({
                 "id": str(item_id),
                 "title": title,
@@ -1110,9 +1132,9 @@ def _platform_item_exists(username: str, platform_name: str, cache_file: str, it
     cache_path = user_dir(username) / cache_file
     if not cache_path.exists():
         return False
-    cached = read_json_file(cache_path, [] if platform_name not in ("zhixuemeng", "ketangpai", "tongjioj") else {})
+    cached = canvas_cached_items(username) if platform_name == "canvas" else read_json_file(cache_path, [] if platform_name not in ("zhixuemeng", "ketangpai", "tongjioj") else {})
     items = cached.get("items", []) if isinstance(cached, dict) else (cached if isinstance(cached, list) else [])
-    str_id = str(item_id)
+    str_id = resolve_canvas_item_id(username, item_id) if platform_name == "canvas" else str(item_id)
     return any(str(item.get("id")) == str_id for item in items if isinstance(item, dict))
 
 

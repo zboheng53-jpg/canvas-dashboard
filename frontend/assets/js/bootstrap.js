@@ -89,16 +89,41 @@
       renderUnifiedList();
     }
 
-    if (!isDemoMode) {
-      setInterval(fetchCanvasTodos, 30 * 60 * 1000);
-      setInterval(fetchHaokeTodos, 30 * 60 * 1000);
-      setInterval(fetchZhixuemengTodos, 30 * 60 * 1000);
-      setInterval(fetchZhihuishuTodos, 30 * 60 * 1000);
-      setInterval(fetchKetangpaiTodos, 30 * 60 * 1000);
-      setInterval(fetchTongjiojTodos, 30 * 60 * 1000);
-      setInterval(fetchTerm, 60 * 1000);
-      setInterval(fetchWeather, 60 * 60 * 1000);
+    const scheduledBackgroundTasks = [];
+    function scheduleVisibilityTask(name, fn, intervalMs) {
+      scheduledBackgroundTasks.push({
+        name,
+        fn,
+        intervalMs,
+        lastRunAt: Date.now(),
+      });
     }
+
+    function checkAndRunScheduledTasks() {
+      if (document.visibilityState === 'hidden') return;
+      const now = Date.now();
+      for (const task of scheduledBackgroundTasks) {
+        if (now - task.lastRunAt >= task.intervalMs) {
+          task.lastRunAt = now;
+          try { task.fn(); } catch (_) {}
+        }
+      }
+    }
+
+    if (!isDemoMode) {
+      scheduleVisibilityTask('canvas', () => { if (typeof isPlatformConfigured !== 'function' || isPlatformConfigured('canvas')) fetchCanvasTodos(); }, 30 * 60 * 1000);
+      scheduleVisibilityTask('haoke', () => { if (typeof isPlatformConfigured !== 'function' || isPlatformConfigured('haoke')) fetchHaokeTodos(); }, 30 * 60 * 1000);
+      scheduleVisibilityTask('zhixuemeng', () => { if (typeof isPlatformConfigured !== 'function' || isPlatformConfigured('zhixuemeng')) fetchZhixuemengTodos(); }, 30 * 60 * 1000);
+      scheduleVisibilityTask('zhihuishu', () => { if (typeof isPlatformConfigured !== 'function' || isPlatformConfigured('zhihuishu')) fetchZhihuishuTodos(); }, 30 * 60 * 1000);
+      scheduleVisibilityTask('ketangpai', () => { if (typeof isPlatformConfigured !== 'function' || isPlatformConfigured('ketangpai')) fetchKetangpaiTodos(); }, 30 * 60 * 1000);
+      scheduleVisibilityTask('tongjioj', () => { if (typeof isPlatformConfigured !== 'function' || isPlatformConfigured('tongjioj')) fetchTongjiojTodos(); }, 30 * 60 * 1000);
+      scheduleVisibilityTask('term', fetchTerm, 60 * 1000);
+      scheduleVisibilityTask('weather', fetchWeather, 60 * 60 * 1000);
+
+      // Periodically check scheduled tasks every 10s (only runs work when tab is visible)
+      setInterval(checkAndRunScheduledTasks, 10000);
+    }
+
 
     // LINK-09: Cross-tab sync and cross-midnight date change detection
     let syncChannel = null;
@@ -156,9 +181,14 @@
       }
     }
 
+    function handleVisibilityResume() {
+      checkDateRollOver();
+      checkAndRunScheduledTasks();
+    }
+
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
-        checkDateRollOver();
+        handleVisibilityResume();
       }
     });
-    window.addEventListener('focus', checkDateRollOver);
+    window.addEventListener('focus', handleVisibilityResume);

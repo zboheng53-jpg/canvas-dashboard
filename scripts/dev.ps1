@@ -24,6 +24,8 @@ if (-not (Test-Path -LiteralPath $Python)) {
 
 Push-Location $RepoRoot
 try {
+    & $Python scripts/build_assets.py
+    if ($LASTEXITCODE -ne 0) { throw "Static asset build failed." }
     & $Python -c "import flask, requests, cryptography, playwright; import Crypto"
     if ($LASTEXITCODE -ne 0) {
         throw "Missing dependencies. Run: .\.venv\Scripts\python.exe -m pip install -r requirements.txt"

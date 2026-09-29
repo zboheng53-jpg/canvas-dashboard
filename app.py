@@ -8,6 +8,7 @@ import io
 import json
 import ketangpai_client
 import logging
+import os
 import platform_sync
 import requests
 import secrets
@@ -21,23 +22,30 @@ import zhihuishu_login_sessions
 import zhihuishu_store
 import zhihuishu_worker
 import zipfile
+from static_assets import load_manifest
 from action_contract import ActionConflictError, ActionValidationError
 from agent_mcp import WRITING_RULES
 from canvas_auth import (
+    cached_items as canvas_cached_items,
+    delete_expired_hidden as delete_canvas_expired_hidden,
     fetch_canvas_planner,
+    get_cached_todos as get_canvas_cached_todos,
     has_feed_url,
+    is_refreshing as is_canvas_refreshing,
     load_state,
     remove_feed_url,
     save_feed_url,
     save_state,
+    start_background_refresh as start_canvas_background_refresh,
     update_override as update_canvas_override,
     update_state,
 )
 from datetime import datetime, timedelta
 from external_subtasks import attach_subtasks, save_subtasks
-from flask import Flask, abort, jsonify, redirect, render_template, request, session
+from flask import Flask, abort, g, jsonify, redirect, render_template, request, session
 from haoke_client import (
     clear_credentials as clear_haoke_credentials,
+    delete_expired_hidden as delete_haoke_expired_hidden,
     fetch_haoke_todos,
     get_cached_todos as get_haoke_cached_todos,
     has_credentials as has_haoke_credentials,
@@ -50,6 +58,7 @@ from haoke_client import (
     update_state as update_haoke_state,
 )
 from ketangpai_client import (
+    delete_expired_hidden as delete_ktp_expired_hidden,
     fetch_assignments as fetch_ktp_assignments,
     fetch_courses as fetch_ktp_courses,
     has_token as has_ktp_token,
@@ -71,6 +80,7 @@ from services.academic import _check_today_holiday, get_term_info
 from services.workspace import CALENDAR_CATEGORIES, CATEGORY_ALIASES, _calendar_items, _parse_calendar_due
 from storage import JsonFileCorruptionError, read_json_file
 from tongji_oj_client import (
+    delete_expired_hidden as delete_tjoj_expired_hidden,
     get_selected_course as get_tjoj_selected_course,
     has_credentials as has_tjoj_credentials,
     iam_login as tjoj_iam_login,
@@ -95,6 +105,7 @@ from web_common import (
 )
 from werkzeug.middleware.proxy_fix import ProxyFix
 from zhixuemeng_client import (
+    delete_expired_hidden as delete_zxm_expired_hidden,
     fetch_assignments as fetch_zxm_assignments,
     fetch_courses as fetch_zxm_courses,
     get_selected_course,
@@ -131,7 +142,52 @@ app.config.update(
     SESSION_COOKIE_SECURE=settings.COOKIE_SECURE,
     SESSION_REFRESH_EACH_REQUEST=False,
 )
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+settings.validate_production_configuration()
+_asset_manifest = load_manifest(app.static_folder)
+
+
+@app.url_defaults
+def _fingerprint_static_urls(endpoint, values):
+    if endpoint == 'static' and values.get('filename') in _asset_manifest:
+        values['filename'] = _asset_manifest[values['filename']]
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=0, x_prefix=0)
+
+
+@app.before_request
+def _validate_trusted_host_and_environment():
+    from urllib.parse import urlsplit
+    allowed = set(settings.TRUSTED_HOSTS)
+    if settings.PUBLIC_BASE_URL:
+        allowed.add(urlsplit(settings.PUBLIC_BASE_URL).hostname)
+    if allowed:
+        raw_host = request.headers.get("Host", "").strip() or request.host
+        host_only = raw_host.split(":")[0].lower() if raw_host else ""
+        if host_only not in allowed and host_only not in ("127.0.0.1", "localhost", "::1", "testserver"):
+            return jsonify({"ok": False, "error": "Invalid Host Header"}), 400
+
+
+@app.after_request
+def _apply_security_and_cache_headers(response):
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    endpoint = request.endpoint
+    if endpoint == "static":
+        response.headers["Cache-Control"] = (
+            "public, max-age=31536000, immutable"
+            if request.view_args.get('filename', '').startswith('built/')
+            else "public, max-age=0, must-revalidate"
+        )
+    elif response.mimetype == 'text/html' or request.path.startswith("/api/") or endpoint in (
+        "index",
+        "component_lab",
+        "site_login_page",
+        "site_register_page",
+        "site_privacy_page",
+        "site_welcome_page",
+    ):
+        response.headers["Cache-Control"] = "private, no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+    return response
 
 
 @app.errorhandler(ActionValidationError)
@@ -155,12 +211,15 @@ _LOGIN_EXEMPT_ENDPOINTS = {
     "calendar_subscription",
     "calendar_category_subscription",
     "healthz",
+    "livez",
+    "readyz",
     "site_password_reset_page",
     "api_auth_password_reset",
     "static",
     "api_skill_readme",
     "api_skill_file",
 }
+
 _CSRF_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 _CSRF_HEADER = "X-CSRF-Token"
 _CSRF_SESSION_KEY = "_csrf_token"
@@ -175,23 +234,67 @@ SMS_RATE_LIMIT_ATTEMPTS = 3
 SMS_RATE_LIMIT_SECONDS = 10 * 60
 _rate_limit_buckets = {}
 _rate_limit_lock = threading.Lock()
+_last_rate_limit_cleanup = 0.0
+
+
+def _clean_rate_limit_buckets_locked(now: float):
+    global _last_rate_limit_cleanup
+    if (
+        now - _last_rate_limit_cleanup < settings.RATE_LIMIT_CLEANUP_INTERVAL_SECONDS
+        and len(_rate_limit_buckets) < settings.RATE_LIMIT_MAX_KEYS
+    ):
+        return
+    _last_rate_limit_cleanup = now
+    cutoff_hour = now - 3600
+    expired = [k for k, ts in _rate_limit_buckets.items() if not ts or max(ts) < cutoff_hour]
+    for k in expired:
+        _rate_limit_buckets.pop(k, None)
+    if len(_rate_limit_buckets) > settings.RATE_LIMIT_MAX_KEYS:
+        excess = len(_rate_limit_buckets) - settings.RATE_LIMIT_MAX_KEYS
+        sorted_keys = sorted(
+            _rate_limit_buckets.keys(),
+            key=lambda k: max(_rate_limit_buckets[k]) if _rate_limit_buckets[k] else 0,
+        )
+        for k in sorted_keys[:excess]:
+            _rate_limit_buckets.pop(k, None)
 
 
 def _check_data_writable():
-    probe = None
+    """Verify local storage directory and fail-closed data corruption check without disk write probes."""
     try:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
-        probe = DATA_DIR / f".healthz-{secrets.token_hex(8)}.tmp"
-        probe.write_text("ok", encoding="utf-8")
-        probe.unlink(missing_ok=True)
+        if not DATA_DIR.is_dir():
+            return {"ok": False, "error": "NotADirectory"}
+        if not os.access(DATA_DIR, os.W_OK | os.X_OK):
+            return {"ok": False, "error": "PermissionDenied"}
+        # Fail closed on data corruption
+        users_file = DATA_DIR / "users.json"
+        if users_file.exists():
+            read_json_file(users_file, {})
         return {"ok": True}
+    except JsonFileCorruptionError as exc:
+        return {"ok": False, "error": "JsonFileCorruptionError", "detail": str(exc)}
     except Exception as exc:
-        if probe is not None:
-            try:
-                probe.unlink(missing_ok=True)
-            except Exception:
-                pass
         return {"ok": False, "error": type(exc).__name__}
+
+
+_worker_cache_lock = threading.Lock()
+_worker_cache_data = {"last_time": 0.0, "result": None}
+
+
+def _check_zhihuishu_worker_cached():
+    if app.testing:
+        return _check_zhihuishu_worker()
+    now = time.time()
+    with _worker_cache_lock:
+        if now - _worker_cache_data["last_time"] < 30.0 and _worker_cache_data["result"] is not None:
+            return dict(_worker_cache_data["result"])
+    res = _check_zhihuishu_worker()
+    with _worker_cache_lock:
+        _worker_cache_data["last_time"] = now
+        _worker_cache_data["result"] = res
+    return res
+
 
 
 def _check_zhihuishu_worker():
@@ -210,6 +313,20 @@ def _check_zhihuishu_worker():
         "lock_file_present": zhihuishu_worker.LOCK_FILE.exists(),
     }
     last_success_values = []
+    try:
+        heartbeat = read_json_file(zhihuishu_store.DATA_DIR / 'worker_heartbeat.json', {})
+    except JsonFileCorruptionError:
+        heartbeat = {}
+        result['unreadable_count'] += 1
+    heartbeat_at = heartbeat.get('at')
+    heartbeat_pid = heartbeat.get('pid', 0)
+    alive = False
+    if isinstance(heartbeat_pid, int) and heartbeat_pid > 0:
+        from login_capacity import _pid_is_running
+        alive = _pid_is_running(heartbeat_pid)
+    result['heartbeat_at'] = heartbeat_at
+    result['heartbeat_fresh'] = bool(alive and isinstance(heartbeat_at, (int, float)) and
+                                    0 <= time.time() - heartbeat_at <= settings.ZHIHUISHU_KEEPALIVE_INTERVAL_SECONDS + settings.ZHIHUISHU_FETCH_TIMEOUT_SECONDS + 60)
     try:
         if not users_dir.exists():
             return result
@@ -237,19 +354,50 @@ def _check_zhihuishu_worker():
         result["last_success_at"] = max(last_success_values)
         result["oldest_last_success_at"] = min(last_success_values)
         result["last_success_age_seconds"] = max(0, round(time.time() - result["last_success_at"]))
-    result["ok"] = result["error_count"] == 0 and result["unreadable_count"] == 0
+    result["ok"] = result["error_count"] == 0 and result["unreadable_count"] == 0 and (
+        not result['status_file_count'] or result['heartbeat_fresh'])
     return result
+
+
+@app.route("/livez")
+def livez():
+    """Web liveness probe."""
+    return jsonify({"ok": True, "status": "alive"}), 200
+
+
+@app.route("/readyz")
+def readyz():
+    """Local storage readiness probe; fails closed if critical storage or data is corrupt."""
+    storage = _check_data_writable()
+    ok = storage.get("ok") is True
+    return jsonify({"ok": ok, "status": "ready" if ok else "unready", "checks": {"storage": storage}}), 200 if ok else 503
 
 
 @app.route("/healthz")
 def healthz():
+    """Deployment health check; degrades on third-party worker errors without returning 503."""
+    storage = _check_data_writable()
+    worker = _check_zhihuishu_worker_cached()
+    storage_ok = storage.get("ok") is True
     checks = {
         "app": {"ok": True},
-        "data_writable": _check_data_writable(),
-        "zhihuishu_worker": _check_zhihuishu_worker(),
+        "data_writable": storage,
+        "zhihuishu_worker": worker,
     }
-    ok = all(check.get("ok") is True for check in checks.values())
-    return jsonify({"ok": ok, "checks": checks}), 200 if ok else 503
+    ok = storage_ok
+    status = "healthy" if (storage_ok and worker.get("ok")) else ("degraded" if storage_ok else "unhealthy")
+    return jsonify({"ok": ok, "status": status, "checks": checks}), 200 if ok else 503
+
+
+@app.route("/api/diagnostics/workers")
+def api_diagnostics_workers():
+    """Diagnostic endpoint reporting background worker heartbeat and platform states."""
+    worker = _check_zhihuishu_worker()
+    return jsonify({
+        "ok": True,
+        "worker": worker,
+        "timestamp": time.time(),
+    })
 
 
 def _get_or_create_csrf_token():
@@ -303,6 +451,7 @@ def _check_rate_limit(scope, identity, attempts, window_seconds):
     cutoff = now - window_seconds
     key = _rate_limit_key(scope, identity)
     with _rate_limit_lock:
+        _clean_rate_limit_buckets_locked(now)
         timestamps = [ts for ts in _rate_limit_buckets.get(key, []) if ts > cutoff]
         if len(timestamps) >= attempts:
             retry_after = max(1, int(window_seconds - (now - timestamps[0])))
@@ -311,6 +460,10 @@ def _check_rate_limit(scope, identity, attempts, window_seconds):
         timestamps.append(now)
         _rate_limit_buckets[key] = timestamps
     return True, None
+
+
+
+app.config['AGENT_RATE_LIMITER'] = _check_rate_limit
 
 
 def _rate_limited_response(retry_after):
@@ -364,6 +517,11 @@ def _require_login():
         if request.path.startswith("/api/"):
             return jsonify({"ok": False, "error": "unauthorized"}), 401
         return redirect("/login")
+    # Keep an authenticated request on its original account instance until its
+    # writes finish; deletion/re-registration cannot redirect it to a new user.
+    operation = auth.account_operation(username)
+    operation.__enter__()
+    g.account_operation = operation
     raw_active_at = session.get(_SESSION_ACTIVITY_KEY)
     if raw_active_at:
         try:
@@ -397,6 +555,13 @@ def handle_json_file_corruption(error):
     if request.path.startswith("/api/"):
         return jsonify({"ok": False, "error": "stored data is temporarily unavailable"}), 503
     return "Stored data is temporarily unavailable.", 503
+
+
+@app.teardown_request
+def _release_account_operation(error=None):
+    operation = g.pop("account_operation", None)
+    if operation:
+        operation.__exit__(None, None, None)
 
 
 @app.before_request
@@ -443,9 +608,13 @@ WMO_CODES = {
     99: ("\u5f3a\u5bf9\u6d41\u96f7\u96e8", "\u26c8\ufe0f"),
 }
 WEATHER_CAMPUSES = {
-    "siping": {"name": "\u56db\u5e73\u8def\u6821\u533a", "latitude": 31.28294, "longitude": 121.501489},
-    "jiading": {"name": "\u5609\u5b9a\u6821\u533a", "latitude": 31.28984, "longitude": 121.17712},
+    "siping": {"name": "四平路校区", "latitude": 31.28294, "longitude": 121.501489},
+    "jiading": {"name": "嘉定校区", "latitude": 31.28984, "longitude": 121.17712},
 }
+WEATHER_CACHE_TTL_SECONDS = 15 * 60
+_weather_cache: dict[str, dict] = {}
+_weather_locks = {campus: threading.Lock() for campus in WEATHER_CAMPUSES}
+
 
 
 def _weather_url_for(campus: str) -> str:
@@ -693,9 +862,20 @@ def api_auth_login():
     )
     if not allowed:
         return _rate_limited_response(retry_after)
-    if not auth.verify_login(username, password):
+    identity = auth.verify_login(username, password)
+    if not identity:
         return jsonify({"ok": False, "error": "用户名或密码错误"}), 401
-    account_id, session_version = auth.session_identity(username)
+    current_identity = auth.session_identity(username)
+    if (
+        not current_identity
+        or not isinstance(identity, dict)
+        or (
+            identity.get("account_id") != current_identity[0]
+            or identity.get("session_version") != current_identity[1]
+        )
+    ):
+        return jsonify({"ok": False, "error": "账户状态已变更，请重新登录"}), 401
+    account_id, session_version = identity["account_id"], identity["session_version"]
     csrf_token = session.get(_CSRF_SESSION_KEY)
     session.clear()
     session.update(username=username, account_id=account_id, session_version=session_version)
@@ -736,6 +916,8 @@ def api_auth_password_reset():
 @app.route("/api/account", methods=["GET", "DELETE"])
 def api_account():
     username = session["username"]
+    account_id = session.get("account_id")
+    session_version = session.get("session_version")
     if request.method == "GET":
         metadata = auth.account_metadata(username)
         if not metadata:
@@ -745,29 +927,42 @@ def api_account():
     data = read_json_request()
     if data is None:
         return invalid_request_response()
-    # Stop resources before removing the directory.  Worker discovery is
-    # record-based (not directory-based), so deleted accounts cannot be picked
-    # up by a later cycle.
-    zhihuishu_login_sessions.stop_session(username)
-    tongji_login_sessions.stop_session(username)
-    try:
-        zhixuemeng_client = __import__("zhixuemeng_client")
-        zhixuemeng_client.logout(username)
-    except Exception:
-        logger.warning("Could not clear in-memory 智学盟 state for account deletion")
-    try:
-        ktp_logout(username)
-    except Exception:
-        logger.warning("Could not clear in-memory 课堂派 state for account deletion")
-    try:
-        tjoj_logout(username)
-    except Exception:
-        logger.warning("Could not clear in-memory 同济OJ state for account deletion")
-    ok, error = auth.delete_account(username, data.get("password") or "", data.get("confirmation") or "")
+    password = data.get("password") or ""
+    confirmation = data.get("confirmation") or ""
+    if not password or not confirmation:
+        return api_error("invalid_request", "请提供密码和确认文字", 400)
+    if confirmation != auth.DELETE_CONFIRMATION:
+        return api_error("invalid_confirmation", f"请准确输入“{auth.DELETE_CONFIRMATION}”", 400)
+
+    def cleanup_resources():
+        zhihuishu_login_sessions.stop_session(username)
+        tongji_login_sessions.stop_session(username)
+        try:
+            zhixuemeng_client = __import__("zhixuemeng_client")
+            zhixuemeng_client.logout(username)
+        except Exception:
+            logger.warning("Could not clear in-memory 智学盟 state for account deletion")
+        try:
+            ktp_logout(username)
+        except Exception:
+            logger.warning("Could not clear in-memory 课堂派 state for account deletion")
+        try:
+            tjoj_logout(username)
+        except Exception:
+            logger.warning("Could not clear in-memory 同济OJ state for account deletion")
+
+    ok, error = auth.delete_account(
+        username,
+        password,
+        confirmation,
+        expected_account_id=account_id,
+        expected_session_version=session_version,
+        before_delete=cleanup_resources,
+    )
     if not ok:
         return jsonify({"ok": False, "error": error}), 400
     session.clear()
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "cleanup_pending": bool(error), "message": error})
 
 
 @app.route("/api/account/sessions/revoke-others", methods=["POST"])
@@ -809,24 +1004,53 @@ def api_weather():
     try:
         campus = request.args.get("campus", "siping")
         if campus not in WEATHER_CAMPUSES:
-            return api_error("weather_campus_invalid", "\u6821\u533a\u65e0\u6548", 400)
-        resp = requests.get(_weather_url_for(campus), timeout=10)
-        data = resp.json()
-        current = data.get("current", {})
-        code = current.get("weather_code", -1)
-        desc, emoji = WMO_CODES.get(code, (f"\u672a\u77e5({code})", "?"))
-        return jsonify({
-            "ok": True,
-            "temperature": current.get("temperature_2m"),
-            "humidity": current.get("relative_humidity_2m"),
-            "campus": campus,
-            "campus_name": WEATHER_CAMPUSES[campus]["name"],
-            "weather_code": code,
-            "weather_desc": desc,
-            "weather_emoji": emoji,
-        })
+            return api_error("weather_campus_invalid", "校区无效", 400)
+
+        now = time.time()
+        getter_id = id(requests.get)
+        cached = _weather_cache.get(campus)
+        if cached and (now - cached.get("cached_at", 0) < WEATHER_CACHE_TTL_SECONDS) and cached.get("getter_id") == getter_id:
+            return jsonify(cached["data"])
+
+        lock = _weather_locks.get(campus)
+        if lock is None:
+            lock = threading.Lock()
+            _weather_locks[campus] = lock
+
+        with lock:
+            cached = _weather_cache.get(campus)
+            if cached and (now - cached.get("cached_at", 0) < WEATHER_CACHE_TTL_SECONDS) and cached.get("getter_id") == getter_id:
+                return jsonify(cached["data"])
+
+            try:
+                resp = requests.get(_weather_url_for(campus), timeout=5)
+                data = resp.json()
+                current = data.get("current", {})
+                code = current.get("weather_code", -1)
+                desc, emoji = WMO_CODES.get(code, (f"未知({code})", "?"))
+                payload = {
+                    "ok": True,
+                    "temperature": current.get("temperature_2m"),
+                    "humidity": current.get("relative_humidity_2m"),
+                    "campus": campus,
+                    "campus_name": WEATHER_CAMPUSES[campus]["name"],
+                    "weather_code": code,
+                    "weather_desc": desc,
+                    "weather_emoji": emoji,
+                }
+                _weather_cache[campus] = {
+                    "data": payload,
+                    "cached_at": time.time(),
+                    "getter_id": getter_id,
+                }
+                return jsonify(payload)
+            except Exception as e:
+                logger.warning(f"Weather fetch failed: {e}")
+                if cached and cached.get("getter_id") == getter_id:
+                    return jsonify(cached["data"])
+                return jsonify({"ok": False, "error": "weather fetch failed"})
     except Exception as e:
-        logger.warning(f"Weather fetch failed: {e}")
+        logger.warning(f"Weather route failed: {e}")
         return jsonify({"ok": False, "error": "weather fetch failed"})
 
 
@@ -859,26 +1083,36 @@ def api_canvas_todos():
     cache_path = _platform_cache_path(username, "canvas")
     disconnected = platform_sync.get(username, "canvas")["connection_state"] == "disconnected"
     if disconnected and not has_feed_url(username) and cache_path.exists():
-        result = {"ok": True, "data": read_json_file(cache_path, []), "cached": True, "disconnected": True, "need_setup": True}
+        result = {"ok": True, "data": canvas_cached_items(username), "cached": True, "disconnected": True, "need_setup": True}
+    elif not has_feed_url(username):
+        result = {"ok": False, "error": "请先设置日历馈送源 URL", "data": [], "need_setup": True}
     else:
-        result = fetch_canvas_planner(username)
-    cache_exists = cache_path.exists()
-    if has_feed_url(username):
-        platform_sync.record_result(
-            username, "canvas", ok=bool(result.get("ok")) and not bool(result.get("cached")),
-            has_cache=cache_exists, cached=bool(result.get("cached")),
-            error_code=result.get("code"), error_message=result.get("error"),
-        )
+        cache_only = request.args.get("cache_only") == "1"
+        force_refresh = request.args.get("refresh") == "1"
+        cached_result = get_canvas_cached_todos(username)
+        has_cache = cached_result.get("has_cache", False)
+        stale = cached_result.get("stale", True)
+
+        if not cache_only and (force_refresh or not has_cache or stale):
+            start_canvas_background_refresh(username)
+
+        if cached_result.get("ok"):
+            result = cached_result
+        else:
+            result = {"ok": True, "data": [], "cached": True, "stale": True, "has_cache": False}
+
     state = load_state(username)
     result = build_platform_todos_response(
         result,
         state,
-        save_state=lambda changed_state: save_state(username, changed_state),
+        expire_hidden=lambda expired_ids: delete_canvas_expired_hidden(username, expired_ids),
         now=datetime.now(CST),
     )
     result = attach_subtasks(username, "canvas", result)
     state_name = "connected" if has_feed_url(username) else platform_sync.get(username, "canvas")["connection_state"]
-    return jsonify(_attach_sync(result, "canvas", connection_state=state_name))
+    refreshing = is_canvas_refreshing(username)
+    result["refreshing"] = refreshing
+    return jsonify(_attach_sync(result, "canvas", connection_state=state_name, refreshing=refreshing))
 
 
 @app.route("/api/canvas/state", methods=["GET", "POST"])
@@ -943,7 +1177,17 @@ def api_haoke_todos():
             result.update(disconnected=True, need_setup=True, refreshing=False)
         elif cache_only:
             result = {"ok": True, "data": [], "cached": True, "need_setup": not has_credentials,
-                      "refreshing": is_haoke_refreshing(username)}
+                      "refreshing": is_haoke_refreshing(username), "has_cache": False}
+        elif has_credentials:
+            start_haoke_background_refresh(username)
+            result = {
+                "ok": True,
+                "data": [],
+                "cached": True,
+                "stale": True,
+                "has_cache": False,
+                "refreshing": True,
+            }
         else:
             result = fetch_haoke_todos(username)
             platform_sync.record_result(
@@ -958,7 +1202,7 @@ def api_haoke_todos():
     result = build_platform_todos_response(
         result,
         state,
-        save_state=lambda changed_state: save_haoke_state(username, changed_state),
+        expire_hidden=lambda expired_ids: delete_haoke_expired_hidden(username, expired_ids),
         now=datetime.now(CST),
     )
     result = attach_subtasks(username, "haoke", result)
@@ -1084,7 +1328,7 @@ def api_zxm_todos():
         result,
         state,
         items_key="items",
-        save_state=lambda changed_state: save_zxm_state(username, changed_state),
+        expire_hidden=lambda expired_ids: delete_zxm_expired_hidden(username, expired_ids),
         now=datetime.now(CST),
     )
     result = attach_subtasks(username, "zhixuemeng", result)
@@ -1206,7 +1450,7 @@ def api_ktp_todos():
         result,
         state,
         items_key="items",
-        save_state=lambda changed_state: save_ktp_state(username, changed_state),
+        expire_hidden=lambda expired_ids: delete_ktp_expired_hidden(username, expired_ids),
         now=datetime.now(CST),
     )
     result = attach_subtasks(username, "ketangpai", result)
@@ -1348,7 +1592,7 @@ def api_tjoj_todos():
         result,
         state,
         items_key="items",
-        save_state=lambda changed_state: save_tjoj_state(username, changed_state),
+        expire_hidden=lambda expired_ids: delete_tjoj_expired_hidden(username, expired_ids),
         now=datetime.now(CST),
     )
     result = attach_subtasks(username, "tongjioj", result)
@@ -1675,15 +1919,29 @@ def api_agent_token_info():
 @app.route("/api/agent/token", methods=["POST"])
 def api_agent_token_create():
     username = session["username"]
-    token = agent_auth.create_token(username)
+    data = read_json_request() or {}
+    name = str(data.get("name", "")).strip()
+    scopes = data.get("scopes")
+    expires_in_days = data.get("expires_in_days")
+    if len(name) > 80 or (scopes is not None and (not isinstance(scopes, list) or not scopes or any(scope not in agent_auth.VALID_SCOPES for scope in scopes))):
+        return invalid_request_response()
+    if expires_in_days is not None and (isinstance(expires_in_days, bool) or not isinstance(expires_in_days, int) or not 1 <= expires_in_days <= 3650):
+        return invalid_request_response()
+    try:
+        token = agent_auth.create_token(username, name=name, scopes=scopes, expires_in_days=expires_in_days)
+    except ValueError as exc:
+        return api_error('token_limit', str(exc), 400)
     return jsonify({"ok": True, "token": token, **agent_auth.get_token_info(username)})
 
 
 @app.route("/api/agent/token", methods=["DELETE"])
 def api_agent_token_revoke():
     username = session["username"]
-    revoked = agent_auth.revoke_token(username)
+    data = read_json_request() or {}
+    token_id = request.args.get("token_id") or data.get("token_id")
+    revoked = agent_auth.revoke_token(username, token_id=token_id)
     return jsonify({"ok": True, "revoked": revoked, **agent_auth.get_token_info(username)})
+
 
 
 @app.route("/api/agent/export/mcp-script")

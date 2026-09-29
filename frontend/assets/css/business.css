@@ -753,6 +753,86 @@
   margin-top: var(--space-4);
 }
 
+.agent-token-options-panel {
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-soft, var(--page));
+  border-radius: var(--radius-md, 6px);
+  border: 1px solid var(--line);
+}
+
+.agent-token-options-field {
+  margin-bottom: var(--space-2);
+}
+
+.agent-token-name-input {
+  width: 100%;
+  max-width: 320px;
+}
+
+.agent-token-scopes-group {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-1);
+}
+
+.agent-token-scope-option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  cursor: pointer;
+}
+
+.agent-token-expiry-select {
+  max-width: 160px;
+}
+
+.agent-tokens-list-container {
+  margin-top: var(--space-4);
+}
+
+.agent-tokens-list {
+  margin-top: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.agent-token-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 6px);
+  gap: var(--space-2);
+}
+
+.agent-token-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-token-item-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.agent-token-item-meta {
+  font-size: var(--font-size-help, 11px);
+  color: var(--ink-3);
+  margin-top: var(--space-1);
+}
+
+.agent-token-revoke-btn {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-control-sm, 12px);
+}
+
 .agent-download-row {
   display: flex;
   gap: var(--space-3);

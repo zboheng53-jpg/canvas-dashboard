@@ -35,11 +35,8 @@ def profile_path(username: str) -> Path:
 
 
 def _pid_is_running(pid: int) -> bool:
-    try:
-        os.kill(pid, 0)
-    except OSError:
-        return False
-    return True
+    from login_capacity import _pid_is_running as process_alive
+    return process_alive(pid)
 
 
 def _profile_lock_is_stale(lock_target: str, current_host: str | None = None, pid_is_running=None) -> bool:
@@ -47,7 +44,7 @@ def _profile_lock_is_stale(lock_target: str, current_host: str | None = None, pi
     pid_is_running = pid_is_running or _pid_is_running
     prefix = f"{current_host}-"
     if not lock_target.startswith(prefix):
-        return True
+        return False
 
     pid_text = lock_target[len(prefix):]
     if not pid_text.isdigit():
@@ -313,13 +310,54 @@ def _click_homework_task_type(page) -> None:
         pass
 
 
-def _task_list_response_items(response) -> list[dict]:
+class AssignmentFetchResult(list):
+    def __init__(self, items, ok: bool = True, partial: bool = False,
+                 succeeded_courses: list[str] | None = None, failed_courses: list[str] | None = None):
+        super().__init__(items)
+        self.ok = ok
+        self.partial = partial
+        self.succeeded_courses = succeeded_courses or []
+        self.failed_courses = failed_courses or []
+        self.items = list(items)
+
+    def get(self, key, default=None):
+        if key == "ok":
+            return self.ok
+        if key == "partial":
+            return self.partial
+        if key == "items":
+            return self.items
+        if key == "succeeded_courses":
+            return self.succeeded_courses
+        if key == "failed_courses":
+            return self.failed_courses
+        return default
+
+    def __getitem__(self, key):
+        if isinstance(key, str):
+            if hasattr(self, key):
+                return getattr(self, key)
+            raise KeyError(key)
+        return super().__getitem__(key)
+
+
+def _task_list_response_items(response) -> list[dict] | None:
     try:
+        status = getattr(response, "status", None)
+        if status is not None and status != 200:
+            return None
         payload = response.json()
     except Exception:
-        return []
+        return None
+    if not isinstance(payload, dict):
+        return None
+    code = payload.get("code")
+    if code is not None and code not in (200, 0):
+        return None
     data = payload.get("data")
-    return data if isinstance(data, list) else []
+    if not isinstance(data, list):
+        return None
+    return data
 
 
 def _fetch_unfinished_homework_items(page) -> list[dict] | None:
@@ -339,7 +377,7 @@ def _fetch_unfinished_homework_items(page) -> list[dict] | None:
             timeout=15_000,
         ) as response_info:
             if not _click_text(page, UNFINISHED_TAB_TEXT, timeout=5_000):
-                raise RuntimeError("unfinished tab not found")
+                return None
         return _task_list_response_items(response_info.value)
     except Exception:
         return None
@@ -355,17 +393,15 @@ def open_login_browser(username: str) -> None:
         context.close()
 
 
-def check_session(username: str) -> bool:
-    with _playwright() as p:
-        context = _new_context(p, username)
-        page = context.pages[0] if context.pages else context.new_page()
-        page.goto(KEEPALIVE_URL, wait_until="domcontentloaded", timeout=60_000)
-        time.sleep(2)
-        url = page.url.lower()
+def _check_session_page(page, context) -> bool:
+    page.goto(KEEPALIVE_URL, wait_until="domcontentloaded", timeout=60_000)
+    time.sleep(2)
+    url = page.url.lower()
+    try:
         text = page.locator("body").inner_text(timeout=5_000).lower()
-        cookies = context.cookies()
-        context.close()
-
+    except Exception:
+        text = ""
+    cookies = context.cookies()
     if "login" in url or "passport" in url:
         return False
     if "登录" in text or "login" in text:
@@ -373,73 +409,115 @@ def check_session(username: str) -> bool:
     return bool(cookies)
 
 
-def keepalive(username: str) -> bool:
-    with _playwright() as p:
-        context = _new_context(p, username)
+def check_session(username: str, context=None) -> bool:
+    if context is not None:
         page = context.pages[0] if context.pages else context.new_page()
-        page.goto(KEEPALIVE_URL, wait_until="networkidle", timeout=60_000)
-        context.close()
+        return _check_session_page(page, context)
+
+    with _playwright() as p:
+        ctx = _new_context(p, username)
+        try:
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            return _check_session_page(page, ctx)
+        finally:
+            ctx.close()
+
+
+def _keepalive_page(page) -> bool:
+    page.goto(KEEPALIVE_URL, wait_until="networkidle", timeout=60_000)
     return True
 
 
-def fetch_assignments(username: str) -> list[dict]:
-    raw_items = []
-    reached_task_page = False
+def keepalive(username: str, context=None) -> bool:
+    if context is not None:
+        page = context.pages[0] if context.pages else context.new_page()
+        return _keepalive_page(page)
 
     with _playwright() as p:
-        context = _new_context(p, username)
-        page = context.pages[0] if context.pages else context.new_page()
+        ctx = _new_context(p, username)
+        try:
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            return _keepalive_page(page)
+        finally:
+            ctx.close()
 
-        page.goto(ASSIGNMENTS_URL, wait_until="domcontentloaded", timeout=120_000)
-        _wait_for_spa(page)
-        time.sleep(2)
-        course_links = _collect_smart_course_links(page)
 
-        for course in course_links:
+def _fetch_assignments_page(page, username: str) -> AssignmentFetchResult:
+    raw_items = []
+    reached_task_page = False
+    succeeded_courses = []
+    failed_courses = []
+
+    page.goto(ASSIGNMENTS_URL, wait_until="domcontentloaded", timeout=120_000)
+    _wait_for_spa(page)
+    time.sleep(2)
+    course_links = _collect_smart_course_links(page)
+
+    for course in course_links:
+        course_name = course.get("course") or "未命名课程"
+        course_page = None
+        try:
             course_page = _click_course_link(page, course["href"])
             _wait_for_spa(course_page)
             time.sleep(2)
-            if "passport" not in course_page.url.lower():
-                if _open_task_tab(course_page, course.get("task_url", "")):
-                    reached_task_page = True
-                    _wait_for_spa(course_page)
-                    time.sleep(2)
-                    unfinished_items = _fetch_unfinished_homework_items(course_page)
-                    if unfinished_items is not None:
-                        for raw in unfinished_items:
-                            item = dict(raw)
-                            if course.get("course") and not item.get("courseName"):
-                                item["courseName"] = course["course"]
-                            raw_items.append((item, course.get("task_url") or course.get("href", "")))
+            if "passport" in course_page.url.lower():
+                failed_courses.append(course_name)
+            elif _open_task_tab(course_page, course.get("task_url", "")):
+                reached_task_page = True
+                _wait_for_spa(course_page)
+                time.sleep(2)
+                unfinished_items = _fetch_unfinished_homework_items(course_page)
+                if unfinished_items is not None:
+                    succeeded_courses.append(course_name)
+                    for raw in unfinished_items:
+                        item = dict(raw)
+                        if course.get("course") and not item.get("courseName"):
+                            item["courseName"] = course["course"]
+                        raw_items.append((item, course.get("task_url") or course.get("href", "")))
+                else:
+                    failed_courses.append(course_name)
+            else:
+                failed_courses.append(course_name)
+        except Exception:
+            failed_courses.append(course_name)
+        finally:
+            if course_page is not None and course_page is not page:
+                try:
+                    course_page.close()
+                except Exception:
+                    pass
+            try:
+                page.goto(ASSIGNMENTS_URL, wait_until="domcontentloaded", timeout=120_000)
+                _wait_for_spa(page)
+                time.sleep(1)
+            except Exception:
+                pass
 
-            if course_page is not page:
-                course_page.close()
-            page.goto(ASSIGNMENTS_URL, wait_until="domcontentloaded", timeout=120_000)
-            _wait_for_spa(page)
-            time.sleep(1)
-
-        if not raw_items and not reached_task_page:
-            raw_items = [(raw, "") for raw in page.evaluate(
-            """
-            () => Array.from(document.querySelectorAll('a, [data-id], .work, .homework, .task'))
-              .map((el) => {
-                const text = (el.innerText || el.textContent || '').trim();
-                if (!text || !/(作业|考试|测试|任务)/.test(text)) return null;
-                const href = el.href || el.querySelector('a')?.href || location.href;
-                const lines = text.split(/\\n+/).map((line) => line.trim()).filter(Boolean);
-                return {
-                  id: el.dataset.id || el.dataset.workId || href,
-                  title: lines[0],
-                  course: lines[1] || '',
-                  endTime: lines.find((line) => /(截止|到期|\\d{1,2}[-/]\\d{1,2})/.test(line)) || '',
-                  type: text.includes('考试') ? '考试' : text.includes('测试') ? '测试' : '作业',
-                  url: href,
-                };
-              })
-              .filter(Boolean)
-            """
-            )]
-        context.close()
+    if not raw_items and not reached_task_page:
+        try:
+            fallback = page.evaluate(
+                """
+                () => Array.from(document.querySelectorAll('a, [data-id], .work, .homework, .task'))
+                  .map((el) => {
+                    const text = (el.innerText || el.textContent || '').trim();
+                    if (!text || !/(作业|考试|测试|任务)/.test(text)) return null;
+                    const href = el.href || el.querySelector('a')?.href || location.href;
+                    const lines = text.split(/\\n+/).map((line) => line.trim()).filter(Boolean);
+                    return {
+                      id: el.dataset.id || el.dataset.workId || href,
+                      title: lines[0],
+                      course: lines[1] || '',
+                      endTime: lines.find((line) => /(截止|到期|\\d{1,2}[-/]\\d{1,2})/.test(line)) || '',
+                      type: text.includes('考试') ? '考试' : text.includes('测试') ? '测试' : '作业',
+                      url: href,
+                    };
+                  })
+                  .filter(Boolean)
+                """
+            )
+            raw_items = [(raw, "") for raw in fallback]
+        except Exception:
+            pass
 
     seen = set()
     items = []
@@ -449,7 +527,61 @@ def fetch_assignments(username: str) -> list[dict]:
             continue
         seen.add(item["id"])
         items.append(item)
-    return items
+
+    if course_links:
+        if failed_courses and not succeeded_courses:
+            ok = False
+            partial = False
+        elif failed_courses and succeeded_courses:
+            ok = True
+            partial = True
+        else:
+            ok = True
+            partial = False
+    else:
+        # No recognized course/task response is not evidence of an empty
+        # account. A changed page or login HTML must preserve the old snapshot.
+        ok = False
+        partial = False
+
+    return AssignmentFetchResult(
+        items,
+        ok=ok,
+        partial=partial,
+        succeeded_courses=succeeded_courses,
+        failed_courses=failed_courses,
+    )
+
+
+def fetch_assignments(username: str, context=None) -> AssignmentFetchResult:
+    if context is not None:
+        page = context.pages[0] if context.pages else context.new_page()
+        return _fetch_assignments_page(page, username)
+
+    with _playwright() as p:
+        ctx = _new_context(p, username)
+        try:
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            return _fetch_assignments_page(page, username)
+        finally:
+            ctx.close()
+
+
+def run_user_cycle(username: str, should_fetch: bool = False, force_fetch: bool = False, now: float | None = None) -> dict:
+    with _playwright() as p:
+        context = _new_context(p, username)
+        try:
+            page = context.pages[0] if context.pages else context.new_page()
+            session_ok = _check_session_page(page, context)
+            if not session_ok:
+                return {"session_ok": False, "fetch_result": None}
+            _keepalive_page(page)
+            fetch_result = None
+            if should_fetch or force_fetch:
+                fetch_result = _fetch_assignments_page(page, username)
+            return {"session_ok": True, "fetch_result": fetch_result}
+        finally:
+            context.close()
 
 
 def main(argv=None) -> int:

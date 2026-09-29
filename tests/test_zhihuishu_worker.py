@@ -42,7 +42,7 @@ def test_scheduled_cycle_skips_fetch_until_interval(tmp_path, monkeypatch):
 
     monkeypatch.setattr(zhihuishu_store, "DATA_DIR", tmp_path)
     monkeypatch.setattr(zhihuishu_worker, "zhihuishu_browser", FakeBrowser, raising=False)
-    zhihuishu_store.save_status("alice", {"last_fetch_at": 1000.0})
+    zhihuishu_store.save_status("alice", {"session": "active", "last_fetch_at": 1000.0})
 
     zhihuishu_worker.run_scheduled_cycle("alice", now=1000.0 + 60)
 
@@ -69,7 +69,7 @@ def test_scheduled_cycle_fetches_after_interval(tmp_path, monkeypatch):
 
     monkeypatch.setattr(zhihuishu_store, "DATA_DIR", tmp_path)
     monkeypatch.setattr(zhihuishu_worker, "zhihuishu_browser", FakeBrowser, raising=False)
-    zhihuishu_store.save_status("alice", {"last_fetch_at": 1000.0})
+    zhihuishu_store.save_status("alice", {"session": "active", "last_fetch_at": 1000.0})
 
     zhihuishu_worker.run_scheduled_cycle("alice", now=1000.0 + zhihuishu_worker.FETCH_INTERVAL_SECONDS + 1)
 
@@ -105,17 +105,24 @@ def test_timed_out_user_does_not_prevent_later_user_cycle(tmp_path, monkeypatch)
     (tmp_path / "users" / "fast").mkdir()
     calls = []
 
-    def fake_run(command, **kwargs):
-        username = command[command.index("--username") + 1]
-        calls.append(username)
-        if username == "slow":
-            raise subprocess.TimeoutExpired(command, kwargs["timeout"])
-        return subprocess.CompletedProcess(command, 0)
+    class FakeProcess:
+        def __init__(self, command, **kwargs):
+            self.command = command
+            self.username = command[command.index("--username") + 1]
+            calls.append(self.username)
 
-    monkeypatch.setattr(zhihuishu_worker.subprocess, "run", fake_run)
+        def wait(self, timeout):
+            if self.username == "slow":
+                raise subprocess.TimeoutExpired(self.command, timeout)
+            return 0
+
+    killed = []
+    monkeypatch.setattr(zhihuishu_worker.subprocess, "Popen", FakeProcess)
+    monkeypatch.setattr(zhihuishu_worker, '_kill_process_tree', lambda proc: killed.append(proc.username))
     failures = zhihuishu_worker._run_all_users_round({})
 
     assert calls == ["fast", "slow"]
     assert failures == {"fast": 0, "slow": 1}
+    assert killed == ['slow']
     assert zhihuishu_store.load_status("slow")["worker"] == "error"
     assert "timed out" in zhihuishu_store.load_status("slow")["last_error"]

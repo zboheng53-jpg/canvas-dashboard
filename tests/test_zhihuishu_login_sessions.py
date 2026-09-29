@@ -142,7 +142,7 @@ def test_create_session_stops_container_when_novnc_is_not_ready(tmp_path, monkey
 def test_run_docker_reports_missing_runtime_clearly(monkeypatch):
     import zhihuishu_login_sessions as sessions
 
-    def missing_docker(command, check=True):
+    def missing_docker(command, **kwargs):
         raise FileNotFoundError(2, "The system cannot find the file specified", "docker")
 
     monkeypatch.setattr(sessions.subprocess, "run", missing_docker)
@@ -155,10 +155,10 @@ def test_run_docker_reports_missing_runtime_clearly(monkeypatch):
     assert "智慧树登录窗口" in message
 
 
-def test_stop_session_clears_metadata_when_docker_is_missing(tmp_path, monkeypatch):
+def test_stop_session_retains_metadata_when_docker_cannot_confirm_exit(tmp_path, monkeypatch):
     import zhihuishu_login_sessions as sessions
 
-    def missing_docker(command, check=False):
+    def missing_docker(command, **kwargs):
         raise FileNotFoundError(2, "The system cannot find the file specified", "docker")
 
     monkeypatch.setattr(sessions, "DATA_DIR", tmp_path)
@@ -169,8 +169,10 @@ def test_stop_session_clears_metadata_when_docker_is_missing(tmp_path, monkeypat
         "container_name": "canvas-zhs-login-tok",
     })
 
-    assert sessions.stop_session("alice", "tok")
-    assert sessions.load_session("alice") is None
+    import pytest
+    with pytest.raises(RuntimeError, match='保留资源记录'):
+        sessions.stop_session("alice", "tok")
+    assert sessions.load_session("alice")['container_name'] == 'canvas-zhs-login-tok'
 
 
 def test_cleanup_expired_sessions_returns_removed_count(tmp_path, monkeypatch):

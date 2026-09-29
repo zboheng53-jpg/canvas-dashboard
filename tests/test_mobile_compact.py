@@ -42,6 +42,7 @@ def test_mobile_overview_has_aligned_readable_content(live_app, browser, test_no
     expect(page.locator('.todo-row', has_text='项目今天的计划')).to_be_visible()
     expect(page.locator('.todo-row', has_text='项目今天的计划').locator('.todo-date-mobile')).to_have_text('计划 今天')
     expect(page.locator('.todo-row', has_text='没有截止日期的资料整理').locator('.todo-date-mobile')).to_have_text('未设截止')
+    page.wait_for_function("Object.values(platformRequests).every(count => count === 0) && workspaceRefreshing === false")
 
     # Take all measurements in one frame; asynchronous platform refresh can replace rows.
     page.wait_for_function("""() => {

@@ -8,6 +8,12 @@ releases="$root/releases"
 release="$releases/$release_name"
 release_retention=5
 
+# Serialize release activation and backups without touching the data tree.
+sudo touch "$root/.maintenance.lock"
+sudo chown ubuntu:ubuntu "$root/.maintenance.lock"
+exec 9>"$root/.maintenance.lock"
+flock -w 300 9
+
 case "$release_name" in
     *[!A-Za-z0-9._-]*|"") echo "Invalid release name" >&2; exit 2 ;;
 esac
@@ -130,7 +136,17 @@ test -f "$release/deploy/canvas-dashboard.nginx"
 test -f "$release/deploy/canvas-dashboard.service"
 test -f /etc/canvas-dashboard/backup-public.pem
 ln -sfn "$root/data" "$release/data"
-ln -sfn "$root/.venv" "$release/.venv"
+if [ -L "$release/.venv" ]; then
+    # A retry of a release prepared by an older installer may have a shared
+    # environment link. Remove the link only; never mutate its target.
+    rm -- "$release/.venv"
+fi
+if [ ! -x "$release/.venv/bin/python" ] || [ ! -f "$release/dependencies.txt" ]; then
+    python3 -m venv "$release/.venv"
+    "$release/.venv/bin/python" -m pip install -r "$release/requirements.txt"
+    "$release/.venv/bin/python" -m pip freeze > "$release/dependencies.txt"
+fi
+"$release/.venv/bin/python" "$release/scripts/build_assets.py"
 
 if [ -L "$root/current" ]; then
     previous=$(readlink -f "$root/current")
@@ -160,6 +176,7 @@ case "$previous" in
     "$releases"/*) ;;
     *) echo "Refusing unsafe previous release: $previous" >&2; exit 2 ;;
 esac
+prior_previous=$(cat "$root/.previous-release" 2>/dev/null || true)
 printf '%s\n' "$previous" > "$root/.previous-release"
 
 if ! build_browser_login_image "$release"; then
@@ -167,9 +184,34 @@ if ! build_browser_login_image "$release"; then
     exit 1
 fi
 
+# Pin the built browser by immutable image ID for this release.
+browser_image=$(sudo docker image inspect --format '{{.Id}}' canvas-dashboard-zhihuishu-login:latest)
+case "$browser_image" in
+    sha256:*) ;;
+    *) echo "Invalid browser image ID" >&2; exit 1 ;;
+esac
+printf 'ZHIHUISHU_LOGIN_DOCKER_IMAGE=%s\nTONGJI_LOGIN_DOCKER_IMAGE=%s\n' "$browser_image" "$browser_image" > "$release/release.env"
+
+rollback_on_failure() {
+    status=$?
+    trap - EXIT
+    if [ "$status" -ne 0 ]; then
+        echo "Release verification failed; restoring $previous" >&2
+        if activate_release "$previous"; then
+            if [ -n "$prior_previous" ]; then
+                printf '%s\n' "$prior_previous" > "$root/.previous-release"
+            else
+                rm -f "$root/.previous-release"
+            fi
+        else
+            echo "Rollback activation also failed; operator action required" >&2
+        fi
+    fi
+    exit "$status"
+}
+trap rollback_on_failure EXIT
+
 if ! activate_release "$release"; then
-    echo "Release activation failed; restoring $previous" >&2
-    activate_release "$previous" || true
     exit 1
 fi
 
@@ -178,8 +220,7 @@ for attempt in $(seq 1 20); do
         break
     fi
     if [ "$attempt" -eq 20 ]; then
-        echo "Health check failed; restoring $previous" >&2
-        activate_release "$previous" || true
+        echo "Health check failed" >&2
         exit 1
     fi
     sleep 1
@@ -196,6 +237,7 @@ systemctl is-active --quiet zhihuishu-worker.service
 systemctl is-active --quiet zhihuishu-login-cleanup.timer
 systemctl is-active --quiet canvas-dashboard-account-cleanup.timer
 systemctl is-active --quiet canvas-dashboard-backup.timer
+trap - EXIT
 if ! prune_old_releases; then
     echo "Warning: release activation succeeded, but old release cleanup failed" >&2
 fi

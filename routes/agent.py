@@ -261,6 +261,8 @@ def api_agent_project_trash():
 def api_agent_project_manage(project_id, operation):
     if operation not in {"delete", "restore"}:
         abort(404)
+    if operation == "delete" and "delete" not in request.agent_scopes:
+        return api_error("insufficient_scope", "当前 Agent Token 缺少删除 (delete) 权限，无法执行删除操作", 403)
     return _manage_project_record(request.agent_username, project_id, operation)
 
 
@@ -269,7 +271,10 @@ def api_agent_project_manage(project_id, operation):
 def api_agent_project_task_manage(project_id, task_id, operation):
     if operation not in {"delete", "restore", "to-materials"}:
         abort(404)
+    if operation == "delete" and "delete" not in request.agent_scopes:
+        return api_error("insufficient_scope", "当前 Agent Token 缺少删除 (delete) 权限，无法执行删除操作", 403)
     return _manage_project_record(request.agent_username, project_id, operation, task_id)
+
 
 
 @bp.route("/api/agent/v1/actions/focus")

@@ -141,6 +141,8 @@ def test_frontend_todo_hover_keeps_content_and_actions_in_place(live_app, browse
     dismiss_button = todo.locator(".item-desktop-actions .btn-dismiss")
     expect(title).to_be_visible()
     expect(dismiss_button).to_be_visible()
+    page.wait_for_function("Object.values(platformRequests).every(count => count === 0) && workspaceRefreshing === false")
+    todo.scroll_into_view_if_needed()
 
     def read_action_geometry():
         return todo.evaluate(
@@ -240,7 +242,7 @@ def test_frontend_v2_desktop_shell_uses_bounded_three_column_layout(live_app, br
 def test_frontend_desktop_todo_card_scrolls_without_outgrowing_sidebars(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "todocardscroll")
-    page.wait_for_timeout(1000)
+    page.wait_for_function("Object.values(platformRequests).every(count => count === 0) && workspaceRefreshing === false")
 
     page.evaluate(
         """() => {
@@ -1370,6 +1372,99 @@ def test_frontend_agent_integration_page(live_app, browser):
     expect(page.locator("#agent-token-status")).to_contain_text("Token 已成功撤销")
 
 
+def test_frontend_agent_multi_token_and_scopes(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1000})
+    register_dashboard_user(page, live_app, "agentmultiuser")
+
+    # Navigate to Agent Integration view
+    page.locator('[data-dashboard-view="agent"]').click()
+    expect(page.locator("#dashboard-view-agent")).to_be_visible()
+
+    # Create first token: "Writer Bot" with write scope and 30-day expiry
+    page.fill("#agent-token-name-input", "Writer Bot")
+    page.click("#agent-scope-write")
+    page.select_option("#agent-token-expiry-select", "30")
+    page.click("#agent-token-create")
+
+    # Check token list contains Writer Bot with write badge
+    expect(page.locator("#agent-tokens-list")).to_be_visible()
+    expect(page.locator("#agent-tokens-list")).to_contain_text("Writer Bot")
+    expect(page.locator("#agent-tokens-list")).to_contain_text("读写 (write)")
+
+    # Create second token: "Reader Bot" with read scope
+    page.fill("#agent-token-name-input", "Reader Bot")
+    page.click("#agent-scope-read")
+    page.click("#agent-token-create")
+
+    expect(page.locator("#agent-tokens-list")).to_contain_text("Reader Bot")
+    expect(page.locator("#agent-tokens-list")).to_contain_text("只读 (read)")
+    expect(page.locator("#agent-tokens-list .agent-token-item")).to_have_count(2)
+
+    # Revoke single token (Writer Bot)
+    page.on("dialog", lambda dialog: dialog.accept())
+    writer_item = page.locator("#agent-tokens-list .agent-token-item").filter(has_text="Writer Bot")
+    writer_item.locator("button").click()
+    expect(page.locator("#agent-token-status")).to_contain_text("指定 Token 已成功撤销")
+    expect(page.locator("#agent-tokens-list .agent-token-item")).to_have_count(1)
+    expect(page.locator("#agent-tokens-list")).to_contain_text("Reader Bot")
+
+    # Revoke all tokens
+    page.locator("#agent-token-revoke").click()
+    expect(page.locator("#agent-token-status")).to_contain_text("Token 已成功撤销")
+    expect(page.locator("#agent-tokens-list-container")).to_be_hidden()
+    expect(page.locator("#agent-token-input")).to_have_attribute("placeholder", "尚未生成 Agent Token")
+
+
+def test_csrf_wrapper_preserves_request_method_headers_and_only_injects_same_origin(live_app, browser):
+    from pathlib import Path
+    page = browser.new_page()
+    register_dashboard_user(page, live_app, 'csrfrequestuser')
+    source = (Path(__file__).parents[1] / 'frontend/assets/js/csrf.js').read_text(encoding='utf-8')
+    page.evaluate('''() => {
+      window.csrfCalls = [];
+      window.fetch = async (input, init) => {
+        const request = new Request(input, init);
+        window.csrfCalls.push({method: request.method, headers: Object.fromEntries(request.headers)});
+        return new Response('{}', {headers: {'Content-Type': 'application/json'}});
+      };
+    }''')
+    page.evaluate(source)
+    calls = page.evaluate('''async () => {
+      await fetch(new Request(location.origin + '/api/probe', {method:'POST', headers:{'X-Original':'kept'}}), {headers:{'X-Extra':'kept too'}});
+      await fetch(new Request('https://example.invalid/probe', {method:'DELETE', headers:{'X-Original':'kept'}}));
+      await fetch(new Request(location.origin + '/api/probe', {method:'GET'}));
+      return window.csrfCalls;
+    }''')
+    assert calls[0]['method'] == 'POST'
+    assert calls[0]['headers']['x-original'] == 'kept'
+    assert calls[0]['headers']['x-extra'] == 'kept too'
+    assert calls[0]['headers']['x-csrf-token']
+    assert 'x-csrf-token' not in calls[1]['headers']
+    assert 'x-csrf-token' not in calls[2]['headers']
+
+
+def test_request_timeout_covers_body_and_external_cancel_is_distinct(live_app, browser):
+    page = browser.new_page()
+    register_dashboard_user(page, live_app, 'requestbudgetuser')
+    result = page.evaluate('''async () => {
+      window.fetch = async (_url, options) => ({ok: true, json: () => new Promise((resolve, reject) => {
+        options.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')), {once:true});
+      })});
+      try { await dashboardApi.requestJson('/slow-body', {timeout:30}); }
+      catch (error) { return {code:error.code, isTimeout:error.isTimeout}; }
+    }''')
+    assert result == {'code': 'timeout', 'isTimeout': True}
+    cancelled = page.evaluate('''async () => {
+      window.fetch = async (_url, options) => {
+        if (options.signal.aborted) throw new DOMException('aborted', 'AbortError');
+      };
+      const controller = new AbortController(); controller.abort();
+      try { await dashboardApi.requestJson('/cancel', {signal:controller.signal}); }
+      catch (error) { return {code:error.code, isTimeout:error.isTimeout}; }
+    }''')
+    assert cancelled == {'code': 'cancelled', 'isTimeout': False}
+
+
 def test_frontend_todo_completion_sinks_and_syncs_with_agenda(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "agendasink")
@@ -1534,6 +1629,8 @@ def test_desktop_refinement_keeps_colored_tags_and_readable_rows(live_app, brows
     page.evaluate("switchDashboardView('overview')")
     row = page.locator('.todo-row', has_text=title)
     expect(row).to_be_visible()
+    # Initial platform refresh can detach a row between locator resolution and measurement.
+    page.wait_for_function("Object.values(platformRequests).every(count => count === 0) && workspaceRefreshing === false")
     expect(row.locator('.ui-source-tag--custom')).to_be_visible()
     expect(row.locator('.item-source-badge')).to_be_visible()
     expect(page.locator('#stat-pending-diff')).to_contain_text('项待处理')

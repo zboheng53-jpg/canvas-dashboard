@@ -7,8 +7,14 @@ Type=simple
 User=ubuntu
 WorkingDirectory=/home/ubuntu/canvas-dashboard/current
 EnvironmentFile=-/etc/canvas-dashboard/canvas-dashboard.env
+EnvironmentFile=-/home/ubuntu/canvas-dashboard/current/release.env
+Environment=CANVAS_DASHBOARD_MAINTENANCE_TARGET=/home/ubuntu/canvas-dashboard/maintenance
+Environment=CANVAS_DASHBOARD_ENV=production
+Environment=CANVAS_DASHBOARD_COOKIE_SECURE=1
+Environment=CANVAS_DASHBOARD_PUBLIC_BASE_URL=https://canvas-dashboard.xyz
+Environment=CANVAS_DASHBOARD_TRUSTED_HOSTS=canvas-dashboard.xyz,www.canvas-dashboard.xyz
 Environment=ZHIHUISHU_CHROMIUM_EXECUTABLE=/usr/bin/google-chrome-stable
-ExecStart=/home/ubuntu/canvas-dashboard/.venv/bin/python serve.py
+ExecStart=/home/ubuntu/canvas-dashboard/current/.venv/bin/python serve.py
 Restart=on-failure
 RestartSec=3
 UMask=0077

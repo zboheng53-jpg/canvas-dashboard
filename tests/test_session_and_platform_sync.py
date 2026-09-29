@@ -65,15 +65,15 @@ def test_expired_activity_is_rejected_without_waiting_for_browser_cookie(tmp_pat
 
 def test_clear_canvas_data_only_removes_canvas_files_and_fails_closed(tmp_path, monkeypatch):
     _configure_roots(tmp_path, monkeypatch)
+    client = dashboard_app.app.test_client()
+    _register(client)
     directory = user_paths.user_dir("alice")
     directory.joinpath("config.json").write_text(json.dumps({"calendar_feed_url": "https://example.invalid/feed", "haoke_username": "h"}), encoding="utf-8")
     directory.joinpath("canvas_cache.json").write_text("[]", encoding="utf-8")
     directory.joinpath("canvas_state.json").write_text('{"hidden": [], "highlighted": [], "deleted": []}', encoding="utf-8")
     directory.joinpath("custom_todos.json").write_text("[]", encoding="utf-8")
-    with dashboard_app.app.test_client() as client:
-        _register(client)
-        response = client.delete("/api/platform/canvas/data", headers=_csrf(client))
-        assert response.status_code == 200
+    response = client.delete("/api/platform/canvas/data", headers=_csrf(client))
+    assert response.status_code == 200
     assert not directory.joinpath("canvas_cache.json").exists()
     assert not directory.joinpath("canvas_state.json").exists()
     assert directory.joinpath("custom_todos.json").exists()

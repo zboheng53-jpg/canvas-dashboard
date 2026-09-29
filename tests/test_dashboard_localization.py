@@ -53,6 +53,7 @@ def test_weather_cloudy_response_is_chinese_and_uses_icon(tmp_path, monkeypatch)
 
 
 def test_weather_endpoint_uses_tongji_siping_campus_coordinates(tmp_path, monkeypatch):
+    dashboard_app._weather_cache.clear()
     requested_urls = []
 
     class WeatherResponse:
@@ -77,6 +78,7 @@ def test_weather_endpoint_uses_tongji_siping_campus_coordinates(tmp_path, monkey
 
 
 def test_weather_endpoint_accepts_jiading_campus(tmp_path, monkeypatch):
+    dashboard_app._weather_cache.clear()
     requested_urls = []
 
     class WeatherResponse:

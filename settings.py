@@ -39,6 +39,18 @@ APP_HOST = env_str("CANVAS_DASHBOARD_HOST", "127.0.0.1")
 APP_PORT = env_int("CANVAS_DASHBOARD_PORT", 5000)
 APP_THREADS = max(1, env_int("CANVAS_DASHBOARD_THREADS", 8))
 COOKIE_SECURE = env_bool("CANVAS_DASHBOARD_COOKIE_SECURE", False)
+PUBLIC_BASE_URL = env_str("CANVAS_DASHBOARD_PUBLIC_BASE_URL", "").rstrip("/")
+TRUSTED_HOSTS = frozenset(
+    host.strip().lower()
+    for host in env_str("CANVAS_DASHBOARD_TRUSTED_HOSTS", "").split(",")
+    if host.strip()
+)
+ENV_MODE = env_str("CANVAS_DASHBOARD_ENV", "development").strip().lower()
+IS_PRODUCTION = env_bool("CANVAS_DASHBOARD_PRODUCTION", False) or ENV_MODE in ("production", "prod")
+RATE_LIMIT_MAX_KEYS = max(100, env_int("CANVAS_DASHBOARD_RATE_LIMIT_MAX_KEYS", 10000))
+RATE_LIMIT_CLEANUP_INTERVAL_SECONDS = max(10, env_int("CANVAS_DASHBOARD_RATE_LIMIT_CLEANUP_INTERVAL_SECONDS", 60))
+AGENT_RATE_LIMIT_ATTEMPTS = max(1, env_int("CANVAS_DASHBOARD_AGENT_RATE_LIMIT_ATTEMPTS", 120))
+AGENT_RATE_LIMIT_SECONDS = max(1, env_int("CANVAS_DASHBOARD_AGENT_RATE_LIMIT_SECONDS", 60))
 ICP_NUMBER = env_str("CANVAS_DASHBOARD_ICP_NUMBER", "")
 APPLE_CALENDAR_ENABLED = env_bool("CANVAS_DASHBOARD_APPLE_CALENDAR_ENABLED", True)
 MAX_CONTENT_LENGTH_BYTES = env_int("CANVAS_DASHBOARD_MAX_CONTENT_LENGTH_BYTES", 8 * 1024 * 1024)
@@ -47,6 +59,19 @@ REGISTRATION_ENABLED = env_bool("CANVAS_DASHBOARD_REGISTRATION_ENABLED", True)
 CANVAS_FEED_HOSTS = frozenset(host.strip().lower() for host in env_str(
     "CANVAS_DASHBOARD_CANVAS_FEED_HOSTS", "canvas.tongji.edu.cn"
 ).split(",") if host.strip())
+
+
+def validate_production_configuration() -> None:
+    """Assert required security configurations when running in production mode."""
+    if not IS_PRODUCTION:
+        return
+    if not COOKIE_SECURE:
+        raise RuntimeError("生产模式下必须启用安全 Cookie: CANVAS_DASHBOARD_COOKIE_SECURE=1")
+    if not PUBLIC_BASE_URL and not TRUSTED_HOSTS:
+        raise RuntimeError("生产模式下必须配置 CANVAS_DASHBOARD_PUBLIC_BASE_URL 或 CANVAS_DASHBOARD_TRUSTED_HOSTS")
+    if PUBLIC_BASE_URL and not PUBLIC_BASE_URL.startswith("https://"):
+        raise RuntimeError(f"生产模式下的 PUBLIC_BASE_URL 必须为 https://: {PUBLIC_BASE_URL}")
+
 
 CDP_PROXY_BASE_URL = env_str("CANVAS_DASHBOARD_CDP_PROXY_BASE_URL", "http://localhost:3456").rstrip("/")
 TERM_LABEL = env_str("TONGJI_TERM_LABEL", "2026-2027学年 第一学期")

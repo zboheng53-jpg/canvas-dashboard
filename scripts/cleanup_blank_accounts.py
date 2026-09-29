@@ -4,4 +4,8 @@ import auth
 
 
 if __name__ == "__main__":
-    print(json.dumps({"deleted": auth.purge_blank_inactive_accounts()}, ensure_ascii=False))
+    print(json.dumps({
+        "deleted": auth.purge_blank_inactive_accounts(),
+        "retried": auth.retry_pending_deletions(),
+        "quarantine": auth.purge_quarantine(),
+    }, ensure_ascii=False))

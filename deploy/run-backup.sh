@@ -2,6 +2,10 @@
 set -euo pipefail
 
 root=/home/ubuntu/canvas-dashboard
+touch "$root/.maintenance.lock"
+chown ubuntu:ubuntu "$root/.maintenance.lock"
+exec 9>"$root/.maintenance.lock"
+flock -w 300 9
 backup_tool="$root/current/scripts/backup_data.py"
 if [ -f "$root/incoming/backup_data.py" ]; then
     backup_tool="$root/incoming/backup_data.py"
@@ -35,9 +39,19 @@ trap finish EXIT
 systemctl stop canvas-dashboard.service zhihuishu-worker.service
 stopped=1
 install -d -o ubuntu -g ubuntu -m 0700 "$root/backups"
-runuser -u ubuntu -- "$root/.venv/bin/python" \
+backup_python="$root/current/.venv/bin/python"
+if [ ! -x "$backup_python" ]; then
+    backup_python="$root/.venv/bin/python"
+fi
+runuser -u ubuntu -- "$backup_python" \
     "$backup_tool" create \
     --data-dir "$root/data" \
     --output-dir "$root/backups" \
     --public-key /etc/canvas-dashboard/backup-public.pem \
     --retention 14
+runuser -u ubuntu -- "$backup_python" \
+    "$backup_tool" create-recovery-guard \
+    --data-dir "$root/data" \
+    --output-dir "$root/backups/recovery-guards" \
+    --public-key /etc/canvas-dashboard/backup-public.pem \
+    --retention 30

@@ -168,7 +168,7 @@ def test_link_05_past_schedule_in_focus_previous(linkage_env):
 def test_link_06_agent_todos_aligns_with_focus_today(linkage_env):
     """LINK-06: Agent GET /api/agent/v1/todos includes today's growth tasks."""
     c, h = linkage_env
-    token = agent_auth.create_token("alice")
+    token = agent_auth.create_token("alice", scopes=["read", "write", "delete"])
     bearer = {"Authorization": f"Bearer {token}"}
     today_iso = date.today().isoformat()
 

@@ -7,4 +7,6 @@ Type=oneshot
 User=ubuntu
 Group=ubuntu
 WorkingDirectory=/home/ubuntu/canvas-dashboard/current
-ExecStart=/home/ubuntu/canvas-dashboard/.venv/bin/python scripts/cleanup_blank_accounts.py
+EnvironmentFile=-/etc/canvas-dashboard/canvas-dashboard.env
+Environment=CANVAS_DASHBOARD_MAINTENANCE_TARGET=/home/ubuntu/canvas-dashboard/maintenance
+ExecStart=/home/ubuntu/canvas-dashboard/current/.venv/bin/python scripts/cleanup_blank_accounts.py

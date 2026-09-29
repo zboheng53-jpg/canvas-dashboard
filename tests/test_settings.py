@@ -51,3 +51,50 @@ def test_settings_invalid_numeric_overrides_fall_back(monkeypatch):
     assert settings.TONGJIOJ_READ_TIMEOUT_SECONDS == 45
     assert settings.HAOKE_TENANT_ID == 88
     assert settings.TERM_START_DATE.isoformat() == "2026-09-14"
+
+
+def test_production_config_validation(monkeypatch):
+    import pytest
+    import settings
+
+    # In development mode, validation passes without requirements
+    monkeypatch.setenv("CANVAS_DASHBOARD_PRODUCTION", "0")
+    monkeypatch.setenv("CANVAS_DASHBOARD_ENV", "development")
+    monkeypatch.setenv("CANVAS_DASHBOARD_COOKIE_SECURE", "0")
+    monkeypatch.delenv("CANVAS_DASHBOARD_PUBLIC_BASE_URL", raising=False)
+    monkeypatch.delenv("CANVAS_DASHBOARD_TRUSTED_HOSTS", raising=False)
+    importlib.reload(settings)
+    settings.validate_production_configuration()  # Should not raise
+
+    # In production mode without cookie secure, raises
+    monkeypatch.setenv("CANVAS_DASHBOARD_PRODUCTION", "1")
+    monkeypatch.setenv("CANVAS_DASHBOARD_COOKIE_SECURE", "0")
+    monkeypatch.setenv("CANVAS_DASHBOARD_PUBLIC_BASE_URL", "https://dashboard.tongji.edu.cn")
+    importlib.reload(settings)
+    with pytest.raises(RuntimeError, match="CANVAS_DASHBOARD_COOKIE_SECURE"):
+        settings.validate_production_configuration()
+
+    # In production mode without public url or trusted hosts, raises
+    monkeypatch.setenv("CANVAS_DASHBOARD_COOKIE_SECURE", "1")
+    monkeypatch.delenv("CANVAS_DASHBOARD_PUBLIC_BASE_URL", raising=False)
+    monkeypatch.delenv("CANVAS_DASHBOARD_TRUSTED_HOSTS", raising=False)
+    importlib.reload(settings)
+    with pytest.raises(RuntimeError, match="PUBLIC_BASE_URL"):
+        settings.validate_production_configuration()
+
+    # In production mode with http (non-https) public url, raises
+    monkeypatch.setenv("CANVAS_DASHBOARD_PUBLIC_BASE_URL", "http://dashboard.tongji.edu.cn")
+    importlib.reload(settings)
+    with pytest.raises(RuntimeError, match="https://"):
+        settings.validate_production_configuration()
+
+    # In production mode with valid https and cookie secure, passes
+    monkeypatch.setenv("CANVAS_DASHBOARD_PUBLIC_BASE_URL", "https://dashboard.tongji.edu.cn")
+    importlib.reload(settings)
+    settings.validate_production_configuration()
+
+    # Reset environment back to development
+    monkeypatch.setenv("CANVAS_DASHBOARD_PRODUCTION", "0")
+    monkeypatch.delenv("CANVAS_DASHBOARD_PUBLIC_BASE_URL", raising=False)
+    monkeypatch.delenv("CANVAS_DASHBOARD_TRUSTED_HOSTS", raising=False)
+    importlib.reload(settings)

@@ -295,9 +295,14 @@ class CanvasDashboardClient:
                 error_body = exc.read().decode("utf-8")
                 parsed_body = json.loads(error_body)
                 err_msg = parsed_body.get("error") or parsed_body.get("message") or error_body
+                if exc.code == 403 and parsed_body.get("code") == "insufficient_scope":
+                    err_msg = f"权限不足：{err_msg}。请在网页重新生成具有所需权限的 Token。"
+                elif exc.code == 401:
+                    err_msg = f"认证失败：{err_msg}。请检查 Token 是否有效或已过期。"
             except Exception:
                 err_msg = str(exc)
             raise RuntimeError(f"API 请求失败 [{exc.code}]: {err_msg}")
+
         except Exception as exc:
             raise RuntimeError(f"网络连接错误: {exc}")
 

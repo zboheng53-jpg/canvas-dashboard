@@ -107,10 +107,28 @@ def test_release_installer_checks_and_restarts_all_units():
     assert "-ignore_readdir_race" in install
     assert '[ ! -e "$path" ] || exit 1' in install
     assert 'ln -sfn "$root/data" "$release/data"' in install
-    assert 'ln -sfn "$root/.venv" "$release/.venv"' in install
+    assert 'python3 -m venv "$release/.venv"' in install
+    assert 'ln -sfn "$root/.venv" "$release/.venv"' not in install
     for script in (install, rollback):
         assert "sudo test -f /etc/letsencrypt/live/canvas-dashboard.xyz/fullchain.pem" in script
         assert "--resolve canvas-dashboard.xyz:443:127.0.0.1" in script
+
+
+def test_release_verification_has_a_single_failure_rollback_and_shared_maintenance_lock():
+    repo_root = Path(__file__).parents[1]
+    install = (repo_root / "deploy" / "install-release.sh").read_text(encoding="utf-8")
+    assert "trap rollback_on_failure EXIT" in install
+    assert install.index("trap rollback_on_failure EXIT") < install.index('if ! activate_release "$release"')
+    assert install.index('trap - EXIT', install.index('systemctl is-active --quiet canvas-dashboard-backup.timer')) > install.index('https://canvas-dashboard.xyz/healthz')
+    for name in ("install-release.sh", "rollback-release.sh", "run-backup.sh"):
+        text = (repo_root / "deploy" / name).read_text(encoding="utf-8")
+        assert 'exec 9>"$root/.maintenance.lock"' in text
+        assert "flock -w 300 9" in text
+    for name in ("canvas-dashboard.service", "zhihuishu-worker.service"):
+        text = (repo_root / "deploy" / name).read_text(encoding="utf-8")
+        assert "EnvironmentFile=-/etc/canvas-dashboard/canvas-dashboard.env" in text
+        assert "EnvironmentFile=-/home/ubuntu/canvas-dashboard/current/release.env" in text
+        assert "ExecStart=/home/ubuntu/canvas-dashboard/current/.venv/bin/python" in text
 
 
 def test_release_installer_builds_the_browser_login_image_before_activation():
@@ -165,7 +183,7 @@ def test_https_template_redirects_http_and_protects_calendar_tokens():
 
     assert "listen 443 ssl" in https_nginx
     assert "server_name canvas-dashboard.xyz www.canvas-dashboard.xyz;" in https_nginx
-    assert "return 301 https://$host$request_uri;" in https_nginx
+    assert "return 301 https://canvas-dashboard.xyz$request_uri;" in https_nginx
     assert "/etc/letsencrypt/live/canvas-dashboard.xyz/fullchain.pem" in https_nginx
     calendar_location = https_nginx.split("location ^~ /calendar/", 1)[1].split("}", 1)[0]
     assert "access_log off;" in calendar_location
@@ -178,6 +196,18 @@ def test_nginx_protects_tongji_vnc_by_the_current_user_session():
         assert "/api/schedule/login-session-auth" in nginx
         assert "^/tji-vnc/(?<tji_port>62[0-9]{2})" in nginx
         assert "@tongji_vnc_denied" in nginx
+
+
+def test_nginx_drops_untrusted_forwarded_host_and_prefix_and_hides_vnc_tokens():
+    repo_root = Path(__file__).parents[1]
+    for name in ("canvas-dashboard.nginx", "canvas-dashboard.https.nginx"):
+        nginx = (repo_root / "deploy" / name).read_text(encoding="utf-8")
+        dashboard = nginx.rsplit("location / {", 1)[1].split("}", 1)[0]
+        assert 'proxy_set_header X-Forwarded-Host "";' in dashboard
+        assert 'proxy_set_header X-Forwarded-Prefix "";' in dashboard
+        assert "vnc-denied.log combined" not in nginx
+        assert nginx.count("error_log /dev/null;") == 8
+        assert nginx.count("access_log off;") == 9
 
 
 def test_https_enable_script_gates_dns_certificate_and_secure_cookie():

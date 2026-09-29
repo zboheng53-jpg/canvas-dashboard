@@ -26,6 +26,21 @@ OpenSSH must be able to authenticate non-interactively through the configured ke
 
 Runtime `data/` is never included in a release archive.
 
+New releases create their own `.venv/` and record `dependencies.txt`; web,
+worker and cleanup units execute `current/.venv/bin/python`. The login image is
+recorded by immutable Docker ID in each release's `release.env`. Legacy rollback
+targets retain the old shared environment until replaced. Activation, backup
+and rollback serialize through `.maintenance.lock`; all activation checks,
+including HTTPS and final service checks, share the failure rollback handler.
+These templates require an actual Linux deployment check before release; local
+fault-injection tests verify control flow without modifying production.
+
+Nginx drops client-supplied forwarded Host/Prefix for dashboard requests and
+uses a fixed HTTPS redirect target. VNC locations disable access/error logs to
+keep URL tokens out of logs; use authenticated session metadata and service
+logs for login diagnostics. Separate domains for the other applications remain
+an operator infrastructure decision.
+
 Waitress defaults to eight request threads (`CANVAS_DASHBOARD_THREADS` overrides this). OJ synchronization runs in a separate background thread per active account and is deduplicated; its HTTP endpoints return cached projections immediately. The request pool retains capacity for local reads during bursts of slower calls to the other platforms. Increasing the pool is capacity headroom, not a replacement for keeping slow OJ requests off WSGI threads.
 
 OJ reads only the top-level assignment list, using an 8-second connection timeout and a 45-second read timeout (`TONGJIOJ_READ_TIMEOUT_SECONDS` overrides the latter), with at most one retry for timeouts, connection failures, or 502/503/504 responses. Exhausting the retry preserves existing assignments and reports synchronization failure; expired sessions are renewed separately. Cached cookies are restored with the OJ host scope so server rotation replaces them, and renewed cookies are persisted after the assignment page succeeds.
@@ -51,7 +66,11 @@ The Chromium worker also starts after `user@1000.service` and receives `XDG_RUNT
 
 ## Small-group admission controls
 
-Set overrides in `/etc/canvas-dashboard/canvas-dashboard.env`, then restart `canvas-dashboard.service` for them to take effect. `CANVAS_DASHBOARD_REGISTRATION_ENABLED=0` pauses new registrations without blocking existing logins. `CANVAS_DASHBOARD_LOGIN_MAX_SESSIONS=1` (default) caps the combined Tongji/智慧树 interactive login windows; full capacity returns 429 with a retry message. This is a single-Web-process guard, not a cluster semaphore.
+Set overrides in `/etc/canvas-dashboard/canvas-dashboard.env`, then restart the affected web/worker services. Production requires `CANVAS_DASHBOARD_ENV=production`, `CANVAS_DASHBOARD_COOKIE_SECURE=1`, and a fixed HTTPS `CANVAS_DASHBOARD_PUBLIC_BASE_URL` or explicit `CANVAS_DASHBOARD_TRUSTED_HOSTS`; the supplied web unit sets the production defaults and allows operator overrides through its environment file. `CANVAS_DASHBOARD_REGISTRATION_ENABLED=0` pauses new registrations without blocking existing logins.
+
+`CANVAS_DASHBOARD_LOGIN_MAX_SESSIONS=1` (default) now caps both interactive login platforms and the 智慧树 background browser. Capacity/profile coordination uses cross-process locks and resource records under the shared data root. It is local-machine coordination, not a distributed semaphore. An active login record blocks the same user's worker even if the global limit is raised. Docker stop failure retains metadata/occupation for retry; do not erase leases or profiles to make room without confirming their resources have exited. Approved startup and completion requests still wait synchronously, while overlapping starts are rejected quickly.
+
+Canvas/好课 refresh jobs share two HTTP threads and a bounded queue of 32 jobs, return cached/pending responses immediately, and recheck account identity plus connection revision before publishing. OJ keeps its existing deduplicated per-account background threads. This does not eliminate all synchronous platform login or fetch paths.
 
 Canvas feed hosts are restricted to `canvas.tongji.edu.cn` by default. For another institution, set `CANVAS_DASHBOARD_CANVAS_FEED_HOSTS` to comma-separated, operator-verified hostnames. Only HTTPS on port 443 is accepted; redirects are not followed. Do not add user-controlled hosts. Existing untrusted feed URLs retain their old cache but will fail refresh until corrected. See [small-group launch notes](small-group-launch.md) for measured capacity context and operating thresholds.
 
@@ -90,7 +109,7 @@ Normal deployments prune older immutable releases automatically. Do not manually
 | `zhihuishu-worker.service` | All-user 智慧树 supervisor |
 | `zhihuishu-login-cleanup.timer` | Removes expired login sessions and containers every five minutes |
 | `canvas-dashboard-backup.timer` | Creates a daily encrypted server-side data backup |
-| `canvas-dashboard-account-cleanup.timer` | Daily conservative cleanup of 90-day blank accounts |
+| `canvas-dashboard-account-cleanup.timer` | Daily conservative cleanup of 90-day blank accounts, pending deletions and isolated directories |
 | `certbot.timer` | Renews the Let's Encrypt certificate |
 | `nginx.service` | TLS termination, redirects, proxying, and noVNC authorization |
 
@@ -154,9 +173,9 @@ Run account administration only on the production host or a trusted maintenance 
 
 ```bash
 cd /home/ubuntu/canvas-dashboard/current
-../.venv/bin/python scripts/account_admin.py suspend <username> --reason "<ticket or incident reason>"
-../.venv/bin/python scripts/account_admin.py resume <username> --reason "<ticket or incident reason>"
-../.venv/bin/python scripts/account_admin.py issue-reset <username>
+.venv/bin/python scripts/account_admin.py suspend <username> --reason "<ticket or incident reason>"
+.venv/bin/python scripts/account_admin.py resume <username> --reason "<ticket or incident reason>"
+.venv/bin/python scripts/account_admin.py issue-reset <username>
 ```
 
 `issue-reset` prints a one-time credential valid for 30 minutes. Deliver it through an approved private channel, do not copy it into shared logs, and direct the user to `/reset-password`. Permanent account deletion is user-initiated in **偏好设置**; it requires the current password and the exact confirmation text `永久删除`.
@@ -173,6 +192,8 @@ The active HTTPS deployment requires:
 
 ```text
 CANVAS_DASHBOARD_COOKIE_SECURE=1
+CANVAS_DASHBOARD_ENV=production
+CANVAS_DASHBOARD_PUBLIC_BASE_URL=https://canvas-dashboard.xyz
 CANVAS_DASHBOARD_ICP_NUMBER=闽ICP备2026026558号-1
 CANVAS_DASHBOARD_APPLE_CALENDAR_ENABLED=1
 ```
@@ -190,8 +211,15 @@ sudo certbot renew --dry-run
 ## Incident Boundaries
 
 - JSON corruption: stop writes to the affected file and follow `docs/backup-and-restore.md`; never replace it with an empty object.
+- Pending account deletion: deleting records are inactive and retryable. The deletion ledger must be saved before data is isolated. The cleanup timer retries resource/isolation failures and purges only managed quarantine entries. A deletion may have completed account removal while physical purge is pending; preserve that distinction when answering users.
 - Bad release: use `rollback-release.sh`; do not edit an immutable release in place.
 - 智慧树 login/worker or Tongji enhanced-auth window issue: follow `deploy/zhihuishu-login-tunnel.md`.
 - Data loss or key mismatch: stop the app and worker before any restore; follow the staged restore procedure in `docs/backup-and-restore.md`.
 - Accidental account restoration: preserve and apply the live `data/.account_deletion_ledger.json` during the staged restore; it prevents an older archive from reviving a deleted immutable account ID.
 - Certificate issue: keep port 80 ACME challenge handling intact, inspect `certbot.timer`, then validate nginx before reload.
+
+## Health and assets
+
+`/livez` checks Web responsiveness; `/readyz` checks the local critical storage and users registry without writing probe files. `/healthz` stays compatible with deployment checks: worker failure reports degraded with HTTP 200, while critical storage failure returns 503. The authenticated `/api/diagnostics/workers` uses a fresh heartbeat and a live process, rather than the existence of a lock file, to assess the worker. These metadata checks do not prove disk writes will succeed after a later permission/disk change.
+
+Release installation builds CSS/JS fingerprints from source into `frontend/assets/built/`. Nginx serves these files with long caching and compression; source assets must revalidate, and dynamic HTML/API are private/no-store. Do not reuse an old process manifest after rebuilding assets: restart with the new release. The recovery guide documents independent deletion-ledger downloads and the remaining window before a newly deleted account reaches the next off-server copy.

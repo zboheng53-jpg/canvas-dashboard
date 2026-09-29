@@ -124,15 +124,12 @@ def test_haoke_todos_returns_fresh_cache_without_refresh(client_with_user, monke
     assert refreshed == []
 
 
-def test_haoke_todos_fetches_synchronously_when_cache_missing(client_with_user, monkeypatch):
-    fetched = []
+def test_haoke_todos_returns_pending_when_cache_missing(client_with_user, monkeypatch):
+    refreshed = []
     monkeypatch.setattr(dashboard_app, "has_haoke_credentials", lambda username: True)
     monkeypatch.setattr(dashboard_app, "get_haoke_cached_todos", lambda username: None)
-    monkeypatch.setattr(
-        dashboard_app,
-        "fetch_haoke_todos",
-        lambda username: fetched.append(username) or {"ok": True, "data": [{"id": 9, "title": "live"}], "cached": False},
-    )
+    monkeypatch.setattr(dashboard_app, "start_haoke_background_refresh", lambda username: refreshed.append(username) or True)
+    monkeypatch.setattr(dashboard_app, "fetch_haoke_todos", lambda username: pytest.fail("cold cache must not fetch synchronously"))
     monkeypatch.setattr(dashboard_app, "load_haoke_state", lambda username: {"hidden": [], "highlighted": [], "deleted": []})
 
     resp = client_with_user.get("/api/haoke/todos")
@@ -140,16 +137,16 @@ def test_haoke_todos_fetches_synchronously_when_cache_missing(client_with_user, 
 
     assert resp.status_code == 200
     assert data["ok"] is True
-    assert data["data"] == [{"id": 9, "title": "live", "subtasks": []}]
-    assert data["cached"] is False
-    assert data["refreshing"] is False
-    assert fetched == ["alice"]
+    assert data["data"] == []
+    assert data["cached"] is True
+    assert data["refreshing"] is True
+    assert data["sync"]["refreshing"] is True
+    assert refreshed == ["alice"]
 
 
 def test_haoke_todos_adds_error_code_when_fetch_fails(client_with_user, monkeypatch):
     monkeypatch.setattr(dashboard_app, "has_haoke_credentials", lambda username: True)
-    monkeypatch.setattr(dashboard_app, "get_haoke_cached_todos", lambda username: None)
-    monkeypatch.setattr(dashboard_app, "fetch_haoke_todos", lambda username: {"ok": False, "error": "network down", "data": []})
+    monkeypatch.setattr(dashboard_app, "get_haoke_cached_todos", lambda username: {"ok": False, "error": "network down", "data": []})
     monkeypatch.setattr(dashboard_app, "load_haoke_state", lambda username: {"hidden": [], "highlighted": [], "deleted": []})
 
     resp = client_with_user.get("/api/haoke/todos")
@@ -159,6 +156,7 @@ def test_haoke_todos_adds_error_code_when_fetch_fails(client_with_user, monkeypa
     assert data["ok"] is False
     assert data["code"] == "haoke_fetch_failed"
     assert data["error"] == "network down"
+
 
 
 def test_haoke_todos_uses_setup_error_code_when_credentials_missing(client_with_user, monkeypatch):

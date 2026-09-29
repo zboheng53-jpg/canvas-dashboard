@@ -91,6 +91,7 @@ def test_build_platform_todos_response_auto_deletes_expired_hidden_item():
         state,
         save_state=lambda changed_state: saved.append(changed_state.copy()),
         now=now,
+        auto_delete_expired_hidden=True,
     )
 
     assert response["data"] == [{"id": 2, "due_ts": (now + timedelta(hours=1)).isoformat(), "due_str": "2026-07-09 13:00"}]

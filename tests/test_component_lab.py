@@ -44,8 +44,10 @@ def test_component_lab_renders_required_component_families():
     ]
     for label in required_labels:
         assert label in html
-    assert 'href="/static/css/component-lab.css"' in html
-    assert 'src="/static/js/component-lab.js"' in html
+    from flask import url_for
+    with dashboard_app.app.test_request_context():
+        assert f'href="{url_for("static", filename="css/component-lab.css")}"' in html
+        assert f'src="{url_for("static", filename="js/component-lab.js")}"' in html
     assert "已确认的信息表达组件" in html
     assert 'class="ui-badge ui-badge--source ui-source--canvas"' in html
     assert 'class="ui-tag is-selected"' in html
@@ -79,8 +81,10 @@ def test_export_component_lab_preview_uses_relative_assets(tmp_path: Path):
         restored_testing = dashboard_app.app.config["TESTING"]
         dashboard_app.app.config.update(TESTING=previous_testing)
 
-    assert 'href="../assets/css/component-lab.css"' in html
-    assert 'src="../assets/js/component-lab.js"' in html
+    from flask import url_for
+    with dashboard_app.app.test_request_context():
+        assert url_for('static', filename='css/component-lab.css').replace('/static/', '../assets/') in html
+        assert url_for('static', filename='js/component-lab.js').replace('/static/', '../assets/') in html
     assert "/static/" not in html
     assert restored_testing is False
 

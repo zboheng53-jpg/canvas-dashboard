@@ -38,8 +38,8 @@ def test_env(tmp_path, monkeypatch):
     dashboard.app.config.update(TESTING=True)
     auth.register("alice", "ReviewPass123!")
     auth.register("bob", "ReviewPass123!")
-    alice_token = agent_auth.create_token("alice")
-    bob_token = agent_auth.create_token("bob")
+    alice_token = agent_auth.create_token("alice", scopes=["read", "write", "delete"])
+    bob_token = agent_auth.create_token("bob", scopes=["read", "write", "delete"])
     client = dashboard.app.test_client()
     return {
         "base": base,

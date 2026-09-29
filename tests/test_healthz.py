@@ -63,8 +63,11 @@ def test_healthz_reports_local_worker_error_status(health_client):
 
     resp = health_client.get("/healthz")
 
-    assert resp.status_code == 503
+    # Worker error must degrade status without failing whole-site 503
+    assert resp.status_code == 200
     body = resp.get_json()
+    assert body["ok"] is True
+    assert body["status"] == "degraded"
     worker = body["checks"]["zhihuishu_worker"]
     assert worker["ok"] is False
     assert worker["error_count"] == 1
@@ -88,3 +91,39 @@ def test_healthz_reports_worker_success_refresh_times(health_client, monkeypatch
     assert worker["oldest_last_success_at"] == 9_800.0
     assert worker["last_success_age_seconds"] == 100
     assert worker["last_success_count"] == 2
+
+
+def test_livez_and_readyz_endpoints(health_client, tmp_path, monkeypatch):
+    # /livez is public and alive
+    live_resp = health_client.get("/livez")
+    assert live_resp.status_code == 200
+    assert live_resp.get_json() == {"ok": True, "status": "alive"}
+
+    # /readyz is ready when storage is accessible
+    ready_resp = health_client.get("/readyz")
+    assert ready_resp.status_code == 200
+    assert ready_resp.get_json()["ok"] is True
+    assert ready_resp.get_json()["status"] == "ready"
+
+    # Diagnostics endpoint
+    diag_resp = health_client.get("/api/diagnostics/workers")
+    assert diag_resp.status_code == 401
+    with health_client.session_transaction() as session:
+        session['username'] = 'alice'
+    diag_resp = health_client.get("/api/diagnostics/workers")
+    assert diag_resp.status_code == 200
+    assert diag_resp.get_json()["ok"] is True
+
+
+def test_readyz_fails_closed_on_corrupt_data(health_client, tmp_path, monkeypatch):
+    # Simulate corrupted users.json
+    corrupt_users = dashboard_app.DATA_DIR / "users.json"
+    corrupt_users.write_text("{corrupt:json:not:valid", encoding="utf-8")
+
+    ready_resp = health_client.get("/readyz")
+    assert ready_resp.status_code == 503
+    assert ready_resp.get_json()["ok"] is False
+
+    health_resp = health_client.get("/healthz")
+    assert health_resp.status_code == 503
+    assert health_resp.get_json()["ok"] is False

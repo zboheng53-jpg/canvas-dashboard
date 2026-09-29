@@ -676,8 +676,8 @@
         if (item.source === 'canvas') {
           actionsHtml = `
             <button class="todo-action-button ${flagClass}" onclick="toggleHighlight('${item.id}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
-            <button class="btn-dismiss" onclick="togglePlatformCompletion('canvas', ${item.rawId}, ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
-            <button class="btn-delete" onclick="toggleCanvasDelete(${item.rawId})" title="\u5220\u9664">&#x1f5d1;</button>
+            <button class="btn-dismiss" onclick="togglePlatformCompletion('canvas', '${item.rawId}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
+            <button class="btn-delete" onclick="toggleCanvasDelete('${item.rawId}')" title="\u5220\u9664">&#x1f5d1;</button>
           `;
         } else if (item.source === 'haoke') {
           actionsHtml = `
@@ -968,7 +968,7 @@
     }
 
     async function toggleHighlight(itemId, current) {
-      const rawId = parseInt(itemId.substring(1));
+      const rawId = itemId.startsWith('c') ? itemId.substring(1) : itemId;
       const action = current ? 'unhighlight' : 'highlight';
       await fetch('/api/canvas/state', {
         method: 'POST',
@@ -976,7 +976,7 @@
         body: JSON.stringify({ action, id: rawId }),
       });
       if (current) {
-        highlightedIds = highlightedIds.filter(id => id !== rawId);
+        highlightedIds = highlightedIds.filter(id => String(id) !== String(rawId));
       } else {
         highlightedIds.push(rawId);
       }
@@ -984,7 +984,7 @@
     }
 
     async function toggleHide(itemId, current) {
-      const rawId = parseInt(itemId.substring(1));
+      const rawId = itemId.startsWith('c') ? itemId.substring(1) : itemId;
       const action = current ? 'unhide' : 'hide';
       await fetch('/api/canvas/state', {
         method: 'POST',
@@ -992,7 +992,7 @@
         body: JSON.stringify({ action, id: rawId }),
       });
       if (current) {
-        hiddenIds = hiddenIds.filter(id => id !== rawId);
+        hiddenIds = hiddenIds.filter(id => String(id) !== String(rawId));
       } else {
         hiddenIds.push(rawId);
       }
@@ -1393,10 +1393,13 @@
         await toggleRecurringCheck(seriesId, origDate, done);
         return;
       }
-      await fetch(`/api/custom/todos/${id}`, {
+      const item = Array.isArray(customItems) ? customItems.find(t => String(t.id) === String(id)) : null;
+      const payload = { done: !done };
+      if (item && item.updated_at) payload.expected_updated_at = item.updated_at;
+      const resp = await fetch(`/api/custom/todos/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ done: !done }),
+        body: JSON.stringify(payload),
       });
       await fetchCustomTodos();
       if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
@@ -1432,13 +1435,17 @@
     }
 
     async function toggleCustomHighlight(id, current) {
+      const item = Array.isArray(customItems) ? customItems.find(t => String(t.id) === String(id)) : null;
+      const payload = { highlighted: !current };
+      if (item && item.updated_at) payload.expected_updated_at = item.updated_at;
       await fetch(`/api/custom/todos/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ highlighted: !current }),
+        body: JSON.stringify(payload),
       });
       fetchCustomTodos();
     }
+
 
     async function toggleCanvasDelete(id) {
       await fetch('/api/canvas/state', {
@@ -1706,7 +1713,7 @@
     workspaceRefreshFailed = false;
     renderDashboardSyncStatus();
     try {
-      if (typeof fetchCanvasTodos === 'function') fetchCanvasTodos();
+      if (typeof fetchCanvasTodos === 'function') fetchCanvasTodos(true);
       if (typeof fetchHaokeTodos === 'function') fetchHaokeTodos(true);
       if (typeof fetchZhixuemengTodos === 'function') fetchZhixuemengTodos();
       if (typeof fetchZhihuishuTodos === 'function') fetchZhihuishuTodos();

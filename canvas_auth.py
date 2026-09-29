@@ -8,20 +8,22 @@ from datetime import datetime, timezone, timedelta
 
 import hashlib
 import ipaddress
+import time
 import requests
 import socket
 import settings
+import auth
 from icalendar import Calendar
 from urllib.parse import urlsplit
 
 from platform_state import PlatformStateStore
-from storage import read_json_file, write_json_file
+from storage import locked_json_update, read_json_file, write_json_file
 from user_paths import user_dir
 
 logger = logging.getLogger(__name__)
 
 CST = timezone(timedelta(hours=8))
-_state_store = PlatformStateStore(lambda username: user_dir(username) / "canvas_state.json", int)
+_state_store = PlatformStateStore(lambda username: user_dir(username) / "canvas_state.json", str)
 
 
 def get_feed_url(username):
@@ -56,9 +58,12 @@ def save_feed_url(username, url):
     if not ok:
         return False, error
     config_file = user_dir(username) / "config.json"
-    config = read_json_file(config_file, {})
-    config["calendar_feed_url"] = url
-    write_json_file(config_file, config)
+    def update(config):
+        config["calendar_feed_url"] = url
+        config["canvas_connection_revision"] = int(config.get("canvas_connection_revision", 0)) + 1
+        return config
+    with auth.account_operation(username):
+        locked_json_update(config_file, {}, update)
     return True, None
 
 
@@ -70,69 +75,160 @@ def remove_feed_url(username):
     config_file = user_dir(username) / "config.json"
     def remove(config):
         config.pop("calendar_feed_url", None)
+        config["canvas_connection_revision"] = int(config.get("canvas_connection_revision", 0)) + 1
         return config
-    from storage import locked_json_update
-    locked_json_update(config_file, {}, remove)
+    with auth.account_operation(username):
+        locked_json_update(config_file, {}, remove)
+
+
+def _connection_revision(username):
+    return read_json_file(user_dir(username) / "config.json", {}).get("canvas_connection_revision", 0)
 
 
 def _extract_stable_id(url, uid):
-    """Extract Canvas assignment/event ID from URL fragment, fall back to UID hash."""
-    if url and "#" in url:
-        fragment = url.rsplit("#", 1)[1]
-        for prefix in ("assignment_", "calendar_event_"):
-            if fragment.startswith(prefix):
-                try:
-                    return int(fragment[len(prefix):])
-                except ValueError:
-                    pass
-    return int(hashlib.sha256(uid.encode("utf-8")).hexdigest(), 16) % 1000000
+    """Extract Canvas assignment/event stable string ID from URL fragment or path or UID."""
+    if url:
+        if "#" in url:
+            fragment = url.rsplit("#", 1)[1]
+            for prefix, type_name in (("assignment_", "assignment"), ("calendar_event_", "calendar_event")):
+                if fragment.startswith(prefix):
+                    obj_id = fragment[len(prefix):]
+                    if obj_id.isdigit():
+                        return f"canvas:{type_name}:{obj_id}"
+        for pattern, type_name in (("/assignments/", "assignment"), ("/calendar_events/", "calendar_event")):
+            if pattern in url:
+                part = url.split(pattern, 1)[1].split("?")[0].split("#")[0].strip("/")
+                if part and part.isdigit():
+                    return f"canvas:{type_name}:{part}"
+    clean_uid = uid or ""
+    uid_hash = hashlib.sha256(clean_uid.encode("utf-8")).hexdigest()
+    return f"canvas:event:{uid_hash}"
 
 
-def _migrate_state_from_cache(username):
-    """Migrate old hash-based IDs in state to stable assignment IDs from URL fragments.
+def _migrate_state_from_cache(username, fresh_items=None):
+    """Migrate old IDs in state and subtasks to stable typed assignment/event IDs.
 
-    Reads the current cache (which may have old hash IDs), extracts the stable
-    assignment ID from each item's URL, and remaps state entries accordingly.
-    Should be called BEFORE overwriting the cache with new data.
+    Reads the current cache, extracts the stable ID from each item's URL,
+    and remaps state entries (hidden, highlighted, deleted, completed, overrides)
+    and external subtasks accordingly.
     """
     state_file = user_dir(username) / "canvas_state.json"
     cache_file = user_dir(username) / "canvas_cache.json"
-    if not state_file.exists() or not cache_file.exists():
-        return
-    try:
-        cache_items = read_json_file(cache_file, [])
-    except Exception:
-        return
+    subtasks_file = user_dir(username) / "external_subtasks.json"
+    aliases_file = user_dir(username) / "canvas_id_migration.json"
 
-    # Build mapping: old hash ID → stable assignment ID (from URL fragment)
-    mapping = {}
-    for item in cache_items:
-        url = item.get("url", "")
-        old_id = item.get("id")
-        new_id = _extract_stable_id(url, str(old_id))
-        if old_id != new_id:
-            mapping[old_id] = new_id
-    if not mapping:
+    if not cache_file.exists():
         return
+    snapshot = read_json_file(cache_file, [])
+    if all(str(item.get("id")).startswith("canvas:") for item in snapshot) and (
+        not fresh_items or not any(str(item.get("id")).startswith("canvas:legacy:") for item in snapshot)
+    ):
+        return
+    fresh_by_legacy = {}
+    for item in fresh_items or []:
+        uid = item.get("uid")
+        if uid:
+            old_hash = str(int(hashlib.sha256(uid.encode("utf-8")).hexdigest(), 16) % 1000000)
+            fresh_by_legacy.setdefault(old_hash, set()).add(str(item["id"]))
 
-    state = load_state(username)
-    changed = False
-    for key in ("hidden", "highlighted", "deleted"):
-        new_list = []
-        for oid in state.get(key, []):
-            if oid in mapping:
-                new_list.append(mapping[oid])
-                changed = True
-            else:
-                new_list.append(oid)
-        state[key] = new_list
-    if changed:
-        save_state(username, state)
-        logger.info(f"Migrated state IDs: {mapping}")
+    def migrate(cache_items):
+        candidates = {}
+        replacements = []
+        for item in cache_items:
+            old_id = str(item.get("id"))
+            new_id = old_id
+            if old_id.startswith("canvas:legacy:"):
+                options = fresh_by_legacy.get(old_id.removeprefix("canvas:legacy:"), set())
+                if len(options) == 1:
+                    new_id = next(iter(options))
+            elif not old_id.startswith("canvas:"):
+                url, uid = item.get("url", ""), item.get("uid")
+                extracted = _extract_stable_id(url, uid or old_id)
+                if not extracted.startswith("canvas:event:") or uid:
+                    new_id = extracted
+                else:
+                    options = fresh_by_legacy.get(old_id, set())
+                    new_id = next(iter(options)) if len(options) == 1 else f"canvas:legacy:{old_id}"
+            candidates.setdefault(old_id, set()).add(new_id)
+            replacements.append({**item, "id": new_id})
+        mapping = {key: next(iter(values)) for key, values in candidates.items() if len(values) == 1 and key != next(iter(values))}
+        ambiguous = {key: sorted(values) for key, values in candidates.items() if len(values) > 1}
+        if not mapping and not ambiguous:
+            return cache_items
+
+        def save_aliases(data):
+            data.setdefault("aliases", {}).update(mapping)
+            data.setdefault("ambiguous", {}).update(ambiguous)
+            for key in ambiguous:
+                data["aliases"].pop(key, None)
+            return data
+        migration = locked_json_update(aliases_file, {}, save_aliases)
+
+        def mapped(value):
+            value = str(value)
+            seen = set()
+            while value in migration["aliases"] and value not in seen:
+                seen.add(value)
+                value = migration["aliases"][value]
+            return value
+
+        if state_file.exists():
+            def migrate_state(state):
+                for key in ("hidden", "highlighted", "deleted", "completed"):
+                    state[key] = list(dict.fromkeys(mapped(value) for value in state.get(key, [])))
+                overrides = dict(state.get("overrides", {}))
+                for key, patch in list(overrides.items()):
+                    target = mapped(key)
+                    if target != key:
+                        overrides[target] = {**patch, **overrides.get(target, {})}
+                        overrides.pop(key, None)
+                state["overrides"] = overrides
+                return state
+            locked_json_update(state_file, {}, migrate_state)
+
+        if subtasks_file.exists():
+            def migrate_subtasks(records):
+                for key, value in list(records.items()):
+                    if key.startswith("canvas:"):
+                        target = "canvas:" + mapped(key[len("canvas:"):])
+                        if target != key and target not in records:
+                            records[target] = value
+                            records.pop(key)
+                return records
+            locked_json_update(subtasks_file, {}, migrate_subtasks)
+        schedules_file = user_dir(username) / "schedule_items.json"
+        if schedules_file.exists():
+            def migrate_schedule_refs(records):
+                for kind in ("recurring", "one_off"):
+                    for item in records.get(kind, []):
+                        ref = item.get("action_ref")
+                        if ref and ref.startswith("canvas:"):
+                            item["action_ref"] = "canvas:" + mapped(ref[len("canvas:"):])
+                return records
+            locked_json_update(schedules_file, {}, migrate_schedule_refs)
+        return replacements
+
+    # Serialize migrations with refresh publication; reread under the cache lock.
+    locked_json_update(cache_file, [], migrate)
+
+
+def resolve_item_id(username, item_id):
+    aliases = read_json_file(user_dir(username) / "canvas_id_migration.json", {}).get("aliases", {})
+    value, seen = str(item_id), set()
+    while value in aliases and value not in seen:
+        seen.add(value)
+        value = aliases[value]
+    return value
+
+
+def cached_items(username):
+    _migrate_state_from_cache(username)
+    return read_json_file(user_dir(username) / "canvas_cache.json", [])
 
 
 def load_state(username):
     """Load hidden/highlighted Canvas item IDs."""
+    _migrate_state_from_cache(username)
     return _state_store.load(username)
 
 
@@ -140,13 +236,19 @@ def save_state(username, state):
     _state_store.save(username, state)
 
 
+def delete_expired_hidden(username, expired_ids):
+    return _state_store.delete_expired_hidden(username, expired_ids)
+
+
 def update_state(username, action, item_id):
     """Apply a state action: hide, unhide, highlight, unhighlight."""
-    return _state_store.update(username, action, item_id)
+    _migrate_state_from_cache(username)
+    return _state_store.update(username, action, resolve_item_id(username, item_id))
 
 
 def update_override(username, item_id, patch=None, restore=False):
-    return _state_store.update_override(username, item_id, patch, restore)
+    _migrate_state_from_cache(username)
+    return _state_store.update_override(username, resolve_item_id(username, item_id), patch, restore)
 
 
 def fetch_canvas_planner(username):
@@ -169,7 +271,7 @@ def fetch_canvas_planner(username):
             return _fallback_cache(username)
 
         items = _parse_ical(resp.text)
-        _migrate_state_from_cache(username)
+        _migrate_state_from_cache(username, items)
         cache_file = user_dir(username) / "canvas_cache.json"
         write_json_file(cache_file, items)
         return {"ok": True, "data": items, "cached": False}
@@ -230,6 +332,7 @@ def _parse_ical(raw):
 
         results.append({
             "id": _extract_stable_id(url, uid),
+            "uid": uid,
             "title": summary,
             "course": course,
             "due_str": due_str,
@@ -259,9 +362,109 @@ def _to_cst_datetime(dt):
 def _fallback_cache(username):
     cache_file = user_dir(username) / "canvas_cache.json"
     if cache_file.exists():
-        try:
-            items = read_json_file(cache_file, [])
-            return {"ok": True, "data": items, "cached": True}
-        except Exception:
-            pass
+        items = cached_items(username)
+        migration = read_json_file(user_dir(username) / "canvas_id_migration.json", {})
+        result = {"ok": True, "data": items, "cached": True}
+        if migration.get("ambiguous"):
+            result["migration_ambiguous_ids"] = sorted(migration["ambiguous"])
+        return result
     return {"ok": False, "error": "无法获取日历数据，且无缓存数据", "data": []}
+
+
+CANVAS_CACHE_TTL_SECONDS = 30 * 60
+
+
+def get_cached_todos(username: str, now: float | None = None) -> dict:
+    """Return cached Canvas items with staleness indication."""
+    cache_file = user_dir(username) / "canvas_cache.json"
+    if not cache_file.exists():
+        return {
+            "ok": False,
+            "data": [],
+            "cached": True,
+            "has_cache": False,
+            "stale": True,
+            "fetched_at": None,
+        }
+    try:
+        items = cached_items(username)
+        mtime = cache_file.stat().st_mtime
+    except OSError:
+        return {
+            "ok": False,
+            "data": [],
+            "cached": True,
+            "has_cache": False,
+            "stale": True,
+            "fetched_at": None,
+        }
+    now = now or time.time()
+    stale = (now - mtime) > CANVAS_CACHE_TTL_SECONDS
+    return {
+        "ok": True,
+        "data": items,
+        "cached": True,
+        "has_cache": True,
+        "fetched_at": mtime,
+        "stale": stale,
+    }
+
+
+def _run_background_refresh(username: str, initial_identity=None, revision=None) -> None:
+    import http_sync
+    import platform_sync
+
+    initial_identity = initial_identity or http_sync.get_account_identity(username)
+    revision = _connection_revision(username) if revision is None else revision
+    if initial_identity is None:
+        return
+    feed_url = get_feed_url(username)
+    if not feed_url:
+        return
+    valid, error = validate_feed_url(feed_url)
+    try:
+        if not valid:
+            raise ValueError("invalid_feed_url")
+        resp = requests.get(feed_url, timeout=30, allow_redirects=False)
+        if resp.status_code != 200:
+            raise ValueError(f"http_{resp.status_code}")
+        items = _parse_ical(resp.text)
+    except Exception as exc:
+        with auth.account_operation(username):
+            if http_sync.get_account_identity(username) == initial_identity and has_feed_url(username) and _connection_revision(username) == revision:
+                platform_sync.record_result(
+                    username, "canvas", ok=False,
+                    has_cache=(user_dir(username) / "canvas_cache.json").exists(),
+                    error_code=type(exc).__name__, error_message="Canvas 刷新失败，已保留上次数据",
+                )
+        return
+
+    # Check identity and connection before writeback!
+    with auth.account_operation(username):
+        if http_sync.get_account_identity(username) != initial_identity or not has_feed_url(username) or _connection_revision(username) != revision:
+            return
+        _migrate_state_from_cache(username, items)
+        cache_file = user_dir(username) / "canvas_cache.json"
+        write_json_file(cache_file, items)
+        platform_sync.record_result(username, "canvas", ok=True, has_cache=True)
+
+
+def start_background_refresh(username: str) -> bool:
+    """Submit background Canvas refresh to unified bounded executor."""
+    if not has_feed_url(username):
+        return False
+    import http_sync
+    identity = http_sync.get_account_identity(username)
+    revision = _connection_revision(username)
+    return http_sync.submit_http_sync(
+        username,
+        "canvas",
+        lambda: _run_background_refresh(username, identity, revision),
+        is_connected_fn=has_feed_url,
+    )
+
+
+def is_refreshing(username: str) -> bool:
+    """Check if Canvas sync is currently active for user."""
+    import http_sync
+    return http_sync.is_refreshing(username, "canvas")

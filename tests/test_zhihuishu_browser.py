@@ -20,10 +20,10 @@ def test_context_launch_options_use_configured_chrome_path(monkeypatch):
     }
 
 
-def test_foreign_profile_lock_is_stale():
+def test_foreign_profile_lock_is_not_stale():
     from zhihuishu_browser import _profile_lock_is_stale
 
-    assert _profile_lock_is_stale(
+    assert not _profile_lock_is_stale(
         "container-host-19",
         current_host="server-host",
         pid_is_running=lambda pid: True,

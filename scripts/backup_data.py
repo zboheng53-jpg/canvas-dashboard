@@ -6,6 +6,7 @@ import io
 import json
 import os
 import secrets
+import shutil
 import struct
 import sys
 import tarfile
@@ -27,14 +28,23 @@ def _is_excluded(relative: PurePosixPath) -> bool:
     name = relative.name
     return (
         "zhihuishu_chromium_profile" in parts
+        or ".quarantine" in parts
+        or ".account_locks" in parts
+        or ".profile_locks" in parts
+        or "tongji_login_profile" in parts
         or name.endswith("_cache.json")
         or name in {
             "holiday_cache.json",
             "term_cache.json",
             "zhihuishu_status.json",
             "zhihuishu_login_session.json",
+            "tongji_login_session.json",
             "zhihuishu_worker.lock",
             ".account_deletion_ledger.json",
+            ".worker_browser_lease.json",
+            ".browser_capacity.lock",
+            "agent_token_index.json",
+            "worker_heartbeat.json",
         }
         or name.startswith("server.log")
         or ".corrupt-" in name
@@ -344,7 +354,17 @@ def _consume_archive(input_path: Path, private_key_path: Path, output_dir: Path 
 
 def apply_deletion_ledger(restored_data_dir: Path, ledger_path: Path) -> list[str]:
     """Prevent a restore from reviving account IDs deleted after that backup."""
-    ledger = json.loads(ledger_path.read_text(encoding="utf-8")) if ledger_path.exists() else {}
+    # An explicitly requested ledger must be present and readable: silently
+    # treating a missing off-site ledger as empty can revive deleted accounts.
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    if not isinstance(ledger, dict) or not isinstance(ledger.get("deleted_accounts"), dict):
+        raise ValueError("Deletion ledger must contain a deleted_accounts object")
+    target_ledger_path = restored_data_dir / ".account_deletion_ledger.json"
+    if target_ledger_path.exists():
+        existing = json.loads(target_ledger_path.read_text(encoding="utf-8"))
+        if not isinstance(existing, dict) or not isinstance(existing.get("deleted_accounts"), dict):
+            raise ValueError("Existing deletion ledger must contain a deleted_accounts object")
+        ledger["deleted_accounts"] = {**existing["deleted_accounts"], **ledger["deleted_accounts"]}
     deleted_ids = set(ledger.get("deleted_accounts", {}))
     users_file = restored_data_dir / "users.json"
     users = json.loads(users_file.read_text(encoding="utf-8")) if users_file.exists() else {}
@@ -352,11 +372,63 @@ def apply_deletion_ledger(restored_data_dir: Path, ledger_path: Path) -> list[st
     for username, record in list(users.items()):
         if isinstance(record, dict) and record.get("account_id") in deleted_ids:
             users.pop(username, None)
-            shutil.rmtree(restored_data_dir / "users" / username, ignore_errors=True)
+            user_dir = restored_data_dir / "users" / username
+            user_dir.resolve().relative_to((restored_data_dir / "users").resolve())
+            if user_dir.exists():
+                shutil.rmtree(user_dir)
             removed.append(username)
     if removed:
-        users_file.write_text(json.dumps(users, ensure_ascii=False, indent=2), encoding="utf-8")
+        _write_restored_json(users_file, users)
+    # Carry history forward automatically so a disaster recovery cannot produce
+    # an empty 'latest' guard on its next backup.
+    _write_restored_json(target_ledger_path, ledger)
     return removed
+
+
+def _write_restored_json(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as output:
+            json.dump(payload, output, ensure_ascii=False, indent=2)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temp_name, path)
+    finally:
+        Path(temp_name).unlink(missing_ok=True)
+
+
+def invalidate_restored_credentials(restored_data_dir: Path) -> None:
+    """A snapshot cannot prove which credentials were revoked since it was taken."""
+    users_file = restored_data_dir / "users.json"
+    users = json.loads(users_file.read_text(encoding="utf-8")) if users_file.exists() else {}
+    for record in users.values():
+        if isinstance(record, dict):
+            record["session_version"] = int(record.get("session_version", 1)) + 1
+            record.pop("reset_token_hash", None)
+            record.pop("reset_expires_at", None)
+            record.pop("reset_token_expires_at", None)
+    if users_file.exists():
+        _write_restored_json(users_file, users)
+    (restored_data_dir / ".flask_secret_key").unlink(missing_ok=True)
+    (restored_data_dir / "agent_token_index.json").unlink(missing_ok=True)
+    # Reconnect Agent/calendar subscriptions after activation. Preserve password
+    # hashes and the encryption key needed to read saved platform configuration.
+    for name in ("agent_token.json", "apple_calendar.json"):
+        for path in (restored_data_dir / "users").glob(f"*/{name}"):
+            path.write_text("{}", encoding="utf-8")
+
+
+def create_recovery_guard(data_dir: Path, output_dir: Path, public_key_path: Path, retention: int) -> Path:
+    """Export the latest deletion ledger independently of historical data backups."""
+    ledger_path = data_dir / ".account_deletion_ledger.json"
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8")) if ledger_path.exists() else {"deleted_accounts": {}}
+    if not isinstance(ledger, dict) or not isinstance(ledger.get("deleted_accounts"), dict):
+        raise ValueError("Deletion ledger must contain a deleted_accounts object")
+    with tempfile.TemporaryDirectory(prefix="canvas-dashboard-recovery-guard-") as staging:
+        source = Path(staging)
+        (source / "deletion-ledger.json").write_text(json.dumps(ledger, ensure_ascii=False), encoding="utf-8")
+        return create_backup(source, output_dir, public_key_path, retention)
 
 
 def main(argv=None) -> int:
@@ -370,6 +442,11 @@ def main(argv=None) -> int:
     create_parser.add_argument("--output-dir", type=Path, required=True)
     create_parser.add_argument("--public-key", type=Path, required=True)
     create_parser.add_argument("--retention", type=int, default=14)
+    guard_parser = subparsers.add_parser("create-recovery-guard")
+    guard_parser.add_argument("--data-dir", type=Path, required=True)
+    guard_parser.add_argument("--output-dir", type=Path, required=True)
+    guard_parser.add_argument("--public-key", type=Path, required=True)
+    guard_parser.add_argument("--retention", type=int, default=14)
     for name in ("verify", "restore"):
         command_parser = subparsers.add_parser(name)
         command_parser.add_argument("--input", type=Path, required=True)
@@ -385,6 +462,9 @@ def main(argv=None) -> int:
         elif args.command == "create":
             path = create_backup(args.data_dir, args.output_dir, args.public_key, args.retention)
             result = {"ok": True, "backup": str(path)}
+        elif args.command == "create-recovery-guard":
+            path = create_recovery_guard(args.data_dir, args.output_dir, args.public_key, args.retention)
+            result = {"ok": True, "backup": str(path)}
         else:
             output_dir = args.output_dir if args.command == "restore" else None
             if output_dir is not None:
@@ -392,6 +472,9 @@ def main(argv=None) -> int:
             result = _consume_archive(args.input, args.private_key, output_dir)
             if args.command == "restore" and args.deletion_ledger:
                 result["deleted_accounts_reapplied"] = apply_deletion_ledger(output_dir / "data", args.deletion_ledger)
+            if args.command == "restore":
+                invalidate_restored_credentials(output_dir / "data")
+                result["credentials_invalidated"] = True
         print(json.dumps(result, ensure_ascii=False))
         return 0
     except Exception as exc:

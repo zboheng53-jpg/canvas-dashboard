@@ -23,6 +23,8 @@ DOCKER_IMAGE = settings.ZHIHUISHU_LOGIN_DOCKER_IMAGE
 NOVNC_READY_TIMEOUT_SECONDS = settings.ZHIHUISHU_NOVNC_READY_TIMEOUT_SECONDS
 NOVNC_READY_INTERVAL_SECONDS = settings.ZHIHUISHU_NOVNC_READY_INTERVAL_SECONDS
 TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
+DOCKER_TIMEOUT_SECONDS = 30.0
+STARTUP_GRACE_PERIOD_SECONDS = 60.0
 
 
 def _user_dir(username: str) -> Path:
@@ -55,9 +57,11 @@ def _find_free_port() -> int:
     raise RuntimeError("No free Zhihuishu login ports available")
 
 
-def _run_docker(command: list[str]) -> None:
+def _run_docker(command: list[str], timeout: float = DOCKER_TIMEOUT_SECONDS) -> None:
     try:
-        subprocess.run(command, check=True)
+        subprocess.run(command, check=True, timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError("Docker 命令执行超时，请检查 Docker 服务状态。") from exc
     except FileNotFoundError as exc:
         raise RuntimeError(
             "Docker 运行时没有准备好，无法启动智慧树登录窗口：没有找到 docker 命令。"
@@ -98,12 +102,8 @@ def _wait_for_novnc(port: int) -> None:
 
 
 def _stop_container(container_name: str) -> None:
-    if not container_name:
-        return
-    try:
-        subprocess.run(["docker", "rm", "-f", container_name], check=False)
-    except FileNotFoundError:
-        return
+    from login_capacity import stop_container
+    stop_container(container_name)
 
 
 def _list_login_containers() -> list[str]:
@@ -117,8 +117,8 @@ def _list_login_containers() -> list[str]:
         "{{.Names}}",
     ]
     try:
-        result = subprocess.run(command, check=False, capture_output=True, text=True)
-    except FileNotFoundError:
+        result = subprocess.run(command, check=False, capture_output=True, text=True, timeout=15)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
         return []
     if result.returncode != 0:
         return []
@@ -148,9 +148,15 @@ def _iter_session_files():
             yield user_dir / "zhihuishu_login_session.json"
 
 
-def _remove_session_file(session_file: Path, session: dict) -> None:
-    _stop_container(session.get("container_name", ""))
-    session_file.unlink(missing_ok=True)
+def _remove_session_file(session_file: Path, session: dict) -> bool:
+    from login_capacity import account_profile_lock
+    with account_profile_lock(DATA_DIR, session_file.parent.name, timeout=5.0):
+        current = read_json_file(session_file, None)
+        if not current or (current.get('token'), current.get('container_name')) != (session.get('token'), session.get('container_name')):
+            return False
+        _stop_container(current.get("container_name", ""))
+        session_file.unlink(missing_ok=True)
+        return True
 
 
 def cleanup_expired_sessions(now: float | None = None) -> int:
@@ -163,9 +169,13 @@ def cleanup_expired_sessions(now: float | None = None) -> int:
             session = json.loads(session_file.read_text(encoding="utf-8"))
         except Exception:
             continue
+        if session.get("status") == "starting" and (now - float(session.get("created_at", 0)) < STARTUP_GRACE_PERIOD_SECONDS):
+            continue
         if float(session.get("expires_at", 0)) < now:
-            _remove_session_file(session_file, session)
-            removed += 1
+            try:
+                removed += int(_remove_session_file(session_file, session))
+            except TimeoutError:
+                continue
     return removed
 
 
@@ -177,6 +187,11 @@ def _active_session_container_names(now: float) -> set[str]:
         try:
             session = json.loads(session_file.read_text(encoding="utf-8"))
         except Exception:
+            continue
+        if session.get("status") == "starting" and (now - float(session.get("created_at", 0)) < STARTUP_GRACE_PERIOD_SECONDS):
+            container_name = session.get("container_name")
+            if container_name:
+                names.add(container_name)
             continue
         if float(session.get("expires_at", 0)) < now:
             continue
@@ -245,9 +260,10 @@ def _save_session(username: str, session: dict) -> None:
 
 
 def create_session(username: str, now: float | None = None) -> dict:
-    from login_capacity import startup_slot
+    from login_capacity import startup_slot, account_profile_lock
     with startup_slot(DATA_DIR, _session_file(username)):
-        return _create_session(username, now)
+        with account_profile_lock(DATA_DIR, username, timeout=5.0):
+            return _create_session(username, now)
 
 
 def _create_session(username: str, now: float | None = None) -> dict:
@@ -260,23 +276,30 @@ def _create_session(username: str, now: float | None = None) -> dict:
     token = secrets.token_urlsafe(32)
     port = _find_free_port()
     container_name = _container_name(token)
-    command = build_docker_command(username, token, port)
-    _run_docker(command)
-    try:
-        _wait_for_novnc(port)
-    except Exception:
-        _stop_container(container_name)
-        raise
 
-    session = {
+    starting_session = {
         "username": username,
         "token": token,
         "port": port,
         "container_name": container_name,
+        "status": "starting",
         "created_at": now,
         "expires_at": now + SESSION_TTL_SECONDS,
         "url": f"/zhihuishu/session/{token}/",
     }
+    _save_session(username, starting_session)
+
+    try:
+        command = build_docker_command(username, token, port)
+        _run_docker(command)
+        _wait_for_novnc(port)
+    except Exception:
+        _stop_container(container_name)
+        _session_file(username).unlink(missing_ok=True)
+        raise
+
+    session = dict(starting_session)
+    session["status"] = "ready"
     _save_session(username, session)
     return session
 
@@ -334,9 +357,7 @@ def stop_session(username: str, token: str | None = None) -> bool:
         return False
     if token is not None and session.get("token") != token:
         return False
-    _stop_container(session.get("container_name", ""))
-    _session_file(username).unlink(missing_ok=True)
-    return True
+    return _remove_session_file(_session_file(username), session)
 
 
 def main(argv: list[str] | None = None) -> int:

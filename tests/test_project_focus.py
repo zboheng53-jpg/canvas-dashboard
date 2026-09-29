@@ -141,7 +141,7 @@ def test_exported_rules_match_and_agent_auth_is_required(workspace):
     c, h = workspace
     for endpoint in ("/api/agent/v1/actions/focus", "/api/agent/v1/projects/trash"):
         assert c.get(endpoint).status_code == 401
-    token = agent_auth.create_token("alice")
+    token = agent_auth.create_token("alice", scopes=["read", "write", "delete"])
     auth = {"Authorization": f"Bearer {token}"}
     assert c.get("/api/agent/v1/actions/focus", headers=auth).status_code == 200
     p = create_project(c,h)

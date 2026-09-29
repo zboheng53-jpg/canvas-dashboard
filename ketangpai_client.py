@@ -25,7 +25,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 import settings
 from platform_state import PlatformStateStore
-from storage import load_or_create_bytes, read_json_file, write_json_file
+from storage import load_or_create_bytes, locked_json_update, read_json_file, write_json_file
 from user_paths import DATA_DIR, user_dir
 
 logger = logging.getLogger(__name__)
@@ -208,9 +208,11 @@ def password_login(username: str, account: str, password: str) -> dict:
 
 def _save_token(username: str, token: str):
     config_file = user_dir(username) / "config.json"
-    config = read_json_file(config_file, {})
-    config["ketangpai_token_encrypted"] = _encrypt_token(token)
-    write_json_file(config_file, config)
+    enc = _encrypt_token(token)
+    def update(config):
+        config["ketangpai_token_encrypted"] = enc
+        return config
+    locked_json_update(config_file, {}, update)
 
 
 def _load_token(username: str) -> str | None:
@@ -240,10 +242,11 @@ def logout(username: str):
     _token_cache.pop(username, None)
     config_file = user_dir(username) / "config.json"
     if config_file.exists():
-        try:
-            config = read_json_file(config_file, {})
+        def update(config):
             config.pop("ketangpai_token_encrypted", None)
-            write_json_file(config_file, config)
+            return config
+        try:
+            locked_json_update(config_file, {}, update)
         except Exception:
             pass
 
@@ -608,6 +611,10 @@ def load_state(username: str) -> dict:
 
 def save_state(username: str, state: dict):
     _state_store.save(username, state)
+
+
+def delete_expired_hidden(username: str, expired_ids: list) -> dict:
+    return _state_store.delete_expired_hidden(username, expired_ids)
 
 
 def update_state(username: str, action: str, item_id: str) -> dict:

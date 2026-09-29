@@ -2,6 +2,9 @@ import shutil
 from pathlib import Path
 
 import pytest
+from flask import url_for
+
+import app as dashboard_app
 
 from scripts.export_open_design_preview import export_preview
 
@@ -13,8 +16,10 @@ def test_export_open_design_preview_renders_jinja_and_uses_relative_assets(tmp_p
     assert "{% include" not in html
     assert "{{ username }}" not in html
     assert "预览同学" in html
-    assert 'href="../assets/css/dashboard.css"' in html
-    assert 'src="../assets/js/projects.js"' in html
+    with dashboard_app.app.test_request_context():
+        for filename in ("css/dashboard.css", "js/projects.js"):
+            relative_url = url_for("static", filename=filename).replace("/static/", "../assets/")
+            assert f'"{relative_url}"' in html
     assert "window.__OPEN_DESIGN_PREVIEW__ = true" in html
     assert 'src="../assets/js/open-design-mock.js"' in html
 

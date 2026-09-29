@@ -40,7 +40,7 @@ try {
         $PytestArgs = @("tests", "-q")
     }
     $RunArgs = @($PytestArgs) + @("--suite", $Suite, "--durations=10", "-o", "cache_dir=$ArtifactRoot\cache", "--junitxml=$ArtifactRoot\results.xml", "--log-file=$ArtifactRoot\pytest.log")
-    if ($Suite -eq "quick") { $RunArgs += "-x" }
+    if ($Suite -eq "quick" -and -not ($PytestArgs -match '^--maxfail(?:=|$)')) { $RunArgs += "-x" }
     if ($List) { $RunArgs += "--collect-only" }
     $Revision = (& git rev-parse HEAD)
     $Dirty = [bool](& git status --porcelain --untracked-files=normal)

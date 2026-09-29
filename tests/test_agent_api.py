@@ -47,7 +47,7 @@ def test_agent_api_authentication(client_with_user):
     assert resp.status_code == 401
 
     # Create real token
-    token = agent_auth.create_token("alice")
+    token = agent_auth.create_token("alice", scopes=["read", "write", "delete"])
     resp = client_with_user.get("/api/agent/v1/ping", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
     data = resp.get_json()
@@ -77,7 +77,7 @@ def test_agent_token_web_endpoints(client_with_user):
 
 
 def test_agent_api_schedule_and_todos_lifecycle(client_with_user):
-    token = agent_auth.create_token("alice")
+    token = agent_auth.create_token("alice", scopes=["read", "write", "delete"])
     auth_headers = {"Authorization": f"Bearer {token}"}
 
     # Query today schedule
@@ -97,6 +97,7 @@ def test_agent_api_schedule_and_todos_lifecycle(client_with_user):
         headers=auth_headers,
         json={"text": "离散数学第三次作业", "due_date": "2026-09-10"},
     )
+
     assert resp.status_code == 201
     todo = resp.get_json()["todo"]
     assert todo["text"] == "离散数学第三次作业"
@@ -161,7 +162,7 @@ def test_agent_export_bundles(client_with_user):
 
 def test_mcp_homework_roundtrip_in_ordinary_todos(client_with_user):
     """Verify the supported write/read path, not the model's choice of tool."""
-    token = agent_auth.create_token("alice")
+    token = agent_auth.create_token("alice", scopes=["read", "write", "delete"])
     headers = {"Authorization": f"Bearer {token}"}
 
     class LocalAgentClient:
@@ -192,3 +193,45 @@ def test_mcp_homework_roundtrip_in_ordinary_todos(client_with_user):
     for title, due, _ in homework:
         assert title in visible and due in visible
     assert api.request("/api/agent/v1/projects") == projects_before
+
+
+def test_agent_api_scoped_permissions(client_with_user):
+    # 1. Read-only token
+    read_token = agent_auth.create_token("alice", scopes=["read"])
+    read_headers = {"Authorization": f"Bearer {read_token}"}
+
+    # Reading is allowed
+    get_resp = client_with_user.get("/api/agent/v1/schedule/today", headers=read_headers)
+    assert get_resp.status_code == 200
+
+    # Writing is rejected with 403 insufficient_scope
+    post_resp = client_with_user.post(
+        "/api/agent/v1/todos",
+        headers=read_headers,
+        json={"text": "只读测试", "due_date": "2026-09-10"},
+    )
+    assert post_resp.status_code == 403
+    assert post_resp.get_json()["code"] == "insufficient_scope"
+
+    # 2. Write-scoped token
+    write_token = agent_auth.create_token("alice", scopes=["read", "write"])
+    write_headers = {"Authorization": f"Bearer {write_token}"}
+
+    post_resp2 = client_with_user.post(
+        "/api/agent/v1/todos",
+        headers=write_headers,
+        json={"text": "写入测试", "due_date": "2026-09-10"},
+    )
+    assert post_resp2.status_code == 201
+
+    # Deleting schedule item is rejected without delete scope
+    del_resp = client_with_user.delete("/api/agent/v1/schedule/one-off/9999", headers=write_headers)
+    assert del_resp.status_code == 403
+    assert del_resp.get_json()["code"] == "insufficient_scope"
+
+    # 3. Delete-scoped token
+    del_token = agent_auth.create_token("alice", scopes=["read", "write", "delete"])
+    del_headers = {"Authorization": f"Bearer {del_token}"}
+    del_resp2 = client_with_user.delete("/api/agent/v1/schedule/one-off/9999", headers=del_headers)
+    # Passed authentication and scope check (status code 404 or 200, not 403)
+    assert del_resp2.status_code in (200, 404)

@@ -8,6 +8,7 @@ Login flow:
 """
 import json
 import logging
+import auth
 import threading
 import time
 import uuid
@@ -22,7 +23,7 @@ from cryptography.fernet import Fernet
 import settings
 import platform_sync
 from platform_state import PlatformStateStore
-from storage import load_or_create_bytes, read_json_file, write_json_file
+from storage import load_or_create_bytes, locked_json_update, read_json_file, write_json_file
 from user_paths import user_dir, DATA_DIR
 
 logger = logging.getLogger(__name__)
@@ -90,10 +91,15 @@ def has_credentials(username: str) -> bool:
 def save_credentials(username: str, haoke_username: str, password: str):
     """Save encrypted haoke credentials."""
     config_file = user_dir(username) / "config.json"
-    config = read_json_file(config_file, {})
-    config["haoke_username"] = haoke_username.strip()
-    config["haoke_password_encrypted"] = _encrypt_password_local(password)
-    write_json_file(config_file, config)
+    enc = _encrypt_password_local(password)
+    clean_user = haoke_username.strip()
+    def update(config):
+        config["haoke_username"] = clean_user
+        config["haoke_password_encrypted"] = enc
+        config["haoke_connection_revision"] = int(config.get("haoke_connection_revision", 0)) + 1
+        return config
+    with auth.account_operation(username):
+        locked_json_update(config_file, {}, update)
     # Invalidate token cache
     _token_cache.pop(username, None)
 
@@ -101,10 +107,13 @@ def save_credentials(username: str, haoke_username: str, password: str):
 def clear_credentials(username: str):
     """Disconnect without deleting the last trusted assignment cache."""
     config_file = user_dir(username) / "config.json"
-    config = read_json_file(config_file, {})
-    config.pop("haoke_username", None)
-    config.pop("haoke_password_encrypted", None)
-    write_json_file(config_file, config)
+    def update(config):
+        config.pop("haoke_username", None)
+        config.pop("haoke_password_encrypted", None)
+        config["haoke_connection_revision"] = int(config.get("haoke_connection_revision", 0)) + 1
+        return config
+    with auth.account_operation(username):
+        locked_json_update(config_file, {}, update)
     _token_cache.pop(username, None)
 
 
@@ -122,6 +131,10 @@ def _get_credentials(username: str):
     except Exception:
         pass
     return None, None
+
+
+def _connection_revision(username):
+    return read_json_file(user_dir(username) / "config.json", {}).get("haoke_connection_revision", 0)
 
 
 # ---- Token management ----
@@ -159,7 +172,7 @@ def _login(haoke_username: str, password: str) -> str | None:
     encrypted_pwd = _encrypt_password_aes(password, aes_key_b64)
 
     # Step 3: Login
-    logger.info(f"Logging in as {haoke_username}...")
+    logger.info("Logging in to haoke...")
     rid = str(uuid.uuid4())
     try:
         r = session.post(
@@ -203,9 +216,11 @@ def _login(haoke_username: str, password: str) -> str | None:
 def _get_token(username: str) -> str | None:
     """Get a valid token, refreshing if necessary (2 hour cache)."""
     cache = _token_cache.get(username, {})
+    identity = auth.session_identity(username)
+    revision = _connection_revision(username)
 
     # Check cache
-    if cache.get("token") and cache.get("expires_at"):
+    if cache.get("token") and cache.get("expires_at") and cache.get('identity') == identity and cache.get('revision') == revision:
         if datetime.now(CST) < cache["expires_at"]:
             return cache["token"]
 
@@ -216,7 +231,9 @@ def _get_token(username: str) -> str | None:
 
     token = _login(haoke_username, password)
     if token:
-        _token_cache[username] = {"token": token, "expires_at": datetime.now(CST) + timedelta(hours=2)}
+        with auth.account_operation(username):
+            if auth.session_identity(username) == identity and _connection_revision(username) == revision:
+                _token_cache[username] = {"token": token, "expires_at": datetime.now(CST) + timedelta(hours=2), 'identity': identity, 'revision': revision}
         return token
 
     return None
@@ -225,7 +242,7 @@ def _get_token(username: str) -> str | None:
 # ---- Todo fetching ----
 
 
-def fetch_haoke_todos(username: str) -> dict:
+def fetch_haoke_todos(username: str, publish=True) -> dict:
     """Fetch todo items from haoke platform.
 
     Returns: {ok, data, cached, need_setup, error}
@@ -240,11 +257,12 @@ def fetch_haoke_todos(username: str) -> dict:
     try:
         items = _fetch_all_todos(token)
         # Cache on success
-        cache_file = user_dir(username) / "haoke_cache.json"
-        write_json_file(cache_file, items)
+        if publish:
+            cache_file = user_dir(username) / "haoke_cache.json"
+            write_json_file(cache_file, items)
         return {"ok": True, "data": items, "cached": False}
     except Exception as e:
-        logger.warning(f"Haoke todo fetch failed: {e}")
+        logger.warning("Haoke todo fetch failed (%s)", type(e).__name__)
         return _fallback_cache(username)
 
 
@@ -510,14 +528,24 @@ def _get_cached_todos(username: str, now: float | None = None) -> dict | None:
     }
 
 
-def _run_background_refresh(username: str):
+def _run_background_refresh(username: str, initial_identity=None, revision=None):
+    import http_sync
+    initial_identity = initial_identity or http_sync.get_account_identity(username)
+    revision = _connection_revision(username) if revision is None else revision
     try:
-        result = fetch_haoke_todos(username)
-        platform_sync.record_result(
-            username, "haoke", ok=bool(result.get("ok")) and not bool(result.get("cached")),
-            has_cache=_cache_file(username).exists(), cached=bool(result.get("cached")),
-            error_code=result.get("code"), error_message=result.get("error"),
-        )
+        if initial_identity is None or not has_credentials(username):
+            return
+        result = fetch_haoke_todos(username, publish=False)
+        with auth.account_operation(username):
+            if http_sync.get_account_identity(username) != initial_identity or not has_credentials(username) or _connection_revision(username) != revision:
+                return
+            if result.get("ok") and not result.get("cached"):
+                write_json_file(_cache_file(username), result["data"])
+            platform_sync.record_result(
+                username, "haoke", ok=bool(result.get("ok")) and not bool(result.get("cached")),
+                has_cache=_cache_file(username).exists(), cached=bool(result.get("cached")),
+                error_code=result.get("code"), error_message="好课刷新失败，已保留上次数据" if not result.get("ok") or result.get("cached") else None,
+            )
     finally:
         with _refresh_lock:
             _refreshing_users.discard(username)
@@ -530,8 +558,19 @@ def start_background_refresh(username: str) -> bool:
             return False
         _refreshing_users.add(username)
     try:
-        thread = threading.Thread(target=_run_background_refresh, args=(username,), daemon=True)
-        thread.start()
+        import http_sync
+        identity = http_sync.get_account_identity(username)
+        revision = _connection_revision(username)
+        scheduled = http_sync.submit_http_sync(
+            username,
+            "haoke",
+            lambda: _run_background_refresh(username, identity, revision),
+            is_connected_fn=has_credentials,
+        )
+        if not scheduled:
+            with _refresh_lock:
+                _refreshing_users.discard(username)
+            return False
         return True
     except Exception:
         with _refresh_lock:
@@ -540,8 +579,10 @@ def start_background_refresh(username: str) -> bool:
 
 
 def is_refreshing(username: str) -> bool:
+    import http_sync
     with _refresh_lock:
-        return username in _refreshing_users
+        return username in _refreshing_users or http_sync.is_refreshing(username, "haoke")
+
 
 
 def _fallback_cache(username: str) -> dict:
@@ -567,6 +608,10 @@ def load_state(username: str) -> dict:
 def save_state(username: str, state: dict):
     """Save haoke state."""
     _state_store.save(username, state)
+
+
+def delete_expired_hidden(username: str, expired_ids: list) -> dict:
+    return _state_store.delete_expired_hidden(username, expired_ids)
 
 
 def update_state(username: str, action: str, item_id: int) -> dict:

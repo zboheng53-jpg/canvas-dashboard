@@ -4,7 +4,7 @@ from pathlib import Path
 
 import settings
 from platform_state import PlatformStateStore
-from storage import read_json_file, write_json_file
+from storage import locked_json_update, read_json_file, write_json_file
 
 from user_paths import DATA_DIR
 
@@ -21,6 +21,9 @@ STATE_DEFAULT = {"hidden": [], "highlighted": [], "deleted": []}
 
 
 def _user_dir(username: str) -> Path:
+    import auth
+    if auth.DATA_DIR.resolve() == DATA_DIR.resolve() and auth.account_deletion_in_progress(username):
+        raise RuntimeError('account deletion in progress')
     d = DATA_DIR / "users" / username
     d.mkdir(parents=True, exist_ok=True)
     return d
@@ -56,10 +59,13 @@ def load_status(username: str) -> dict:
 
 
 def save_status(username: str, updates: dict) -> dict:
-    status = load_status(username)
-    status.update(updates)
-    _write_json(_status_file(username), status)
-    return status
+    def update(current):
+        status = {**STATUS_DEFAULT, **current}
+        if 'session' in updates and updates['session'] != status.get('session'):
+            status['connection_revision'] = int(status.get('connection_revision', 0)) + 1
+        status.update(updates)
+        return status
+    return locked_json_update(_status_file(username), {}, update)
 
 
 def save_cache(username: str, items: list[dict], fetched_at: float | None = None) -> dict:

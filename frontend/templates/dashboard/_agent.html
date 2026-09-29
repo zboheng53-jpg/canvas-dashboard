@@ -16,19 +16,58 @@
           <h2 class="ui-card__title" id="agent-token-heading">专属 Agent API Token</h2>
         </div>
         <div class="settings-section-content">
-          <p>Token 具有与你账户相同的操作权限（查询课表、读写待办），请妥善保管。重新生成或撤销会立即使旧 Token 失效。</p>
+          <p>Token 具有与你账户绑定的安全凭据，支持细粒度权限控制与有效期设置。新 Token 默认只读，避免未经授权的修改。</p>
+
+          <div class="agent-token-options-panel">
+            <div class="agent-token-options-field">
+              <label class="ui-label settings-field-label" for="agent-token-name-input">Token 备注名称（可选）</label>
+              <input type="text" id="agent-token-name-input" placeholder="例如：Claude Desktop 或 Cursor" class="ui-control agent-token-name-input">
+            </div>
+            <div class="agent-token-options-field">
+              <label class="ui-label settings-field-label">权限范围（新 Token 默认只读）</label>
+              <div class="agent-token-scopes-group">
+                <label class="agent-token-scope-option">
+                  <input type="radio" name="agent-token-scope" value="read" checked id="agent-scope-read">
+                  <span>只读 (read · 仅查课表与待办)</span>
+                </label>
+                <label class="agent-token-scope-option">
+                  <input type="radio" name="agent-token-scope" value="write" id="agent-scope-write">
+                  <span>读写 (write · 允许增改待办)</span>
+                </label>
+                <label class="agent-token-scope-option">
+                  <input type="radio" name="agent-token-scope" value="all" id="agent-scope-all">
+                  <span>完整 (delete · 含删除权限)</span>
+                </label>
+              </div>
+            </div>
+            <div>
+              <label class="ui-label settings-field-label" for="agent-token-expiry-select">有效期</label>
+              <select id="agent-token-expiry-select" class="ui-control agent-token-expiry-select">
+                <option value="never" selected>永不过期</option>
+                <option value="30">30 天</option>
+                <option value="90">90 天</option>
+              </select>
+            </div>
+          </div>
+
           <div class="calendar-subscription-url">
-            <label class="ui-label settings-field-label" for="agent-token-input">当前 Token</label>
+            <label class="ui-label settings-field-label" for="agent-token-input">当前生成的 Token</label>
             <input type="text" id="agent-token-input" readonly placeholder="尚未生成 Agent Token" class="ui-control">
           </div>
           <div class="calendar-subscription-actions agent-actions-row">
             <button type="button" class="ui-button ui-button--primary console-stateful-button" id="agent-token-create" onclick="createAgentToken()">生成 Agent Token</button>
             <button type="button" class="ui-button ui-button--secondary console-stateful-button" id="agent-token-copy" onclick="copyAgentToken()" disabled>复制 Token</button>
-            <button type="button" class="ui-button ui-button--danger console-stateful-button" id="agent-token-revoke" onclick="revokeAgentToken()" disabled>撤销 Token</button>
+            <button type="button" class="ui-button ui-button--danger console-stateful-button" id="agent-token-revoke" onclick="revokeAgentToken()" disabled>撤销全部 Token</button>
           </div>
           <p class="ui-feedback ui-feedback--info calendar-subscription-status" id="agent-token-status" role="status" aria-live="polite">生成 Token 后，即可下载配置包或在 Agent 中连接。</p>
+
+          <div id="agent-tokens-list-container" class="agent-tokens-list-container hidden">
+            <label class="ui-label settings-field-label">已激活的 Token 列表</label>
+            <div id="agent-tokens-list" class="agent-tokens-list"></div>
+          </div>
         </div>
       </section>
+
 
       <!-- Agent Skill 接入卡片 (推荐 · 极简提示词) -->
       <section class="ui-card-section settings-item" aria-labelledby="agent-skill-heading">

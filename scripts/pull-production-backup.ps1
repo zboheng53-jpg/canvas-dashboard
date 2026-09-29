@@ -94,10 +94,11 @@ if ($CreateBackup) {
     Invoke-RemoteBackupCommand -Command "sudo install -d -m 0755 /etc/canvas-dashboard && sudo install -m 0644 /home/ubuntu/canvas-dashboard/incoming/backup-public.pem /etc/canvas-dashboard/backup-public.pem && sudo bash /home/ubuntu/canvas-dashboard/incoming/run-backup.sh" -Description "Production backup creation"
 }
 
-$LatestRemote = (& ssh -n @SshOptions $Remote "ls -1t /home/ubuntu/canvas-dashboard/backups/*.cdbak 2>/dev/null | head -1").Trim()
+$LatestRemote = & ssh -n @SshOptions $Remote "ls -1t /home/ubuntu/canvas-dashboard/backups/*.cdbak 2>/dev/null | head -1"
 if ($LASTEXITCODE -ne 0 -or -not $LatestRemote) {
     throw "No production encrypted backup is available."
 }
+$LatestRemote = $LatestRemote.Trim()
 $LocalBackup = Join-Path $BackupDirectory ([IO.Path]::GetFileName($LatestRemote))
 if (-not (Test-Path $LocalBackup)) {
     Receive-RemoteBackup -RemotePath $LatestRemote -LocalPath $LocalBackup
@@ -108,10 +109,34 @@ if ($LASTEXITCODE -ne 0) { throw "Downloaded backup failed authenticated verific
 $VerifySummary = $VerifyOutput | ConvertFrom-Json
 if (-not $VerifySummary.ok) { throw "Downloaded backup verification did not report success." }
 
+# Historical data and the latest deletion ledger have different restore
+# semantics. Always fetch the guard independently, even when data is cached.
+$GuardDirectory = Join-Path $BackupDirectory "recovery-guards"
+New-Item -ItemType Directory -Force -Path $GuardDirectory | Out-Null
+$LatestRemoteGuard = & ssh -n @SshOptions $Remote "ls -1t /home/ubuntu/canvas-dashboard/backups/recovery-guards/*.cdbak 2>/dev/null | head -1"
+if ($LASTEXITCODE -ne 0 -or -not $LatestRemoteGuard) {
+    throw "No recovery guard is available. Run with -CreateBackup using the updated backup runner."
+}
+$LatestRemoteGuard = $LatestRemoteGuard.Trim()
+$LocalGuard = Join-Path $GuardDirectory ([IO.Path]::GetFileName($LatestRemoteGuard))
+if (-not (Test-Path $LocalGuard)) {
+    Receive-RemoteBackup -RemotePath $LatestRemoteGuard -LocalPath $LocalGuard
+}
+$GuardVerifyOutput = & $Python $BackupTool verify --input $LocalGuard --private-key $PrivateKey
+if ($LASTEXITCODE -ne 0) { throw "Downloaded recovery guard failed authenticated verification." }
+$GuardVerifySummary = $GuardVerifyOutput | ConvertFrom-Json
+if (-not $GuardVerifySummary.ok) { throw "Recovery guard verification did not report success." }
+
 if ($RecoveryDrill) {
     $DrillRoot = Join-Path ([IO.Path]::GetTempPath()) ("canvas-dashboard-restore-" + [guid]::NewGuid().ToString("N"))
     try {
-        $RestoreOutput = & $Python $BackupTool restore --input $LocalBackup --private-key $PrivateKey --output-dir $DrillRoot
+        New-Item -ItemType Directory -Path $DrillRoot | Out-Null
+        $GuardRestoreDirectory = Join-Path $DrillRoot "guard"
+        & $Python $BackupTool restore --input $LocalGuard --private-key $PrivateKey --output-dir $GuardRestoreDirectory | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "Recovery guard restore failed." }
+        $GuardLedger = Join-Path $GuardRestoreDirectory "data\deletion-ledger.json"
+        $DataRestoreDirectory = Join-Path $DrillRoot "snapshot"
+        $RestoreOutput = & $Python $BackupTool restore --input $LocalBackup --private-key $PrivateKey --output-dir $DataRestoreDirectory --deletion-ledger $GuardLedger
         if ($LASTEXITCODE -ne 0) { throw "Isolated recovery drill failed." }
         $RestoreSummary = $RestoreOutput | ConvertFrom-Json
         if (-not $RestoreSummary.ok -or $RestoreSummary.file_count -ne $VerifySummary.file_count) {
@@ -120,7 +145,13 @@ if ($RecoveryDrill) {
     }
     finally {
         if (Test-Path $DrillRoot) {
-            Remove-Item -LiteralPath $DrillRoot -Recurse -Force
+            $ResolvedDrillRoot = (Resolve-Path -LiteralPath $DrillRoot).Path
+            $ExpectedDrillParent = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\', '/')
+            if ([IO.Path]::GetDirectoryName($ResolvedDrillRoot) -ne $ExpectedDrillParent -or
+                -not [IO.Path]::GetFileName($ResolvedDrillRoot).StartsWith('canvas-dashboard-restore-')) {
+                throw "Refusing cleanup outside the isolated recovery drill directory: $ResolvedDrillRoot"
+            }
+            Remove-Item -LiteralPath $ResolvedDrillRoot -Recurse -Force
         }
     }
 }
@@ -129,8 +160,13 @@ Get-ChildItem -LiteralPath $BackupDirectory -Filter "*.cdbak" |
     Sort-Object LastWriteTime -Descending |
     Select-Object -Skip 30 |
     Remove-Item -Force
+Get-ChildItem -LiteralPath $GuardDirectory -Filter "*.cdbak" |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -Skip 30 |
+    Remove-Item -Force
 
 Write-Output "Backup verified: $LocalBackup ($($VerifySummary.file_count) protected files)"
+Write-Output "Latest recovery guard verified: $LocalGuard (copy time is the ledger recovery boundary)"
 if ($RecoveryDrill) {
     Write-Output "Recovery drill passed in an isolated temporary directory."
 }

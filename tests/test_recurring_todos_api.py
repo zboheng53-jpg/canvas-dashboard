@@ -111,7 +111,7 @@ def test_recurring_todo_web_lifecycle(client_with_user):
 
 
 def test_recurring_todo_agent_api(client_with_user):
-    token = agent_auth.create_token("alice")
+    token = agent_auth.create_token("alice", scopes=["read", "write", "delete"])
     auth_headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
     today = datetime.now(CST).date()

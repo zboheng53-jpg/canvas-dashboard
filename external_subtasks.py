@@ -24,6 +24,9 @@ def load_subtasks(username: str, source: str, item_id) -> list:
     """Load subtasks for a specific platform item."""
     records = read_json_file(_path(username), DEFAULT_SUBTASKS)
     k = _key(source, item_id)
+    if source == "canvas" and k not in records:
+        from canvas_auth import resolve_item_id
+        k = _key(source, resolve_item_id(username, item_id))
     return list(records.get(k, {}).get("subtasks", []))
 
 
@@ -49,6 +52,9 @@ def save_subtasks(username: str, source: str, item_id, subtasks: list) -> list:
             "due_date": s.get("due_date") or None,
         })
 
+    if source == "canvas":
+        from canvas_auth import resolve_item_id
+        item_id = resolve_item_id(username, item_id)
     k = _key(source, item_id)
 
     def update_fn(records: dict) -> dict:
