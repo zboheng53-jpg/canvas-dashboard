@@ -1716,6 +1716,11 @@ section.card.listcard,
   font-weight: 400 !important;
   letter-spacing: 0 !important;
 }
+.academic-sidebar .sidebar-nav-item {
+  width: calc(100% - 10px) !important;
+  margin-right: 10px !important;
+  padding-right: 18px !important;
+}
 .academic-sidebar .sidebar-nav-item svg,
 .academic-sidebar .sidebar-footer-action svg {
   width: 18px !important;
