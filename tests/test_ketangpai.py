@@ -1,3 +1,5 @@
+from operation_helpers import operation_client
+import auth
 from source_helpers import dashboard_source, template_source, TEMPLATES
 from services import workspace as workspace_service
 import json
@@ -28,7 +30,7 @@ def clear_token_cache():
 
 
 @pytest.fixture
-def test_env(tmp_path, monkeypatch):
+def test_env(tmp_path, monkeypatch, isolated_data):
     monkeypatch.setattr(ketangpai_client, "DATA_DIR", tmp_path)
     monkeypatch.setattr(ketangpai_client, "KEY_FILE", tmp_path / ".encryption_key")
     monkeypatch.setattr(ketangpai_client, "user_dir", _user_dir(tmp_path))
@@ -40,10 +42,11 @@ def test_env(tmp_path, monkeypatch):
 
 @pytest.fixture
 def client_with_user(test_env):
+    auth.register("testuser", "password1")
     user_dir = test_env / "users" / "testuser"
     user_dir.mkdir(parents=True, exist_ok=True)
     dashboard_app.app.config.update(TESTING=True)
-    with dashboard_app.app.test_client() as client:
+    with operation_client(dashboard_app.app) as client:
         with client.session_transaction() as sess:
             sess["username"] = "testuser"
             sess["_csrf_token"] = "csrf-test-token"
@@ -349,9 +352,11 @@ def test_api_ketangpai_config(client_with_user, monkeypatch):
     monkeypatch.setattr(
         dashboard_app,
         "fetch_ktp_courses",
-        lambda username: {"ok": True, "courses": [{"id": "c1", "coursename": "力学原理A"}]},
+        lambda username: (_ for _ in ()).throw(AssertionError("config must not fetch upstream")),
     )
 
+    write_json_file(ketangpai_client.user_dir("testuser") / "ketangpai_cache.json",
+                    {"items": [], "courses": [{"id": "c1", "coursename": "力学原理A"}], "_ts": __import__("time").time()})
     resp = client_with_user.get("/api/ketangpai/config")
     assert resp.status_code == 200
     data = resp.get_json()

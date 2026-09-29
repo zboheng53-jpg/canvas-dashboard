@@ -66,7 +66,7 @@ def require_agent_auth(scope_or_func=None):
                         response, status = api_error('rate_limited', 'Agent 调用过于频繁，请稍后重试', 429)
                         response.headers['Retry-After'] = str(retry_after)
                         return response, status
-                with auth.account_operation(username):
+                with auth.identity_scope(username, token_ctx["account_identity"]):
                     token_ctx = agent_auth.resolve_token(token)
                     if not token_ctx or token_ctx["username"] != username:
                         return api_error("unauthorized", "Agent Token 已失效", 401)

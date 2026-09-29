@@ -16,6 +16,23 @@ SESSION_FILES = ('tongji_login_session.json', 'zhihuishu_login_session.json')
 WORKER_LEASE_FILE = '.worker_browser_lease.json'
 
 
+def capacity_snapshot(data_dir):
+    """Read resource records without removing leases or launching Docker."""
+    sessions = 0
+    starting = 0
+    for filename in SESSION_FILES:
+        for path in (data_dir / 'users').glob(f'*/{filename}'):
+            record = read_json_file(path, None)
+            if record:
+                sessions += 1
+                starting += record.get('status') == 'starting'
+    records = read_json_file(data_dir / WORKER_LEASE_FILE, {})
+    leases = records.get('leases', {}) if 'leases' in records else ({'legacy': records} if records else {})
+    workers = sum(_lease_alive(lease) for lease in leases.values())
+    return {'active_sessions': sessions, 'starting_sessions': starting, 'worker_browsers': workers,
+            'occupied_slots': sessions + workers, 'max_sessions': settings.LOGIN_MAX_SESSIONS}
+
+
 class LoginCapacityError(RuntimeError):
     pass
 

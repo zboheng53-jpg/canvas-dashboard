@@ -86,7 +86,7 @@ def test_preview_seeds_isolated_scenarios(tmp_path, scenario):
     assert json.loads((roots[0] / "preview.json").read_text())["scenario"] == scenario
     todos = roots[0] / "users" / "preview" / "custom_todos.json"
     count = len(json.loads(todos.read_text(encoding="utf-8"))) if todos.exists() else 0
-    assert count == {"empty": 0, "normal": 2, "dense": 32}[scenario]
+    assert count == {"empty": 0, "normal": 6, "dense": 36}[scenario]
 
 
 def test_deploy_pins_checked_commit_before_packaging():

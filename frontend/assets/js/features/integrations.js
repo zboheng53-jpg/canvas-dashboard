@@ -65,9 +65,9 @@
         await Promise.all([
           fetchCanvasTodos(),
           fetchHaokeTodos(true),
-          fetchZhixuemengTodos(),
+          fetchZhixuemengTodos(true),
           fetchZhihuishuTodos(),
-          fetchKetangpaiTodos(),
+          fetchKetangpaiTodos('', true),
           fetchTongjiojTodos('', true),
         ]);
       } catch (error) {
@@ -332,12 +332,15 @@
     }
 
     // ---- Zhixuemeng Todos ----
-    async function fetchZhixuemengTodos() {
+    let zhixuemengPollTimer = null;
+    async function fetchZhixuemengTodos(refresh = false, cacheOnly = false) {
+      clearTimeout(zhixuemengPollTimer);
       const finish = beginPlatformRequest('zhixuemeng');
       try {
-        const resp = await fetch('/api/zhixuemeng/todos');
+        const resp = await fetch('/api/zhixuemeng/todos' + (refresh ? '?refresh=1' : cacheOnly ? '?cache_only=1' : ''));
         const result = await resp.json();
         recordPlatformSync('zhixuemeng', result);
+        if (result.sync?.refreshing) zhixuemengPollTimer = setTimeout(() => fetchZhixuemengTodos(false, true), 2000);
 
         if (result.need_setup && result.sync?.connection_state !== 'disconnected') {
           setCardStatus('zhixuemeng', '未关联', 'attention');
@@ -406,13 +409,17 @@
     }
 
     // ---- Ketangpai Todos ----
-    async function fetchKetangpaiTodos(courseId = '') {
+    let ketangpaiPollTimer = null;
+    async function fetchKetangpaiTodos(courseId = '', refresh = false, cacheOnly = false) {
+      clearTimeout(ketangpaiPollTimer);
       const finish = beginPlatformRequest('ketangpai');
       try {
         const url = courseId ? `/api/ketangpai/todos?course_id=${encodeURIComponent(courseId)}` : '/api/ketangpai/todos';
-        const resp = await fetch(url);
+        const query = refresh ? 'refresh=1' : cacheOnly ? 'cache_only=1' : '';
+        const resp = await fetch(url + (query ? (url.includes('?') ? '&' : '?') + query : ''));
         const result = await resp.json();
         recordPlatformSync('ketangpai', result);
+        if (result.sync?.refreshing) ketangpaiPollTimer = setTimeout(() => fetchKetangpaiTodos(courseId, false, true), 2000);
 
         if (result.need_setup && result.sync?.connection_state !== 'disconnected') {
           setCardStatus('ketangpai', '未关联', 'attention');

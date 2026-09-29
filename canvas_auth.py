@@ -240,6 +240,9 @@ def delete_expired_hidden(username, expired_ids):
     return _state_store.delete_expired_hidden(username, expired_ids)
 
 
+delete_expired_completed = _state_store.delete_expired_completed
+
+
 def update_state(username, action, item_id):
     """Apply a state action: hide, unhide, highlight, unhighlight."""
     _migrate_state_from_cache(username)
@@ -437,7 +440,7 @@ def _run_background_refresh(username: str, initial_identity=None, revision=None)
                     has_cache=(user_dir(username) / "canvas_cache.json").exists(),
                     error_code=type(exc).__name__, error_message="Canvas 刷新失败，已保留上次数据",
                 )
-        return
+        return {"ok": False}
 
     # Check identity and connection before writeback!
     with auth.account_operation(username):

@@ -9,7 +9,6 @@ import base64
 import json
 import logging
 import time as time_module
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
 
 import requests
@@ -115,6 +114,7 @@ def _save_token(username: str, token: str):
     enc = _encrypt_token(token)
     def update(config):
         config["zhixuemeng_token_encrypted"] = enc
+        config["zhixuemeng_connection_revision"] = int(config.get("zhixuemeng_connection_revision", 0)) + 1
         return config
     locked_json_update(config_file, {}, update)
 
@@ -134,12 +134,7 @@ def _load_token(username: str) -> str | None:
 
 
 def has_token(username: str) -> bool:
-    cache = _token_cache.get(username, {})
-    if cache.get("token") and cache.get("expires_at"):
-        if datetime.now(CST) < cache["expires_at"]:
-            return True
-    stored = _load_token(username)
-    return stored is not None
+    return _load_token(username) is not None
 
 
 def logout(username: str):
@@ -148,6 +143,7 @@ def logout(username: str):
     if config_file.exists():
         def update(config):
             config.pop("zhixuemeng_token_encrypted", None)
+            config["zhixuemeng_connection_revision"] = int(config.get("zhixuemeng_connection_revision", 0)) + 1
             config.pop("zhixuemeng_selected_course", None)
             return config
         try:
@@ -157,15 +153,7 @@ def logout(username: str):
 
 
 def _get_token(username: str) -> str | None:
-    cache = _token_cache.get(username, {})
-    if cache.get("token") and cache.get("expires_at"):
-        if datetime.now(CST) < cache["expires_at"]:
-            return cache["token"]
-    stored = _load_token(username)
-    if stored:
-        _token_cache[username] = {"token": stored, "expires_at": datetime.now(CST) + timedelta(hours=2)}
-        return stored
-    return None
+    return _load_token(username)
 
 
 def _get_zxm_username(username: str) -> str | None:
@@ -298,7 +286,7 @@ def _scan_course(token, course_code):
 CACHE_TTL = settings.ZHIXUEMENG_CACHE_TTL_SECONDS  # 30 minutes
 
 
-def fetch_assignments(username: str, course_code: str = None) -> dict:
+def fetch_assignments(username: str, course_code: str = None, force_fetch: bool = False) -> dict:
     """Fetch assignments from zhixuemeng, scanning all enrolled courses.
 
     Results are cached for 30 minutes. Pass course_code to filter.
@@ -323,7 +311,7 @@ def fetch_assignments(username: str, course_code: str = None) -> dict:
         try:
             raw = read_json_file(cache_file, {})
             ts = raw.get("_ts", 0)
-            if raw.get("_user") == zxm_username and time_module.time() - ts < CACHE_TTL:
+            if not force_fetch and raw.get("_user") == zxm_username and time_module.time() - ts < CACHE_TTL:
                 cached = raw
                 logger.info(f"Using cached assignments ({len(raw.get('items', []))} items)")
         except Exception:
@@ -357,21 +345,15 @@ def fetch_assignments(username: str, course_code: str = None) -> dict:
 
         logger.info(f"Scanning {len(course_codes)} courses for assignments...")
 
-        # Concurrent scan
+        # Sequential scan within the shared global HTTP worker budget.
         items = []
         complete = True
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            futures = {executor.submit(_scan_course, token, cc): cc for cc in course_codes}
-            for f in as_completed(futures):
-                try:
-                    course_items = f.result()
-                except Exception:
-                    course_items = None
-                if course_items is None:
-                    complete = False
-                    continue
-                if course_items:
-                    items.extend(course_items)
+        for cc in course_codes:
+            course_items = _scan_course(token, cc)
+            if course_items is None:
+                complete = False
+            else:
+                items.extend(course_items)
 
         if not complete:
             fallback = _fallback_assignments_cache(cache_file, zxm_username, course_code)
@@ -383,7 +365,11 @@ def fetch_assignments(username: str, course_code: str = None) -> dict:
         logger.info(f"Fetched {len(items)} assignments from {len(course_codes)} courses")
 
         # Save cache
-        cache_data = {"_ts": time_module.time(), "_user": zxm_username, "items": items, "sync_complete": True}
+        courses = [{"courseCode": rec.get("courseCode"), "courseName": rec.get("courseName", ""),
+                    "className": rec.get("className", ""), "semester": rec.get("semester_dictText", "")}
+                   for rec in data["result"]["records"] if rec.get("courseCode")]
+        cache_data = {"_ts": time_module.time(), "_user": zxm_username, "items": items,
+                      "courses": list({c["courseCode"]: c for c in courses}.values()), "sync_complete": True}
         write_json_file(cache_file, cache_data)
 
     # Filter by course_code if provided
@@ -420,6 +406,9 @@ def save_state(username: str, state: dict):
 
 def delete_expired_hidden(username: str, expired_ids: list) -> dict:
     return _state_store.delete_expired_hidden(username, expired_ids)
+
+
+delete_expired_completed = _state_store.delete_expired_completed
 
 
 def update_state(username: str, action: str, item_id) -> dict:

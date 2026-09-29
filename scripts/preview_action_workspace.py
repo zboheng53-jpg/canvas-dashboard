@@ -65,6 +65,20 @@ if seed_preview and args.scenario != "empty":
     project_store.set_main_project("preview", english["id"])
     homework = workspace_service._create_custom_action("preview", {"text": "提交自动控制实验报告", "details": "示例责任事项：核对实验图表并提交报告。\n请勿将此数据视为真实课程要求。", "due_date": day(2), "request_id": "preview-homework"})
     workspace_service._create_custom_action("preview", {"text": "确认项目组会材料", "due_date": day(5), "request_id": "preview-meeting"})
+    for title, offset, done in (("截止规则示例：已完成未截止（沉底）", 3, True),
+                                ("截止规则示例：未完成逾期（红色）", -1, False),
+                                ("截止规则示例：今日截止（黄色）", 0, False),
+                                ("截止规则示例：明日截止（黄色）", 1, False)):
+        todo = workspace_service._create_custom_action("preview", {"text": title, "due_date": day(offset), "request_id": "preview-" + title})
+        if done:
+            from storage import locked_json_update
+            def complete(todos):
+                for item in todos:
+                    if item["id"] == todo["id"]:
+                        item["done"] = True
+                        item["completed_at"] = workspace_service._todo_timestamp()
+                return todos
+            locked_json_update(workspace_service._todos_file("preview"), [], complete)
     schedule_store.create_item("preview", "one_off", {"title": "提交自动控制实验报告", "action_ref": homework["ref"], "date": day(0), "start_time": "16:00", "end_time": "16:45", "location": "图书馆"})
     schedule_store.create_item("preview", "one_off", {"title": listening["name"], "action_ref": f"project:{english['id']}:{listening['id']}", "date": day(1), "start_time": "19:00", "end_time": "19:25", "location": ""})
     schedule_store.create_item("preview", "recurring", {"title": "每周英语练习", "action_ref": f"project:{english['id']}:{listening['id']}", "weekday": (today.weekday()+3)%7, "start_date": day(0), "end_date": day(20), "start_time": "19:00", "end_time": "19:25", "enabled": True})

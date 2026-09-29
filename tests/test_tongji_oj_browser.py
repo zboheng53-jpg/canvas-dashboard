@@ -330,6 +330,9 @@ def test_haoke_background_failure_stops_polling_without_restarting_stale_refresh
         return {"ok": False, "error": "confirmed upstream failure"}
     monkeypatch.setattr(haoke_client, "_run_background_refresh", observed)
     monkeypatch.setattr(haoke_client, "fetch_haoke_todos", slow_fetch)
+    # This case exercises real cache expiry rather than the shared UI fixture.
+    monkeypatch.setattr(dashboard_app, "get_haoke_cached_todos", haoke_client.get_cached_todos)
+    monkeypatch.setattr(dashboard_app, "has_haoke_credentials", haoke_client.has_credentials)
     try:
         page.reload()
         assert started.wait(2)

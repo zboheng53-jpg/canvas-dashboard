@@ -41,7 +41,7 @@ keep URL tokens out of logs; use authenticated session metadata and service
 logs for login diagnostics. Separate domains for the other applications remain
 an operator infrastructure decision.
 
-Waitress defaults to eight request threads (`CANVAS_DASHBOARD_THREADS` overrides this). OJ synchronization runs in a separate background thread per active account and is deduplicated; its HTTP endpoints return cached projections immediately. The request pool retains capacity for local reads during bursts of slower calls to the other platforms. Increasing the pool is capacity headroom, not a replacement for keeping slow OJ requests off WSGI threads.
+Waitress defaults to eight request threads (`CANVAS_DASHBOARD_THREADS` overrides this). All five ordinary HTTP platforms share a bounded background executor, and their read endpoints return cached projections immediately. Explicit slow authentication operations return a task handle. The request pool remains available for local reads while upstream work runs; increasing it does not replace moving slow requests out of Web handlers.
 
 OJ reads only the top-level assignment list, using an 8-second connection timeout and a 45-second read timeout (`TONGJIOJ_READ_TIMEOUT_SECONDS` overrides the latter), with at most one retry for timeouts, connection failures, or 502/503/504 responses. Exhausting the retry preserves existing assignments and reports synchronization failure; expired sessions are renewed separately. Cached cookies are restored with the OJ host scope so server rotation replaces them, and renewed cookies are persisted after the assignment page succeeds.
 
@@ -68,9 +68,31 @@ The Chromium worker also starts after `user@1000.service` and receives `XDG_RUNT
 
 Set overrides in `/etc/canvas-dashboard/canvas-dashboard.env`, then restart the affected web/worker services. Production requires `CANVAS_DASHBOARD_ENV=production`, `CANVAS_DASHBOARD_COOKIE_SECURE=1`, and a fixed HTTPS `CANVAS_DASHBOARD_PUBLIC_BASE_URL` or explicit `CANVAS_DASHBOARD_TRUSTED_HOSTS`; the supplied web unit sets the production defaults and allows operator overrides through its environment file. `CANVAS_DASHBOARD_REGISTRATION_ENABLED=0` pauses new registrations without blocking existing logins.
 
-`CANVAS_DASHBOARD_LOGIN_MAX_SESSIONS=1` (default) now caps both interactive login platforms and the 智慧树 background browser. Capacity/profile coordination uses cross-process locks and resource records under the shared data root. It is local-machine coordination, not a distributed semaphore. An active login record blocks the same user's worker even if the global limit is raised. Docker stop failure retains metadata/occupation for retry; do not erase leases or profiles to make room without confirming their resources have exited. Approved startup and completion requests still wait synchronously, while overlapping starts are rejected quickly.
+`CANVAS_DASHBOARD_LOGIN_MAX_SESSIONS=1` (default) caps both interactive login platforms and the 智慧树 background browser. Capacity/profile coordination uses cross-process locks and resource records under the shared data root. It is local-machine coordination, not a distributed semaphore. An active login record blocks the same user's worker even if the global limit is raised. Docker stop failure retains metadata/occupation for retry; do not erase leases or profiles to make room without confirming their resources have exited. Startup and completion are background operations: the initial request returns 202, and task status reports any capacity rejection as 429. The retired password-based timetable refresh endpoint returns 410 and never starts Chromium.
 
-Canvas/好课 refresh jobs share two HTTP threads and a bounded queue of 32 jobs, return cached/pending responses immediately, and recheck account identity plus connection revision before publishing. OJ keeps its existing deduplicated per-account background threads. This does not eliminate all synchronous platform login or fetch paths.
+Canvas, 好课, 智学盟, 课堂派 and 同济 OJ share the `HTTP_SYNC_MAX_WORKERS=2` / `HTTP_SYNC_MAX_JOBS=32` budget, including queued and running jobs. Jobs deduplicate by username, platform and job type. Platforms no longer create their own HTTP fetch pools or per-user sync threads. Refresh, weather and explicit slow login operations use this budget; reads return cached/pending responses immediately. `cache_only=1` polls never restart a failed refresh. Set either limit in the Web service environment and restart to apply it. This budget belongs to the single Web process; do not run extra Web instances as a way to increase capacity.
+
+## Static resources, request boundaries and retired applications
+
+Production `/static/` uses nginx `alias` to `current/frontend/assets/`, without a proxy to Waitress. Built CSS/JS with the generated 20-character content hash use `public, max-age=31536000, immutable`; source files use `public, no-cache`. The installer gives nginx traversal and read access to public assets while retaining 0700/0600 on runtime data. Flask still serves static files for development. `scripts/check_nginx_boundaries.py` runs an independent loopback nginx instance to test content, headers, VNC HTTP/WebSocket authentication and body limits without changing the live configuration.
+
+Both nginx templates explicitly set `client_max_body_size 8m`; Flask `MAX_CONTENT_LENGTH` is `8 * 1024 * 1024` bytes. Change both together. VNC `auth_request` sends the Dashboard cookie only to Flask; the actual container request removes Cookie and Authorization, and container Set-Cookie is hidden.
+
+The discontinued `/daily-english` and `/life-list` paths return 410. After successful Dashboard deployment, the existing deployment runner calls `deploy/retire-unused-apps.sh`: disable the ubuntu user `daily-english.service` and system `life-list.service`, replace their two HTTP virtual hosts with 410, and move only `/home/ubuntu/daily-english-web` and `/home/ubuntu/life-list` into private `/home/ubuntu/.retired-dashboard-apps/`. Units and original subdomain configuration are saved there. The script refuses unrelated virtual hosts, symlinks or an occupied destination. It does not delete unique application data. A Dashboard rollback does not restart these discontinued apps; restore their archived directories/units and subdomain configuration explicitly if needed.
+
+## Basic operational monitoring
+
+`canvas-dashboard-monitor.timer` runs every minute. Its journal contains JSON resource samples: MemAvailable, swap use and in/out rates, load average, disk use, OOM counter changes, active browser occupation, aggregate queue status, recent Web status and the number of accounts repeatedly failing per platform. The Web log records endpoint name (no URL parameters), status and duration; sync events include platform, job type, queued/running/success/failed/cancelled, duration and last success. Browser events include startup duration, global available-memory change and end reason; the memory delta is an observation of the whole machine, not exclusive Chromium RSS.
+
+Authenticated `GET /api/diagnostics/runtime` returns current aggregate system/Web/sync/browser status, including the real Waitress queued/active/thread counts. It excludes usernames, credentials and task tokens. Last Web and sync snapshots are local JSON files for the independent sampler. After process restart, inspect durable per-user sync metadata for failure history; executor counters describe the current Web process.
+
+```bash
+journalctl -u canvas-dashboard-monitor.service --since '15 minutes ago' -o cat
+journalctl -u canvas-dashboard.service --since '15 minutes ago'
+systemctl status canvas-dashboard-monitor.timer
+```
+
+Investigate local API p95 persistently above 1 second, available memory below 300 MiB, sustained swap traffic (initial warning at 1 MiB/s), any new OOM kill, disk use at 80%, or queued work older than 5 minutes. Compare successive samples; a nonzero swap allocation alone is not ongoing swap traffic. These are journal/manual-check thresholds, not external notification delivery. Weather and holiday cache limitations are documented in `docs/development.md`; real platform credentials and production peak memory still need observation after release.
 
 Canvas feed hosts are restricted to `canvas.tongji.edu.cn` by default. For another institution, set `CANVAS_DASHBOARD_CANVAS_FEED_HOSTS` to comma-separated, operator-verified hostnames. Only HTTPS on port 443 is accepted; redirects are not followed. Do not add user-controlled hosts. Existing untrusted feed URLs retain their old cache but will fail refresh until corrected. See [small-group launch notes](small-group-launch.md) for measured capacity context and operating thresholds.
 
@@ -122,12 +144,14 @@ systemctl is-active \
   zhihuishu-login-cleanup.timer \
   canvas-dashboard-account-cleanup.timer \
   canvas-dashboard-backup.timer \
+  canvas-dashboard-monitor.timer \
   certbot.timer \
   nginx
 systemctl list-timers \
   zhihuishu-login-cleanup.timer \
   canvas-dashboard-account-cleanup.timer \
   canvas-dashboard-backup.timer \
+  canvas-dashboard-monitor.timer \
   certbot.timer \
   --all --no-pager
 ```

@@ -9,12 +9,26 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from contextlib import contextmanager
 
 _locks_guard = threading.Lock()
 _path_locks: dict[str, threading.RLock] = {}
 _proc_lock_counts: dict[str, int] = {}
 _proc_lock_files: dict[str, any] = {}
 logger = logging.getLogger(__name__)
+
+
+@contextmanager
+def _account_write(path):
+    import auth
+    with auth.storage_write(path):
+        yield
+
+
+def delete_file(path):
+    """Delete a known user file under the same identity guard as writes."""
+    with _account_write(path), _lock_for(path), interprocess_lock(path):
+        Path(path).unlink(missing_ok=True)
 
 try:
     import msvcrt
@@ -158,12 +172,16 @@ def _atomic_write_bytes(path: Path, data: bytes) -> None:
 
 
 def read_json_file(path: Path, default):
+    import auth
     path = Path(path)
+    auth.check_storage_identity(path)
     if not path.exists():
         return _copy_default(default)
     with _lock_for(path):
         try:
-            return json.loads(path.read_text(encoding="utf-8"))
+            data = json.loads(path.read_text(encoding="utf-8"))
+            auth.check_storage_identity(path)
+            return data
         except (json.JSONDecodeError, UnicodeDecodeError) as error:
             modified_at = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc)
             timestamp = modified_at.strftime("%Y%m%dT%H%M%S%fZ")
@@ -177,19 +195,19 @@ def read_json_file(path: Path, default):
 def write_json_file(path: Path, data) -> None:
     path = Path(path)
     payload = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
-    with _lock_for(path):
+    with _account_write(path), _lock_for(path):
         _atomic_write_bytes(path, payload)
 
 
 def write_bytes_file(path: Path, data: bytes) -> None:
     path = Path(path)
-    with _lock_for(path):
+    with _account_write(path), _lock_for(path):
         _atomic_write_bytes(path, data)
 
 
 def load_or_create_bytes(path: Path, create_value):
     path = Path(path)
-    with _lock_for(path):
+    with _account_write(path), _lock_for(path):
         if path.exists():
             return path.read_bytes()
         value = create_value()
@@ -199,7 +217,7 @@ def load_or_create_bytes(path: Path, create_value):
 
 def locked_json_update(path: Path, default, update_fn):
     path = Path(path)
-    with _lock_for(path):
+    with _account_write(path), _lock_for(path):
         with interprocess_lock(path):
             data = read_json_file(path, default)
             updated = update_fn(data)

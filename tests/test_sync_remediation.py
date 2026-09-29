@@ -1,3 +1,4 @@
+from operation_helpers import wait_weather
 import auth
 import json
 import os
@@ -392,10 +393,9 @@ def test_weather_shared_cache_and_coalescing(tmp_path, monkeypatch):
     th1.join()
     th2.join()
 
-    assert res1[0]["ok"] is True
-    assert res1[0]["temperature"] == 22.5
-    assert res2[0]["ok"] is True
-    assert res2[0]["temperature"] == 22.5
+    assert res1[0]["pending"] is True
+    assert res2[0]["pending"] is True
+    assert wait_weather(client, "jiading").json["temperature"] == 22.5
     # Upstream was called only ONCE due to coalescing!
     assert fetch_calls["count"] == 1
 

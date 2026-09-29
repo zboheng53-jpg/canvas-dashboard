@@ -32,7 +32,9 @@ install_configs() {
         canvas-dashboard-account-cleanup.service \
         canvas-dashboard-account-cleanup.timer \
         canvas-dashboard-backup.service \
-        canvas-dashboard-backup.timer
+        canvas-dashboard-backup.timer \
+        canvas-dashboard-monitor.service \
+        canvas-dashboard-monitor.timer
     do
         if [ -f "$source/deploy/$unit" ]; then
             sudo install -m 0644 "$source/deploy/$unit" "/etc/systemd/system/$unit" || return
@@ -87,6 +89,12 @@ activate_release() {
     correct_runtime_permissions || return
     sudo systemctl enable canvas-dashboard.service zhihuishu-worker.service || return
     sudo systemctl enable --now zhihuishu-login-cleanup.timer canvas-dashboard-account-cleanup.timer canvas-dashboard-backup.timer || return
+    if [ -f "$target/scripts/monitor_runtime.py" ]; then
+        sudo systemctl enable --now canvas-dashboard-monitor.timer || return
+    else
+        # Older rollback releases do not contain the new monitoring entry point.
+        sudo systemctl disable --now canvas-dashboard-monitor.timer 2>/dev/null || true
+    fi
     sudo systemctl restart canvas-dashboard.service zhihuishu-worker.service || return
     sudo systemctl reload nginx || return
 }
@@ -147,6 +155,11 @@ if [ ! -x "$release/.venv/bin/python" ] || [ ! -f "$release/dependencies.txt" ];
     "$release/.venv/bin/python" -m pip freeze > "$release/dependencies.txt"
 fi
 "$release/.venv/bin/python" "$release/scripts/build_assets.py"
+# Only public assets are readable by nginx; runtime data retains 0700/0600.
+sudo chmod o+x /home/ubuntu "$root" "$releases" "$release" "$release/frontend"
+sudo find "$release/frontend/assets" -type d -exec chmod 0755 {} +
+sudo find "$release/frontend/assets" -type f -exec chmod 0644 {} +
+sudo -u www-data test -r "$release/frontend/assets/built/manifest.json"
 
 current=""
 if [ -L "$root/current" ]; then
@@ -248,6 +261,7 @@ systemctl is-active --quiet zhihuishu-worker.service
 systemctl is-active --quiet zhihuishu-login-cleanup.timer
 systemctl is-active --quiet canvas-dashboard-account-cleanup.timer
 systemctl is-active --quiet canvas-dashboard-backup.timer
+systemctl is-active --quiet canvas-dashboard-monitor.timer
 trap - EXIT
 if ! prune_old_releases; then
     echo "Warning: release activation succeeded, but old release cleanup failed" >&2

@@ -67,23 +67,15 @@ def _save_todos(username, todos):
 
 
 def _remove_expired_completed_todos(username, today):
-    linked_refs = {item.get("action_ref") for kind in ("recurring", "one_off")
-                   for item in schedule_store.load_items(username).get(kind, [])}
     def remove_expired(todos):
         remaining = []
         for todo in _normalize_todos(todos):
-            if todo.get("done") and not todo.get("request_id") and _custom_action_ref(todo) not in linked_refs:
-                expiry_dates = []
-                if todo.get("due_date"):
-                    try:
-                        expiry_dates.append(datetime.fromisoformat(todo["due_date"]).date())
-                    except (ValueError, TypeError):
-                        pass
+            if todo.get("done") and todo.get("due_date"):
                 try:
-                    expiry_dates.append(datetime.fromisoformat(todo.get("completed_at") or todo.get("updated_at")).date())
+                    due = datetime.fromisoformat(todo["due_date"]).date()
                 except (ValueError, TypeError):
-                    pass
-                if expiry_dates and max(expiry_dates) < today:
+                    due = None
+                if due and due < today:
                     continue
             remaining.append(todo)
         return remaining

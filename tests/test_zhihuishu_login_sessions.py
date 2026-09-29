@@ -35,6 +35,9 @@ def test_validate_rejects_expired_or_wrong_port(tmp_path, monkeypatch):
 
     assert not sessions.validate_session(session["token"], 6108, now=1001.0)
     assert not sessions.validate_session(session["token"], 6107, now=1601.0)
+    assert sessions.load_session("alice") is not None
+    assert removed == []  # authorization GET performs no Docker work
+    assert sessions.cleanup_expired_sessions(now=1601.0) == 1
     assert sessions.load_session("alice") is None
     assert removed == [session["container_name"]]
 

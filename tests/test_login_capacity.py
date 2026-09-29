@@ -1,3 +1,5 @@
+import auth
+from operation_helpers import operation_client
 from concurrent.futures import ThreadPoolExecutor
 import threading
 
@@ -54,7 +56,8 @@ def test_browser_capacity_returns_retryable_response(isolated_data, monkeypatch)
         raise login_capacity.LoginCapacityError('认证窗口暂时已满')
     monkeypatch.setattr(tongji_login_sessions, 'create_session', full)
     monkeypatch.setattr(zhihuishu_login_sessions, 'create_session', full)
-    client = app.app.test_client()
+    auth.register("alice", "password1")
+    client = operation_client(app.app)
     with client.session_transaction() as session:
         session.update(username='alice', _csrf_token='test')
     for path in ('/api/schedule/login-session', '/api/zhihuishu/login-session'):

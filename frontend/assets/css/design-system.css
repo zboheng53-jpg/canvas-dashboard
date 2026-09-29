@@ -1058,8 +1058,8 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
 }
 .todo-row.urgent.is-today .item-due,
 .todo-row.is-today .item-due {
-  color: var(--ds-accent-ink, #1d4fd7) !important;
-  background: var(--todo-date-background, var(--ds-accent-soft, #eff4fe)) !important;
+  color: #b07208 !important;
+  background: var(--todo-date-background, var(--color-warning-soft)) !important;
 }
 .todo-row.approaching .item-due,
 .todo-row.is-approaching .item-due {

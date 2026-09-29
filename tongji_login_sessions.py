@@ -108,7 +108,7 @@ def _iter_session_files():
                 yield user_dir / "tongji_login_session.json"
 
 
-def _remove_session_file(session_file: Path, login_session: dict) -> bool:
+def _remove_session_file(session_file: Path, login_session: dict, reason='stopped') -> bool:
     from login_capacity import account_profile_lock
     username = session_file.parent.name
     with account_profile_lock(DATA_DIR, username, timeout=5.0):
@@ -118,6 +118,8 @@ def _remove_session_file(session_file: Path, login_session: dict) -> bool:
         _stop_container(current.get("container_name", ""))
         _remove_profile(username)
         session_file.unlink(missing_ok=True)
+        from runtime_metrics import event
+        event("browser_end", platform="tongji", reason=reason)
         return True
 
 
@@ -133,7 +135,7 @@ def cleanup_expired_sessions(now: float | None = None) -> int:
             continue
         if float(login_session.get("expires_at", 0)) < now:
             try:
-                removed += int(_remove_session_file(session_file, login_session))
+                removed += int(_remove_session_file(session_file, login_session, reason='expired'))
             except TimeoutError:
                 continue
     return removed
@@ -196,10 +198,25 @@ def load_session(username: str) -> dict | None:
 
 
 def create_session(username: str, now: float | None = None) -> dict:
-    from login_capacity import startup_slot, account_profile_lock
-    with startup_slot(DATA_DIR, _session_file(username)):
-        with account_profile_lock(DATA_DIR, username, timeout=5.0):
-            return _create_session(username, now)
+    from login_capacity import startup_slot, account_profile_lock, capacity_snapshot
+    from runtime_metrics import event
+    from system_monitor import system_snapshot
+    started = time.monotonic()
+    before = system_snapshot(DATA_DIR).get("mem_available_bytes")
+    try:
+        with startup_slot(DATA_DIR, _session_file(username)):
+            with account_profile_lock(DATA_DIR, username, timeout=5.0):
+                result = _create_session(username, now)
+    except Exception as exc:
+        event("browser_start", platform="tongji", state="failed",
+              duration_seconds=round(time.monotonic() - started, 3), error_type=type(exc).__name__)
+        raise
+    after = system_snapshot(DATA_DIR).get("mem_available_bytes")
+    event("browser_start", platform="tongji", state="ready",
+          duration_seconds=round(time.monotonic() - started, 3),
+          mem_available_delta_bytes=after - before if after is not None and before is not None else None,
+          occupied_slots=capacity_snapshot(DATA_DIR)["occupied_slots"])
+    return result
 
 
 def _create_session(username: str, now: float | None = None) -> dict:
@@ -244,13 +261,13 @@ def _valid_token(token: str) -> bool:
 def session_for_token(token: str) -> dict | None:
     if not _valid_token(token):
         return None
-    cleanup_expired_sessions()
     for session_file in _iter_session_files():
         try:
             login_session = read_json_file(session_file, None)
         except Exception:
             continue
-        if login_session and login_session.get("token") == token:
+        if (login_session and login_session.get("token") == token
+                and float(login_session.get("expires_at", 0)) >= time.time()):
             return login_session
     return None
 

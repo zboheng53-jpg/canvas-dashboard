@@ -1,3 +1,5 @@
+from operation_helpers import operation_client
+import auth
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -8,13 +10,14 @@ import zhihuishu_login_sessions
 
 
 @pytest.fixture
-def client_with_user(tmp_path, monkeypatch):
+def client_with_user(tmp_path, monkeypatch, isolated_data):
     monkeypatch.setattr(dashboard_app.auth, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard_app, "DATA_DIR", tmp_path)
     monkeypatch.setattr(zhihuishu_store, "DATA_DIR", tmp_path)
     monkeypatch.setattr(zhihuishu_login_sessions, "DATA_DIR", tmp_path)
+    auth.register("alice", "password1")
     dashboard_app.app.config.update(TESTING=True)
-    with dashboard_app.app.test_client() as client:
+    with operation_client(dashboard_app.app) as client:
         with client.session_transaction() as sess:
             sess["username"] = "alice"
             sess["_csrf_token"] = "csrf-test-token"

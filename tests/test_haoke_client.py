@@ -130,7 +130,11 @@ def test_start_background_refresh_uses_shared_executor(isolated_data, monkeypatc
     started, runners = [], []
     monkeypatch.setattr(haoke_client, "has_credentials", lambda _: True)
     monkeypatch.setattr(haoke_client, "fetch_haoke_todos", lambda _, **kwargs: {"ok": True, "data": []})
+    active = set()
     def submit(username, platform, callback, **kwargs):
+        if (username, platform) in active:
+            return False
+        active.add((username, platform))
         started.append((username, platform))
         runners.append(callback)
         return True
@@ -141,5 +145,6 @@ def test_start_background_refresh_uses_shared_executor(isolated_data, monkeypatc
     assert started == [("alice", "haoke"), ("bob", "haoke")]
     for callback in runners:
         callback()
+    active.clear()
     assert haoke_client.start_background_refresh("alice") is True
     haoke_client._refreshing_users.clear()

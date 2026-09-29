@@ -48,6 +48,8 @@ def normalize_state(state: dict | None, id_type: Callable = str) -> dict:
         for item_id, patch in overrides.items()
         if isinstance(patch, dict)
     } if isinstance(overrides, dict) else {}
+    if raw.get("expired_deleted"):
+        normalized["expired_deleted"] = [id_type(item) for item in raw["expired_deleted"]]
     return normalized
 
 
@@ -61,14 +63,22 @@ class PlatformStateStore:
 
     def save(self, username: str, state: dict) -> dict:
         normalized = normalize_state(state, self._id_type)
-        locked_json_update(self._state_path(username), DEFAULT_STATE.copy(), lambda _: normalized)
-        return normalized
+        def apply(raw):
+            permanent = set(normalize_state(raw, self._id_type).get("expired_deleted", []))
+            permanent.update(normalized.get("expired_deleted", []))
+            if permanent:
+                normalized["expired_deleted"] = sorted(permanent)
+                normalized["deleted"] = list(dict.fromkeys(normalized["deleted"] + sorted(permanent)))
+            return normalized
+        return locked_json_update(self._state_path(username), DEFAULT_STATE.copy(), apply)
 
     def update(self, username: str, action: str, item_id) -> dict:
         item_id = self._id_type(item_id)
 
         def apply_update(raw_state):
             state = normalize_state(raw_state, self._id_type)
+            if item_id in state.get("expired_deleted", []):
+                return state
             if action == "hide" and item_id not in state["hidden"]:
                 state["hidden"].append(item_id)
             elif action == "unhide":
@@ -96,11 +106,30 @@ class PlatformStateStore:
         allowed = {field: value for field, value in (patch or {}).items() if field in {"title", "due_ts"}}
         def apply_update(raw_state):
             state = normalize_state(raw_state, self._id_type)
+            if item_id in state.get("expired_deleted", []):
+                return state
             key = str(item_id)
             if restore:
                 state["overrides"].pop(key, None)
             elif allowed:
                 state["overrides"][key] = {**state["overrides"].get(key, {}), **allowed}
+            return state
+        return locked_json_update(self._state_path(username), DEFAULT_STATE.copy(), apply_update)
+
+    def delete_expired_completed(self, username: str, items: list[dict], now: datetime) -> dict:
+        """Recheck completion and effective deadline inside the state lock."""
+        def apply_update(raw_state):
+            state = normalize_state(raw_state, self._id_type)
+            expired = _expired_completed_ids(items, state, now)
+            if expired:
+                permanent = state.setdefault("expired_deleted", [])
+                for item_id in expired:
+                    if item_id not in state["deleted"]:
+                        state["deleted"].append(item_id)
+                    if item_id not in permanent:
+                        permanent.append(item_id)
+                for field in ("hidden", "highlighted", "completed"):
+                    state[field] = [item for item in state[field] if item not in expired]
             return state
         return locked_json_update(self._state_path(username), DEFAULT_STATE.copy(), apply_update)
 
@@ -148,6 +177,24 @@ def _auto_delete_expired_hidden(items: list[dict], state: dict, now: datetime) -
     return expired_ids
 
 
+def _expired_completed_ids(items, state, now):
+    now = now.replace(tzinfo=CST) if now.tzinfo is None else now.astimezone(CST)
+    completed = set(state.get("completed", []))
+    overrides = state.get("overrides", {})
+    expired = []
+    for item in items:
+        item_id = item.get("id")
+        if item_id in state.get("deleted", []):
+            continue
+        if item_id not in completed and not item.get("done"):
+            continue
+        patch = overrides.get(str(item_id), {})
+        due = _parse_due_datetime(patch.get("due_ts", item.get("due_ts")))
+        if due and due < now:
+            expired.append(item_id)
+    return expired
+
+
 def build_platform_todos_response(
     result: dict,
     state: dict,
@@ -157,6 +204,7 @@ def build_platform_todos_response(
     expire_hidden: Callable[[list], None] | None = None,
     now: datetime | None = None,
     auto_delete_expired_hidden: bool = False,
+    expire_completed: Callable[[list[dict], datetime], dict] | None = None,
 ) -> dict:
     response = dict(result)
     # Callers already loaded state through their typed store (Canvas/好课 use
@@ -166,6 +214,8 @@ def build_platform_todos_response(
     raw_overrides = input_state.get("overrides", {})
     state["overrides"] = raw_overrides if isinstance(raw_overrides, dict) else {}
     items = [dict(item) for item in response.get(items_key, [])]
+    if expire_completed is not None and now is not None and _expired_completed_ids(items, state, now):
+        state = expire_completed(items, now)
 
     if auto_delete_expired_hidden and now is not None:
         expired_ids = _auto_delete_expired_hidden(items, state, now)

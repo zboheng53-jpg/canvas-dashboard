@@ -50,6 +50,7 @@ def _state_file(username: str) -> Path:
 
 
 _state_store = PlatformStateStore(_state_file, str)
+delete_expired_completed = _state_store.delete_expired_completed
 
 
 def load_status(username: str) -> dict:

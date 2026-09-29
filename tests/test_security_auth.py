@@ -1,3 +1,5 @@
+from operation_helpers import operation_client
+import auth
 from services import workspace as workspace_service
 
 import pytest
@@ -17,7 +19,7 @@ def _set_csrf(client, token="csrf-test-token"):
 
 
 @pytest.fixture
-def client_with_user(tmp_path, monkeypatch):
+def client_with_user(tmp_path, monkeypatch, isolated_data):
     user_dir = tmp_path / "users" / "alice"
     user_dir.mkdir(parents=True)
     (user_dir / "custom_todos.json").write_text("[]", encoding="utf-8")
@@ -26,8 +28,9 @@ def client_with_user(tmp_path, monkeypatch):
     monkeypatch.setattr(workspace_service, "user_dir", lambda username: user_dir)
     if hasattr(dashboard_app, "_rate_limit_buckets"):
         dashboard_app._rate_limit_buckets.clear()
+    auth.register("alice", "password1")
     dashboard_app.app.config.update(TESTING=True)
-    with dashboard_app.app.test_client() as client:
+    with operation_client(dashboard_app.app) as client:
         with client.session_transaction() as sess:
             sess["username"] = "alice"
         yield client
@@ -38,7 +41,7 @@ def anonymous_client(monkeypatch):
     if hasattr(dashboard_app, "_rate_limit_buckets"):
         dashboard_app._rate_limit_buckets.clear()
     dashboard_app.app.config.update(TESTING=True)
-    with dashboard_app.app.test_client() as client:
+    with operation_client(dashboard_app.app) as client:
         yield client
 
 
@@ -51,7 +54,7 @@ def isolated_auth_client(tmp_path, monkeypatch):
     if hasattr(dashboard_app, "_rate_limit_buckets"):
         dashboard_app._rate_limit_buckets.clear()
     dashboard_app.app.config.update(TESTING=True)
-    with dashboard_app.app.test_client() as client:
+    with operation_client(dashboard_app.app) as client:
         yield client
 
 

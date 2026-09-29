@@ -5,14 +5,19 @@ import pytest
 import agent_auth
 
 
+@pytest.fixture(autouse=True)
+def active_accounts(isolated_data):
+    agent_auth.auth.register("alice", "password1")
+    agent_auth.auth.register("bob", "password1")
+
+
 def test_agent_token_creation_storage_and_validation(tmp_path, monkeypatch):
     users_dir = tmp_path / "users"
-    (users_dir / "alice").mkdir(parents=True)
-    (users_dir / "bob").mkdir(parents=True)
+    (users_dir / "alice").mkdir(parents=True, exist_ok=True)
+    (users_dir / "bob").mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr(agent_auth, "DATA_DIR", tmp_path)
     monkeypatch.setattr(agent_auth, "user_dir", lambda username: users_dir / username)
-    monkeypatch.setattr(agent_auth.auth, "account_metadata", lambda username: {"status": "active"})
 
     # Create token for Alice and Bob
     alice_token = agent_auth.create_token("alice")
@@ -48,12 +53,11 @@ def test_agent_token_creation_storage_and_validation(tmp_path, monkeypatch):
 
 def test_agent_token_revocation(tmp_path, monkeypatch):
     users_dir = tmp_path / "users"
-    (users_dir / "alice").mkdir(parents=True)
-    (users_dir / "bob").mkdir(parents=True)
+    (users_dir / "alice").mkdir(parents=True, exist_ok=True)
+    (users_dir / "bob").mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr(agent_auth, "DATA_DIR", tmp_path)
     monkeypatch.setattr(agent_auth, "user_dir", lambda username: users_dir / username)
-    monkeypatch.setattr(agent_auth.auth, "account_metadata", lambda username: {"status": "active"})
 
     alice_token = agent_auth.create_token("alice")
     bob_token = agent_auth.create_token("bob")
@@ -70,11 +74,10 @@ def test_agent_token_revocation(tmp_path, monkeypatch):
 
 def test_agent_multi_tokens_scopes_and_expiration(tmp_path, monkeypatch):
     users_dir = tmp_path / "users"
-    (users_dir / "alice").mkdir(parents=True)
+    (users_dir / "alice").mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr(agent_auth, "DATA_DIR", tmp_path)
     monkeypatch.setattr(agent_auth, "user_dir", lambda username: users_dir / username)
-    monkeypatch.setattr(agent_auth.auth, "account_metadata", lambda username: {"status": "active"})
 
     # 1. Create token with name, scopes, and expiration
     tok1 = agent_auth.create_token("alice", name="Desktop", scopes=["read"], expires_in_days=30)
@@ -113,11 +116,10 @@ def test_agent_multi_tokens_scopes_and_expiration(tmp_path, monkeypatch):
 
 def test_agent_token_last_used_throttling_and_index(tmp_path, monkeypatch):
     users_dir = tmp_path / "users"
-    (users_dir / "alice").mkdir(parents=True)
+    (users_dir / "alice").mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr(agent_auth, "DATA_DIR", tmp_path)
     monkeypatch.setattr(agent_auth, "user_dir", lambda username: users_dir / username)
-    monkeypatch.setattr(agent_auth.auth, "account_metadata", lambda username: {"status": "active"})
 
     token = agent_auth.create_token("alice")
     # Verify index exists
@@ -152,11 +154,10 @@ def test_agent_token_last_used_throttling_and_index(tmp_path, monkeypatch):
 
 def test_agent_legacy_format_backward_compatibility(tmp_path, monkeypatch):
     users_dir = tmp_path / "users"
-    (users_dir / "alice").mkdir(parents=True)
+    (users_dir / "alice").mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr(agent_auth, "DATA_DIR", tmp_path)
     monkeypatch.setattr(agent_auth, "user_dir", lambda username: users_dir / username)
-    monkeypatch.setattr(agent_auth.auth, "account_metadata", lambda username: {"status": "active"})
 
     raw_token = "cda_legacytoken12345678901234567890"
     thash = agent_auth._token_hash(raw_token)
@@ -164,7 +165,7 @@ def test_agent_legacy_format_backward_compatibility(tmp_path, monkeypatch):
     tok_file = users_dir / "alice" / "agent_token.json"
     tok_file.write_text(json.dumps({
         "token_hash": thash,
-        "account_id": "acc-123",
+        "account_id": agent_auth.auth.session_identity("alice")[0],
         "created_at": "2026-09-01T12:00:00+08:00",
         "last_used_at": None,
     }), encoding="utf-8")

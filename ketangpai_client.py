@@ -15,7 +15,6 @@ import base64
 import json
 import logging
 import time as time_module
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 
 import requests
@@ -211,6 +210,7 @@ def _save_token(username: str, token: str):
     enc = _encrypt_token(token)
     def update(config):
         config["ketangpai_token_encrypted"] = enc
+        config["ketangpai_connection_revision"] = int(config.get("ketangpai_connection_revision", 0)) + 1
         return config
     locked_json_update(config_file, {}, update)
 
@@ -230,12 +230,7 @@ def _load_token(username: str) -> str | None:
 
 
 def has_token(username: str) -> bool:
-    cache = _token_cache.get(username, {})
-    if cache.get("token") and cache.get("expires_at"):
-        if datetime.now(CST) < cache["expires_at"]:
-            return True
-    stored = _load_token(username)
-    return stored is not None
+    return _load_token(username) is not None
 
 
 def logout(username: str):
@@ -244,6 +239,7 @@ def logout(username: str):
     if config_file.exists():
         def update(config):
             config.pop("ketangpai_token_encrypted", None)
+            config["ketangpai_connection_revision"] = int(config.get("ketangpai_connection_revision", 0)) + 1
             return config
         try:
             locked_json_update(config_file, {}, update)
@@ -252,21 +248,8 @@ def logout(username: str):
 
 
 def _get_token(username: str) -> str | None:
-    cache = _token_cache.get(username, {})
-    if cache.get("token") and cache.get("expires_at"):
-        if datetime.now(CST) < cache["expires_at"]:
-            return cache["token"]
-    stored = _load_token(username)
-    if stored:
-        _token_cache[username] = {
-            "token": stored,
-            "expires_at": datetime.now(CST) + timedelta(days=7),
-        }
-        return stored
-    return None
+    return _load_token(username)
 
-
-# ---- Courses & Assignments fetching ----
 
 def fetch_courses(username: str) -> dict:
     """Fetch courses list for the current user."""
@@ -509,7 +492,7 @@ def fetch_assignments(username: str, course_id: str = None, force_fetch: bool = 
 
         courses = courses_res.get("courses", [])
         if not courses:
-            write_json_file(cache_file, {"_ts": time_module.time(), "items": [], "sync_complete": True})
+            write_json_file(cache_file, {"_ts": time_module.time(), "items": [], "courses": [], "sync_complete": True})
             return {"ok": True, "items": [], "cached": False, "sync_complete": True}
 
         # Filter active courses:
@@ -536,21 +519,12 @@ def fetch_assignments(username: str, course_id: str = None, force_fetch: bool = 
 
         items = []
         complete = True
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            futures = {
-                executor.submit(_scan_course_content, token, cid, cname, ctype): (cid, cname, ctype)
-                for cid, cname, ctype in tasks
-            }
-            for f in as_completed(futures):
-                try:
-                    course_items = f.result()
-                except Exception:
-                    course_items = None
-                if course_items is None:
-                    complete = False
-                    continue
-                if course_items:
-                    items.extend(course_items)
+        for cid, cname, ctype in tasks:
+            course_items = _scan_course_content(token, cid, cname, ctype)
+            if course_items is None:
+                complete = False
+            else:
+                items.extend(course_items)
 
         if not complete:
             fallback = _fallback_assignments_cache(cache_file, course_id)
@@ -573,6 +547,7 @@ def fetch_assignments(username: str, course_id: str = None, force_fetch: bool = 
         write_json_file(cache_file, {
             "_ts": time_module.time(),
             "items": items,
+            "courses": courses,
             "sync_complete": True,
         })
 
@@ -615,6 +590,9 @@ def save_state(username: str, state: dict):
 
 def delete_expired_hidden(username: str, expired_ids: list) -> dict:
     return _state_store.delete_expired_hidden(username, expired_ids)
+
+
+delete_expired_completed = _state_store.delete_expired_completed
 
 
 def update_state(username: str, action: str, item_id: str) -> dict:

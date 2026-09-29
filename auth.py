@@ -6,6 +6,7 @@ a directory name alone.
 """
 import hashlib
 import logging
+import os
 import re
 import secrets
 import shutil
@@ -13,6 +14,7 @@ import threading
 import time
 from collections.abc import Callable
 from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -141,6 +143,62 @@ DELETE_CONFIRMATION = "永久删除"
 _account_locks_guard = threading.Lock()
 _account_locks: dict[str, threading.RLock] = {}
 _deleting_accounts: set[str] = set()
+_operation_identity = ContextVar("operation_identity", default=None)
+
+
+class AccountIdentityChanged(RuntimeError):
+    """An in-flight operation belongs to an account that is no longer active."""
+
+
+@contextmanager
+def identity_scope(username, identity, write_check=None):
+    token = _operation_identity.set((username, identity, write_check))
+    try:
+        yield
+    finally:
+        _operation_identity.reset(token)
+
+
+def check_operation_identity(username):
+    expected = _operation_identity.get()
+    if expected and expected[0] == username and expected[1] is not None:
+        if session_identity(username) != expected[1]:
+            raise AccountIdentityChanged("账户状态已变更，请重新登录")
+
+
+@contextmanager
+def account_write(username):
+    """Hold the lifecycle lock only while validating and committing local data."""
+    with account_operation(username):
+        check_operation_identity(username)
+        expected = _operation_identity.get()
+        if expected and expected[0] == username and expected[2] and not expected[2]():
+            raise AccountIdentityChanged("平台连接已变更，旧任务已取消")
+        yield
+
+
+@contextmanager
+def storage_write(path):
+    # Global registry/lifecycle files are managed by their existing explicit locks.
+    path = Path(os.path.abspath(path))
+    users = DATA_DIR / "users"
+    if path.is_relative_to(users) and len(path.relative_to(users).parts) >= 1:
+        with account_write(path.relative_to(users).parts[0]):
+            yield
+    else:
+        yield
+
+
+def check_storage_identity(path):
+    expected = _operation_identity.get()
+    if not expected or expected[1] is None:
+        return
+    # DATA_DIR is resolved once at startup. Internal storage paths do not need
+    # a filesystem walk on every read, including recursive registry reads.
+    path = Path(os.path.abspath(path))
+    users = DATA_DIR / "users"
+    if path.is_relative_to(users) and path != users:
+        check_operation_identity(path.relative_to(users).parts[0])
 
 _LEGACY_FILES = [
     "custom_todos.json", "config.json", "canvas_state.json", "haoke_state.json",
@@ -494,7 +552,8 @@ def delete_account(
             return False, "账户信息已变更，请重新验证"
 
         try:
-            return _finish_deletion(username, record, reason, before_delete)
+            with identity_scope(username, None):
+                return _finish_deletion(username, record, reason, before_delete)
         except OSError:
             logger.warning("Account deletion ledger write failed; data retained")
             return False, "账户已停用，删除记录写入失败，数据保留并等待后台重试"

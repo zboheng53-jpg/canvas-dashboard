@@ -109,6 +109,8 @@ canvas-dashboard/
   - 生产 Session 必须校验不可变 `account_id` 与 `session_version`；永久删除必须经 `auth.delete_account()`，并保留不参与常规备份的删除账本以防旧备份复活账户。
 - **统一待办状态**：
   - 平台缓存不得被本地完成、隐藏、标红、删除或标题/截止时间覆盖直接改写；统一通过各平台 `PlatformStateStore` 状态文件叠加，并允许恢复上游显示值。
+  - 已完成且超过有效截止的普通待办自动永久删除，不可撤销或恢复；尚未截止则沉底，无截止则保留。未完成逾期标红，未来 72 小时内截止标黄。纯日期按上海当日结束，重复待办只清理过期的已完成单次。
+  - 普通 HTTP 平台通过 `http_sync.py` 共用全站有界预算（默认 2 个执行任务、32 个运行及排队任务），按账户、平台及任务类型去重；读取缓存后提交后台刷新。账户锁仅覆盖身份变更和最终关键写入，不覆盖整段读取或网络操作。
 - **外部作业子任务 (`external_subtasks.py`)**：
   - 存储位于 `data/users/<username>/external_subtasks.json`，以 `source:item_id` 为稳定键，采用锁 + 原子写。
   - 支持 `canvas`、`haoke`、`zhixuemeng`、`zhihuishu`、`ketangpai`、`tongjioj` 6 大平台。各平台 `/api/<platform>/todos` 自动装配本地持久化子任务；提供 `PUT /api/external-subtasks` 供子任务增删改查。前端所有作业均共享子任务增删改、勾选、改期与展开交互，展开状态仅保留在前端内存。
@@ -131,11 +133,11 @@ canvas-dashboard/
   - 议程与 Apple 日历支持范围展开（UID 稳定前缀 `recurring-<series_id>-<orig_date>`），单次修改、跳过、完成与系列管理独立操作。
 - **第三方平台特点**：
   - **Canvas**：解析 iCal feed，缓存于 `canvas_cache.json`。
-  - **好课**：凭据加密存储，`/api/haoke/todos` 缓存优先，后台守护进程异步刷新。
+  - **好课**：凭据加密存储，`/api/haoke/todos` 缓存优先，通过共享有界执行器异步刷新。
   - **智学盟**：使用 `X-Access-Token`，支持课程与作业列表抓取。
   - **智慧树**：路由只读缓存/状态；后台通过 `zhihuishu_worker.py --all-users` 定时拉取；独立 Chromium profile 运行；支持 noVNC 远程登录窗口。
   - **同济课表**：前端直接打开短时 noVNC 认证窗口；用户完成微信扫码或短信加强认证后，后端通过该窗口的 CDP 读取当前可见课表。只解析渲染中的表格并展开 `rowspan`/`colspan`，失败时保留上次成功缓存，认证结束或过期后删除临时 profile。
-  - **课堂派**：凭据加密存储，支持短信验证码与账号密码双模式登录；动态获取当学期有效课程，并发抓取作业与随堂测验，自动滤除已交项；使用 `PlatformStateStore` 叠加本地状态。
+  - **课堂派**：凭据加密存储，支持短信验证码与账号密码双模式登录；动态获取当学期有效课程，按顺序抓取作业与随堂测验，自动滤除已交项；使用 `PlatformStateStore` 叠加本地状态。
   - **同济OJ**：凭据与会话加密存储，默认支持同济统一身份认证登录（`Unified_Certification`）并提供平台密码登录回退；仅只读抓取顶层作业列表，将每次作业作为一条待办事项导入，不读取提交记录或按分数判定完成，绝不打开题目详情或提交任何作业。完成与撤销由用户手动操作，沿用稳定作业 ID，并通过独立的 `PlatformStateStore` 叠加本地状态；同步与缓存版本更新不得重置这些状态或外部作业子任务。
 - **Agent 接入与凭据 (`agent_auth.py`, `agent_mcp.py`)**：
   - 用户专属 Agent Token 采用独立高熵密钥生成（`cda_...`），在 `data/users/<username>/agent_token.json` 中仅存储 SHA-256 哈希，支持随时一键撤销与重置。

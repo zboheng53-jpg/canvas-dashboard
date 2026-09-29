@@ -34,10 +34,12 @@ def test_haoke_todos_returns_stale_cache_and_starts_refresh(client_with_user, mo
             "cached": True,
             "fetched_at": 123.0,
             "stale": True,
-            "refreshing": bool(refreshed),
         },
     )
     monkeypatch.setattr(dashboard_app, "start_haoke_background_refresh", lambda username: refreshed.append(username) or True)
+    # The endpoint reports the polling flag from the live refresh registry, not
+    # from the cache snapshot it read before submitting the job.
+    monkeypatch.setattr(dashboard_app, "is_haoke_refreshing", lambda username: bool(refreshed))
     monkeypatch.setattr(dashboard_app, "fetch_haoke_todos", lambda username: fetched.append(username) or {"ok": True, "data": []})
     monkeypatch.setattr(dashboard_app, "load_haoke_state", lambda username: {"hidden": [], "highlighted": [], "deleted": []})
     monkeypatch.setattr(dashboard_app, "save_haoke_state", lambda username, state: None)
@@ -71,6 +73,7 @@ def test_haoke_todos_reports_refreshing_when_stale_refresh_already_active(client
         },
     )
     monkeypatch.setattr(dashboard_app, "start_haoke_background_refresh", lambda username: False)
+    monkeypatch.setattr(dashboard_app, "is_haoke_refreshing", lambda username: True)
     monkeypatch.setattr(dashboard_app, "fetch_haoke_todos", lambda username: pytest.fail("stale cache should not fetch"))
     monkeypatch.setattr(dashboard_app, "load_haoke_state", lambda username: {"hidden": [], "highlighted": [], "deleted": []})
 
@@ -129,6 +132,7 @@ def test_haoke_todos_returns_pending_when_cache_missing(client_with_user, monkey
     monkeypatch.setattr(dashboard_app, "has_haoke_credentials", lambda username: True)
     monkeypatch.setattr(dashboard_app, "get_haoke_cached_todos", lambda username: None)
     monkeypatch.setattr(dashboard_app, "start_haoke_background_refresh", lambda username: refreshed.append(username) or True)
+    monkeypatch.setattr(dashboard_app, "is_haoke_refreshing", lambda username: bool(refreshed))
     monkeypatch.setattr(dashboard_app, "fetch_haoke_todos", lambda username: pytest.fail("cold cache must not fetch synchronously"))
     monkeypatch.setattr(dashboard_app, "load_haoke_state", lambda username: {"hidden": [], "highlighted": [], "deleted": []})
 

@@ -22,6 +22,8 @@
 
 ## 这轮先加的保护
 
+第一批整改的当前实现与人工检查方法见 [运维说明](operations.md#basic-operational-monitoring)：五个普通 HTTP 平台共用 2 线程／32 任务预算，普通读取缓存优先，账户独占锁仅保护关键写入；Nginx 直读静态资源并剥离 VNC 下游认证头。旧密码课表入口已在代码中关闭；废弃应用的停服归档在部署成功后执行。这些是待验收的实现状态，尚不能代替实际发布、真实平台登录或生产峰值资源证据。
+
 - 智慧树和同济课表认证窗口共用 `CANVAS_DASHBOARD_LOGIN_MAX_SESSIONS`，默认总共 1 个；并发启动直接返回 429 和可重试提示，不占着请求线程排队。每个容器已有 512 MiB、0.5 CPU 和进程数限制。内存限额不等于内存预留，swap 的行为也须单独理解，见 [Docker 资源限制](https://docs.docker.com/engine/containers/resource_constraints/)。
 - `CANVAS_DASHBOARD_REGISTRATION_ENABLED=0` 可以临时关闭新注册；已有用户正常登录。修改服务环境后重启生效，默认仍允许注册。
 - Canvas 馈送源默认只允许 `canvas.tongji.edu.cn`。其他学校由维护者在 `CANVAS_DASHBOARD_CANVAS_FEED_HOSTS` 中用逗号加入核验过的域名；只允许 HTTPS 443，不跟随重定向，不把带 Token 的 URL 写入错误日志。它是受信上游白名单，不能添加用户任意控制的域名。

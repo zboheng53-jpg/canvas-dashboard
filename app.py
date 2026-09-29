@@ -10,6 +10,10 @@ import ketangpai_client
 import logging
 import os
 import platform_sync
+import platform_http
+import http_sync
+import runtime_metrics
+from remote_operations import background_operation, task_status
 import requests
 import secrets
 import settings
@@ -26,6 +30,7 @@ from static_assets import load_manifest
 from action_contract import ActionConflictError, ActionValidationError
 from agent_mcp import WRITING_RULES
 from canvas_auth import (
+    delete_expired_completed as delete_canvas_expired_completed,
     cached_items as canvas_cached_items,
     delete_expired_hidden as delete_canvas_expired_hidden,
     fetch_canvas_planner,
@@ -44,6 +49,7 @@ from datetime import datetime, timedelta
 from external_subtasks import attach_subtasks, save_subtasks
 from flask import Flask, abort, g, jsonify, redirect, render_template, request, session
 from haoke_client import (
+    delete_expired_completed as delete_haoke_expired_completed,
     clear_credentials as clear_haoke_credentials,
     delete_expired_hidden as delete_haoke_expired_hidden,
     fetch_haoke_todos,
@@ -58,6 +64,7 @@ from haoke_client import (
     update_state as update_haoke_state,
 )
 from ketangpai_client import (
+    delete_expired_completed as delete_ktp_expired_completed,
     delete_expired_hidden as delete_ktp_expired_hidden,
     fetch_assignments as fetch_ktp_assignments,
     fetch_courses as fetch_ktp_courses,
@@ -80,6 +87,7 @@ from services.academic import _check_today_holiday, get_term_info
 from services.workspace import CALENDAR_CATEGORIES, CATEGORY_ALIASES, _calendar_items, _parse_calendar_due
 from storage import JsonFileCorruptionError, read_json_file
 from tongji_oj_client import (
+    delete_expired_completed as delete_tjoj_expired_completed,
     delete_expired_hidden as delete_tjoj_expired_hidden,
     get_selected_course as get_tjoj_selected_course,
     has_credentials as has_tjoj_credentials,
@@ -105,6 +113,7 @@ from web_common import (
 )
 from werkzeug.middleware.proxy_fix import ProxyFix
 from zhixuemeng_client import (
+    delete_expired_completed as delete_zxm_expired_completed,
     delete_expired_hidden as delete_zxm_expired_hidden,
     fetch_assignments as fetch_zxm_assignments,
     fetch_courses as fetch_zxm_courses,
@@ -151,6 +160,13 @@ def _fingerprint_static_urls(endpoint, values):
     if endpoint == 'static' and values.get('filename') in _asset_manifest:
         values['filename'] = _asset_manifest[values['filename']]
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=0, x_prefix=0)
+
+
+@app.before_request
+def _record_request_start():
+    if request.path.startswith("/api/"):
+        g.metrics_started = time.monotonic()
+        runtime_metrics.request_started()
 
 
 @app.before_request
@@ -503,7 +519,8 @@ def _clear_json_file(path: Path) -> None:
     """Delete only a known file and never silently erase malformed JSON."""
     if path.exists():
         read_json_file(path, {})
-        path.unlink()
+        from storage import delete_file
+        delete_file(path)
 
 
 @app.before_request
@@ -517,11 +534,6 @@ def _require_login():
         if request.path.startswith("/api/"):
             return jsonify({"ok": False, "error": "unauthorized"}), 401
         return redirect("/login")
-    # Keep an authenticated request on its original account instance until its
-    # writes finish; deletion/re-registration cannot redirect it to a new user.
-    operation = auth.account_operation(username)
-    operation.__enter__()
-    g.account_operation = operation
     raw_active_at = session.get(_SESSION_ACTIVITY_KEY)
     if raw_active_at:
         try:
@@ -548,6 +560,16 @@ def _require_login():
             return jsonify({"ok": False, "error": "unauthorized"}), 401
         return redirect("/login")
 
+    operation = auth.identity_scope(username, (session["account_id"], session["session_version"])
+                                    if has_identity_claims else auth.session_identity(username))
+    operation.__enter__()
+    g.account_operation = operation
+
+
+@app.errorhandler(auth.AccountIdentityChanged)
+def handle_account_identity_changed(error):
+    return api_error("account_changed", "账户或平台连接已变更，请刷新后重试", 409)
+
 
 @app.errorhandler(JsonFileCorruptionError)
 def handle_json_file_corruption(error):
@@ -559,6 +581,10 @@ def handle_json_file_corruption(error):
 
 @app.teardown_request
 def _release_account_operation(error=None):
+    started = g.pop("metrics_started", None)
+    if started is not None:
+        runtime_metrics.request_finished(request.endpoint or "unknown", request.method, 500,
+                                         time.monotonic() - started)
     operation = g.pop("account_operation", None)
     if operation:
         operation.__exit__(None, None, None)
@@ -979,6 +1005,29 @@ def api_revoke_other_sessions():
     return jsonify({"ok": True, "message": "其他设备的登录状态已失效"})
 
 
+@app.route("/api/operations/<token>")
+def api_operation_status(token):
+    result, status = task_status(token, session["username"])
+    return jsonify(result), status
+
+
+@app.after_request
+def _record_request_end(response):
+    started = g.pop("metrics_started", None)
+    if started is not None:
+        runtime_metrics.request_finished(request.endpoint or "unknown", request.method,
+                                         response.status_code, time.monotonic() - started)
+    return response
+
+
+@app.route("/api/diagnostics/runtime")
+def api_runtime_diagnostics():
+    from system_monitor import system_snapshot
+    from login_capacity import capacity_snapshot
+    return jsonify({"ok": True, "system": system_snapshot(DATA_DIR), "web": runtime_metrics.web_snapshot(),
+                    "sync": http_sync.snapshot(), "browsers": capacity_snapshot(DATA_DIR)})
+
+
 @app.route("/api/clock")
 def api_clock():
     now = datetime.now(CST)
@@ -999,59 +1048,37 @@ def api_clock():
     })
 
 
+def _refresh_weather(campus):
+    try:
+        response = requests.get(_weather_url_for(campus), timeout=5)
+        current = response.json().get("current", {})
+        code = current.get("weather_code", -1)
+        desc, emoji = WMO_CODES.get(code, (f"未知({code})", "?"))
+        payload = {"ok": True, "temperature": current.get("temperature_2m"),
+                   "humidity": current.get("relative_humidity_2m"), "campus": campus,
+                   "campus_name": WEATHER_CAMPUSES[campus]["name"], "weather_code": code,
+                   "weather_desc": desc, "weather_emoji": emoji}
+        _weather_cache[campus] = {"data": payload, "cached_at": time.time()}
+        return payload
+    except Exception:
+        cached = _weather_cache.get(campus, {})
+        _weather_cache[campus] = {**cached, "retry_at": time.time() + 60}
+        return {"ok": False}
+
+
 @app.route("/api/weather")
 def api_weather():
-    try:
-        campus = request.args.get("campus", "siping")
-        if campus not in WEATHER_CAMPUSES:
-            return api_error("weather_campus_invalid", "校区无效", 400)
-
-        now = time.time()
-        getter_id = id(requests.get)
-        cached = _weather_cache.get(campus)
-        if cached and (now - cached.get("cached_at", 0) < WEATHER_CACHE_TTL_SECONDS) and cached.get("getter_id") == getter_id:
-            return jsonify(cached["data"])
-
-        lock = _weather_locks.get(campus)
-        if lock is None:
-            lock = threading.Lock()
-            _weather_locks[campus] = lock
-
-        with lock:
-            cached = _weather_cache.get(campus)
-            if cached and (now - cached.get("cached_at", 0) < WEATHER_CACHE_TTL_SECONDS) and cached.get("getter_id") == getter_id:
-                return jsonify(cached["data"])
-
-            try:
-                resp = requests.get(_weather_url_for(campus), timeout=5)
-                data = resp.json()
-                current = data.get("current", {})
-                code = current.get("weather_code", -1)
-                desc, emoji = WMO_CODES.get(code, (f"未知({code})", "?"))
-                payload = {
-                    "ok": True,
-                    "temperature": current.get("temperature_2m"),
-                    "humidity": current.get("relative_humidity_2m"),
-                    "campus": campus,
-                    "campus_name": WEATHER_CAMPUSES[campus]["name"],
-                    "weather_code": code,
-                    "weather_desc": desc,
-                    "weather_emoji": emoji,
-                }
-                _weather_cache[campus] = {
-                    "data": payload,
-                    "cached_at": time.time(),
-                    "getter_id": getter_id,
-                }
-                return jsonify(payload)
-            except Exception as e:
-                logger.warning(f"Weather fetch failed: {e}")
-                if cached and cached.get("getter_id") == getter_id:
-                    return jsonify(cached["data"])
-                return jsonify({"ok": False, "error": "weather fetch failed"})
-    except Exception as e:
-        logger.warning(f"Weather route failed: {e}")
-        return jsonify({"ok": False, "error": "weather fetch failed"})
+    campus = request.args.get("campus", "siping")
+    if campus not in WEATHER_CAMPUSES:
+        return api_error("weather_campus_invalid", "校区无效", 400)
+    cached = _weather_cache.get(campus, {})
+    if (time.time() - cached.get("cached_at", 0) >= WEATHER_CACHE_TTL_SECONDS
+            and time.time() >= cached.get("retry_at", 0)):
+        http_sync.submit_http_sync("__system__", "weather", lambda: _refresh_weather(campus),
+                                   job_type=campus, system=True)
+    result = dict(cached.get("data") or {"ok": False, "error": "天气暂不可用"})
+    result["pending"] = http_sync.is_refreshing("__system__", "weather", campus)
+    return jsonify(result)
 
 
 @app.route("/api/config", methods=["GET", "POST", "DELETE"])
@@ -1106,6 +1133,7 @@ def api_canvas_todos():
         result,
         state,
         expire_hidden=lambda expired_ids: delete_canvas_expired_hidden(username, expired_ids),
+        expire_completed=lambda items, now: delete_canvas_expired_completed(username, items, now),
         now=datetime.now(CST),
     )
     result = attach_subtasks(username, "canvas", result)
@@ -1186,23 +1214,22 @@ def api_haoke_todos():
                 "cached": True,
                 "stale": True,
                 "has_cache": False,
-                "refreshing": True,
+                "refreshing": is_haoke_refreshing(username),
             }
         else:
-            result = fetch_haoke_todos(username)
-            platform_sync.record_result(
-                username, "haoke", ok=bool(result.get("ok")) and not bool(result.get("cached")),
-                has_cache=_platform_cache_path(username, "haoke").exists(), cached=bool(result.get("cached")),
-                error_code=result.get("code"), error_message=result.get("error"),
-            )
+            result = {"ok": False, "error": "未配置好课账号", "need_setup": True, "data": []}
     result = dict(result)
-    result.setdefault("refreshing", is_haoke_refreshing(username))
+    # Reading the cache snapshot happens before the refresh is submitted, so the
+    # polling flag must be re-read afterwards; otherwise a stale cache answers
+    # "not refreshing" and the browser stops polling before the result lands.
+    result["refreshing"] = is_haoke_refreshing(username)
     result = _with_default_error_code(result, _haoke_default_error_code(result))
     state = load_haoke_state(username)
     result = build_platform_todos_response(
         result,
         state,
         expire_hidden=lambda expired_ids: delete_haoke_expired_hidden(username, expired_ids),
+        expire_completed=lambda items, now: delete_haoke_expired_completed(username, items, now),
         now=datetime.now(CST),
     )
     result = attach_subtasks(username, "haoke", result)
@@ -1230,6 +1257,7 @@ def api_haoke_state():
 
 
 @app.route("/api/zhixuemeng/send-sms", methods=["POST"])
+@background_operation("zhixuemeng", "api_zxm_send_sms")
 def api_zxm_send_sms():
     data = read_json_request()
     if data is None:
@@ -1247,6 +1275,7 @@ def api_zxm_send_sms():
 
 
 @app.route("/api/zhixuemeng/login", methods=["POST"])
+@background_operation("zhixuemeng", "api_zxm_login")
 def api_zxm_login():
     username = session["username"]
     data = read_json_request()
@@ -1263,6 +1292,7 @@ def api_zxm_login():
 
 
 @app.route("/api/zhixuemeng/login-password", methods=["POST"])
+@background_operation("zhixuemeng", "api_zxm_login_password")
 def api_zxm_login_password():
     username = session["username"]
     data = read_json_request()
@@ -1292,9 +1322,11 @@ def api_zxm_config():
     has_token = has_zxm_token(username)
     result = {"ok": True, "has_token": has_token}
     if has_token:
-        courses_result = fetch_zxm_courses(username)
-        if courses_result.get("ok"):
-            result["courses"] = courses_result["courses"]
+        cached = platform_http.cached_assignments(username, "zhixuemeng")
+        result["courses"] = cached["courses"]
+        if cached["stale"]:
+            platform_http.start_refresh(username, "zhixuemeng")
+        result["refreshing"] = http_sync.is_refreshing(username, "zhixuemeng")
         result["selected_course"] = get_selected_course(username)
     return jsonify(result)
 
@@ -1314,26 +1346,22 @@ def api_zxm_course():
 def api_zxm_todos():
     username = session["username"]
     course_code = request.args.get("course_code", "").strip() or get_selected_course(username)
-    had_token = has_zxm_token(username)
-    result = fetch_zxm_assignments(username, course_code)
-    if had_token and not result.get("cached"):
-        platform_sync.record_result(
-            username, "zhixuemeng", ok=bool(result.get("ok")) and bool(result.get("sync_complete", True)),
-            has_cache=_platform_cache_path(username, "zhixuemeng").exists(), cached=False,
-            error_code="sync_incomplete" if result.get("sync_complete") is False else result.get("code"),
-            error_message=result.get("error"),
-        )
+    result = platform_http.cached_assignments(username, "zhixuemeng", course_code)
+    if (request.args.get("cache_only") != "1" and result["stale"] and has_zxm_token(username)) or request.args.get("refresh") == "1":
+        platform_http.start_refresh(username, "zhixuemeng")
     state = load_zxm_state(username)
     result = build_platform_todos_response(
         result,
         state,
         items_key="items",
         expire_hidden=lambda expired_ids: delete_zxm_expired_hidden(username, expired_ids),
+        expire_completed=lambda items, now: delete_zxm_expired_completed(username, items, now),
         now=datetime.now(CST),
     )
     result = attach_subtasks(username, "zhixuemeng", result)
     connection_state = "connected" if has_zxm_token(username) else platform_sync.get(username, "zhixuemeng")["connection_state"]
-    return jsonify(_attach_sync(result, "zhixuemeng", connection_state=connection_state))
+    return jsonify(_attach_sync(result, "zhixuemeng", connection_state=connection_state,
+                                      refreshing=http_sync.is_refreshing(username, "zhixuemeng")))
 
 
 @app.route("/api/zhixuemeng/state", methods=["GET", "POST"])
@@ -1356,6 +1384,7 @@ def api_zxm_state():
 
 
 @app.route("/api/ketangpai/send-sms", methods=["POST"])
+@background_operation("ketangpai", "api_ktp_send_sms")
 def api_ktp_send_sms():
     data = read_json_request()
     if data is None:
@@ -1375,12 +1404,14 @@ def api_ktp_send_sms():
 
 
 @app.route("/api/ketangpai/figure-code")
+@background_operation("ketangpai", "api_ktp_figure_code")
 def api_ktp_figure_code():
     result = ketangpai_client.get_figure_code()
     return jsonify(result)
 
 
 @app.route("/api/ketangpai/login", methods=["POST"])
+@background_operation("ketangpai", "api_ktp_login")
 def api_ktp_login():
     username = session["username"]
     data = read_json_request()
@@ -1397,6 +1428,7 @@ def api_ktp_login():
 
 
 @app.route("/api/ketangpai/login-password", methods=["POST"])
+@background_operation("ketangpai", "api_ktp_login_password")
 def api_ktp_login_password():
     username = session["username"]
     data = read_json_request()
@@ -1426,9 +1458,11 @@ def api_ktp_config():
     has_token = has_ktp_token(username)
     result = {"ok": True, "has_token": has_token}
     if has_token:
-        courses_result = fetch_ktp_courses(username)
-        if courses_result.get("ok"):
-            result["courses"] = courses_result["courses"]
+        cached = platform_http.cached_assignments(username, "ketangpai")
+        result["courses"] = cached["courses"]
+        if cached["stale"]:
+            platform_http.start_refresh(username, "ketangpai")
+        result["refreshing"] = http_sync.is_refreshing(username, "ketangpai")
     return jsonify(result)
 
 
@@ -1436,26 +1470,22 @@ def api_ktp_config():
 def api_ktp_todos():
     username = session["username"]
     course_id = request.args.get("course_id", "").strip()
-    had_token = has_ktp_token(username)
-    result = fetch_ktp_assignments(username, course_id=course_id)
-    if had_token and not result.get("cached"):
-        platform_sync.record_result(
-            username, "ketangpai", ok=bool(result.get("ok")) and bool(result.get("sync_complete", True)),
-            has_cache=_platform_cache_path(username, "ketangpai").exists(), cached=False,
-            error_code="sync_incomplete" if result.get("sync_complete") is False else result.get("code"),
-            error_message=result.get("error"),
-        )
+    result = platform_http.cached_assignments(username, "ketangpai", course_id)
+    if (request.args.get("cache_only") != "1" and result["stale"] and has_ktp_token(username)) or request.args.get("refresh") == "1":
+        platform_http.start_refresh(username, "ketangpai")
     state = load_ktp_state(username)
     result = build_platform_todos_response(
         result,
         state,
         items_key="items",
         expire_hidden=lambda expired_ids: delete_ktp_expired_hidden(username, expired_ids),
+        expire_completed=lambda items, now: delete_ktp_expired_completed(username, items, now),
         now=datetime.now(CST),
     )
     result = attach_subtasks(username, "ketangpai", result)
     connection_state = "connected" if has_ktp_token(username) else platform_sync.get(username, "ketangpai")["connection_state"]
-    return jsonify(_attach_sync(result, "ketangpai", connection_state=connection_state))
+    return jsonify(_attach_sync(result, "ketangpai", connection_state=connection_state,
+                                      refreshing=http_sync.is_refreshing(username, "ketangpai")))
 
 
 @app.route("/api/ketangpai/state", methods=["GET", "POST"])
@@ -1479,6 +1509,7 @@ def api_ktp_state():
 
 @app.route("/api/tongjioj/login", methods=["POST"])
 @app.route("/api/tongjioj/login-iam", methods=["POST"])
+@background_operation("tongjioj", "api_tjoj_login_iam")
 def api_tjoj_login_iam():
     username = session["username"]
     data = read_json_request()
@@ -1495,6 +1526,7 @@ def api_tjoj_login_iam():
 
 
 @app.route("/api/tongjioj/iam-send-code", methods=["POST"])
+@background_operation("tongjioj", "api_tjoj_iam_send_code")
 def api_tjoj_iam_send_code():
     username = session["username"]
     data = read_json_request() or {}
@@ -1509,6 +1541,7 @@ def api_tjoj_iam_send_code():
 
 
 @app.route("/api/tongjioj/iam-verify-code", methods=["POST"])
+@background_operation("tongjioj", "api_tjoj_iam_verify_code")
 def api_tjoj_iam_verify_code():
     username = session["username"]
     data = read_json_request()
@@ -1525,6 +1558,7 @@ def api_tjoj_iam_verify_code():
 
 
 @app.route("/api/tongjioj/login-local", methods=["POST"])
+@background_operation("tongjioj", "api_tjoj_login_local")
 def api_tjoj_login_local():
     username = session["username"]
     data = read_json_request()
@@ -1593,6 +1627,7 @@ def api_tjoj_todos():
         state,
         items_key="items",
         expire_hidden=lambda expired_ids: delete_tjoj_expired_hidden(username, expired_ids),
+        expire_completed=lambda items, now: delete_tjoj_expired_completed(username, items, now),
         now=datetime.now(CST),
     )
     result = attach_subtasks(username, "tongjioj", result)
@@ -1671,7 +1706,8 @@ def api_zhihuishu_todos():
         "fetched_at": cache["fetched_at"],
         "status": status,
     }
-    result = build_platform_todos_response(result, state, auto_delete_expired_hidden=False)
+    result = build_platform_todos_response(result, state, now=datetime.now(CST),
+        expire_completed=lambda items, now: zhihuishu_store.delete_expired_completed(username, items, now))
     result = attach_subtasks(username, "zhihuishu", result)
     state_name = "connected" if status.get("session") == "active" else platform_sync.get(username, "zhihuishu")["connection_state"]
     return jsonify(_attach_sync(result, "zhihuishu", connection_state=state_name))
@@ -1804,6 +1840,7 @@ def api_zhihuishu_login_required():
 
 
 @app.route("/api/zhihuishu/login-session", methods=["POST"])
+@background_operation("zhihuishu", "api_zhihuishu_login_session")
 def api_zhihuishu_login_session():
     username = session["username"]
     try:
@@ -1856,6 +1893,7 @@ def api_zhihuishu_login_session_auth():
 
 
 @app.route("/api/zhihuishu/login-session/<token>/complete", methods=["POST"])
+@background_operation("zhihuishu", "api_zhihuishu_login_session_complete")
 def api_zhihuishu_login_session_complete(token):
     username = session["username"]
     login_session = zhihuishu_login_sessions.session_for_token(token)

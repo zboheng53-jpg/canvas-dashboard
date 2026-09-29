@@ -2,6 +2,7 @@ server {
     listen 80;
     listen [::]:80;
     server_name canvas-dashboard.xyz www.canvas-dashboard.xyz;
+    client_max_body_size 8m;
 
     location ^~ /.well-known/acme-challenge/ {
         root /var/www/certbot;
@@ -17,6 +18,7 @@ server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
     server_name canvas-dashboard.xyz www.canvas-dashboard.xyz;
+    client_max_body_size 8m;
 
     ssl_certificate /etc/letsencrypt/live/canvas-dashboard.xyz/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/canvas-dashboard.xyz/privkey.pem;
@@ -27,15 +29,17 @@ server {
     add_header Strict-Transport-Security "max-age=31536000" always;
 
     location ^~ /static/ {
-        proxy_pass http://127.0.0.1:5000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-Host "";
-        proxy_set_header X-Forwarded-Prefix "";
+        alias /home/ubuntu/canvas-dashboard/current/frontend/assets/;
+        autoindex off;
+        add_header Cache-Control "public, no-cache" always;
+        add_header Strict-Transport-Security "max-age=31536000" always;
         gzip on;
-        gzip_types text/css application/javascript;
+        gzip_types text/css application/javascript application/json image/svg+xml;
+        location ~ "^/static/(?<asset_path>built/(?:css|js)/.+\.[a-f0-9]{20}\.(?:css|js))$" {
+            alias /home/ubuntu/canvas-dashboard/current/frontend/assets/$asset_path;
+            add_header Cache-Control "public, max-age=31536000, immutable";
+            add_header Strict-Transport-Security "max-age=31536000" always;
+        }
     }
 
     location = /_zhihuishu_vnc_auth {
@@ -46,6 +50,7 @@ server {
         proxy_pass_request_body off;
         proxy_set_header Content-Length "";
         proxy_set_header Cookie $http_cookie;
+        proxy_set_header Authorization "";
         proxy_set_header X-Zhihuishu-Token $zhs_token;
         proxy_set_header X-Zhihuishu-Port $zhs_port;
         proxy_set_header Host $host;
@@ -63,6 +68,9 @@ server {
         error_page 401 403 = @zhs_vnc_denied;
         rewrite ^/zhs-vnc/[0-9]+/[^/]+/(.*)$ /$1 break;
         proxy_pass http://127.0.0.1:$zhs_port;
+        proxy_set_header Cookie "";
+        proxy_set_header Authorization "";
+        proxy_hide_header Set-Cookie;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -91,6 +99,7 @@ server {
         proxy_pass_request_body off;
         proxy_set_header Content-Length "";
         proxy_set_header Cookie $http_cookie;
+        proxy_set_header Authorization "";
         proxy_set_header X-Tongji-Token $tji_token;
         proxy_set_header X-Tongji-Port $tji_port;
         proxy_set_header Host $host;
@@ -108,6 +117,9 @@ server {
         error_page 401 403 = @tongji_vnc_denied;
         rewrite ^/tji-vnc/[0-9]+/[^/]+/(.*)$ /$1 break;
         proxy_pass http://127.0.0.1:$tji_port;
+        proxy_set_header Cookie "";
+        proxy_set_header Authorization "";
+        proxy_hide_header Set-Cookie;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -139,25 +151,11 @@ server {
         proxy_set_header X-Forwarded-Prefix "";
     }
 
-    location /daily-english/ {
-        proxy_pass http://127.0.0.1:8080/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-Host "";
-        proxy_set_header X-Forwarded-Prefix "";
-    }
+    location = /daily-english { return 410; }
+    location ^~ /daily-english/ { return 410; }
 
-    location /life-list/ {
-        proxy_pass http://127.0.0.1:5002/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-Host "";
-        proxy_set_header X-Forwarded-Prefix /life-list;
-    }
+    location = /life-list { return 410; }
+    location ^~ /life-list/ { return 410; }
 
     location / {
         proxy_pass http://127.0.0.1:5000;

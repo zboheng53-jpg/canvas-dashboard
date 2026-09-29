@@ -1,3 +1,5 @@
+from operation_helpers import operation_client
+import auth
 from routes import planning as planning_routes
 from services import workspace as workspace_service
 import json
@@ -17,12 +19,15 @@ def _client(tmp_path, monkeypatch, username="alice"):
         path = tmp_path / "users" / name
         path.mkdir(parents=True, exist_ok=True)
         return path
+    monkeypatch.setattr(auth, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(auth, "USERS_FILE", tmp_path / "users.json")
+    auth.register(username, "password1")
     monkeypatch.setattr(user_paths, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard_app, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard_app, "user_dir", resolve_user_dir)
     monkeypatch.setattr(workspace_service, "user_dir", resolve_user_dir)
     dashboard_app.app.config.update(TESTING=True)
-    client = dashboard_app.app.test_client()
+    client = operation_client(dashboard_app.app)
     with client.session_transaction() as session:
         session["username"] = username
         session["_csrf_token"] = f"csrf-{username}"
@@ -300,29 +305,20 @@ def test_refresh_failure_keeps_previous_course_cache(tmp_path, monkeypatch):
         raise tongji_timetable.TimetableLoginError("登录未完成")
     monkeypatch.setattr(tongji_timetable, "fetch_selected_courses_with_credentials", fail_login)
     response = client.post("/api/schedule/refresh", json={"username": "alice_no", "password": "wrong"}, headers=client.csrf_headers)
-    assert response.status_code == 401
+    assert response.status_code == 410
     assert json.loads((resolve_user_dir("alice") / "course_schedule.json").read_text(encoding="utf-8"))["courses"][0]["name"] == "旧课程"
 
 
-def test_refresh_uses_entered_credentials_and_keeps_them_out_of_storage(tmp_path, monkeypatch):
+def test_retired_refresh_never_launches_browser_or_stores_credentials(tmp_path, monkeypatch):
     client, resolve_user_dir = _client(tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        tongji_timetable,
-        "fetch_selected_courses_with_credentials",
-        lambda username, password: [{"name": f"{username}:{password}", "sessions": []}],
-    )
-    response = client.post("/api/schedule/refresh", json={"username": "alice_no", "password": "secret"}, headers=client.csrf_headers)
-    assert response.status_code == 200
-    saved = json.loads((resolve_user_dir("alice") / "course_schedule.json").read_text(encoding="utf-8"))
-    assert saved["courses"][0]["name"] == "alice_no:secret"
+    monkeypatch.setattr(tongji_timetable, "fetch_selected_courses_with_credentials",
+                        lambda *args: (_ for _ in ()).throw(AssertionError("retired browser launched")))
+    for body in ({"username": "alice_no", "password": "secret"}, {}):
+        response = client.post("/api/schedule/refresh", json=body, headers=client.csrf_headers)
+        assert response.status_code == 410
+        assert response.json["code"] == "timetable_refresh_retired"
     assert not (resolve_user_dir("alice") / "config.json").exists()
-
-
-def test_refresh_requires_tongji_credentials(tmp_path, monkeypatch):
-    client, _ = _client(tmp_path, monkeypatch)
-    response = client.post("/api/schedule/refresh", json={"username": "", "password": ""}, headers=client.csrf_headers)
-    assert response.status_code == 400
-    assert response.get_json()["code"] == "timetable_credentials_required"
+    assert not (resolve_user_dir("alice") / "course_schedule.json").exists()
 
 
 def test_tongji_login_session_creates_an_isolated_vnc_window(tmp_path, monkeypatch):
@@ -486,7 +482,7 @@ def test_recurring_item_can_pause_skip_edit_and_delete(tmp_path, monkeypatch):
 
 def test_schedule_mutations_require_authentication_and_csrf(tmp_path, monkeypatch):
     client, _ = _client(tmp_path, monkeypatch)
-    with dashboard_app.app.test_client() as anonymous:
+    with operation_client(dashboard_app.app) as anonymous:
         assert anonymous.get("/api/schedule/today").status_code == 401
     blocked = client.post("/api/schedule/recurring", json={"title": "阅读", "weekday": 0, "start_time": "08:00", "end_time": "09:00"})
     assert blocked.status_code == 403

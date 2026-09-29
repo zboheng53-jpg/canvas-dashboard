@@ -1,3 +1,4 @@
+from operation_helpers import wait_weather
 from datetime import datetime
 
 import app as dashboard_app
@@ -25,6 +26,7 @@ def test_clock_returns_chinese_weekday_for_thursday(tmp_path, monkeypatch):
 
 
 def test_weather_cloudy_response_is_chinese_and_uses_icon(tmp_path, monkeypatch):
+    dashboard_app._weather_cache.clear()
     class WeatherResponse:
         def json(self):
             return {
@@ -44,7 +46,7 @@ def test_weather_cloudy_response_is_chinese_and_uses_icon(tmp_path, monkeypatch)
         with client.session_transaction() as sess:
             sess["username"] = "alice"
 
-        resp = client.get("/api/weather")
+        resp = wait_weather(client)
 
     body = resp.get_json()
     assert resp.status_code == 200
@@ -71,7 +73,7 @@ def test_weather_endpoint_uses_tongji_siping_campus_coordinates(tmp_path, monkey
     with dashboard_app.app.test_client() as client:
         with client.session_transaction() as sess:
             sess["username"] = "alice"
-        response = client.get("/api/weather")
+        response = wait_weather(client)
 
     assert response.status_code == 200
     assert "latitude=31.28294&longitude=121.501489" in requested_urls[0]
@@ -96,7 +98,7 @@ def test_weather_endpoint_accepts_jiading_campus(tmp_path, monkeypatch):
     with dashboard_app.app.test_client() as client:
         with client.session_transaction() as sess:
             sess["username"] = "alice"
-        response = client.get("/api/weather?campus=jiading")
+        response = wait_weather(client, "jiading")
 
     assert response.status_code == 200
     assert response.get_json()["campus_name"] == "嘉定校区"

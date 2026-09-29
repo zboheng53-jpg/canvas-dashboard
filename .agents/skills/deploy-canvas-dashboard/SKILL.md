@@ -23,7 +23,7 @@ The script is the source of truth. It currently:
 4. rechecks the same clean, pushed commit after validation and backup, then archives that fixed commit and uploads an immutable timestamped, commit-labelled release under `/home/ubuntu/canvas-dashboard/releases/` without `data/`, `.venv/`, `.git/`, caches, or agent directories;
 5. atomically switches `/home/ubuntu/canvas-dashboard/current`;
 6. installs systemd/nginx configuration and restarts `canvas-dashboard.service` plus `zhihuishu-worker.service`;
-7. verifies both services, `zhihuishu-login-cleanup.timer`, `canvas-dashboard-backup.timer`, nginx, local `/healthz`, and HTTPS `/healthz`;
+7. verifies both services, `zhihuishu-login-cleanup.timer`, `canvas-dashboard-backup.timer`, `canvas-dashboard-monitor.timer`, nginx, local `/healthz`, and HTTPS `/healthz`, then retires the two explicitly discontinued applications through the checked retirement script;
 8. restores the previous release automatically if activation or health verification fails;
 9. after successful verification, keeps the newest five releases while always protecting the active and recorded rollback targets.
 

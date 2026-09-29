@@ -13,14 +13,14 @@ import user_paths
 
 
 @pytest.fixture
-def workspace(tmp_path, monkeypatch):
+def workspace(tmp_path, monkeypatch, isolated_data):
+    agent_auth.auth.register("alice", "password1")
     monkeypatch.setattr(user_paths, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard, "DATA_DIR", tmp_path)
     monkeypatch.setattr(dashboard, "user_dir", user_paths.user_dir)
     monkeypatch.setattr(workspace_service, "user_dir", user_paths.user_dir)
     monkeypatch.setattr(agent_auth, "user_dir", user_paths.user_dir)
     monkeypatch.setattr(agent_auth, "DATA_DIR", tmp_path)
-    monkeypatch.setattr(agent_auth.auth, "account_metadata", lambda username: {"status": "active"})
     dashboard.app.config.update(TESTING=True)
     client = dashboard.app.test_client()
     with client.session_transaction() as session:

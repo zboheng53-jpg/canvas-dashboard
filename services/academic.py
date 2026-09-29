@@ -212,36 +212,9 @@ def _fetch_holidays():
 
 
 def _get_holidays():
-    """Get holiday list with cache. Returns list or empty list."""
-    global _holiday_fetch_failed_at
-
-    cached = _load_holiday_cache()
-    if cached is not None:
-        return cached
-
-    now = datetime.now(CST)
-    if (_holiday_fetch_failed_at and
-            (now - _holiday_fetch_failed_at).total_seconds() < _HOLIDAY_FETCH_RETRY_INTERVAL):
-        return []
-
-    if not _holiday_fetch_lock.acquire(blocking=False):
-        return []
-
-    try:
-        cached = _load_holiday_cache()
-        if cached is not None:
-            return cached
-
-        fresh = _fetch_holidays()
-        if fresh is not None:
-            _holiday_fetch_failed_at = None
-            _save_holiday_cache(fresh)
-            return fresh
-
-        _holiday_fetch_failed_at = datetime.now(CST)
-        return []
-    finally:
-        _holiday_fetch_lock.release()
+    """Only read local holiday data; ordinary pages never create CDP browser tabs."""
+    data = read_json_file(_HOLIDAY_CACHE_FILE, {})
+    return data.get("holidays", []) if isinstance(data, dict) else []
 
 
 def _check_today_holiday(now):

@@ -930,6 +930,9 @@
       const item = (collections[platform] || []).find((entry) => String(entry.id) === String(id));
       if (item) item.done = !done;
       renderUnifiedList();
+      const refreshers = {canvas: fetchCanvasTodos, haoke: fetchHaokeTodos, zhixuemeng: fetchZhixuemengTodos,
+        zhihuishu: fetchZhihuishuTodos, ketangpai: fetchKetangpaiTodos, tongjioj: fetchTongjiojTodos};
+      if (!done) await refreshers[platform]();
       if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
     }
 

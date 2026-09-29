@@ -592,33 +592,8 @@ def _login(page, username, password):
 
 
 def fetch_selected_courses_with_credentials(username, password):
-    """Log in in an ephemeral browser and return the current user's courses.
-
-    The browser context is never persisted, so neither passwords nor login cookies
-    are written to disk.  This is intentionally separate from the local CDP flow.
-    """
-    try:
-        with _playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True)
-            try:
-                context = browser.new_context(viewport={"width": 1280, "height": 900}, locale="zh-CN")
-                page = context.new_page()
-                page.goto(TIMETABLE_URL, wait_until="domcontentloaded", timeout=60_000)
-                _login(page, username, password)
-                page.goto(TIMETABLE_URL, wait_until="networkidle", timeout=60_000)
-                try:
-                    page.wait_for_selector("table", timeout=20_000)
-                except Exception as exc:
-                    raise TimetableFetchError("已登录，但课表页面未加载完成") from exc
-                return _wait_for_selected_courses(page)
-            finally:
-                browser.close()
-    except TimetableLoginError:
-        raise
-    except TimetableFetchError:
-        raise
-    except Exception as exc:
-        raise TimetableFetchError("课表服务暂时无法访问") from exc
+    """Retired: authentication browsers must be managed through login_capacity."""
+    raise TimetableLoginError("账号密码自动刷新已停用，请使用临时认证窗口")
 
 
 def _wait_for_selected_courses(page, timeout_ms=60_000):

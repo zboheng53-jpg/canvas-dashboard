@@ -30,7 +30,9 @@ for unit in \
     canvas-dashboard-account-cleanup.service \
     canvas-dashboard-account-cleanup.timer \
     canvas-dashboard-backup.service \
-    canvas-dashboard-backup.timer
+    canvas-dashboard-backup.timer \
+    canvas-dashboard-monitor.service \
+    canvas-dashboard-monitor.timer
 do
     if [ -f "$target/deploy/$unit" ]; then
         sudo install -m 0644 "$target/deploy/$unit" "/etc/systemd/system/$unit"
@@ -46,6 +48,11 @@ sudo systemctl daemon-reload
 sudo nginx -t
 sudo systemctl restart canvas-dashboard.service zhihuishu-worker.service
 sudo systemctl try-restart zhihuishu-login-cleanup.timer canvas-dashboard-account-cleanup.timer canvas-dashboard-backup.timer
+if [ -f "$target/scripts/monitor_runtime.py" ]; then
+    sudo systemctl enable --now canvas-dashboard-monitor.timer
+else
+    sudo systemctl disable --now canvas-dashboard-monitor.timer 2>/dev/null || true
+fi
 sudo systemctl reload nginx
 for attempt in $(seq 1 20); do
     if curl -fsS --max-time 5 http://127.0.0.1:5000/healthz >/dev/null 2>&1; then

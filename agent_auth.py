@@ -381,6 +381,7 @@ def resolve_token(token: str) -> dict | None:
     return {
         "username": username,
         "token_id": matched_tok.get("id", token_id),
+        "account_identity": (account["account_id"], account["session_version"]),
         "name": matched_tok.get("name", "Agent Token"),
         "scopes": list(matched_tok.get("scopes", ["read"])),
         "token_hash_prefix": computed_hash[:16],

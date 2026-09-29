@@ -29,8 +29,10 @@ from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
 
 import settings
 import platform_sync
+import http_sync
+import auth
 from platform_state import PlatformStateStore
-from storage import locked_json_update, read_json_file, write_json_file
+from storage import locked_json_update, read_json_file, write_json_file, load_or_create_bytes, delete_file
 from user_paths import DATA_DIR, user_dir
 
 logger = logging.getLogger(__name__)
@@ -101,13 +103,7 @@ def _cache_file(username: str):
 # ---- Encryption helpers ----
 
 def _get_fernet() -> Fernet:
-    KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
-    if KEY_FILE.exists():
-        key = KEY_FILE.read_bytes().strip()
-    else:
-        key = Fernet.generate_key()
-        KEY_FILE.write_bytes(key)
-    return Fernet(key)
+    return Fernet(load_or_create_bytes(KEY_FILE, Fernet.generate_key))
 
 
 def _encrypt_rsa_password(plain_password: str, public_key_b64: str | None = None) -> str:
@@ -146,7 +142,7 @@ def save_credentials(
             cfg["tongjioj_cookies_encrypted"] = cookie_encrypted
         return cfg
 
-    with _refresh_lock:
+    with auth.account_write(username), _refresh_lock:
         _check_refresh_active(username)
         if getattr(_refresh_context, "job", None) is None:
             # A new explicit login invalidates an older background session.
@@ -155,7 +151,7 @@ def save_credentials(
             _cookie_cache[username] = dict(cookies)
         locked_json_update(_config_file(username), {}, _update)
         if getattr(_refresh_context, "job", None) is None:
-            _cache_file(username).unlink(missing_ok=True)
+            delete_file(_cache_file(username))
 
 
 def _save_cookies(username: str, cookies: dict[str, str]):
@@ -169,7 +165,7 @@ def _save_cookies(username: str, cookies: dict[str, str]):
         cfg["tongjioj_cookies_encrypted"] = cookie_encrypted
         return cfg
 
-    with _refresh_lock:
+    with auth.account_write(username), _refresh_lock:
         _check_refresh_active(username)
         _cookie_cache[username] = dict(cookies)
         locked_json_update(_config_file(username), {}, _update)
@@ -236,7 +232,7 @@ def has_credentials(username: str) -> bool:
 
 def logout(username: str):
     """Clear stored credentials and session cookies."""
-    with _refresh_lock:
+    with auth.account_write(username), _refresh_lock:
         _refresh_jobs.pop(username, None)
         _cookie_cache.pop(username, None)
         _pending_iam_sessions.pop(username, None)
@@ -287,7 +283,7 @@ def _save_courses(username: str, courses: list[dict]):
         cfg["tongjioj_courses"] = courses
         return cfg
 
-    with _refresh_lock:
+    with auth.account_write(username), _refresh_lock:
         _check_refresh_active(username)
         locked_json_update(_config_file(username), {}, _update)
 
@@ -489,7 +485,7 @@ def iam_login(username: str, student_id: str, password: str) -> dict:
                     "email": email,
                     "created_at": time.time(),
                 }
-                with _refresh_lock:
+                with auth.account_write(username), _refresh_lock:
                     _check_refresh_active(username)
                     _pending_iam_sessions[username] = pending_session
                 auth_methods = []
@@ -951,7 +947,7 @@ def _is_cache_fresh(cached: dict | None) -> bool:
 
 
 def _save_cache_payload(username: str, items: list[dict], courses: list[dict]):
-    with _refresh_lock:
+    with auth.account_write(username), _refresh_lock:
         _check_refresh_active(username)
         write_json_file(
             _cache_file(username),
@@ -993,7 +989,7 @@ def _get_cached_assignments(username: str, course_id: str | None = None) -> dict
 def _run_background_refresh(username: str, job: object):
     _refresh_context.job = job
     try:
-        with _refresh_lock:
+        with auth.account_write(username), _refresh_lock:
             _check_refresh_active(username)
         try:
             result = fetch_assignments(username, force_fetch=True)
@@ -1002,7 +998,7 @@ def _run_background_refresh(username: str, job: object):
         except Exception:
             logger.exception("Tongji OJ background refresh failed")
             result = {"ok": False, "error": "同济OJ同步失败，请稍后重试"}
-        with _refresh_lock:
+        with auth.account_write(username), _refresh_lock:
             _check_refresh_active(username)
             platform_sync.record_result(
                 username, "tongjioj", ok=bool(result.get("ok")) and not bool(result.get("cached")),
@@ -1010,6 +1006,7 @@ def _run_background_refresh(username: str, job: object):
                 error_code=result.get("code"), error_message=result.get("error"),
                 needs_reauth=result.get("code") == "needs_reauth",
             )
+        return result
     except _RefreshCancelled:
         pass
     finally:
@@ -1017,6 +1014,12 @@ def _run_background_refresh(username: str, job: object):
             if _refresh_jobs.get(username) is job:
                 _refresh_jobs.pop(username, None)
         del _refresh_context.job
+
+
+def _finish_refresh(username, job):
+    with _refresh_lock:
+        if _refresh_jobs.get(username) is job:
+            _refresh_jobs.pop(username, None)
 
 
 def start_background_refresh(username: str) -> bool:
@@ -1027,8 +1030,12 @@ def start_background_refresh(username: str) -> bool:
         job = object()
         _refresh_jobs[username] = job
         try:
-            threading.Thread(target=_run_background_refresh, args=(username, job), daemon=True,
-                             name="tongjioj-refresh").start()
+            scheduled = http_sync.submit_http_sync(username, "tongjioj",
+                lambda: _run_background_refresh(username, job), is_connected_fn=has_credentials,
+                on_finished=lambda: _finish_refresh(username, job))
+            if not scheduled:
+                _refresh_jobs.pop(username, None)
+                return False
         except Exception:
             _refresh_jobs.pop(username, None)
             raise
@@ -1166,3 +1173,4 @@ save_state = _STATE.save
 update_state = _STATE.update
 update_override = _STATE.update_override
 delete_expired_hidden = _STATE.delete_expired_hidden
+delete_expired_completed = _STATE.delete_expired_completed

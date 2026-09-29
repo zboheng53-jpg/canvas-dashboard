@@ -1,54 +1,19 @@
+import pytest
+
 from services import academic as academic_service
-import web_common
-import importlib.util
-import pathlib
-import sys
-import unittest
-from datetime import datetime, timedelta
-from unittest.mock import patch
+from storage import write_json_file
 
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+@pytest.mark.parametrize("holidays", [[], [{"name": "国庆", "begin_day": "2026-10-01", "end_day": "2026-10-07"}]])
+def test_holidays_read_local_cache_without_network_or_browser(tmp_path, monkeypatch, holidays):
+    path = tmp_path / "holiday_cache.json"
+    monkeypatch.setattr(academic_service, "_HOLIDAY_CACHE_FILE", path)
+    monkeypatch.setattr(academic_service, "_fetch_holidays", lambda: pytest.fail("ordinary read opened CDP"))
+    write_json_file(path, {"holidays": holidays, "fetched_at": "2000-01-01T00:00:00+08:00"})
+    assert academic_service._get_holidays() == holidays
 
 
-
-
-class HolidayFetchThrottlingTests(unittest.TestCase):
-    def setUp(self):
-        academic_service._holiday_fetch_failed_at = None
-
-    def tearDown(self):
-        academic_service._holiday_fetch_failed_at = None
-
-    @patch.object(academic_service, "_load_holiday_cache", return_value=None)
-    @patch.object(academic_service, "_fetch_holidays", return_value=None)
-    def test_failed_fetch_is_not_retried_immediately(self, fetch_holidays, load_holiday_cache):
-        self.assertEqual(academic_service._get_holidays(), [])
-        self.assertEqual(academic_service._get_holidays(), [])
-
-        self.assertEqual(fetch_holidays.call_count, 1)
-
-    @patch.object(academic_service, "_load_holiday_cache", return_value=None)
-    @patch.object(academic_service, "_fetch_holidays", return_value=[])
-    def test_empty_success_is_cached(self, fetch_holidays, load_holiday_cache):
-        self.assertEqual(academic_service._get_holidays(), [])
-
-        self.assertIsNone(academic_service._holiday_fetch_failed_at)
-        fetch_holidays.assert_called_once()
-
-    @patch.object(academic_service, "_load_holiday_cache", return_value=None)
-    @patch.object(academic_service, "_fetch_holidays", return_value=None)
-    def test_failed_fetch_retries_after_interval(self, fetch_holidays, load_holiday_cache):
-        academic_service._holiday_fetch_failed_at = (
-            datetime.now(web_common.CST)
-            - timedelta(seconds=academic_service._HOLIDAY_FETCH_RETRY_INTERVAL + 1)
-        )
-
-        self.assertEqual(academic_service._get_holidays(), [])
-
-        fetch_holidays.assert_called_once()
-
-
-if __name__ == "__main__":
-    unittest.main()
+def test_missing_holiday_cache_is_immediate_empty(tmp_path, monkeypatch):
+    monkeypatch.setattr(academic_service, "_HOLIDAY_CACHE_FILE", tmp_path / "missing.json")
+    monkeypatch.setattr(academic_service, "_fetch_holidays", lambda: pytest.fail("ordinary read opened CDP"))
+    assert academic_service._get_holidays() == []

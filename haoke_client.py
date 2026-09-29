@@ -546,36 +546,18 @@ def _run_background_refresh(username: str, initial_identity=None, revision=None)
                 has_cache=_cache_file(username).exists(), cached=bool(result.get("cached")),
                 error_code=result.get("code"), error_message="好课刷新失败，已保留上次数据" if not result.get("ok") or result.get("cached") else None,
             )
+        return result
     finally:
         with _refresh_lock:
             _refreshing_users.discard(username)
 
 
 def start_background_refresh(username: str) -> bool:
-    """Start one background haoke refresh for a user if none is active."""
-    with _refresh_lock:
-        if username in _refreshing_users:
-            return False
-        _refreshing_users.add(username)
-    try:
-        import http_sync
-        identity = http_sync.get_account_identity(username)
-        revision = _connection_revision(username)
-        scheduled = http_sync.submit_http_sync(
-            username,
-            "haoke",
-            lambda: _run_background_refresh(username, identity, revision),
-            is_connected_fn=has_credentials,
-        )
-        if not scheduled:
-            with _refresh_lock:
-                _refreshing_users.discard(username)
-            return False
-        return True
-    except Exception:
-        with _refresh_lock:
-            _refreshing_users.discard(username)
-        raise
+    import http_sync
+    identity = http_sync.get_account_identity(username)
+    revision = _connection_revision(username)
+    return http_sync.submit_http_sync(username, "haoke",
+        lambda: _run_background_refresh(username, identity, revision), is_connected_fn=has_credentials)
 
 
 def is_refreshing(username: str) -> bool:
@@ -612,6 +594,9 @@ def save_state(username: str, state: dict):
 
 def delete_expired_hidden(username: str, expired_ids: list) -> dict:
     return _state_store.delete_expired_hidden(username, expired_ids)
+
+
+delete_expired_completed = _state_store.delete_expired_completed
 
 
 def update_state(username: str, action: str, item_id: int) -> dict:

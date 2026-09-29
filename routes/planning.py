@@ -3,6 +3,7 @@ import logging
 import project_store
 import recurring_todo_store
 import schedule_store
+from remote_operations import background_operation
 import tongji_login_sessions
 import tongji_timetable
 from action_contract import action_fields, check_version, short_title
@@ -201,26 +202,12 @@ def api_schedule():
 
 @bp.route("/api/schedule/refresh", methods=["POST"])
 def api_schedule_refresh():
-    username = session["username"]
-    data = read_json_request()
-    if data is None:
-        return invalid_request_response()
-    tongji_username = (data.get("username") or "").strip()
-    password = data.get("password") or ""
-    if not tongji_username or not password:
-        return api_error("timetable_credentials_required", "请输入统一身份认证账号和密码")
-    try:
-        courses = tongji_timetable.fetch_selected_courses_with_credentials(tongji_username, password)
-    except tongji_timetable.TimetableLoginError as exc:
-        return api_error("timetable_login_failed", str(exc), 401)
-    except tongji_timetable.TimetableFetchError as exc:
-        return api_error("timetable_fetch_failed", str(exc), 502)
-    term, _, semester_start = get_term_info()
-    schedule_store.save_courses(username, term, semester_start, courses, datetime.now(CST).isoformat())
-    return jsonify({"ok": True, "courses": schedule_store.load_courses(username)})
+    return api_error("timetable_refresh_retired", "请使用临时认证窗口更新课表", 410,
+                     login_session_url="/api/schedule/login-session")
 
 
 @bp.route("/api/schedule/login-session", methods=["POST"])
+@background_operation("tongji", "api_schedule_login_session")
 def api_schedule_login_session():
     username = session["username"]
     try:
@@ -263,6 +250,7 @@ def api_schedule_login_session_auth():
 
 
 @bp.route("/api/schedule/login-session/<token>/complete", methods=["POST"])
+@background_operation("tongji", "api_schedule_login_session_complete")
 def api_schedule_login_session_complete(token):
     username = session["username"]
     login_session = tongji_login_sessions.session_for_token(token)

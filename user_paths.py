@@ -13,10 +13,13 @@ def user_dir(username: str) -> Path:
     # has started in this process.
     try:
         import auth
+        auth.check_operation_identity(username)
         if auth.account_deletion_in_progress(username):
             raise RuntimeError("account deletion in progress")
     except ImportError:
         pass
     d = DATA_DIR / "users" / username
-    d.mkdir(parents=True, exist_ok=True)
+    if not d.is_dir():
+        with auth.account_write(username):
+            d.mkdir(parents=True, exist_ok=True)
     return d

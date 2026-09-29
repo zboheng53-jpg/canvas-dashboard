@@ -105,10 +105,13 @@
       }));
     }
 
+    let weatherPollTimer = null;
     async function fetchWeather() {
+      clearTimeout(weatherPollTimer);
       try {
         const resp = await fetch(`/api/weather?campus=${encodeURIComponent(selectedWeatherCampus())}`);
         const data = await resp.json();
+        if (data.pending) weatherPollTimer = setTimeout(fetchWeather, 2000);
         if (data.ok) {
           window.DashboardWeatherIcons.renderWeather(
             document.getElementById('weather-emoji'),

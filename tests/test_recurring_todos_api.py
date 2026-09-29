@@ -14,9 +14,10 @@ CST = ZoneInfo("Asia/Shanghai")
 
 
 @pytest.fixture
-def client_with_user(tmp_path, monkeypatch):
+def client_with_user(tmp_path, monkeypatch, isolated_data):
+    agent_auth.auth.register("alice", "password1")
     user_dir = tmp_path / "users" / "alice"
-    user_dir.mkdir(parents=True)
+    user_dir.mkdir(parents=True, exist_ok=True)
     (user_dir / "custom_todos.json").write_text("[]", encoding="utf-8")
 
     monkeypatch.setattr(user_paths, "DATA_DIR", tmp_path)
@@ -26,7 +27,6 @@ def client_with_user(tmp_path, monkeypatch):
     monkeypatch.setattr(recurring_todo_store, "user_paths", user_paths)
     monkeypatch.setattr(agent_auth, "DATA_DIR", tmp_path)
     monkeypatch.setattr(agent_auth, "user_dir", lambda username: user_dir)
-    monkeypatch.setattr(agent_auth.auth, "account_metadata", lambda username: {"status": "active"})
 
     dashboard_app.app.config.update(TESTING=True)
     with dashboard_app.app.test_client() as client:

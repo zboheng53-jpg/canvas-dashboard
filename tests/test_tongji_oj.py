@@ -1,3 +1,5 @@
+from operation_helpers import operation_client
+import auth
 from source_helpers import dashboard_source, template_source, TEMPLATES
 from services import workspace as workspace_service
 import base64
@@ -29,7 +31,7 @@ def _user_dir(root: Path):
 
 
 @pytest.fixture
-def test_env(tmp_path, monkeypatch):
+def test_env(tmp_path, monkeypatch, isolated_data):
     monkeypatch.setattr(tongji_oj_client, "DATA_DIR", tmp_path)
     monkeypatch.setattr(tongji_oj_client, "KEY_FILE", tmp_path / ".encryption_key")
     monkeypatch.setattr(tongji_oj_client, "user_dir", _user_dir(tmp_path))
@@ -44,10 +46,11 @@ def test_env(tmp_path, monkeypatch):
 
 @pytest.fixture
 def client_with_user(test_env):
+    auth.register("testuser", "password1")
     user_dir = test_env / "users" / "testuser"
     user_dir.mkdir(parents=True, exist_ok=True)
     dashboard_app.app.config.update(TESTING=True)
-    with dashboard_app.app.test_client() as client:
+    with operation_client(dashboard_app.app) as client:
         with client.session_transaction() as sess:
             sess["username"] = "testuser"
             sess["_csrf_token"] = "csrf-test-token"

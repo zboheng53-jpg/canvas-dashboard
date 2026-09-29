@@ -36,6 +36,24 @@ def load_store(username):
     return read_json_file(_store_file(username), _empty_store())
 
 
+def delete_expired_completed(username, today):
+    """Delete just the completed occurrence; leave future occurrences intact."""
+    def expired(occ, original):
+        return occ.get("status") == "completed" and date.fromisoformat(occ.get("due_date") or original) < today
+    current = load_store(username)
+    if not any(expired(occ, original) for s in current.get("series", [])
+               for original, occ in s.get("occurrences", {}).items()):
+        return current
+    def update(store):
+        for series in store.get("series", []):
+            for original, occ in series.get("occurrences", {}).items():
+                if expired(occ, original):
+                    occ["status"] = "deleted"
+                    occ["deleted_at"] = _now_iso()
+        return store
+    return locked_json_update(_store_file(username), _empty_store(), update)
+
+
 def get_series(username, series_id):
     store = load_store(username)
     for s in store.get("series", []):
@@ -235,6 +253,8 @@ def complete_occurrence(username, series_id, orig_due_date, done):
                 continue
             occs = s.setdefault("occurrences", {})
             occ = occs.setdefault(orig_due_date, {})
+            if occ.get("status") == "deleted":
+                raise ActionValidationError("已完成且已过截止的本次事项已永久删除")
             if done:
                 occ["status"] = "completed"
                 occ["completed_at"] = _now_iso()
@@ -266,6 +286,8 @@ def skip_occurrence(username, series_id, orig_due_date, skip=True):
                 continue
             occs = s.setdefault("occurrences", {})
             occ = occs.setdefault(orig_due_date, {})
+            if occ.get("status") == "deleted":
+                raise ActionValidationError("已完成且已过截止的本次事项已永久删除")
             if skip:
                 occ["status"] = "skipped"
                 occ["skipped_at"] = _now_iso()
@@ -297,6 +319,8 @@ def update_occurrence(username, series_id, orig_due_date, changes):
                 continue
             occs = s.setdefault("occurrences", {})
             occ = occs.setdefault(orig_due_date, {})
+            if occ.get("status") == "deleted":
+                raise ActionValidationError("已完成且已过截止的本次事项已永久删除")
 
             if "title" in changes:
                 occ["title"] = short_title(changes["title"]) if changes["title"] else None
@@ -383,7 +407,8 @@ def expand_occurrences(series, start_bound, end_bound, max_count=100):
         }
 
         # 只要在该范围内，或者后续需要它被排序
-        occurrences.append(item)
+        if status != "deleted":
+            occurrences.append(item)
 
         # 步进下一次
         rule = get_rule_for_date(current_due)
@@ -429,7 +454,7 @@ def get_homepage_items(username, today=None):
     """Retrieve all homepage-eligible recurring items for user (at most 1 per series)."""
     if today is None:
         today = datetime.now(CST).date()
-    store = load_store(username)
+    store = delete_expired_completed(username, today)
     items = []
     for s in store.get("series", []):
         item = get_homepage_item_for_series(s, today)
@@ -473,6 +498,8 @@ def get_occurrence_by_ref(username, ref):
 
     occ_meta = (series.get("occurrences") or {}).get(orig_due_date, {})
     status = occ_meta.get("status", "pending")
+    if status == "deleted":
+        return None
     effective_due = occ_meta.get("due_date") or orig_due_date
     effective_title = occ_meta.get("title") or series["title"]
     effective_details = occ_meta.get("details") if occ_meta.get("details") is not None else series.get("details", "")

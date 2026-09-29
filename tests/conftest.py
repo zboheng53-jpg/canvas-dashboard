@@ -34,6 +34,7 @@ import zhihuishu_login_sessions
 import tongji_login_sessions
 import ketangpai_client
 import tongji_oj_client
+import http_sync
 import settings
 
 FIXED_NOW = datetime(2026, 7, 9, 12, 0, tzinfo=timezone(timedelta(hours=8)))
@@ -61,7 +62,9 @@ def pytest_collection_modifyitems(config, items):
               "test_development_workflow.py", "test_deploy_configs.py", "test_login_capacity.py", "test_release_onboarding.py",
               "test_control_components.py", "test_design_system_lint.py", "test_css_architecture.py",
               "test_frontend_text_integrity.py", "test_dashboard_localization.py",
-              "test_ui_refactor.py", "test_business_components.py"}
+              "test_ui_refactor.py", "test_business_components.py", "test_prelaunch_foundations.py",
+              "test_sync_remediation.py", "test_review_remediation_sync_edges.py", "test_review_remediation_accounts.py",
+              "test_todo_deadlines.py"}
     selected, deselected = [], []
     for item in items:
         browser_test = "browser" in item.fixturenames
@@ -85,7 +88,7 @@ def isolated_data(tmp_path, monkeypatch):
     for module in (dashboard_app, user_paths, auth, agent_auth, apple_calendar,
                    haoke_client, zhixuemeng_client, zhihuishu_store,
                    zhihuishu_login_sessions, tongji_login_sessions,
-                   ketangpai_client, tongji_oj_client):
+                   ketangpai_client, tongji_oj_client, http_sync):
         monkeypatch.setattr(module, "DATA_DIR", tmp_path)
     for name, filename in (("USERS_FILE", "users.json"), ("SECRET_KEY_FILE", ".flask_secret_key"),
                            ("DELETION_LEDGER_FILE", ".account_deletion_ledger.json"),
@@ -144,12 +147,51 @@ def live_app(isolated_data, monkeypatch, test_now, request):
         },
     )
     monkeypatch.setattr(dashboard_app, 'has_feed_url', lambda username: True)
-    monkeypatch.setattr(dashboard_app, "load_state", lambda username: {"hidden": [], "highlighted": [], "deleted": []})
-    monkeypatch.setattr(dashboard_app, "save_state", lambda username, state: None)
+    # Completion refreshes the platform card from the server, so the shared
+    # fixture must keep the local state writes the API actually commits;
+    # otherwise the refresh response would report an empty state.
+    canvas_state = {"hidden": [], "highlighted": [], "deleted": [], "completed": [], "overrides": {}}
+    monkeypatch.setattr(dashboard_app, "load_state", lambda username: {
+        key: list(value) if isinstance(value, list) else dict(value) for key, value in canvas_state.items()})
+    monkeypatch.setattr(dashboard_app, "save_state", lambda username, state: canvas_state.update(state))
+
+    def _update_canvas_state(username, action, item_id):
+        """Mirror PlatformStateStore.update so a refresh observes the same state."""
+        if action == "hide" and item_id not in canvas_state["hidden"]:
+            canvas_state["hidden"].append(item_id)
+        elif action == "unhide":
+            canvas_state["hidden"] = [each for each in canvas_state["hidden"] if each != item_id]
+        elif action == "highlight" and item_id not in canvas_state["highlighted"]:
+            canvas_state["highlighted"].append(item_id)
+        elif action == "unhighlight":
+            canvas_state["highlighted"] = [each for each in canvas_state["highlighted"] if each != item_id]
+        elif action == "delete" and item_id not in canvas_state["deleted"]:
+            canvas_state["deleted"].append(item_id)
+            canvas_state["hidden"] = [each for each in canvas_state["hidden"] if each != item_id]
+            canvas_state["highlighted"] = [each for each in canvas_state["highlighted"] if each != item_id]
+        elif action == "undelete":
+            canvas_state["deleted"] = [each for each in canvas_state["deleted"] if each != item_id]
+        elif action == "complete" and item_id not in canvas_state["completed"]:
+            canvas_state["completed"].append(item_id)
+        elif action == "uncomplete":
+            canvas_state["completed"] = [each for each in canvas_state["completed"] if each != item_id]
+        return {key: list(value) if isinstance(value, list) else dict(value) for key, value in canvas_state.items()}
+
+    monkeypatch.setattr(dashboard_app, "update_state", _update_canvas_state)
     monkeypatch.setattr(dashboard_app, "fetch_haoke_todos", lambda username: {"ok": True, "data": [], "cached": False})
+    monkeypatch.setattr(dashboard_app, "has_haoke_credentials", lambda username: True)
+    monkeypatch.setattr(dashboard_app, "get_haoke_cached_todos", lambda username: {
+        "ok": True, "data": [], "cached": True, "has_cache": True, "stale": False,
+    })
     monkeypatch.setattr(dashboard_app, "load_haoke_state", lambda username: {"hidden": [], "highlighted": [], "deleted": []})
     monkeypatch.setattr(dashboard_app, "save_haoke_state", lambda username, state: None)
     monkeypatch.setattr(dashboard_app, "fetch_zxm_assignments", lambda username, course_code=None: {"ok": True, "items": [], "cached": False})
+    import platform_http
+    cached_assignments = platform_http.cached_assignments
+    monkeypatch.setattr(platform_http, "cached_assignments", lambda username, platform, course=None:
+        {"ok": True, "items": [], "courses": [], "cached": True, "has_cache": True,
+         "need_setup": False, "stale": False, "sync_complete": True}
+        if platform == "zhixuemeng" else cached_assignments(username, platform, course))
     monkeypatch.setattr(dashboard_app, "load_zxm_state", lambda username: {"hidden": [], "highlighted": [], "deleted": []})
     monkeypatch.setattr(dashboard_app, "save_zxm_state", lambda username, state: None)
     monkeypatch.setattr(dashboard_app, "get_selected_course", lambda username: None)
