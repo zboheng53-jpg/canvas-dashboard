@@ -1642,6 +1642,19 @@ def test_frontend_today_and_overdue_visual_consistency(live_app, browser, width,
     expect(due_badge).to_have_text(today_str)
     expect(due_badge).not_to_contain_text("计划")
 
+    # 同一天的自定义与项目日期使用相同的胶囊尺寸和文字排版。
+    date_styles = page.evaluate("""() => [
+        document.querySelector('.todo-row.is-today .editable-due'),
+        document.querySelector('.todo-row.is-today .project-due-editable')
+    ].map(el => {
+        const rect = el.getBoundingClientRect();
+        const css = getComputedStyle(el);
+        return {width: rect.width, height: rect.height, font: css.fontFamily,
+                size: css.fontSize, lineHeight: css.lineHeight,
+                letterSpacing: css.letterSpacing, padding: css.padding};
+    })""")
+    assert date_styles[0] == date_styles[1]
+
     # 5. 验证非自定义待办占位符没有实心黑三角符号
     expect(project_row.locator(".subtask-toggle-placeholder")).not_to_contain_text("\u25b8")
 
@@ -1719,4 +1732,3 @@ def test_desktop_refinement_keeps_colored_tags_and_readable_rows(live_app, brows
     expect(row.locator('.inline-edit-date-input')).to_have_value('')
     row.locator('.inline-edit-date-input').press('Escape')
     page.close()
-

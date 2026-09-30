@@ -1051,6 +1051,12 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   text-align: center;
   flex: none;
 }
+/* 项目日期用按钮编辑；去掉按钮控件额外的高度和字距，与普通日期胶囊一致。 */
+.todo-row .project-due-editable {
+  min-height: 0;
+  font-family: var(--font-number);
+  letter-spacing: normal;
+}
 /* 待办截止标签的视觉语言（与来源无关）：标签始终是带底色的胶囊，只换字色——
    逾期/今天 = 红字粉底，近三天 = 黄字黄底，更远 = 灰蓝字浅灰底（基础规则）。
    行底色只用来区分「逾期 = 红底」和「今天 = 白底」，不给近三天整行上黄底。 */
