@@ -1,13 +1,30 @@
 """Read-only release guard: deploy the clean, pushed main commit that was tested."""
 import argparse
+from datetime import datetime
+import hashlib
+import importlib.metadata
 import json
+import os
 from pathlib import Path
+import platform
 import subprocess
 import sys
 import xml.etree.ElementTree as ElementTree
 
 EVIDENCE_ROOT = "test-results"
 FULL_SUITE = "all"
+
+
+def environment_fingerprint() -> str:
+    """Bind local evidence to Python, installed packages and test-affecting overrides."""
+    payload = {
+        "python": sys.version, "platform": platform.platform(),
+        "packages": sorted((dist.metadata["Name"], dist.version) for dist in importlib.metadata.distributions()),
+        "overrides": {key: value for key, value in os.environ.items()
+                      if key.startswith(("PYTEST_", "CANVAS_", "PLAYWRIGHT_"))
+                      and key not in {"CANVAS_TEST_ARTIFACTS", "CANVAS_TEST_WORKERS"}},
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 
 
 def git(repo: Path, *args: str) -> str:
@@ -86,6 +103,8 @@ def junit_failures(results_path: Path) -> list[str]:
     problems: list[str] = []
     if not testcases:
         problems.append("results.xml contains no test case elements")
+    elif all(any(_local_name(child.tag) == "skipped" for child in case) for case in testcases):
+        problems.append("results.xml contains only skipped tests")
     observed = {
         "failures": sum(1 for case in testcases if any(_local_name(child.tag) == "failure" for child in case)),
         "errors": sum(1 for case in testcases if any(_local_name(child.tag) == "error" for child in case)),
@@ -121,6 +140,12 @@ def manifest_failures(manifest: object, commit: str) -> list[str]:
     if not isinstance(manifest, dict):
         return ["run.json does not contain a JSON object"]
     problems: list[str] = []
+    if manifest.get("schema_version") != 2 or manifest.get("full_suite") is not True:
+        problems.append("run.json does not record a canonical full-suite invocation (schema 2)")
+    if manifest.get("end_commit") != commit or manifest.get("end_dirty") is not False:
+        problems.append("source was not clean and unchanged at the end of the run")
+    if manifest.get("environment") != environment_fingerprint():
+        problems.append("test environment differs from the recorded run")
     recorded = manifest.get("commit")
     if not isinstance(recorded, str) or not recorded:
         problems.append("run.json records no commit")
@@ -153,12 +178,10 @@ def artifact_failures(run_dir: Path) -> list[str]:
         problems.append("pytest.log is missing")
     else:
         try:
-            log_text = log_path.read_text(encoding="utf-8", errors="replace")
+            log_path.read_text(encoding="utf-8", errors="replace")
         except OSError as error:
             problems.append(f"pytest.log could not be read: {error}")
-        else:
-            if not log_text.lstrip("\ufeff").strip():
-                problems.append("pytest.log is empty")
+        # Empty logs are valid; JUnit and the controlled invocation establish the result.
     return problems
 
 
@@ -171,37 +194,52 @@ def inspect_run(run_dir: Path, commit: str) -> tuple[list[str], bool]:
     return (list(problems) + manifest_failures(manifest, commit) + artifact_failures(run_dir), is_full_suite)
 
 
-def check_test_evidence(repo: Path, expected: str | None = None) -> str:
+def check_test_evidence(repo: Path, expected: str | None = None, *, local_only: bool = False) -> str:
     """Return the commit only when recorded evidence proves that exact revision passed the full suite."""
-    commit = check_release(repo, expected)
+    if local_only:
+        commit = git(repo, "rev-parse", "HEAD")
+        if (expected and commit != expected) or git(repo, "status", "--porcelain", "--untracked-files=normal"):
+            raise RuntimeError("Local release source changed or is dirty.")
+    else:
+        commit = check_release(repo, expected)
     evidence_root = repo / EVIDENCE_ROOT
     if not evidence_root.is_dir():
         raise RuntimeError(
             f"No {EVIDENCE_ROOT} directory records a full-suite run of {commit}; "
             f"run scripts/test.ps1 -Suite all before skipping the local regression.")
-    manifests = sorted(
-        (path for path in evidence_root.glob("*/run.json") if path.is_file()),
-        key=lambda path: path.parent.name,
-        reverse=True,
-    )
+    manifests = []
+    for path in evidence_root.glob("*/run.json"):
+        if not path.is_file():
+            continue
+        manifest, read_errors = read_manifest(path.parent)
+        try:
+            started = datetime.fromisoformat(manifest["started_at"]).timestamp()
+        except (TypeError, KeyError, ValueError):
+            started = path.stat().st_mtime
+        manifests.append((started, path, manifest, read_errors))
+    # Sort by start time, not completion time or the random suffix of a run ID.
+    manifests.sort(key=lambda item: item[0], reverse=True)
     if not manifests:
         raise RuntimeError(
             f"No {EVIDENCE_ROOT}/*/run.json records a full-suite run of {commit}; "
             f"run scripts/test.ps1 -Suite all before skipping the local regression.")
     rejected: list[tuple[Path, list[str], bool]] = []
-    for manifest_path in manifests:
+    for _, manifest_path, manifest, read_errors in manifests:
         run_dir = manifest_path.parent
+        if read_errors:
+            raise RuntimeError(f"Unreadable newer evidence at {run_dir}: {'; '.join(read_errors)}")
+        # Never revive older successes after a newer full run failed or was interrupted.
+        # Partial runs are useful feedback but cannot grant or revoke full-suite coverage.
+        if not (isinstance(manifest, dict) and manifest.get("commit") == commit
+                and manifest.get("full_suite") is True):
+            continue
         problems, is_full_suite = inspect_run(run_dir, commit)
         if not problems:
             print(f"Accepted test evidence: {run_dir.relative_to(repo)} (clean full suite of {commit}).",
                   file=sys.stderr)
-            newer = [path for path, _, full_suite in rejected if full_suite]
-            if newer:
-                print(f"Warning: {len(newer)} newer recorded full-suite run(s) of this commit were rejected "
-                      f"({', '.join(path.name for path in newer[:3])}); inspect them before trusting this evidence.",
-                      file=sys.stderr)
             return commit
         rejected.append((run_dir, problems, is_full_suite))
+        break
     detail = "\n".join(
         f"  - {run_dir.relative_to(repo)}: " + "; ".join(problems) for run_dir, problems, _ in rejected[:5])
     raise RuntimeError(
@@ -212,16 +250,23 @@ def check_test_evidence(repo: Path, expected: str | None = None) -> str:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--expected")
+    parser.add_argument("--environment", action="store_true", help="Print the local test environment fingerprint")
+    parser.add_argument("--local-only", action="store_true", help="Evidence lookup after the deployment source check; no remote query")
     parser.add_argument(
         "--test-evidence",
         action="store_true",
         help="require a clean, pushed, recorded full-suite pass for this exact commit instead of trusting a rerun",
     )
     args = parser.parse_args()
+    if args.environment:
+        print(environment_fingerprint())
+        sys.exit(0)
+    if args.local_only and not args.test_evidence:
+        parser.error("--local-only requires --test-evidence")
     try:
         repo_root = Path(__file__).resolve().parents[1]
         if args.test_evidence:
-            commit = check_test_evidence(repo_root, args.expected)
+            commit = check_test_evidence(repo_root, args.expected, local_only=args.local_only)
         else:
             commit = check_release(repo_root, args.expected)
         print(commit)

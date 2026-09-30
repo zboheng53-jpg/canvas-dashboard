@@ -16,7 +16,8 @@ $OutputEncoding = $Utf8NoBom
 $env:PYTHONUTF8 = "1"
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
-$Python = Join-Path $RepoRoot ".venv\Scripts\python.exe"
+# Prefer this checkout's .venv; unchanged worktrees can borrow the primary packages.
+$Python = & (Join-Path $PSScriptRoot "resolve-python.ps1") -RepoRoot $RepoRoot
 
 if (-not (Test-Path -LiteralPath $Python)) {
     throw "Missing .venv Python. Create it with: py -m venv .venv"

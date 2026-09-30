@@ -1,5 +1,8 @@
 from pathlib import Path
 import subprocess
+import shutil
+
+import pytest
 
 
 def test_local_powershell_scripts_pin_venv_and_utf8():
@@ -82,3 +85,57 @@ def test_apple_calendar_mobile_test_script_uses_an_isolated_port():
 
     assert "[System.Net.Sockets.TcpListener]" in text
     assert "port=5051" not in text
+
+
+@pytest.mark.parametrize("has_evidence,force,require_evidence,expected_tests,ok", [
+    (True, False, False, 0, True), (False, False, False, 1, True),
+    (True, True, False, 1, True), (False, False, True, 0, False),
+])
+def test_deploy_reuses_evidence_or_runs_once(tmp_path, has_evidence, force, require_evidence, expected_tests, ok):
+    powershell = shutil.which("powershell.exe")
+    if not powershell:
+        pytest.skip("Windows deploy runner")
+    root = Path(__file__).parents[1]
+    source = (root / ".agents/skills/deploy-canvas-dashboard/scripts/deploy.ps1").read_text(encoding="utf-8")
+    block = source[source.index("$HasEvidence ="):source.index("$PythonFiles =")]
+    block = block.replace(r".\.venv\Scripts\python.exe", "Invoke-PythonMock").replace("powershell.exe", "Invoke-TestMock")
+    script = tmp_path / "evidence.ps1"
+    boolean = lambda value: "$true" if value else "$false"
+    script.write_text(f"""$ErrorActionPreference = 'Stop'
+$ReleaseCommit = 'abc'
+$ForceLocalRegression = {boolean(force)}
+$SkipLocalRegression = {boolean(require_evidence)}
+$script:EvidenceAvailable = {boolean(has_evidence)}
+function Invoke-PythonMock {{
+    if ($script:EvidenceAvailable) {{ $global:LASTEXITCODE = 0; Write-Output 'abc' }}
+    else {{ $global:LASTEXITCODE = 1 }}
+}}
+function Invoke-TestMock {{
+    Write-Output 'TEST_EXECUTED'
+    $script:EvidenceAvailable = $true
+    $global:LASTEXITCODE = 0
+}}
+{block}
+""", encoding="utf-8")
+    result = subprocess.run([powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script)], capture_output=True, text=True, timeout=15)
+    assert (result.returncode == 0) == ok, result.stdout + result.stderr
+    assert result.stdout.count("TEST_EXECUTED") == expected_tests
+
+
+def test_deploy_does_not_retry_uncertain_activation(tmp_path):
+    powershell = shutil.which("powershell.exe")
+    if not powershell:
+        pytest.skip("Windows deploy runner")
+    root = Path(__file__).parents[1]
+    source = (root / ".agents/skills/deploy-canvas-dashboard/scripts/deploy.ps1").read_text(encoding="utf-8")
+    assert 'Invoke-DeploySsh -Command $RemoteCommand -Attempts 1' in source
+    assert 'retire-unused-apps.sh' not in source
+    block = source[source.index("function Invoke-DeploySsh"):source.index("function Send-DeployArchive")]
+    script = tmp_path / "retry.ps1"
+    script.write_text("""$ErrorActionPreference = 'Stop'
+function ssh { Write-Output 'SSH_EXECUTED'; $global:LASTEXITCODE = 255 }
+function Start-Sleep { }
+""" + block + "\nInvoke-DeploySsh -Command 'mock' -Description 'activation' -Attempts 1\n", encoding="utf-8")
+    result = subprocess.run([powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script)], capture_output=True, text=True, timeout=15)
+    assert result.returncode != 0
+    assert result.stdout.count("SSH_EXECUTED") == 1

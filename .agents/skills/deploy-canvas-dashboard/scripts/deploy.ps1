@@ -1,6 +1,7 @@
 ﻿param(
     [switch]$SkipPreDeployBackup,
-    [switch]$SkipLocalRegression
+    [switch]$SkipLocalRegression,
+    [switch]$ForceLocalRegression
 )
 
 $ErrorActionPreference = "Stop"
@@ -22,14 +23,13 @@ $SshOptions = @(
 )
 
 function Invoke-DeploySsh {
-    param([string]$Command, [string]$Description, [switch]$SingleAttempt)
-    $maxAttempts = if ($SingleAttempt) { 1 } else { 3 }
-    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+    param([string]$Command, [string]$Description, [int]$Attempts = 3)
+    for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
         & ssh -n @SshOptions $Remote $Command
         if ($LASTEXITCODE -eq 0) { return }
-        if ($attempt -lt $maxAttempts) { Start-Sleep -Seconds (5 * $attempt) }
+        if ($attempt -lt $Attempts) { Start-Sleep -Seconds (5 * $attempt) }
     }
-    throw "$Description failed after $maxAttempts SSH attempt(s)."
+    throw "$Description failed after $Attempts SSH attempt(s). Inspect the active release before retrying activation."
 }
 
 function Send-DeployArchive {
@@ -43,6 +43,7 @@ function Send-DeployArchive {
 }
 
 Write-Host "Starting verified release deployment..." -ForegroundColor Cyan
+if ($SkipLocalRegression -and $ForceLocalRegression) { throw "Choose either -SkipLocalRegression or -ForceLocalRegression." }
 
 $ReleaseCommit = & .\.venv\Scripts\python.exe .\scripts\check_release.py
 if ($LASTEXITCODE -ne 0) { throw "Release source check failed. Deployment aborted." }
@@ -52,15 +53,19 @@ $TarFile = Join-Path $RepoRoot "$ReleaseName.tar.gz"
 Write-Host "Verified pushed main commit: $ReleaseCommit"
 
 Write-Host "Running local regression and compilation gates..." -ForegroundColor Yellow
-if ($SkipLocalRegression) {
-    # Only an accepted evidence gate may replace the rerun: same commit, clean tree, recorded full-suite pass.
-    $EvidenceCommit = & .\.venv\Scripts\python.exe .\scripts\check_release.py --test-evidence --expected $ReleaseCommit
-    if ($LASTEXITCODE -ne 0) { throw "No acceptable full-suite test evidence for this commit. Run .\scripts\test.ps1 -Suite all, or deploy without -SkipLocalRegression." }
-    if (($EvidenceCommit | Out-String).Trim() -ne $ReleaseCommit) { throw "Test evidence does not cover the checked release commit. Deployment aborted." }
-    Write-Host "Skipped the local full regression: recorded full-suite evidence for $ReleaseCommit was verified." -ForegroundColor Green
+$HasEvidence = $false
+if (-not $ForceLocalRegression) {
+    $EvidenceCommit = & .\.venv\Scripts\python.exe .\scripts\check_release.py --test-evidence --local-only --expected $ReleaseCommit
+    $HasEvidence = ($LASTEXITCODE -eq 0 -and ($EvidenceCommit | Out-String).Trim() -eq $ReleaseCommit)
+}
+if ($SkipLocalRegression -and -not $HasEvidence) { throw "No acceptable full-suite evidence. Deploy without -SkipLocalRegression to run tests." }
+if ($HasEvidence) {
+    Write-Host "Reusing verified full-suite evidence for $ReleaseCommit." -ForegroundColor Green
 } else {
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1 -Suite all
     if ($LASTEXITCODE -ne 0) { throw "Local tests failed. Deployment aborted." }
+    & .\.venv\Scripts\python.exe .\scripts\check_release.py --test-evidence --local-only --expected $ReleaseCommit
+    if ($LASTEXITCODE -ne 0) { throw "Regression did not produce acceptable full-suite evidence. Deployment aborted." }
 }
 $PythonFiles = @(& git ls-files -- "*.py")
 if ($LASTEXITCODE -ne 0 -or $PythonFiles.Count -eq 0) { throw "Failed to enumerate tracked Python files." }
@@ -87,7 +92,7 @@ try {
 
     $RemoteInstall = "$RemoteRoot/releases/$ReleaseName/deploy/install-release.sh"
     $RemoteCommand = "mkdir -p '$RemoteRoot/releases/$ReleaseName' && tar -xzf '$RemoteRoot/incoming/$ReleaseName.tar.gz' -C '$RemoteRoot/releases/$ReleaseName' && bash '$RemoteInstall' '$RemoteRoot/incoming/$ReleaseName.tar.gz' '$ReleaseName'"
-    Invoke-DeploySsh -Command $RemoteCommand -Description "Remote release activation (the server restores the previous release on failure)" -SingleAttempt
+    Invoke-DeploySsh -Command $RemoteCommand -Attempts 1 -Description "Remote release activation (the server restores the previous release on failure)"
 
     Invoke-DeploySsh -Command "systemctl is-active canvas-dashboard.service zhihuishu-worker.service zhihuishu-login-cleanup.timer canvas-dashboard-backup.timer canvas-dashboard-monitor.timer nginx && curl -fsS --max-time 10 http://127.0.0.1:5000/healthz && if sudo test -f /etc/letsencrypt/live/canvas-dashboard.xyz/fullchain.pem; then curl -fsS --max-time 10 --resolve canvas-dashboard.xyz:443:127.0.0.1 https://canvas-dashboard.xyz/healthz; fi" -Description "Post-deployment service verification"
 }

@@ -1,10 +1,31 @@
 # 开发、验收与发布
 
-本文是日常流程入口；架构约束以 `AGENTS.md` 为准，生产操作以 `operations.md` 为准。
+本文是日常流程入口；协作规则见 `AGENTS.md`，模块与业务约束见 `module-contracts.md`，运行拓扑见 `architecture.md`，生产操作以 `operations.md` 为准。
 
 ## 1. 明确结果并复现
 
 从用户描述整理「当前现象 → 预期行为 → 验收步骤」，简单修改用会话说明即可，无需另建计划文件。先看 `git status` 和相关入口，保留用户已有改动；开发使用 `codex/` 分支。遇到问题先建立可复现案例，再修改；只询问无法从代码或可逆默认值解决的关键缺口。
+
+### 一个人与多个 AI 的分工
+
+用户决定目标、优先级和实质性产品取舍；AI 负责实现、验证和已授权范围内的交付。日常不要求 PR、第二个审批者、代码所有者审批或形式化审查记录。独立审查用于有具体风险的复杂变更；简单修复不自动扩成多代理任务。
+
+**同一工作区只允许一个写入者。** 不同分支在同一目录里仍会共享文件，无法隔离 AI。存在另一个正在修改文件的任务时，新任务使用独立 worktree；串行的小任务可继续使用现有功能分支，不必每次创建工作树。
+
+优先使用宿主提供的 worktree 工具；其他工具可用标准 Git，例如从已集成的 main 开始：
+
+```powershell
+git worktree add .worktrees/feature-x -b codex/feature-x main
+cd .worktrees/feature-x
+.\scripts\test.ps1 -ChangedOnly -Workers 2
+.\scripts\dev.ps1 -Preview -Port 5001
+```
+
+worktree 不会复制未提交修改；有未合入依赖时明确指定其提交作为基线，不能假定文件已经带过去。已有混合改动先保持原位、按文件归属处理，不用 stash/reset/clean 或切分支替别的任务收拾工作区。只暂存自己的文件，避免 `git add -A` 将别的 AI 未完成工作带入提交。托管 worktree 用宿主归档功能回收；保留需要的证据后再清理。
+
+`dev.ps1` 与 `test.ps1` 优先使用当前 worktree 的 `.venv`；不存在且两份 requirements 文件与主工作区一致时，自动复用主工作区已安装的包。源码、构建产物、测试结果和预览数据仍属于各自工作区。并行期间不向借用的环境安装/升级包；修改依赖的任务创建自己的 `.venv`。不复制或链接主目录的真实 `data/`。多个预览使用不同端口，多个定向测试按需用 1–2 worker，避免每个 AI 都开满 4 worker 跑全量。
+
+**同一批交付由一个交付者收尾。** 各任务返回分支/提交、改动范围、已做验证和限制即可，不再生成专用交接报告。交付者按依赖顺序汇总，只在最终集成版本跑一次充分验证，再执行已授权的推送与部署。其他任务可继续在各自 worktree 开发，不改交付者正在验证的目录。无需新增中央调度服务、人工签字表或重复口头批准。
 
 ## 2. 选择本地环境
 
@@ -30,72 +51,66 @@
 
 `CANVAS_DASHBOARD_DATA_DIR` 是统一数据目录覆盖项，必须在导入应用前设置；不设置时仍使用项目 `data/`。测试自动覆盖为临时目录，预览也在导入前设置；会话密钥、平台加密密钥、浏览器 profile、worker 锁与日志均遵循该目录。它不执行迁移或复制现有数据。
 
-## 3. 按阶段验证
+## 3. 两个验证时机，不叠加套件
 
-| 阶段 | 命令 | 覆盖范围 |
+开发中用能复现问题的最小测试；准备交付时，对最终改动运行一次足够的验证。`quick → ui → acceptance → all` 不是必走的流水线，完整回归已覆盖的检查不再重复。
+
+| 目的 | 命令 | 说明 |
 | --- | --- | --- |
-| 修改中 | `.\scripts\test.ps1 -PytestArgs tests/test_projects.py` | 指定模块；优先选能复现问题的测试 |
-| 快速反馈 | `.\scripts\test.ps1 -ChangedOnly` | 由 `scripts/recommend_tests.py` 按 git 改动只挑相关文件；改 CSS/文案通常落在静态前端检查，实测数秒级 |
-| 快速反馈（全量非浏览器） | `.\scripts\test.ps1 -Suite quick` | 不依赖 browser fixture 的测试，首个失败即停止 |
-| 前端改动（提交前） | `.\scripts\test.ps1 -Suite ui` | 全部浏览器交互/布局用例，加上 CSS 架构、设计规范、文案与组件等静态前端检查 |
-| 本地验收前 | `.\scripts\test.ps1 -Suite acceptance` | 浏览器交互/布局、前端规范及账户、安全、统一事项、并发与流程检查 |
-| 最终回归 | `.\scripts\test.ps1` | 完整 tests/；部署脚本也执行此入口 |
-| 查看选择 | `.\scripts\test.ps1 -Suite acceptance -List` | 仅列出用例，不算测试通过 |
+| 复现与迭代 | `.\scripts\test.ps1 -PytestArgs tests/test_projects.py` | 指定文件或用例 |
+| 未提交改动 | `.\scripts\test.ps1 -ChangedOnly` | 模块映射优先；无改动正常退出，不偷偷改测上次提交 |
+| 整个分支改动 | `.\scripts\test.ps1 -BaseRef origin/main` | merge-base 到当前工作区，包含已提交、暂存、未暂存与未追踪文件；本地 origin/main 需按需更新 |
+| 交付前：前端 | `.\scripts\test.ps1 -Suite ui` | 浏览器交互、布局与静态规则；有明确覆盖时也可指定受影响的浏览器文件 |
+| 交付前：跨模块或安全边界 | `.\scripts\test.ps1 -Suite acceptance` | 账户、隔离、并发、接口与浏览器集成；平台内部修改可用对应模块测试 |
+| 发布验证或广泛改动 | `.\scripts\test.ps1` | 一次完整回归，替代上述重叠套件 |
+| 查看选择 | `.\scripts\test.ps1 -ChangedOnly -List` | 只收集，不算通过 |
 
-`-PytestArgs` 后可传多个 pytest 参数。与 `-Suite` 同用时，选择的是指定路径和套件的交集。套件筛选定义在 `tests/conftest.py`；新增浏览器测试使用共享 `browser` fixture，不自行启动 Chromium。quick 并非承诺固定秒数，输出的最慢十项用于发现实际瓶颈。
+`-ChangedOnly` 是快速反馈，不承诺动态依赖的完整覆盖：CSS 先跑静态规则，JS/模板走 UI，已映射后端模块先跑对应测试；账户/存储核心保留 acceptance，未知或删除路径保守全量。共享夹具、依赖、CI 改动跑全量。映射唯一实现为 `scripts/recommend_tests.py`；发现跨模块影响时主动补充对应测试，不靠继续增加文档门禁解决。
 
-反馈速度参考（2026-09 在本机实测，4 worker 并行）：静态前端检查 4 个文件 25 用例 3.6s；单个浏览器文件约 13–165s（`tests/test_workspace_layout.py` 13s，改造后 `tests/test_frontend_playwright.py` 165s）；`-Suite ui` 172 用例约 3 分钟；完整回归 621 用例 178s（改造前 672s）。据此选择：改样式和文案先用 `-ChangedOnly` 或定向文件，提交前再跑 `-Suite ui`，不要用全量回归做每次迭代。
+`-PytestArgs` 显式覆盖自动选择；与 `-Suite` 同用取交集。PowerShell 多参数用数组：`.\scripts\test.ps1 -PytestArgs @('tests/test_projects.py', '-q')`。默认 4 worker、`--dist loadfile`，可用 `-Workers` 或 `CANVAS_TEST_WORKERS` 调整；缺 xdist 会提示并串行。`-Suite quick` 是全部非浏览器测试，默认首个失败停止，不是固定秒数的快速检查。
 
-默认并行：脚本用 pytest-xdist 以 `-n <workers> --dist loadfile` 运行，worker 数取 `-Workers`，否则取 `CANVAS_TEST_WORKERS`，默认 4；缺少 pytest-xdist 时自动退回串行并给出提示，`-List` 固定单 worker。运行结束后轮转证据目录：保留最新一次、最近 10 次成功轮次（`-KeepSuccessRuns`）与 30 次失败轮次（`-KeepFailedRuns`），无法判定证据的轮次一律保留；轮转只删除 `test-results/` 的直接子目录，`scripts/clean_test_artifacts.py` 会额外校验目录名并默认 dry-run。溯源失败证据前不要降低这两个上限。
+既有本机基线约 3 分钟全量，不能外推为 CI 承诺。看本次实际时长和最慢用例；不为追求“绿色”自动重试失败测试，不为少跑测试删除有效行为断言。新测试优先复现故障、验证接口或用户行为，避免只断言脚本中出现某段文本。
 
-需要快速套件汇总全部失败时，使用 `-Suite quick -PytestArgs @('tests', '-q', '--maxfail=0')`；显式 maxfail 会覆盖默认的首个失败即停止。传自定义参数时保留测试路径，避免 pytest 扫描运行数据和临时目录。
+### 环境与证据
 
-### 按影响面分级
+首次安装在项目 `.venv` 中执行 `python -m pip install -r requirements-dev.txt` 和 `python -m playwright install chromium`。需要解释器路径时用 `$Python = & .\scripts\resolve-python.ps1`，再用 `& $Python scripts/check_test_env.py` 等命令；它只定位环境，不安装包。正常开发不反复运行环境诊断，只有解释器、权限、临时目录或浏览器异常才用 `scripts/check_test_env.py`。
 
-按改动位置选择最小够用的套件，避免每次改动都跑完整回归：
+测试和预览在导入应用前隔离数据目录，不接触真实账户。浏览器测试复用 `tests/conftest.py` 的 `live_app`、`browser` 和 `FIXED_NOW`；特殊日期用 `@pytest.mark.now(...)`。失败保留截图和最终 DOM，通过不录制；截图生成不等于视觉验收。真实第三方认证和同步仍需对应环境验证。
 
-| 改动 | 建议命令 |
-| --- | --- |
-| CSS、模板、前端脚本、界面文案 | `.\scripts\test.ps1 -Suite ui` |
-| `storage.py`、`auth.py`、`routes/`、`services/` 及平台客户端 | `.\scripts\test.ps1 -Suite acceptance` |
-| 跨模块、依赖或发布 | `.\scripts\test.ps1` 全量回归 |
+`test-results/<时间-随机标识>/` 保存 `run.json`、JUnit、日志与失败浏览器证据。schema 2 记录完整执行标记、运行前后提交/工作区状态和 Python/包版本/相关环境变量指纹；pytest 开始前写入未完成记录，中断不会伪装成成功。只有标准完整调用（无 `-List`、自动筛选、自定义 pytest 参数、`PYTEST_ADDOPTS` 或 `PYTEST_PLUGINS`）、始终干净且提交未变、环境一致、退出码与 JUnit 均通过，才可用于发布。指纹仅保存摘要，不记录环境变量原文。
 
-`scripts/recommend_tests.py` 是这张映射表的唯一实现：`--files <路径>...` 直接给出路径对应的套件、命令和一句话理由，`--files-from-diff` 用未提交改动（`-ChangedOnly` 就是这样调用它，并用 `--pytest-args` 取回具体测试文件；显式 `-PytestArgs` 优先于自动挑选）。映射读取 `tests/conftest.py` 的套件集合和实际使用 `browser` fixture 的测试文件，不另行维护清单。
+这是可信本机的防误用检查，不是抵抗篡改的签名证明。脏工作区测试仍有诊断价值，但不能代表已提交发布版本。相同提交最新一次完整运行失败或中断时，不能采用更早成功结果；修复后重跑。旧格式证据保留供排错，不作为发布免重跑凭据。
 
-配套工具：`scripts/check_test_env.py` 诊断解释器、TEMP/TMP、`CANVAS_TEST_ARTIFACTS`、pytest-xdist 与临时目录能否清理，退出码 1 表示必须先修；`scripts/clean_test_artifacts.py` 默认 dry-run，打印将被保留/删除的轮次与仓库根 `.pytest-tmp-*` / `.codex-pytest-*` 空残留目录，加 `--apply` 才删除。
+自动轮转复用 `scripts/clean_test_artifacts.py`，只读运行元数据，不再每次递归统计所有产物大小。保护当前/最新轮次，保留最近 10 次成功、30 次失败及全部无法判断的轮次；手动清理默认 dry-run。只清理严格命名且确认位于 `test-results/` 下的目录，跳过链接。旧 ACL 异常残留不属于本次变更；搜索优先指定源码目录或用 `git ls-files`，不反复遍历运行数据和产物。
 
-仓库根目前有 11 个 `.pytest-tmp-*` / `.codex-pytest-*` 残留目录，是旧沙箱运行留下的 ACL 拒绝访问对象（当前账户既不能列出也不能删除，`scripts/clean_test_artifacts.py` 会报告但删不掉）。它们不在 git 索引中，不影响提交与打包；但仓库级 `rg`／glob 在扫到它们时会报 `拒绝访问` 并以 exit 2 失败，检索时用 `-g` 限定路径或忽略这些目录，不要误判成代码问题。彻底清理需要修 ACL 或把工作区换到新目录。
+## 4. 按结果类型验收
 
-`browser` fixture 只在失败时收集证据：通过用例不再录制 trace，失败用例保存 `failure.json`、页面截图 `page-*.png` 与失败时的最终 DOM `dom-*.html`。之所以不再事后补录 trace，是因为在页面或 context 上挂 `response`／tracing 监听本身会改变被测行为（实测曾导致同济 OJ 的后台任务不启动），失败时的 DOM 转储既能复盘又不影响运行中的用例。需要交互回放时，在对应用例里显式开启 Playwright tracing。
+UI/交互修改先由执行者实际核验隔离预览，再给出地址、2–5 个操作及预期结果，方便用户查看。只有用户要求验收后继续、存在关键产品分歧，或动作尚未获授权时，才等待用户决定；已经授权的交付不因每次 UI 修改追加一次批准。已确认过的相同结果不重复询问。纯后端、测试、规范与交付工具改动以自动化和可审查差异验收，不强制启动 UI，也不机械地追加一轮“用户批准”。用户已授权完整交付时沿用授权；仅新出现的实质性不可逆动作或未解决的关键分歧需要确认。
 
-共享 `live_app` 提供独立账户目录、模拟平台响应和固定服务端日期；`browser` 使用同一天及上海时区。默认日期只在 `FIXED_NOW` 定义；特殊场景用 `@pytest.mark.now("2026-03-02T12:00:00+08:00")` 同时覆盖前后端日期，不在各测试粘贴 Date 模拟代码。真实平台集成问题仍需单独验证。
+说明实际改动、检查结果和剩余限制即可。小任务不用计划文件、额外审计报告、反复截图或多模型评审；审查聚焦数据边界、回归风险与行为正确性。行为变化只同步负责该约定的当前文档，历史计划不作为门禁。
 
-每次脚本运行产生独立的 `test-results/<时间-随机标识>/`：
+## 5. 本地集成与发布
 
-- `run.json`：提交、工作区是否有改动、参数、并行 worker 数、是否按改动挑选、退出码和是否仅收集；它是追溯记录，不是免测凭证。
-- `results.xml`、`pytest.log`：测试结果和日志，末尾显示耗时最慢的用例。
-- 浏览器用例失败时，在以用例散列命名的子目录保存用例名、控制台错误、页面截图与失败时的最终 DOM（`dom-*.html`），并通过 `capture-*.txt` 说明未能保存的部分。证据只在失败时收集；通过用例不录制 trace，因为录制与响应监听会改变被测行为。不要为了截图掩盖原失败。
+日常以本地检查作为交付证据。`.github/workflows/verify.yml` 仅保留手动 `workflow_dispatch`：需要验证干净安装环境、排查“本机正常”或依赖更新时按需触发；普通 push/PR 不自动再跑一遍完整测试。CI 只有 `contents: read`，不放生产 SSH/备份密钥，固定 Actions 提交，复用依赖缓存、取消过时运行、保留 14 天证据。触发与权限机制见 [GitHub Actions 官方工作流语法](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax)。
 
-查看 trace：`.\.venv\Scripts\python.exe -m playwright show-trace <trace.zip>`。这些产物不提交 Git；仅保留本次排错需要的证据，避免上传含凭据的诊断文件。
+当前不要求配置分支保护、第二人审批或等待远端检查；CI 是诊断入口。发布仍由本机脚本核验来源、测试和备份，不能把用户没看过的任意 JSON 或未实际运行的 CI 配置当成功证明。
 
-布局测试验证具体几何与交互约束，截图供人工检查；当前没有像素基线自动比较，不能把「截图生成」表述成「视觉验收通过」。小范围视觉改动无需创建新的测试体系。
+仅在任务包含合并/推送/发布时继续对应动作。保持短期功能分支，允许时优先 fast-forward 保留已测试提交；合并冲突或新提交改变内容则重新验证最终版本。确认 `git push origin main` 成功后运行已有部署入口：
 
-## 4. 交给用户本地验收
+```powershell
+.\.agents\skills\deploy-canvas-dashboard\scripts\deploy.ps1
+```
 
-交付：本地地址、涉及的场景、2–5 个操作与预期结果、已运行检查和仍存在的限制。自动化通过后再请用户判断体验。验收要求来自 `AGENTS.md`，用户已明确验收过的同一结果不要重复询问。修订后复验受影响部分。
+脚本自动执行：
 
-## 5. 合并、推送与发布
+1. 要求干净 main（包括未追踪源码），与实时远端 main 一致，固定发布提交。
+2. 默认核验并复用本机该提交的完整测试证据；没有有效证据就运行一次全量，再核验证据。`-ForceLocalRegression` 强制重跑；兼容的 `-SkipLocalRegression` 表示必须有有效证据，绝不是关闭门禁。
+3. 编译 tracked Python、加密备份、下载校验与隔离恢复演练；再次检查源码及远端没有改变。
+4. 打包固定提交，通过固定 SSH 主机密钥上传；原子激活、服务与健康检查、失败回滚仍由服务器安装器负责。
 
-用户验收通过后，将分支合并到 `main`，确认 `git push origin main` 成功，再运行既有部署脚本。解决合并冲突或产生新变更后，验证最终版本；功能或视觉结果变化时补充相应验收。
+传输和只读探测可重试；**激活不自动重试**。SSH 中断不能证明服务端未执行，先按 `docs/operations.md` 查实际活动版本和状态，避免重复解包、重启或覆盖回滚关系。日常发布不再执行旧应用退役脚本；退役是独立运维动作。
 
-部署脚本自动执行：
-
-1. 要求分支为 `main`，工作区干净（包括未追踪源码），HEAD 与实时读取的远端 `origin` 的 `main` 相同。
-2. 记录固定提交并跑完整回归、编译、加密备份和恢复演练。
-3. 再次核对工作区与本地/远端提交；变化则停止，不自动提交、推送或丢弃修改。
-4. 以固定提交打包，发布名称带提交前 12 位；继续原有原子切换、健康检查和失败回滚。
-
-只做来源检查：`.\.venv\Scripts\python.exe scripts/check_release.py`。该命令会读取 origin 的远端引用，不写远端，不执行部署，也不会代替用户验收。最终报告发布名、完整提交和实际健康检查结果。
+按当前规模，先保持“本地集成验证 → 固定提交发布”。不为消除一次本地回归引入整套远端签名、制品仓库和审批链。跨平台依赖锁定仍有价值，但不能把 Windows 的 `pip freeze` 直接当生产 Linux 锁文件；调整生产依赖应在对应平台解析并验证。只有实际出现多机发布、本机环境无法维护或发布构建成为瓶颈时，再扩展 CI 构建与制品推广。备份/恢复演练与最终健康检查继续保留。
 
 ## 功能定位索引
 

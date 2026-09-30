@@ -12,7 +12,7 @@ Run deployments from the repository root on Windows:
 
 The deploy script:
 
-1. verifies clean `main` against the live remote `origin/main`, records the commit, and runs `scripts/test.ps1 -Suite all` plus Python compilation;
+1. verifies clean `main` against the live remote `origin/main`, records the commit, and reuses valid schema-2 full-suite evidence for that exact commit and local environment; otherwise runs `scripts/test.ps1 -Suite all` once and verifies the new evidence, then compiles Python;
 2. creates, downloads, verifies, and restores an encrypted backup in an isolated recovery drill;
 3. rechecks the unchanged clean, pushed commit after tests/backup, archives that fixed commit (release name includes its first 12 characters), and packages only production runtime and deployment files, excluding local docs, tests, Windows helpers, `.git`, `.venv`, `data/`, caches, and agent directories;
 4. uploads an immutable release through SSH with the pinned `deploy/known_hosts`;
@@ -23,6 +23,10 @@ The deploy script:
 9. after successful health checks, keeps the newest five releases while always protecting the active and recorded rollback targets.
 
 OpenSSH must be able to authenticate non-interactively through the configured key or agent. `-SkipPreDeployBackup` exists for an explicit emergency decision; it skips the off-server backup and recovery drill and should not be the normal path.
+
+`-ForceLocalRegression` requests a fresh full suite. The legacy `-SkipLocalRegression` requires valid evidence and fails if it is unavailable; the default automatically reuses or runs. Evidence must cover a canonical full invocation, unchanged clean source before and after, the current Python/package environment, and successful JUnit results. A newer failed or interrupted full run invalidates an older success. Local evidence is not a signed CI attestation.
+
+Activation is attempted once. SSH disconnection leaves its outcome uncertain: inspect `current`, `.previous-release`, service status and health before deciding to retry. Uploads and read-only checks retain bounded retries. Server-side activation failure still triggers rollback. Do not automatically rerun extraction/restarts after a lost response. The historical `retire-unused-apps.sh` is no longer part of normal deployments; retirement requires a separate scoped operations decision.
 
 Runtime `data/` is never included in a release archive.
 
@@ -102,7 +106,7 @@ Production `/static/` uses nginx `alias` to `current/frontend/assets/`, without 
 
 Both nginx templates explicitly set `client_max_body_size 8m`; Flask `MAX_CONTENT_LENGTH` is `8 * 1024 * 1024` bytes. Change both together. VNC `auth_request` sends the Dashboard cookie only to Flask; the actual container request removes Cookie and Authorization, and container Set-Cookie is hidden.
 
-The discontinued `/daily-english` and `/life-list` paths return 410. Historical application retirement is separate from normal Dashboard deployment. The prior retirement used `deploy/retire-unused-apps.sh` to archive the two applications under `/home/ubuntu/.retired-dashboard-apps/`; a Dashboard rollback does not restart them.
+The discontinued `/daily-english` and `/life-list` paths return 410. After successful Dashboard deployment, the existing deployment runner calls `deploy/retire-unused-apps.sh`: disable the ubuntu user `daily-english.service` and system `life-list.service`, replace their two HTTP virtual hosts with 410, and move only `/home/ubuntu/daily-english-web` and `/home/ubuntu/life-list` into private `/home/ubuntu/.retired-dashboard-apps/`. Units and original subdomain configuration are saved there. The script refuses unrelated virtual hosts, symlinks or an occupied destination. It does not delete unique application data. A Dashboard rollback does not restart these discontinued apps; restore their archived directories/units and subdomain configuration explicitly if needed.
 
 ## Basic operational monitoring
 

@@ -17,7 +17,7 @@ From the project root:
 
 The script is the source of truth. It currently:
 
-1. verifies a clean `main` equals the live remote `origin/main`, then runs `scripts/test.ps1 -Suite all` and Python compilation;
+1. verifies a clean `main` equals the live remote `origin/main`, then automatically reuses valid schema-2 full-suite evidence for that exact commit and local environment, or runs `scripts/test.ps1 -Suite all` once and validates its evidence; Python compilation still runs;
 2. creates and downloads an encrypted production-data backup, verifies it, and performs an isolated recovery drill;
 3. uses strict SSH host-key checking with `deploy/known_hosts`;
 4. rechecks the same clean, pushed commit after validation and backup, then archives that fixed commit and uploads an immutable timestamped, commit-labelled release under `/home/ubuntu/canvas-dashboard/releases/` without `data/`, `.venv/`, `.git/`, caches, or agent directories;
@@ -29,7 +29,9 @@ The script is the source of truth. It currently:
 
 Do not use `-SkipPreDeployBackup` unless the user explicitly accepts skipping the off-server backup and recovery drill.
 
-Activation is attempted once. If SSH loses the response, inspect the active release and health before deciding what to do next. Historical application retirement is a separate operation.
+`-ForceLocalRegression` forces a fresh full run. The legacy `-SkipLocalRegression` requires accepted evidence; it cannot bypass tests. Partial/collection-only runs, changed source or environment, and a newer failed/interrupted full run are not reusable evidence.
+
+Activation is attempted once. If SSH loses the response, inspect the active release and health before deciding to retry; do not automatically repeat extraction or activation. Transfer and read-only checks keep bounded retries. Historical application retirement is a separate operation, not a deployment step.
 
 ## Report
 

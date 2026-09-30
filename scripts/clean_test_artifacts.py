@@ -108,7 +108,7 @@ def read_run(path: Path) -> tuple[int | None, str, bool, str]:
     )
 
 
-def scan_runs(runs_root: Path) -> tuple[list[RunRecord], list[tuple[str, str]]]:
+def scan_runs(runs_root: Path, *, measure_size: bool = True) -> tuple[list[RunRecord], list[tuple[str, str]]]:
     """Collect valid run directories; the second list reports entries that are left alone."""
     records: list[RunRecord] = []
     skipped: list[tuple[str, str]] = []
@@ -134,7 +134,7 @@ def scan_runs(runs_root: Path) -> tuple[list[RunRecord], list[tuple[str, str]]]:
                     suite=suite,
                     collection_only=collection_only,
                     evidence_error=error,
-                    size=directory_size(path),
+                    size=directory_size(path) if measure_size else 0,
                 )
             )
     records.sort(key=lambda record: record.name, reverse=True)
@@ -240,6 +240,27 @@ def human_size(size: int) -> str:
     return f"{value:.1f} TB"  # pragma: no cover - unreachable
 
 
+def rotate_runs(repo_root: Path, current_run: str, keep_success: int, keep_failed: int) -> int:
+    """Fast automatic retention: metadata only, same safety checks as manual cleanup."""
+    records, _ = scan_runs(repo_root / "test-results", measure_size=False)
+    _, candidates = plan_runs(records, keep_success, keep_failed)
+    removed = 0
+    for record in candidates:
+        if record.name == current_run:
+            continue
+        problem = validate_run_directory(repo_root, record.path)
+        if problem:
+            print(f"Retention skipped {record.name}: {problem}")
+            continue
+        error = remove_directory(record.path)
+        if error:
+            print(f"Retention skipped {record.name}: {error}")
+        else:
+            removed += 1
+    print(f"Artifact retention: removed {removed} old recorded run(s).")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -250,6 +271,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--keep-failed", type=int, default=30, metavar="N",
                         help="Newest failing or unreadable runs to keep (default: 30)")
     parser.add_argument("--apply", action="store_true", help="Actually delete; default is a dry run")
+    parser.add_argument("--current-run", help="With --apply, run metadata-only automatic retention and protect this run")
     parser.add_argument("--verbose", action="store_true",
                         help="List every deletion candidate instead of the newest 20")
     parser.add_argument("--skip-residue", action="store_true",
@@ -259,6 +281,10 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--keep-success and --keep-failed must be zero or greater")
     repo_root = args.repo.resolve()
     runs_root = repo_root / "test-results"
+    if args.current_run:
+        if not args.apply or not RUN_ID_PATTERN.fullmatch(args.current_run):
+            parser.error("--current-run requires --apply and a valid run ID")
+        return rotate_runs(repo_root, args.current_run, args.keep_success, args.keep_failed)
 
     print("Canvas Dashboard test artifacts")
     print(f"repository : {repo_root}")

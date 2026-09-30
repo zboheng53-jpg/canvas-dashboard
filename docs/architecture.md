@@ -1,5 +1,7 @@
 # Architecture
 
+模块行为的完整约束见 [module-contracts.md](module-contracts.md)；本页保留运行拓扑与架构说明。
+
 Canvas Dashboard is a single-process Flask/Waitress application for a small group of independent users. It aggregates work from Canvas, 好课, 智学盟, 智慧树, 课堂派, 同济 OJ, and personal todos. It does not share tasks between accounts. Production uses nginx for TLS and reverse proxying, while a separate systemd worker refreshes 智慧树 data.
 
 ## Runtime Topology
@@ -77,7 +79,7 @@ Global secrets and shared settings live under `data/`:
 - `.encryption_key` decrypts stored platform credentials; it must be restored with `config.json`.
 - `term_config.json` provides the local term fallback.
 
-See `AGENTS.md` for the current file contract and `docs/backup-and-restore.md` for protection and recovery.
+See `docs/module-contracts.md` for the current file contract and `docs/backup-and-restore.md` for protection and recovery.
 
 ## JSON Safety And Concurrency
 
@@ -94,8 +96,8 @@ These locks are process-local. A future multi-process application deployment mus
 
 ## Refresh Paths
 
-- Canvas fetches and parses the configured iCalendar feed, then stores a local cache. This request remains synchronous. Only configured trusted HTTPS hosts on port 443 are accepted, with redirects disabled; the default host is `canvas.tongji.edu.cn`.
-- 好课 serves an existing cache immediately; a stale cache starts at most one in-process refresh per user. The first load without a cache remains synchronous.
+- Canvas reads its cache and submits refreshes to the shared bounded HTTP executor. Only configured trusted HTTPS hosts on port 443 are accepted, with redirects disabled; the default host is `canvas.tongji.edu.cn`.
+- 好课 serves its cache and submits refreshes to the shared bounded HTTP executor, including the first load. Refreshes are deduplicated per account/platform/task.
 - 智学盟 caches assignments for 30 minutes; disconnect removes credentials while retaining cache and local state.
 - 智慧树 runs outside Flask. Every all-user round rediscovers account directories. Each user runs in a child process with a 180-second default timeout, so one stuck account does not block later users. Per-user `last_success_at` values are summarized by `/healthz`.
 
@@ -107,7 +109,7 @@ Imported platform items retain their upstream fields in each platform cache. Per
 
 The optional local title and deadline overlay uses `POST /api/platform/<platform>/override` for Canvas, 好课, 智学盟, and 智慧树. The response keeps the upstream values in `platform_title` and `platform_due_ts`; `DELETE` on the same route removes the overlay and restores the upstream display values. Only a non-empty title of at most 240 characters and a valid ISO deadline are accepted.
 
-Custom completed todos remain visible through the later of their original due day and completion day, then are removed by the normal list cleanup. The dashboard groups unfinished work as overdue/today, the remainder of the current natural week through Sunday, and later work; the boundary is based on local calendar days.
+Completed ordinary todos are permanently removed once their effective deadline has passed; undated completed todos remain. Date-only deadlines end at the close of that day in Shanghai. The dashboard groups items as overdue, today, the next rolling seven days, undated, later, and completed. See module-contracts.md for the shared deadline and recurring-todo rules.
 
 ## Custom Todos And Calendar
 
@@ -165,12 +167,12 @@ Production state is split deliberately:
 ├── current -> releases/<release-name>
 ├── releases/             immutable application releases
 ├── data/                 persistent runtime data
-├── .venv/                shared Python environment
+├── .venv/                legacy environment retained only for older rollback targets
 ├── backups/              encrypted server-side backup copies
 └── incoming/             temporary upload area
 ```
 
-Each release links to the shared `data/` and `.venv/`. Activation atomically switches `current`, installs systemd/nginx configuration, restarts services, and runs local plus HTTPS health checks. A failed activation restores the previous release automatically. After a successful activation, the installer keeps the newest five releases and always protects the active and recorded rollback targets.
+Each release links to shared `data/`, creates its own `.venv/`, and records installed versions in `dependencies.txt`. Activation atomically switches `current`, installs systemd/nginx configuration, restarts services, and runs local plus HTTPS health checks. A failed activation restores the previous release automatically. After a successful activation, the installer keeps the newest five releases and always protects the active and recorded rollback targets.
 
 Operational commands and rollback procedure are in `docs/operations.md`.
 

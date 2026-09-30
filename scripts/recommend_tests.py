@@ -247,6 +247,10 @@ def classify(path: str, catalog: Catalog, repo_root: Path) -> Recommendation:
         return Recommendation(path, SUITE_ALL, "空路径，保守起见跑全量回归。", ("tests",))
     name = posix.rsplit("/", 1)[-1]
 
+    # Deletions must not silently disappear from the impact map.
+    if not (repo_root / posix).exists():
+        return Recommendation(posix, SUITE_ALL, "删除或不存在的路径需要全量检查引用与集成。", ("tests",))
+
     if posix.startswith("tests/"):
         if name.startswith("test_") and posix.endswith(".py"):
             return Recommendation(posix, SUITE_DIRECT, "改动的是测试自身，直接重跑该文件即可。", (posix,))
@@ -254,7 +258,7 @@ def classify(path: str, catalog: Catalog, repo_root: Path) -> Recommendation:
 
     if posix.startswith("frontend/"):
         if posix.endswith(".css"):
-            reason = "CSS 改动只影响布局与设计规范，跑 ui 套件覆盖。"
+            return Recommendation(posix, SUITE_DIRECT, "样式迭代先跑静态规范；交付前验证受影响的浏览器布局。", catalog.ui_static)
         elif posix.endswith(".html"):
             reason = "模板改动影响渲染结构，跑 ui 套件覆盖。"
         elif posix.endswith((".js", ".mjs")):
@@ -274,7 +278,8 @@ def classify(path: str, catalog: Catalog, repo_root: Path) -> Recommendation:
     if posix.startswith((".agents/", "deploy/")):
         return Recommendation(
             posix, SUITE_SCRIPTS, "部署配置与 skill 契约改动，跑部署配置检查。",
-            ("tests/test_deploy_configs.py", "tests/test_scripts.py"),
+            ("tests/test_deploy_configs.py", "tests/test_scripts.py", "tests/test_development_workflow.py",
+             "tests/test_release_rollback.py", "tests/test_backup_pull_workflow.py"),
         )
 
     if posix.startswith("skill/"):
@@ -289,7 +294,7 @@ def classify(path: str, catalog: Catalog, repo_root: Path) -> Recommendation:
             ("tests/test_development_workflow.py", "tests/test_deploy_configs.py"),
         )
 
-    if posix == "requirements.txt":
+    if posix.startswith("requirements") or posix.startswith(".github/"):
         return Recommendation(posix, SUITE_ALL, "依赖变化影响全部用例，必须跑全量回归。", ("tests",))
 
     if posix == ".gitignore":
@@ -306,6 +311,8 @@ def classify(path: str, catalog: Catalog, repo_root: Path) -> Recommendation:
 
     if posix.endswith(".py") or posix.startswith(("routes/", "services/")):
         extra = MODULE_TESTS.get(name, ())
+        if extra and name not in {"storage.py", "auth.py", "user_paths.py"}:
+            return Recommendation(posix, SUITE_DIRECT, "迭代先验证模块契约；交付时按影响面补充集成检查。", extra)
         return Recommendation(
             posix, SUITE_ACCEPTANCE, _backend_reason(name, posix, bool(extra)),
             catalog.files(SUITE_ACCEPTANCE) + extra,
@@ -351,26 +358,22 @@ def _paths(output: str) -> list[str]:
 def diff_against_parent(repo_root: Path) -> list[str]:
     """Default source: what the last commit changed."""
     try:
-        return _paths(run_git(repo_root, "diff", "--name-only", "--diff-filter=ACMR", "HEAD~1..HEAD"))
+        return _paths(run_git(repo_root, "diff", "--name-only", "--no-renames", "HEAD~1..HEAD"))
     except SelectionError:
         # No parent commit yet: treat every tracked file as new.
         return _paths(run_git(repo_root, "ls-files"))
 
 
 def diff_staged(repo_root: Path) -> list[str]:
-    return _paths(run_git(repo_root, "diff", "--name-only", "--cached", "--diff-filter=ACMR"))
+    return _paths(run_git(repo_root, "diff", "--name-only", "--cached", "--no-renames"))
 
 
 def diff_worktree(repo_root: Path) -> list[str]:
-    """Uncommitted work (staged + unstaged + untracked); falls back to the last commit when clean."""
-    tracked: list[str] = []
-    try:
-        tracked = _paths(run_git(repo_root, "diff", "--name-only", "--diff-filter=ACMR", "HEAD"))
-    except SelectionError:
-        tracked = []
+    """Uncommitted work only; a broken git query is an error, not an empty selection."""
+    tracked = _paths(run_git(repo_root, "diff", "--name-only", "--no-renames", "HEAD"))
     untracked = _paths(run_git(repo_root, "ls-files", "--others", "--exclude-standard"))
     changed = list(_dedupe(tracked + untracked))
-    return changed if changed else diff_against_parent(repo_root)
+    return changed
 
 
 def collect_selection(repo_root: Path, paths: list[str], catalog: Catalog) -> tuple[list[Recommendation], list[str]]:
@@ -384,6 +387,7 @@ def collect_selection(repo_root: Path, paths: list[str], catalog: Catalog) -> tu
         if not present and recommendation.suite != SUITE_ALL:
             notes.append(f"{recommendation.path}: no test target found, falls back to the full suite")
             recommendation = Recommendation(recommendation.path, SUITE_ALL, recommendation.reason, ("tests",))
+            present = ("tests",)
         recommendations.append(
             Recommendation(recommendation.path, recommendation.suite, recommendation.reason, present, missing)
         )
@@ -410,13 +414,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", type=Path, default=REPO_ROOT, help="Repository root (default: this checkout)")
     parser.add_argument("--files", nargs="+", metavar="PATH", help="Changed paths to classify")
     parser.add_argument("--staged", action="store_true", help="Use staged changes (git diff --cached)")
+    parser.add_argument("--base", help="Include committed branch changes since the merge base, plus local changes")
     parser.add_argument("--files-from-diff", action="store_true",
                         help="Use uncommitted changes; scripts/test.ps1 -ChangedOnly calls this")
     parser.add_argument("--pytest-args", action="store_true",
                         help="Print one pytest argument per line instead of a human report")
     args = parser.parse_args(argv)
-    if sum(bool(value) for value in (args.files, args.staged, args.files_from_diff)) > 1:
-        parser.error("choose one of --files / --staged / --files-from-diff")
+    if sum(bool(value) for value in (args.files, args.staged, args.files_from_diff, args.base)) > 1:
+        parser.error("choose one of --files / --staged / --files-from-diff / --base")
     repo_root = args.repo.resolve()
 
     try:
@@ -426,6 +431,9 @@ def main(argv: list[str] | None = None) -> int:
             changed = diff_staged(repo_root)
         elif args.files_from_diff:
             changed = diff_worktree(repo_root)
+        elif args.base:
+            base = run_git(repo_root, "merge-base", args.base, "HEAD").strip()
+            changed = _paths(run_git(repo_root, "diff", "--name-only", "--no-renames", base)) + diff_worktree(repo_root)
         else:
             changed = diff_against_parent(repo_root)
     except SelectionError as error:
