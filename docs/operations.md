@@ -102,7 +102,7 @@ Production `/static/` uses nginx `alias` to `current/frontend/assets/`, without 
 
 Both nginx templates explicitly set `client_max_body_size 8m`; Flask `MAX_CONTENT_LENGTH` is `8 * 1024 * 1024` bytes. Change both together. VNC `auth_request` sends the Dashboard cookie only to Flask; the actual container request removes Cookie and Authorization, and container Set-Cookie is hidden.
 
-The discontinued `/daily-english` and `/life-list` paths return 410. After successful Dashboard deployment, the existing deployment runner calls `deploy/retire-unused-apps.sh`: disable the ubuntu user `daily-english.service` and system `life-list.service`, replace their two HTTP virtual hosts with 410, and move only `/home/ubuntu/daily-english-web` and `/home/ubuntu/life-list` into private `/home/ubuntu/.retired-dashboard-apps/`. Units and original subdomain configuration are saved there. The script refuses unrelated virtual hosts, symlinks or an occupied destination. It does not delete unique application data. A Dashboard rollback does not restart these discontinued apps; restore their archived directories/units and subdomain configuration explicitly if needed.
+The discontinued `/daily-english` and `/life-list` paths return 410. Historical application retirement is separate from normal Dashboard deployment. The prior retirement used `deploy/retire-unused-apps.sh` to archive the two applications under `/home/ubuntu/.retired-dashboard-apps/`; a Dashboard rollback does not restart them.
 
 ## Basic operational monitoring
 

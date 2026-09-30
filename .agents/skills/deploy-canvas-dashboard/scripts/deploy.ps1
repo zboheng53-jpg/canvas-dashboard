@@ -22,13 +22,14 @@ $SshOptions = @(
 )
 
 function Invoke-DeploySsh {
-    param([string]$Command, [string]$Description)
-    for ($attempt = 1; $attempt -le 3; $attempt++) {
+    param([string]$Command, [string]$Description, [switch]$SingleAttempt)
+    $maxAttempts = if ($SingleAttempt) { 1 } else { 3 }
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
         & ssh -n @SshOptions $Remote $Command
         if ($LASTEXITCODE -eq 0) { return }
-        if ($attempt -lt 3) { Start-Sleep -Seconds (5 * $attempt) }
+        if ($attempt -lt $maxAttempts) { Start-Sleep -Seconds (5 * $attempt) }
     }
-    throw "$Description failed after three verified SSH attempts."
+    throw "$Description failed after $maxAttempts SSH attempt(s)."
 }
 
 function Send-DeployArchive {
@@ -86,10 +87,9 @@ try {
 
     $RemoteInstall = "$RemoteRoot/releases/$ReleaseName/deploy/install-release.sh"
     $RemoteCommand = "mkdir -p '$RemoteRoot/releases/$ReleaseName' && tar -xzf '$RemoteRoot/incoming/$ReleaseName.tar.gz' -C '$RemoteRoot/releases/$ReleaseName' && bash '$RemoteInstall' '$RemoteRoot/incoming/$ReleaseName.tar.gz' '$ReleaseName'"
-    Invoke-DeploySsh -Command $RemoteCommand -Description "Remote release activation (the server restores the previous release on failure)"
+    Invoke-DeploySsh -Command $RemoteCommand -Description "Remote release activation (the server restores the previous release on failure)" -SingleAttempt
 
     Invoke-DeploySsh -Command "systemctl is-active canvas-dashboard.service zhihuishu-worker.service zhihuishu-login-cleanup.timer canvas-dashboard-backup.timer canvas-dashboard-monitor.timer nginx && curl -fsS --max-time 10 http://127.0.0.1:5000/healthz && if sudo test -f /etc/letsencrypt/live/canvas-dashboard.xyz/fullchain.pem; then curl -fsS --max-time 10 --resolve canvas-dashboard.xyz:443:127.0.0.1 https://canvas-dashboard.xyz/healthz; fi" -Description "Post-deployment service verification"
-    Invoke-DeploySsh -Command "bash '$RemoteRoot/current/deploy/retire-unused-apps.sh'" -Description "Retire the two explicitly discontinued applications"
 }
 finally {
     Remove-Item -LiteralPath $TarFile -ErrorAction SilentlyContinue
