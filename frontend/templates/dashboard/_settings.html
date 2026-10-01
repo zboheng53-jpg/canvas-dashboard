@@ -32,10 +32,10 @@
           <p>连续 30 天未访问网站后，登录状态会自动失效。</p>
           <p id="revoke-sessions-help">如果你曾在公共电脑或其他设备上登录，可验证当前密码后退出其他设备。</p>
           <label class="ui-label settings-field-label" for="revoke-sessions-password">当前网站密码</label>
-          <div class="session-revoke-row">
+          <form class="session-revoke-row" id="revoke-sessions-form" onsubmit="event.preventDefault(); revokeOtherSessions();">
             <input id="revoke-sessions-password" type="password" autocomplete="current-password" placeholder="输入当前网站密码" aria-describedby="revoke-sessions-help revoke-sessions-status" class="ui-control">
-            <button type="button" class="ui-button ui-button--secondary btn-secondary console-stateful-button" id="revoke-sessions-button" aria-busy="false" onclick="revokeOtherSessions()">退出其他设备</button>
-          </div>
+            <button type="submit" class="ui-button ui-button--secondary btn-secondary console-stateful-button" id="revoke-sessions-button" aria-busy="false">退出其他设备</button>
+          </form>
           <p id="revoke-sessions-status" class="ui-feedback ui-feedback--neutral calendar-subscription-status" role="status" aria-live="polite"></p>
         </div>
       </section>

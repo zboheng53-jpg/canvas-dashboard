@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>子任务 UI 设计方案展示与现状优化</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    .tree-line::before {
+      content: '';
+      position: absolute;
+      left: 19px;
+      top: 0;
+      bottom: 14px;
+      width: 1.5px;
+      background: #e2e8f0;
+    }
+    .tree-item::before {
+      content: '';
+      position: absolute;
+      left: -17px;
+      top: 15px;
+      width: 12px;
+      height: 1.5px;
+      background: #e2e8f0;
+      border-bottom-left-radius: 4px;
+    }
+    .checkbox-custom:checked + label .check-icon {
+      opacity: 1;
+      transform: scale(1);
+    }
+    .checkbox-custom:checked + label .check-bg {
+      background-color: #3b82f6;
+      border-color: #3b82f6;
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased p-4 md:p-8 min-h-screen">
+  <div class="max-w-5xl mx-auto space-y-8">
+
+    <!-- 顶部标题与说明 -->
+    <header class="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+        <div>
+          <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold mb-2">
+            <span>🎨 UI / UX 视觉重构</span>
+            <span class="text-blue-300">·</span>
+            <span>4 组备选方案</span>
+          </div>
+          <h1 class="text-2xl font-bold tracking-tight text-slate-900">待办子任务 (Subtasks) 视觉设计方案集</h1>
+          <p class="text-sm text-slate-500 mt-1">针对现有子任务沉重笨拙、控件喧宾夺主的问题，提供 4 组兼顾美感与效率的现代交互方案。</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="btn-toggle-compare" onclick="toggleCompareMode()" class="px-4 py-2 text-xs font-semibold rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-sm transition">
+            🔄 开启并排对比模式
+          </button>
+        </div>
+      </div>
+
+      <!-- 诊断与优化简述 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+        <div class="bg-red-50/60 border border-red-100 rounded-xl p-4 text-xs text-red-900 space-y-1.5">
+          <div class="font-bold flex items-center gap-1.5 text-red-700">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            现状痛点剖析（为什么会觉得特别丑陋）
+          </div>
+          <p>• <b>灰色实心大面板：</b>展开子任务后插入一块大面积灰色底色卡片，界面产生明显“补丁感”，割裂了待办列表的清爽流线。</p>
+          <p>• <b>原生 DatePicker 霸占面积：</b>每一行都横亘一个 140px 宽的笨拙原生日期输入框，反客为主，完全盖过了任务文本本身。</p>
+          <p>• <b>裸露刺眼的红色“x”：</b>删除按钮无图标包裹、无悬停渐变，像未完成的粗糙毛坯页面。</p>
+          <p>• <b>缺乏层级引导：</b>子任务与父任务缺乏柔和的缩进指引线或视觉呼应。</p>
+        </div>
+
+        <div class="bg-emerald-50/60 border border-emerald-100 rounded-xl p-4 text-xs text-emerald-900 space-y-1.5">
+          <div class="font-bold flex items-center gap-1.5 text-emerald-700">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            弹窗保存密码 Bug 深度排查与修复说明
+          </div>
+          <p>• <b>为什么会跳“保存密码 cann”？</b> 浏览器密码管理器会对页面所有未被 `&lt;form&gt;` 包裹的孤立控件统一识别为同一个隐式表单。设置页中的“退出其他设备密码框”之前未包裹在表单内，且被 Edge 自动填充了记住的用户名（cann）。</p>
+          <p>• <b>触发机制：</b>在子任务中按回车提交时，未被表单保护的子任务输入框触发了 PUT 请求，Edge 误认为整个孤立表单（含密码框）被提交，因此疯狂弹出密码保存提示！</p>
+          <p>• <b>彻底优化：</b>已将设置页密码框封装进独立 `&lt;form&gt;`，并将子任务输入行包裹为带 `autocomplete="off"` 的独立微表单，彻底阻断误判！</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- 方案导航切换器 -->
+    <div id="tab-switcher" class="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
+      <button onclick="switchTab('scheme1')" class="tab-btn active px-4 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white shadow-sm transition" data-target="scheme1">
+        ✨ 方案 1：极简树线型 (Linear / Things 3 风格 · 强烈推荐)
+      </button>
+      <button onclick="switchTab('scheme2')" class="tab-btn px-4 py-2 text-xs font-medium rounded-lg bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 transition" data-target="scheme2">
+        📦 方案 2：分段浮动卡片 (Notion / Craft 风格)
+      </button>
+      <button onclick="switchTab('scheme3')" class="tab-btn px-4 py-2 text-xs font-medium rounded-lg bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 transition" data-target="scheme3">
+        ⚡ 方案 3：高密度效率流 (TickTick / OmniFocus 风格)
+      </button>
+      <button onclick="switchTab('scheme4')" class="tab-btn px-4 py-2 text-xs font-medium rounded-lg bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 transition" data-target="scheme4">
+        🌿 方案 4：无缝原生阶梯 (Apple Reminders 风格)
+      </button>
+      <button onclick="switchTab('before')" class="tab-btn px-4 py-2 text-xs font-medium rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition" data-target="before">
+        ⚠️ 现状原版 (旧版对比)
+      </button>
+    </div>
+
+    <!-- 方案单视图展示区 -->
+    <div id="single-view-container" class="space-y-6">
+
+      <!-- ==================== 方案 1: 极简树线型 ==================== -->
+      <section id="scheme1" class="scheme-section space-y-4">
+        <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <span>方案 1：极简树状流线型 (Tree-Line Guided)</span>
+                <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-800">体验最轻盈</span>
+              </h2>
+              <p class="text-xs text-slate-500 mt-0.5">彻底去除粗暴的灰色大卡片背景，用极其优雅的左侧导轨引导线（Tree Line）建立主从归属；日期变为精致胶囊，悬浮出现操作。</p>
+            </div>
+            <div class="text-xs text-slate-400">💡 支持实时打勾、添加与删除</div>
+          </div>
+
+          <!-- 模拟待办列表容器 -->
+          <div class="border border-slate-200/90 rounded-xl bg-white overflow-hidden shadow-xs">
+            <!-- 父任务行 -->
+            <div class="flex items-center justify-between p-4 hover:bg-slate-50/70 transition border-b border-slate-100">
+              <div class="flex items-center gap-3">
+                <span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+                <span class="font-semibold text-slate-900 text-sm">国庆节</span>
+                <span class="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-600 font-medium">自定义</span>
+              </div>
+              <div class="flex items-center gap-3 text-xs">
+                <span class="text-slate-400">2026-10-07</span>
+                <button class="text-slate-400 hover:text-amber-500 p-1">⚑</button>
+                <button class="text-slate-400 hover:text-emerald-600 p-1">✓</button>
+                <button class="text-slate-400 hover:text-rose-600 p-1">🗑</button>
+                <button class="text-blue-600 font-bold p-1 hover:bg-blue-50 rounded">▾</button>
+              </div>
+            </div>
+
+            <!-- 子任务区域 (方案 1: 纯净清单模式 - 直接罗列子任务) -->
+            <div class="relative bg-slate-50/40 px-4 py-2.5 tree-line">
+              <!-- 子任务列表 -->
+              <div id="s1-list" class="space-y-1 pl-8">
+                <!-- 项 1 -->
+                <div class="tree-item relative flex items-center justify-between py-1.5 px-2.5 rounded-lg hover:bg-white hover:shadow-xs transition group">
+                  <label class="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0">
+                    <input type="checkbox" onchange="toggleCheck(this, 's1')" class="checkbox-custom sr-only">
+                    <div class="check-bg w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center transition">
+                      <svg class="check-icon w-2.5 h-2.5 text-white opacity-0 transform scale-50 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                    <span class="text-xs text-slate-700 font-medium truncate select-none">重新学一遍机械制图</span>
+                  </label>
+                  <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center gap-1 text-[11px] text-slate-500 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer transition">
+                      <span>📅</span><span>10/01</span>
+                    </span>
+                    <button onclick="removeSubtask(this, 's1')" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 p-1 text-xs transition" title="删除">✕</button>
+                  </div>
+                </div>
+
+                <!-- 项 2 (已完成) -->
+                <div class="tree-item relative flex items-center justify-between py-1.5 px-2.5 rounded-lg hover:bg-white hover:shadow-xs transition group">
+                  <label class="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0">
+                    <input type="checkbox" checked onchange="toggleCheck(this, 's1')" class="checkbox-custom sr-only">
+                    <div class="check-bg w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center transition bg-blue-500 border-blue-500">
+                      <svg class="check-icon w-2.5 h-2.5 text-white opacity-100 transform scale-100 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                    <span class="text-xs text-slate-400 line-through font-medium truncate select-none">力学原理</span>
+                  </label>
+                  <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center gap-1 text-[11px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                      <span>📅</span><span>10/01</span>
+                    </span>
+                    <button onclick="removeSubtask(this, 's1')" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 p-1 text-xs transition" title="删除">✕</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 添加输入栏 (方案 1: Ghost Input 极简快速录入) -->
+              <form onsubmit="addSubtask(event, 's1')" class="tree-item relative mt-2 pl-8 flex items-center gap-2">
+                <div class="w-4 h-4 rounded-full border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-xs">＋</div>
+                <input id="s1-input" type="text" autocomplete="off" placeholder="添加子步骤，按 Enter 快速添加..." class="flex-1 bg-transparent border-0 border-b border-transparent focus:border-blue-400 text-xs py-1 px-1 focus:ring-0 placeholder:text-slate-400 text-slate-700 outline-none transition">
+                <input id="s1-date" type="date" value="2026-10-01" class="text-[11px] text-slate-500 bg-white border border-slate-200 rounded px-2 py-0.5 focus:border-blue-400 outline-none">
+                <button type="submit" class="px-2.5 py-1 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded shadow-xs transition">添加</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="mt-4 p-3 bg-blue-50/50 rounded-xl border border-blue-100/80 text-xs text-blue-900 space-y-1">
+            <b>方案 1 设计核心亮点：</b>
+            <p>1. <b>呼吸感与归属感：</b>左侧极细树线 (Tree Line) 直接将每个步骤和父任务串联起来，视觉上是主任务的“自然延伸”而非“生硬插入”。</p>
+            <p>2. <b>紧凑日期胶囊：</b>将原先 140px 宽的大框转化为轻巧的 `10/01 📅` 药丸胶囊，彻底把空间还给文本。</p>
+            <p>3. <b>悬停交互：</b>删除按钮默认隐藏，悬浮某行时才淡入微叉号，杜绝满屏刺眼的红 x 按钮。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 方案 2: 分段浮动卡片 ==================== -->
+      <section id="scheme2" class="scheme-section hidden space-y-4">
+        <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <span>方案 2：分段浮动卡片式 (Floating Segment Cards)</span>
+                <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-100 text-indigo-800">模块化结构感</span>
+              </h2>
+              <p class="text-xs text-slate-500 mt-0.5">参考 Notion / Craft 风格，以微阴影浮动卡片呈现每个子步骤，适合需要清晰界限、拖拽排序或多属性信息的场景。</p>
+            </div>
+            <div class="text-xs text-slate-400">💡 支持实时打勾、添加与删除</div>
+          </div>
+
+          <div class="border border-slate-200 rounded-xl bg-white overflow-hidden shadow-xs">
+            <!-- 父任务 -->
+            <div class="flex items-center justify-between p-4 border-b border-slate-100">
+              <div class="flex items-center gap-3">
+                <span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+                <span class="font-semibold text-slate-900 text-sm">国庆节</span>
+                <span class="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-600 font-medium">自定义</span>
+              </div>
+              <div class="flex items-center gap-3 text-xs text-slate-400">
+                <span>2026-10-07</span>
+                <button class="p-1">⚑</button><button class="p-1">✓</button><button class="p-1">🗑</button><button class="text-blue-600 font-bold p-1">▾</button>
+              </div>
+            </div>
+
+            <!-- 子任务区域 (方案 2) -->
+            <div class="bg-slate-50/80 p-4 space-y-3">
+              <!-- 卡片式头部 -->
+              <div class="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-slate-200/80 shadow-xs text-xs">
+                <div class="flex items-center gap-2">
+                  <span class="font-semibold text-slate-700">拆解任务清单</span>
+                  <span class="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded">2 步骤</span>
+                </div>
+                <div class="flex items-center gap-2 text-slate-400 text-[11px]">
+                  <span>已完成 50%</span>
+                  <div class="w-16 bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                    <div class="bg-emerald-500 h-full w-1/2"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 卡片行列表 -->
+              <div id="s2-list" class="space-y-2">
+                <div class="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200/70 hover:border-blue-300 hover:shadow-xs transition group">
+                  <label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
+                    <input type="checkbox" onchange="toggleCheck(this, 's2')" class="checkbox-custom sr-only">
+                    <div class="check-bg w-4 h-4 rounded border border-slate-300 flex items-center justify-center transition">
+                      <svg class="check-icon w-2.5 h-2.5 text-white opacity-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                    <span class="text-xs text-slate-800 font-medium">重新学一遍机械制图</span>
+                  </label>
+                  <div class="flex items-center gap-3">
+                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200/60">
+                      ⏱ 今天 10/01
+                    </span>
+                    <button onclick="removeSubtask(this, 's2')" class="text-slate-300 hover:text-rose-500 text-xs p-1">🗑</button>
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200/70 hover:border-blue-300 hover:shadow-xs transition group">
+                  <label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
+                    <input type="checkbox" checked onchange="toggleCheck(this, 's2')" class="checkbox-custom sr-only">
+                    <div class="check-bg w-4 h-4 rounded border border-blue-500 bg-blue-500 flex items-center justify-center transition">
+                      <svg class="check-icon w-2.5 h-2.5 text-white opacity-100" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                    <span class="text-xs text-slate-400 line-through font-medium">力学原理</span>
+                  </label>
+                  <div class="flex items-center gap-3">
+                    <span class="text-[11px] font-medium px-2 py-0.5 rounded-md bg-slate-100 text-slate-400">
+                      10/01
+                    </span>
+                    <button onclick="removeSubtask(this, 's2')" class="text-slate-300 hover:text-rose-500 text-xs p-1">🗑</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 添加输入栏 (方案 2: 独立卡片输入框) -->
+              <form onsubmit="addSubtask(event, 's2')" class="bg-white p-2.5 rounded-lg border border-dashed border-slate-300 flex items-center gap-2 hover:border-slate-400 transition">
+                <span class="text-slate-400 text-xs pl-1">＋</span>
+                <input id="s2-input" type="text" autocomplete="off" placeholder="添加新的子任务..." class="flex-1 text-xs border-0 focus:ring-0 text-slate-700 outline-none">
+                <input id="s2-date" type="date" value="2026-10-01" class="text-[11px] text-slate-600 bg-slate-50 border border-slate-200 rounded px-2 py-1 outline-none">
+                <button type="submit" class="px-3 py-1 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-md shadow-xs transition">保存步骤</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 方案 3: 紧凑效率流 ==================== -->
+      <section id="scheme3" class="scheme-section hidden space-y-4">
+        <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <span>方案 3：高密度紧凑效率流 (Compact Productivity)</span>
+                <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-violet-100 text-violet-800">极高信息密度</span>
+              </h2>
+              <p class="text-xs text-slate-500 mt-0.5">参考 TickTick / Todoist 核心待办视窗，行高严控在 30px，右侧统一等宽数据对齐，单手键盘全快捷键秒级录入。</p>
+            </div>
+            <div class="text-xs text-slate-400">💡 适合任务多、追求紧凑整洁的学生</div>
+          </div>
+
+          <div class="border border-slate-200 rounded-xl bg-white overflow-hidden shadow-xs">
+            <!-- 父任务 -->
+            <div class="flex items-center justify-between p-3.5 border-b border-slate-100">
+              <div class="flex items-center gap-2.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+                <span class="font-semibold text-slate-900 text-sm">国庆节</span>
+                <span class="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-600 font-medium">自定义</span>
+              </div>
+              <div class="flex items-center gap-2 text-xs text-slate-400">
+                <span>2026-10-07</span>
+                <button class="p-1">⚑</button><button class="p-1">✓</button><button class="p-1">🗑</button><button class="text-blue-600 font-bold p-1">▾</button>
+              </div>
+            </div>
+
+            <!-- 子任务区域 (方案 3) -->
+            <div class="bg-slate-50/50 p-2.5 space-y-1">
+              <div id="s3-list" class="space-y-1">
+                <!-- 紧凑项 1 -->
+                <div class="flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-white hover:shadow-xs transition group border border-transparent hover:border-slate-200">
+                  <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <span class="text-[10px] font-mono font-semibold text-slate-400 w-4">01</span>
+                    <input type="checkbox" onchange="toggleCheck(this, 's3')" class="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-0 cursor-pointer">
+                    <span class="text-xs text-slate-700 font-medium truncate">重新学一遍机械制图</span>
+                  </div>
+                  <div class="flex items-center gap-2 text-[11px] font-mono text-slate-500">
+                    <span class="px-1.5 py-0.5 rounded bg-slate-100">10/01</span>
+                    <button onclick="removeSubtask(this, 's3')" class="text-slate-300 hover:text-rose-500 px-1 opacity-0 group-hover:opacity-100 transition">✕</button>
+                  </div>
+                </div>
+
+                <!-- 紧凑项 2 -->
+                <div class="flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-white hover:shadow-xs transition group border border-transparent hover:border-slate-200">
+                  <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <span class="text-[10px] font-mono font-semibold text-slate-400 w-4">02</span>
+                    <input type="checkbox" checked onchange="toggleCheck(this, 's3')" class="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-0 cursor-pointer">
+                    <span class="text-xs text-slate-400 line-through font-medium truncate">力学原理</span>
+                  </div>
+                  <div class="flex items-center gap-2 text-[11px] font-mono text-slate-400">
+                    <span class="px-1.5 py-0.5 rounded bg-slate-100">10/01</span>
+                    <button onclick="removeSubtask(this, 's3')" class="text-slate-300 hover:text-rose-500 px-1 opacity-0 group-hover:opacity-100 transition">✕</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 快捷输入行 -->
+              <form onsubmit="addSubtask(event, 's3')" class="flex items-center gap-1.5 px-2 py-1 mt-1 bg-white rounded border border-slate-200">
+                <span class="text-[10px] font-mono text-slate-300 w-4 pl-1">＋</span>
+                <input id="s3-input" type="text" autocomplete="off" placeholder="按 Tab 切换日期，按 Enter 保存..." class="flex-1 text-xs border-0 p-0 focus:ring-0 text-slate-700 placeholder:text-slate-400 outline-none">
+                <input id="s3-date" type="text" value="10/01" class="w-14 text-center font-mono text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded py-0.5 outline-none">
+                <button type="submit" class="px-2 py-0.5 text-[11px] font-medium bg-slate-800 text-white rounded hover:bg-black transition">回车添加</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 方案 4: 无缝原生阶梯 ==================== -->
+      <section id="scheme4" class="scheme-section hidden space-y-4">
+        <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <span>方案 4：无缝原生阶梯风 (Seamless Inset / Apple Reminders)</span>
+                <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-100 text-amber-800">极简无边框</span>
+              </h2>
+              <p class="text-xs text-slate-500 mt-0.5">完全取消一切外框底色！仅依靠左侧天然缩进与微调字阶营造层次，纯粹得宛如原生系统应用，零视觉负担。</p>
+            </div>
+            <div class="text-xs text-slate-400">💡 适合偏好极简、不愿被任何方框干扰的用户</div>
+          </div>
+
+          <div class="border border-slate-200 rounded-xl bg-white overflow-hidden shadow-xs divide-y divide-slate-100">
+            <!-- 父任务 -->
+            <div class="flex items-center justify-between p-4 bg-white">
+              <div class="flex items-center gap-3">
+                <div class="w-4 h-4 rounded-full border-2 border-slate-400"></div>
+                <span class="font-bold text-slate-900 text-sm">国庆节</span>
+                <span class="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-600 font-medium">自定义</span>
+              </div>
+              <div class="flex items-center gap-3 text-xs text-slate-400">
+                <span>2026-10-07</span>
+                <button class="p-1">⚑</button><button class="p-1">✓</button><button class="p-1">🗑</button><button class="text-blue-600 font-bold p-1">▾</button>
+              </div>
+            </div>
+
+            <!-- 子任务直接自然缩进排列 (方案 4) -->
+            <div id="s4-list" class="divide-y divide-slate-50">
+              <div class="flex items-center justify-between py-2.5 pr-4 pl-11 hover:bg-slate-50/60 transition group">
+                <label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
+                  <div class="w-3.5 h-3.5 rounded-full border border-slate-300"></div>
+                  <span class="text-xs text-slate-700">重新学一遍机械制图</span>
+                </label>
+                <div class="flex items-center gap-3 text-xs text-slate-400">
+                  <span class="text-[11px] text-slate-400">10月1日</span>
+                  <button onclick="removeSubtask(this, 's4')" class="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-500">✕</button>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between py-2.5 pr-4 pl-11 hover:bg-slate-50/60 transition group">
+                <label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
+                  <div class="w-3.5 h-3.5 rounded-full bg-slate-300 border border-slate-300 flex items-center justify-center text-white text-[9px]">✓</div>
+                  <span class="text-xs text-slate-400 line-through">力学原理</span>
+                </label>
+                <div class="flex items-center gap-3 text-xs text-slate-400">
+                  <span class="text-[11px] text-slate-400">10月1日</span>
+                  <button onclick="removeSubtask(this, 's4')" class="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-500">✕</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 快捷录入行 -->
+            <form onsubmit="addSubtask(event, 's4')" class="flex items-center gap-3 py-2 pr-4 pl-11 bg-slate-50/30">
+              <span class="text-slate-300 text-sm">＋</span>
+              <input id="s4-input" type="text" autocomplete="off" placeholder="添加新项目..." class="flex-1 bg-transparent text-xs border-0 focus:ring-0 text-slate-700 outline-none">
+              <button type="submit" class="text-xs text-blue-600 font-semibold hover:text-blue-700">添加</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 原版对照 (Before) ==================== -->
+      <section id="before" class="scheme-section hidden space-y-4">
+        <div class="bg-white border border-rose-200 rounded-2xl p-6 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-lg font-bold text-rose-900 flex items-center gap-2">
+                <span>⚠️ 现状原版效果（用户截图中被吐槽“特别丑陋”的当前样式）</span>
+              </h2>
+              <p class="text-xs text-slate-500 mt-0.5">真实还原当前项目的 DOM 结构与样式渲染，供直观对照对比。</p>
+            </div>
+            <span class="px-2 py-1 rounded bg-rose-100 text-rose-800 text-xs font-bold">Old Version</span>
+          </div>
+
+          <!-- 原版样式复刻 -->
+          <div class="border border-slate-200 rounded-xl bg-white p-4 space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-slate-900">国庆节</span>
+                <span class="border border-slate-200 text-slate-500 text-xs px-2 py-0.5 rounded">自定义</span>
+              </div>
+              <div class="flex items-center gap-3 text-xs text-slate-400">
+                <span>2026-10-07</span>
+                <span>⚑</span><span>✓</span><span>🗑</span>
+              </div>
+            </div>
+
+            <!-- 原版的沉重灰色大底色框 -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;" class="space-y-3">
+              <div class="flex items-center gap-3 bg-transparent py-1 border-b border-slate-100">
+                <input type="checkbox" style="width: 16px; height: 16px;">
+                <span class="flex-1 font-bold text-slate-800 text-sm">重新学一遍机械制图</span>
+                <input type="date" value="2026-10-01" style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 8px; font-size: 13px; width: 140px;">
+                <button style="color: #ef4444; font-weight: bold; padding: 2px 8px; font-size: 14px; background: none; border: none; cursor: pointer;">x</button>
+              </div>
+
+              <div class="flex items-center gap-3 bg-transparent py-1 border-b border-slate-100">
+                <input type="checkbox" style="width: 16px; height: 16px;">
+                <span class="flex-1 font-bold text-slate-800 text-sm">力学原理</span>
+                <input type="date" value="2026-10-01" style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 8px; font-size: 13px; width: 140px;">
+                <button style="color: #ef4444; font-weight: bold; padding: 2px 8px; font-size: 14px; background: none; border: none; cursor: pointer;">x</button>
+              </div>
+
+              <!-- 原版的添加行 -->
+              <div class="flex items-center gap-2 pt-1">
+                <input type="text" placeholder="添加子任务..." style="flex: 1; border: 1px solid #93c5fd; border-radius: 6px; padding: 6px 12px; font-size: 13px; outline: 2px solid #bfdbfe;">
+                <input type="date" value="2026-10-01" style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px 8px; font-size: 13px; width: 140px;">
+                <button style="border: 1px solid #bfdbfe; color: #2563eb; background: #ffffff; padding: 5px 14px; border-radius: 6px; font-size: 13px; cursor: pointer;">添加</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- 方案维度对比横向表格 -->
+    <div class="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-sm">
+      <h3 class="font-bold text-slate-900 text-sm mb-3">📊 4 组新方案横向综合评估表</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs text-left text-slate-600 border-collapse">
+          <thead>
+            <tr class="border-b border-slate-200 bg-slate-50/70 font-semibold text-slate-700">
+              <th class="py-2.5 px-3">设计方案</th>
+              <th class="py-2.5 px-3">视觉风格</th>
+              <th class="py-2.5 px-3">日期展示形式</th>
+              <th class="py-2.5 px-3">删除操作设计</th>
+              <th class="py-2.5 px-3">添加交互方式</th>
+              <th class="py-2.5 px-3">推荐指数</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr class="hover:bg-blue-50/30 transition">
+              <td class="py-2.5 px-3 font-bold text-blue-700">方案 1：极简树线型</td>
+              <td class="py-2.5 px-3">无多余背景，L型导轨细线</td>
+              <td class="py-2.5 px-3">紧凑胶囊徽标 (10/01 📅)</td>
+              <td class="py-2.5 px-3">悬停浮现微细叉号</td>
+              <td class="py-2.5 px-3">无边框底线输入框，回车即加</td>
+              <td class="py-2.5 px-3 font-semibold text-emerald-600">⭐⭐⭐⭐⭐ (首推)</td>
+            </tr>
+            <tr class="hover:bg-slate-50 transition">
+              <td class="py-2.5 px-3 font-bold text-indigo-700">方案 2：分段浮动卡片</td>
+              <td class="py-2.5 px-3">微阴影圆角分段小卡片</td>
+              <td class="py-2.5 px-3">状态色彩标签 (今天/未来)</td>
+              <td class="py-2.5 px-3">右侧灰度图标</td>
+              <td class="py-2.5 px-3">虚线独立输入卡片</td>
+              <td class="py-2.5 px-3 font-semibold text-slate-700">⭐⭐⭐⭐</td>
+            </tr>
+            <tr class="hover:bg-slate-50 transition">
+              <td class="py-2.5 px-3 font-bold text-violet-700">方案 3：高密度效率流</td>
+              <td class="py-2.5 px-3">30px超紧凑、序号对齐</td>
+              <td class="py-2.5 px-3">等宽数字微胶囊 (10/01)</td>
+              <td class="py-2.5 px-3">靠右极简微图标</td>
+              <td class="py-2.5 px-3">Tab+Enter 极速键盘盲打行</td>
+              <td class="py-2.5 px-3 font-semibold text-slate-700">⭐⭐⭐⭐</td>
+            </tr>
+            <tr class="hover:bg-slate-50 transition">
+              <td class="py-2.5 px-3 font-bold text-amber-700">方案 4：无缝原生阶梯</td>
+              <td class="py-2.5 px-3">零边框无卡片，自然缩进</td>
+              <td class="py-2.5 px-3">次要灰色文本 (10月1日)</td>
+              <td class="py-2.5 px-3">悬停浮现小叉号</td>
+              <td class="py-2.5 px-3">原生行尾追加</td>
+              <td class="py-2.5 px-3 font-semibold text-slate-700">⭐⭐⭐⭐</td>
+            </tr>
+            <tr class="bg-rose-50/40 text-rose-800">
+              <td class="py-2.5 px-3 font-bold">现状原版 (旧版)</td>
+              <td class="py-2.5 px-3">笨拙实心灰卡片</td>
+              <td class="py-2.5 px-3">140px 粗暴原生日期框</td>
+              <td class="py-2.5 px-3">刺眼红色裸字符“x”</td>
+              <td class="py-2.5 px-3">臃肿控件三件套</td>
+              <td class="py-2.5 px-3 font-semibold text-rose-600">❌ 需彻底换掉</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 底部落地指引 -->
+    <footer class="bg-slate-900 text-slate-300 rounded-2xl p-6 shadow-md text-xs space-y-3">
+      <div class="flex items-center justify-between text-white font-bold text-sm">
+        <span>🚀 视觉升级落地实施计划</span>
+        <span class="text-xs text-blue-400 font-normal">零数据改动 · 完全向下兼容</span>
+      </div>
+      <p>所有方案均基于现有数据模型（<code>{ id, text, done, due_date }</code>）渲染，不需要改动任何后端数据存储或平台同步逻辑。</p>
+      <div class="flex flex-wrap gap-2 pt-2">
+        <span class="px-2.5 py-1 bg-slate-800 rounded border border-slate-700 text-slate-300">① 选用你中意的方案（推荐 方案 1）</span>
+        <span class="px-2.5 py-1 bg-slate-800 rounded border border-slate-700 text-slate-300">② 无缝替换 todos.js 的 renderSubtaskPanel 模版</span>
+        <span class="px-2.5 py-1 bg-slate-800 rounded border border-slate-700 text-slate-300">③ 引入对应微动效与日期胶囊组件</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+    // Tab 切换逻辑
+    function switchTab(targetId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        if (btn.getAttribute('data-target') === targetId) {
+          btn.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
+          btn.classList.remove('bg-white', 'text-slate-600', 'hover:bg-slate-100');
+        } else {
+          btn.classList.remove('bg-blue-600', 'text-white', 'shadow-sm');
+          btn.classList.add('bg-white', 'text-slate-600', 'hover:bg-slate-100');
+        }
+      });
+      document.querySelectorAll('.scheme-section').forEach(sec => {
+        if (sec.id === targetId) {
+          sec.classList.remove('hidden');
+        } else {
+          sec.classList.add('hidden');
+        }
+      });
+    }
+
+    // 并排对比模式切换
+    let isCompareMode = false;
+    function toggleCompareMode() {
+      isCompareMode = !isCompareMode;
+      const btn = document.getElementById('btn-toggle-compare');
+      const tabs = document.getElementById('tab-switcher');
+      const container = document.getElementById('single-view-container');
+
+      if (isCompareMode) {
+        btn.textContent = '⏹ 退出并排模式';
+        btn.classList.add('bg-blue-50', 'border-blue-300', 'text-blue-700');
+        tabs.classList.add('opacity-40', 'pointer-events-none');
+        document.querySelectorAll('.scheme-section').forEach(sec => sec.classList.remove('hidden'));
+        container.classList.add('grid', 'grid-cols-1', 'gap-8');
+      } else {
+        btn.textContent = '🔄 开启并排对比模式';
+        btn.classList.remove('bg-blue-50', 'border-blue-300', 'text-blue-700');
+        tabs.classList.remove('opacity-40', 'pointer-events-none');
+        container.classList.remove('grid', 'grid-cols-1', 'gap-8');
+        switchTab('scheme1');
+      }
+    }
+
+    // 交互：切换打勾状态
+    function toggleCheck(checkbox, scheme) {
+      const label = checkbox.closest('label');
+      const span = label.querySelector('span');
+      if (checkbox.checked) {
+        span.classList.add('line-through', 'text-slate-400');
+        span.classList.remove('text-slate-700', 'text-slate-800');
+      } else {
+        span.classList.remove('line-through', 'text-slate-400');
+        span.classList.add('text-slate-700');
+      }
+      updateStats(scheme);
+    }
+
+    // 交互：删除子任务
+    function removeSubtask(btn, scheme) {
+      const row = btn.closest('.tree-item') || btn.closest('.flex') || btn.closest('.group');
+      row.style.transition = 'all 0.2s';
+      row.style.opacity = '0';
+      row.style.transform = 'translateX(10px)';
+      setTimeout(() => {
+        row.remove();
+        updateStats(scheme);
+      }, 200);
+    }
+
+    // 交互：添加子任务
+    function addSubtask(event, scheme) {
+      event.preventDefault();
+      const input = document.getElementById(`${scheme}-input`);
+      const dateInput = document.getElementById(`${scheme}-date`);
+      const val = input.value.trim();
+      if (!val) return;
+      const list = document.getElementById(`${scheme}-list`);
+      const dateVal = dateInput ? (dateInput.value.slice(5) || '10/01') : '10/01';
+
+      if (scheme === 's1') {
+        const item = document.createElement('div');
+        item.className = 'tree-item relative flex items-center justify-between py-1.5 px-2.5 rounded-lg hover:bg-white hover:shadow-xs transition group animate-fadeIn';
+        item.innerHTML = `
+          <label class="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0">
+            <input type="checkbox" onchange="toggleCheck(this, 's1')" class="checkbox-custom sr-only">
+            <div class="check-bg w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center transition">
+              <svg class="check-icon w-2.5 h-2.5 text-white opacity-0 transform scale-50 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+            </div>
+            <span class="text-xs text-slate-700 font-medium truncate select-none">${escapeHtml(val)}</span>
+          </label>
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center gap-1 text-[11px] text-slate-500 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded cursor-pointer transition">
+              <span>📅</span><span>${dateVal}</span>
+            </span>
+            <button onclick="removeSubtask(this, 's1')" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 p-1 text-xs transition" title="删除">✕</button>
+          </div>
+        `;
+        list.appendChild(item);
+      } else if (scheme === 's2') {
+        const item = document.createElement('div');
+        item.className = 'flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200/70 hover:border-blue-300 hover:shadow-xs transition group animate-fadeIn';
+        item.innerHTML = `
+          <label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
+            <input type="checkbox" onchange="toggleCheck(this, 's2')" class="checkbox-custom sr-only">
+            <div class="check-bg w-4 h-4 rounded border border-slate-300 flex items-center justify-center transition">
+              <svg class="check-icon w-2.5 h-2.5 text-white opacity-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+            </div>
+            <span class="text-xs text-slate-800 font-medium">${escapeHtml(val)}</span>
+          </label>
+          <div class="flex items-center gap-3">
+            <span class="text-[11px] font-medium px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">${dateVal}</span>
+            <button onclick="removeSubtask(this, 's2')" class="text-slate-300 hover:text-rose-500 text-xs p-1">🗑</button>
+          </div>
+        `;
+        list.appendChild(item);
+      } else if (scheme === 's3') {
+        const count = list.children.length + 1;
+        const item = document.createElement('div');
+        item.className = 'flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-white hover:shadow-xs transition group border border-transparent hover:border-slate-200 animate-fadeIn';
+        item.innerHTML = `
+          <div class="flex items-center gap-2 flex-1 min-w-0">
+            <span class="text-[10px] font-mono font-semibold text-slate-400 w-4">${String(count).padStart(2, '0')}</span>
+            <input type="checkbox" onchange="toggleCheck(this, 's3')" class="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-0 cursor-pointer">
+            <span class="text-xs text-slate-700 font-medium truncate">${escapeHtml(val)}</span>
+          </div>
+          <div class="flex items-center gap-2 text-[11px] font-mono text-slate-500">
+            <span class="px-1.5 py-0.5 rounded bg-slate-100">${dateVal}</span>
+            <button onclick="removeSubtask(this, 's3')" class="text-slate-300 hover:text-rose-500 px-1 opacity-0 group-hover:opacity-100 transition">✕</button>
+          </div>
+        `;
+        list.appendChild(item);
+      } else if (scheme === 's4') {
+        const item = document.createElement('div');
+        item.className = 'flex items-center justify-between py-2.5 pr-4 pl-11 hover:bg-slate-50/60 transition group animate-fadeIn';
+        item.innerHTML = `
+          <label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
+            <div class="w-3.5 h-3.5 rounded-full border border-slate-300"></div>
+            <span class="text-xs text-slate-700">${escapeHtml(val)}</span>
+          </label>
+          <div class="flex items-center gap-3 text-xs text-slate-400">
+            <span class="text-[11px] text-slate-400">${dateVal}</span>
+            <button onclick="removeSubtask(this, 's4')" class="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-500">✕</button>
+          </div>
+        `;
+        list.appendChild(item);
+      }
+
+      input.value = '';
+      updateStats(scheme);
+    }
+
+    function updateStats(scheme) {
+      if (scheme === 's1') {
+        const total = document.querySelectorAll('#s1-list .tree-item').length;
+        const done = document.querySelectorAll('#s1-list input:checked').length;
+        const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+        const countEl = document.getElementById('s1-count');
+        const progEl = document.getElementById('s1-progress');
+        if (countEl) countEl.textContent = `${done}/${total}`;
+        if (progEl) progEl.style.width = `${pct}%`;
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+    }
+  </script>
+</body>
+</html>

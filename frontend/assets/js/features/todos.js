@@ -966,19 +966,19 @@
           <input type="checkbox" ${subtask.done ? 'checked' : ''} onchange='toggleSubtaskDone(${sourceArg}, ${todoIdArg}, ${sid})' class="ui-checkbox">
           <span class="ui-list-item__title subtask-text ${subtask.done ? 'done' : ''}" title="${escapeHtml(subtask.text)}" onclick='startSubtaskEdit(${sourceArg}, ${todoIdArg}, ${sid}, this)'>${escapeHtml(subtask.text)}</span>
           <input type="date" class="ui-control subtask-due-input" value="${dueDateVal}" onchange='handleSubtaskDueChange(${sourceArg}, ${todoIdArg}, ${sid}, this.value)' title="截止日期">
-          <button class="ui-icon-button ui-icon-button--danger subtask-delete" onclick='deleteSubtask(${sourceArg}, ${todoIdArg}, ${sid})' title="delete subtask">x</button>
+          <button class="ui-icon-button subtask-delete" onclick='deleteSubtask(${sourceArg}, ${todoIdArg}, ${sid})' title="删除子任务" aria-label="删除子任务">✕</button>
         </div>
       `;
       }).join('');
 
       return `
         <div class="ui-card ui-card--subtle todo-subtask-panel">
-          ${rowsHtml || '<div class="ui-empty ui-empty--compact subtask-empty"><strong>还没有子任务</strong></div>'}
-          <div class="subtask-add-row">
-            <input class="ui-control subtask-add-input" id="subtask-add-text-${source}-${todoId}" placeholder="添加子任务..." onkeydown='handleSubtaskAddKey(event, ${sourceArg}, ${todoIdArg})'>
-            <input type="date" class="ui-control subtask-add-due-input" id="subtask-add-due-${source}-${todoId}" value="${todayStr}" onkeydown='handleSubtaskAddKey(event, ${sourceArg}, ${todoIdArg})' title="截止日期">
+          ${rowsHtml}
+          <form class="subtask-add-row subtask-add-form" onsubmit="event.preventDefault(); submitSubtaskAdd(${sourceArg}, ${todoIdArg});">
+            <input type="text" class="ui-control subtask-add-input" id="subtask-add-text-${source}-${todoId}" name="subtask_title" placeholder="添加子步骤，按 Enter 快速添加..." autocomplete="off" data-lpignore="true" onkeydown='handleSubtaskAddKey(event, ${sourceArg}, ${todoIdArg})'>
+            <input type="date" class="ui-control subtask-add-due-input" id="subtask-add-due-${source}-${todoId}" name="subtask_due" value="${todayStr}" autocomplete="off" onkeydown='handleSubtaskAddKey(event, ${sourceArg}, ${todoIdArg})' title="截止日期">
             <button type="button" class="ui-button ui-button--primary subtask-add-btn" onclick='submitSubtaskAdd(${sourceArg}, ${todoIdArg})' title="添加子任务">添加</button>
-          </div>
+          </form>
         </div>
       `;
     }
@@ -1084,15 +1084,21 @@
       const textInput = document.getElementById(`subtask-add-text-${source}-${todoId}`) || document.getElementById(`subtask-add-text-${todoId}`) || document.querySelector('.subtask-add-input');
       const dueInput = document.getElementById(`subtask-add-due-${source}-${todoId}`) || document.getElementById(`subtask-add-due-${todoId}`) || document.querySelector('.subtask-add-due-input');
       if (!textInput) return;
+      if (textInput.dataset.submitting === 'true') return;
       const text = textInput.value.trim();
       const dueDate = dueInput ? dueInput.value : getTodayDateString();
       if (!text) return;
-      const saved = await addSubtask(source, todoId, text, dueDate);
-      if (saved) {
-        const currentInput = document.getElementById(textInput.id);
-        const currentDue = dueInput && document.getElementById(dueInput.id);
-        if (currentInput?.value.trim() === text) currentInput.value = '';
-        if (currentDue?.value === dueDate) currentDue.value = getTodayDateString();
+      textInput.dataset.submitting = 'true';
+      try {
+        const saved = await addSubtask(source, todoId, text, dueDate);
+        if (saved) {
+          const currentInput = document.getElementById(textInput.id);
+          const currentDue = dueInput && document.getElementById(dueInput.id);
+          if (currentInput?.value.trim() === text) currentInput.value = '';
+          if (currentDue?.value === dueDate) currentDue.value = getTodayDateString();
+        }
+      } finally {
+        if (textInput) delete textInput.dataset.submitting;
       }
     }
 
