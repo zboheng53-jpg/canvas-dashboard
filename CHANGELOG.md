@@ -1,6 +1,6 @@
 # 更新记录
 
-## 未发布 · Agent Skill 更新
+## 2026-10-10 · Agent Skill 更新
 
 - 更新 Canvas Dashboard Agent Skill，补充分段 API 参考并同步调整安装脚本和下载包；明确重复作业、排程、项目资料及写入后回读规则。
 
