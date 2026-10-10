@@ -35,6 +35,12 @@ def test_skill_public_endpoints(client):
     assert "name: canvas-dashboard" in skill_text
     assert "canvas_api.py" in skill_text
 
+    # The detailed API reference linked by SKILL.md is publicly available.
+    resp = client.get("/skill/references/api.md")
+    assert resp.status_code == 200
+    assert resp.mimetype.startswith("text/markdown")
+    assert "重复作业" in resp.data.decode("utf-8")
+
     # canvas_api.py
     resp = client.get("/skill/canvas_api.py")
     assert resp.status_code == 200

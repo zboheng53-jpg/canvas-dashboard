@@ -72,6 +72,7 @@ Windows 原生环境请使用 PowerShell（无需管理员权限）：
 2. **写入核心文件**：
    - 下载或创建 `SKILL.md`（内容来源：`{{ base_url }}/skill/SKILL.md`）。
    - 下载或创建 `canvas_api.py`（内容来源：`{{ base_url }}/skill/canvas_api.py`）。
+   - 下载或创建 `references/api.md`（内容来源：`{{ base_url }}/skill/references/api.md`）。
 
 3. **保存凭据配置**（权限设为 `0600`）：
    在同目录下创建 `config.json`：

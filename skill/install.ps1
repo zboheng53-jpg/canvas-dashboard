@@ -38,6 +38,13 @@ try {
     $apiFile = Join-Path $TmpDir "canvas_api.py"
     Invoke-WebRequest -Uri $apiUrl -OutFile $apiFile -UseBasicParsing
 
+    # Download the detailed API reference used by SKILL.md
+    $referenceDir = Join-Path $TmpDir "references"
+    New-Item -ItemType Directory -Path $referenceDir -Force | Out-Null
+    $referenceUrl = "$Server/skill/references/api.md"
+    $referenceFile = Join-Path $referenceDir "api.md"
+    Invoke-WebRequest -Uri $referenceUrl -OutFile $referenceFile -UseBasicParsing
+
     # Check existing token if updating
     $existingConfig = Join-Path $InstallDir "config.json"
     $finalToken = $Token

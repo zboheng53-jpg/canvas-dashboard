@@ -93,6 +93,12 @@ if ! curl -fsSL "$SERVER/skill/canvas_api.py" -o "$TMP_DIR/canvas_api.py"; then
   fail "Failed to download canvas_api.py from $SERVER/skill/canvas_api.py"
 fi
 
+# Download the detailed API reference used by SKILL.md
+mkdir -p "$TMP_DIR/references"
+if ! curl -fsSL "$SERVER/skill/references/api.md" -o "$TMP_DIR/references/api.md"; then
+  fail "Failed to download API reference from $SERVER/skill/references/api.md"
+fi
+
 # Determine token: use passed token, or inherit from existing config if updating
 EXISTING_CONFIG="$INSTALL_DIR/config.json"
 FINAL_TOKEN="$TOKEN"
@@ -129,6 +135,8 @@ fi
 
 cp -f "$TMP_DIR/SKILL.md" "$INSTALL_DIR/SKILL.md"
 cp -f "$TMP_DIR/canvas_api.py" "$INSTALL_DIR/canvas_api.py"
+mkdir -p "$INSTALL_DIR/references"
+cp -f "$TMP_DIR/references/api.md" "$INSTALL_DIR/references/api.md"
 cp -f "$TMP_DIR/config.json" "$INSTALL_DIR/config.json"
 cp -f "$TMP_DIR/.gitignore" "$INSTALL_DIR/.gitignore"
 chmod 0600 "$INSTALL_DIR/config.json" 2>/dev/null || true

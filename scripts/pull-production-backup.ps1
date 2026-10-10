@@ -1,6 +1,7 @@
 param(
     [string]$BackupDirectory = "$HOME\CanvasDashboardBackups",
     [string]$KeyDirectory = "$HOME\.canvas-dashboard-backup",
+    [int]$RetentionCount = 7,
     [switch]$CreateBackup,
     [switch]$RecoveryDrill
 )
@@ -293,11 +294,11 @@ finally {
 
 Get-ChildItem -LiteralPath $BackupDirectory -Filter "*.cdbak" |
     Sort-Object LastWriteTime -Descending |
-    Select-Object -Skip 30 |
+    Select-Object -Skip $RetentionCount |
     Remove-Item -Force
 Get-ChildItem -LiteralPath $GuardDirectory -Filter "*.cdbak" |
     Sort-Object LastWriteTime -Descending |
-    Select-Object -Skip 30 |
+    Select-Object -Skip $RetentionCount |
     Remove-Item -Force
 
 Write-Output "Backup verified: $LocalBackup ($($VerifySummary.file_count) protected files)"

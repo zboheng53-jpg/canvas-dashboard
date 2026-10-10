@@ -48,10 +48,10 @@ runuser -u ubuntu -- "$backup_python" \
     --data-dir "$root/data" \
     --output-dir "$root/backups" \
     --public-key /etc/canvas-dashboard/backup-public.pem \
-    --retention 14
+    --retention 7
 runuser -u ubuntu -- "$backup_python" \
     "$backup_tool" create-recovery-guard \
     --data-dir "$root/data" \
     --output-dir "$root/backups/recovery-guards" \
     --public-key /etc/canvas-dashboard/backup-public.pem \
-    --retention 30
+    --retention 7

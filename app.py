@@ -2148,6 +2148,7 @@ description: 通过用户授权管理 Canvas Dashboard 的责任待办、成长�
 
     install_sh = SKILL_DIR / "install.sh"
     install_ps1 = SKILL_DIR / "install.ps1"
+    api_reference = SKILL_DIR / "references" / "api.md"
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -2158,6 +2159,8 @@ description: 通过用户授权管理 Canvas Dashboard 的责任待办、成长�
             zf.writestr("install.sh", install_sh.read_text(encoding="utf-8"))
         if install_ps1.exists():
             zf.writestr("install.ps1", install_ps1.read_text(encoding="utf-8"))
+        if api_reference.exists():
+            zf.writestr("references/api.md", api_reference.read_text(encoding="utf-8"))
     buf.seek(0)
     response = app.response_class(buf.getvalue(), mimetype="application/zip")
     response.headers["Content-Disposition"] = "attachment; filename=canvas-dashboard-skill.zip"

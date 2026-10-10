@@ -151,6 +151,7 @@ def test_agent_export_bundles(client_with_user):
         assert "SKILL.md" in namelist
         assert "canvas_api.py" in namelist
         assert "README.md" in namelist
+        assert "references/api.md" in namelist
         skill_text = zf.read("SKILL.md").decode("utf-8")
         assert agent_mcp.WRITING_RULES in skill_text
         assert client_with_user.get("/skill/SKILL.md").get_data(as_text=True).splitlines() == skill_text.splitlines()
