@@ -110,7 +110,7 @@ CALENDAR_CATEGORIES = {
         "id": "assignments",
         "name": "Canvas Dashboard · 作业",
         "color": "#DC2626",
-        "description": "Canvas、好课、智学盟、智慧树作业与个人待办",
+        "description": "Canvas、好课、智学盟、智慧树、课堂派、同济 OJ 作业与个人待办",
     },
     "projects": {
         "id": "projects",

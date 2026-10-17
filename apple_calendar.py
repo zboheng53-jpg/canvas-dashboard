@@ -54,7 +54,24 @@ def username_for_token(token: str) -> str | None:
 
 
 def _escape_ics(value: str) -> str:
+    value = value.replace("\r\n", "\n").replace("\r", "\n")
     return value.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
+
+
+def _fold_ics_line(value: str) -> str:
+    """Fold at 75 UTF-8 octets, including the continuation space (RFC 5545)."""
+    lines = []
+    line = ""
+    octets = 0
+    for char in value:
+        size = len(char.encode("utf-8"))
+        if octets + size > 75:
+            lines.append(line)
+            line, octets = " ", 1
+        line += char
+        octets += size
+    lines.append(line)
+    return "\r\n".join(lines)
 
 
 def _description(item: dict) -> str | None:
@@ -96,6 +113,9 @@ def build_calendar(
         "VERSION:2.0",
         "PRODID:-//Canvas Dashboard//Apple Calendar//EN",
         "CALSCALE:GREGORIAN",
+        # Polling hints, not a promise that the receiving client will refresh.
+        "REFRESH-INTERVAL;VALUE=DURATION:PT15M",
+        "X-PUBLISHED-TTL:PT15M",
     ]
     resolved_calname = cal_name or "Canvas Dashboard"
     lines.append(f"X-WR-CALNAME:{_escape_ics(resolved_calname)}")
@@ -184,4 +204,4 @@ def build_calendar(
         event_lines.append("END:VEVENT")
         lines.extend(event_lines)
     lines.append("END:VCALENDAR")
-    return "\r\n".join(lines) + "\r\n"
+    return "\r\n".join(_fold_ics_line(line) for line in lines) + "\r\n"

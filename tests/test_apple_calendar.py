@@ -1,6 +1,7 @@
 import json
 
 import apple_calendar
+from icalendar import Calendar
 from datetime import datetime, timezone, timedelta
 
 
@@ -115,4 +116,32 @@ def test_calendar_metadata_and_categories_in_ics():
     assert "COLOR:#EA580C" in calendar
     assert "CATEGORIES:Schedule" in calendar
     assert "COLOR:#059669" in calendar
+
+
+def test_calendar_advertises_refresh_interval():
+    calendar = Calendar.from_ical(apple_calendar.build_calendar(
+        "alice", [], now=datetime(2026, 10, 17, tzinfo=apple_calendar.CST),
+    ))
+
+    assert calendar.decoded("REFRESH-INTERVAL") == timedelta(minutes=15)
+    assert str(calendar["X-PUBLISHED-TTL"]) == "PT15M"
+
+
+def test_calendar_folds_utf8_lines_without_changing_event_contents():
+    title = "力学原理A：桁架、摩擦与受力分析；" * 8
+    description = "课程说明\r\n第二行\r第三行\n" + "详细要求与提交地址" * 15
+    body = apple_calendar.build_calendar(
+        "alice",
+        [{"source": "Ketangpai", "id": "ktp_hw_1", "title": title,
+          "description": description, "due_ts": "2026-10-18T23:59:00+08:00"}],
+        now=datetime(2026, 10, 17, tzinfo=apple_calendar.CST),
+    )
+
+    assert all(len(line.encode("utf-8")) <= 75 for line in body.split("\r\n"))
+    assert "\n" not in body.replace("\r\n", "")
+    assert "\r" not in body.replace("\r\n", "")
+    event, = Calendar.from_ical(body).walk("VEVENT")
+    assert str(event["SUMMARY"]) == title
+    assert str(event["DESCRIPTION"]) == description.replace("\r\n", "\n").replace("\r", "\n")
+    assert event.decoded("DTSTART") == datetime(2026, 10, 18, 23, 59, tzinfo=apple_calendar.CST)
 

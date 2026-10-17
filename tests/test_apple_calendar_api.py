@@ -3,6 +3,7 @@ import web_common
 import json
 
 import pytest
+from icalendar import Calendar
 
 import app as dashboard_app
 import apple_calendar
@@ -90,6 +91,18 @@ def test_calendar_subscription_reads_only_active_cached_tasks(calendar_client, m
         encoding="utf-8",
     )
     zhihuishu_store.save_cache("alice", [{"id": "zhs-41", "title": "Zhs visible", "due_ts": "2099-07-12T12:00:00+08:00"}])
+    for source, item_id, title in (
+        ("ketangpai", "ktp_hw_51", "Ketangpai visible"),
+        ("tongjioj", "tjoj_61", "Tongji OJ visible"),
+    ):
+        user_dir("alice").joinpath(f"{source}_cache.json").write_text(
+            json.dumps({"items": [{
+                "id": item_id,
+                "title": title,
+                "due_ts": "2099-07-12T23:59:00+08:00",
+            }]}),
+            encoding="utf-8",
+        )
     project = project_store.create_project(
         "alice",
         {"name": "Python 学习", "due_date": "2099-09-01"},
@@ -123,6 +136,8 @@ def test_calendar_subscription_reads_only_active_cached_tasks(calendar_client, m
         "Haoke visible",
         "Zxm visible",
         "Zhs visible",
+        "Ketangpai visible",
+        "Tongji OJ visible",
         "NumPy 数组练习 · Python 学习",
         "项目截止 · Python 学习",
     ):
@@ -156,6 +171,48 @@ def test_calendar_subscription_token_is_revocable(calendar_client):
     with dashboard_app.app.test_client() as anonymous_client:
         assert anonymous_client.get(path).status_code == 404
         assert anonymous_client.get("/calendar/not-a-token.ics").status_code == 404
+
+
+@pytest.mark.parametrize("source,item_id", [("ketangpai", "ktp_hw_1"), ("tongjioj", "tjoj_1")])
+@pytest.mark.parametrize("suffix", [".ics", "/assignments.ics", ".ics?category=assignments"])
+def test_existing_calendar_link_reflects_cached_updates_and_local_state(
+    calendar_client, monkeypatch, source, item_id, suffix,
+):
+    client, user_dir = calendar_client
+    cache_path = user_dir("alice") / f"{source}_cache.json"
+    state_path = user_dir("alice") / f"{source}_state.json"
+    original = {"id": item_id, "title": "原作业", "due_ts": "2099-07-12T23:59:00+08:00"}
+    cache_path.write_text(json.dumps({"items": [original]}), encoding="utf-8")
+    user_dir("bob").joinpath(f"{source}_cache.json").write_text(
+        json.dumps({"items": [{**original, "title": "另一个账户的作业"}]}), encoding="utf-8",
+    )
+    token = client.post("/api/apple-calendar/subscription", headers=client.csrf_headers).get_json()["token"]
+    path = f"/calendar/{token}{suffix}"
+    monkeypatch.setattr("requests.sessions.Session.request", lambda *args, **kwargs: pytest.fail("subscription must not fetch upstream"))
+
+    def events():
+        with dashboard_app.app.test_client() as anonymous:
+            response = anonymous.get(path)
+        assert response.status_code == 200
+        assert response.headers["Cache-Control"] == "private, no-store"
+        return {str(event["UID"]): event for event in Calendar.from_ical(response.data).walk("VEVENT")}
+
+    uid = f"{source}-{item_id}@canvas-dashboard"
+    assert str(events()[uid]["SUMMARY"]) == "原作业"
+    cache_path.write_text(json.dumps({"items": [original, {
+        "id": "new", "title": "新同步的作业", "due_ts": "2099-07-13T23:59:00+08:00",
+    }]}), encoding="utf-8")
+    state_path.write_text(json.dumps({"overrides": {item_id: {
+        "title": "本地改名", "due_ts": "2099-07-14T23:59:00+08:00",
+    }}}), encoding="utf-8")
+    updated = events()
+    assert set(updated) == {uid, f"{source}-new@canvas-dashboard"}
+    assert str(updated[uid]["SUMMARY"]) == "本地改名"
+    assert updated[uid].decoded("DTSTART").isoformat() == "2099-07-14T23:59:00+08:00"
+    assert str(updated[f"{source}-new@canvas-dashboard"]["SUMMARY"]) == "新同步的作业"
+
+    state_path.write_text(json.dumps({"completed": [item_id], "deleted": ["new"]}), encoding="utf-8")
+    assert events() == {}
 
 
 def test_project_calendar_events_keep_uids_through_renames_and_follow_status(calendar_client):

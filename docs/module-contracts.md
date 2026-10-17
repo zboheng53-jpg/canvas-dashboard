@@ -66,6 +66,7 @@ canvas-dashboard/
   - 支持 `canvas`、`haoke`、`zhixuemeng`、`zhihuishu`、`ketangpai`、`tongjioj` 6 大平台。各平台 `/api/<platform>/todos` 自动装配本地持久化子任务；提供 `PUT /api/external-subtasks` 供子任务增删改查。前端所有作业均共享子任务增删改、勾选、改期与展开交互，展开状态仅保留在前端内存。
 - **平台同步元数据**：
   - `platform_sync_status.json` 只保存非敏感的连接、刷新、失败与日历资格状态；必须继续使用锁与原子写，并在损坏时 fail-closed。不得写入密码、Token、Cookie 或订阅地址。
+- **日历订阅 (`apple_calendar.py`, `services/workspace.py`)**：综合与分类订阅共用本地投影，作业覆盖六个平台与个人待办，读取订阅不触发上游同步。输出按 UTF-8 字节折行并规范文本换行，保留稳定 UID；通过 `REFRESH-INTERVAL` 与 `X-PUBLISHED-TTL` 建议 15 分钟拉取，实际刷新由日历客户端决定，不承诺实时推送。重新生成或撤销链接会使旧地址失效。
 - **长期项目 (`project_store.py`)**：
   - 存储位于 `data/users/<username>/projects.json` (v2)，采用锁 + 原子写。
   - 唯一主项目与 Next Action 原子维护，只要项目仍存在未完成的细分步骤，Next Action 永不为空（默认按分组与任务排序自动推选或顺延，用户可随时切换修改）；界面区分进行中/已完成/暂放；不设回收站。项目与任务删除后永久消失，不可找回；删除主项目后主项目重置为空。转资料在同一次项目锁内原子追加并物理移除原任务。
