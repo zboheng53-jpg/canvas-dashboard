@@ -1,6 +1,7 @@
 import json
 
 import apple_calendar
+import pytest
 from icalendar import Calendar
 from datetime import datetime, timezone, timedelta
 
@@ -49,7 +50,8 @@ def test_calendar_ics_includes_only_active_dated_items():
     assert "BEGIN:VCALENDAR" in calendar
     assert "UID:canvas-7@canvas-dashboard" in calendar
     assert "SUMMARY:Quiz\\, Week 1" in calendar
-    assert "DTSTART;TZID=Asia/Shanghai:20260711T200000" in calendar
+    assert "DTSTART;TZID=Asia/Shanghai:20260711T195900" in calendar
+    assert "DTEND;TZID=Asia/Shanghai:20260711T200000" in calendar
     assert "Done" not in calendar
     assert "No date" not in calendar
 
@@ -142,6 +144,66 @@ def test_calendar_folds_utf8_lines_without_changing_event_contents():
     assert "\r" not in body.replace("\r\n", "")
     event, = Calendar.from_ical(body).walk("VEVENT")
     assert str(event["SUMMARY"]) == title
-    assert str(event["DESCRIPTION"]) == description.replace("\r\n", "\n").replace("\r", "\n")
-    assert event.decoded("DTSTART") == datetime(2026, 10, 18, 23, 59, tzinfo=apple_calendar.CST)
+    assert str(event["DESCRIPTION"]).endswith(description.replace("\r\n", "\n").replace("\r", "\n"))
+    assert event.decoded("DTSTART") == datetime(2026, 10, 18, 23, 58, tzinfo=apple_calendar.CST)
+    assert event.decoded("DTEND") == datetime(2026, 10, 18, 23, 59, tzinfo=apple_calendar.CST)
+
+
+@pytest.mark.parametrize("due_ts,start,end", [
+    ("2026-10-28T23:59:00+08:00", "2026-10-28T23:58:00+08:00", "2026-10-28T23:59:00+08:00"),
+    ("2026-10-29T00:00:00+08:00", "2026-10-28T23:59:00+08:00", "2026-10-29T00:00:00+08:00"),
+    ("2026-11-01T00:00:00+08:00", "2026-10-31T23:59:00+08:00", "2026-11-01T00:00:00+08:00"),
+    ("2027-01-01T00:00:00+08:00", "2026-12-31T23:59:00+08:00", "2027-01-01T00:00:00+08:00"),
+    ("2026-10-29T14:00:00+08:00", "2026-10-29T13:59:00+08:00", "2026-10-29T14:00:00+08:00"),
+    ("2026-10-28T23:59:59+08:00", "2026-10-28T23:58:00+08:00", "2026-10-28T23:59:00+08:00"),
+    ("2026-10-29T00:00:30+08:00", "2026-10-28T23:59:00+08:00", "2026-10-29T00:00:00+08:00"),
+    ("2026-10-29T00:01:00+08:00", "2026-10-29T00:00:00+08:00", "2026-10-29T00:01:00+08:00"),
+    ("2026-10-28T16:00:00Z", "2026-10-28T23:59:00+08:00", "2026-10-29T00:00:00+08:00"),
+    ("2026-10-29T00:00:00", "2026-10-28T23:59:00+08:00", "2026-10-29T00:00:00+08:00"),
+])
+def test_deadline_marker_and_alert_are_independent(due_ts, start, end):
+    original = {"source": "Ketangpai", "id": "hw1", "title": "作业", "due_ts": due_ts}
+    body = apple_calendar.build_calendar("alice", [original], now=datetime(2026, 10, 17, tzinfo=apple_calendar.CST))
+    event, = Calendar.from_ical(body).walk("VEVENT")
+
+    assert event.decoded("DTSTART").isoformat() == start
+    assert event.decoded("DTEND").isoformat() == end
+    assert event.decoded("DTEND") - event.decoded("DTSTART") == timedelta(minutes=1)
+    assert str(event["UID"]) == "ketangpai-hw1@canvas-dashboard"
+    assert str(event["SUMMARY"]) == "作业"
+    assert str(event["TRANSP"]) == "TRANSPARENT"
+    actual_due = datetime.fromisoformat(due_ts.replace("Z", "+00:00"))
+    actual_due = actual_due.replace(tzinfo=apple_calendar.CST) if actual_due.tzinfo is None else actual_due.astimezone(apple_calendar.CST)
+    assert actual_due.strftime("%Y-%m-%d %H:%M:%S") in str(event["DESCRIPTION"])
+    alarm, = event.walk("VALARM")
+    assert str(alarm["ACTION"]) == "DISPLAY"
+    assert alarm.decoded("TRIGGER") == actual_due - timedelta(hours=1)
+    assert str(alarm["TRIGGER"].params["VALUE"]) == "DATE-TIME"
+    assert "作业" in str(alarm["DESCRIPTION"])
+    assert original["due_ts"] == due_ts
+
+
+@pytest.mark.parametrize("field", ["due_ts", "due_date"])
+def test_date_only_deadline_stays_on_its_day_without_invented_alert_time(field):
+    body = apple_calendar.build_calendar(
+        "alice", [{"source": "Custom", "id": 1, "title": "日期待办", field: "2026-10-28"}],
+        now=datetime(2026, 10, 17, tzinfo=apple_calendar.CST),
+    )
+    event, = Calendar.from_ical(body).walk("VEVENT")
+    assert event.decoded("DTSTART").isoformat() == "2026-10-28"
+    assert event.decoded("DTEND").isoformat() == "2026-10-29"
+    assert not event.walk("VALARM")
+
+
+def test_real_schedule_keeps_its_span_across_midnight():
+    body = apple_calendar.build_calendar(
+        "alice", [{"source": "Schedule", "id": 1, "title": "夜间安排",
+                   "start_dt": "2026-10-28T23:00:00+08:00", "end_dt": "2026-10-29T01:00:00+08:00"}],
+        now=datetime(2026, 10, 17, tzinfo=apple_calendar.CST),
+    )
+    event, = Calendar.from_ical(body).walk("VEVENT")
+    assert event.decoded("DTSTART").isoformat() == "2026-10-28T23:00:00+08:00"
+    assert event.decoded("DTEND").isoformat() == "2026-10-29T01:00:00+08:00"
+    assert "截止时间" not in str(event["DESCRIPTION"])
+    assert not event.walk("VALARM")
 

@@ -146,6 +146,10 @@ def build_calendar(
         end_dt = item.get("end_dt")
         due_ts = item.get("due_ts")
         due_date = item.get("due_date")
+        deadline_at = None
+        # A date without a clock is an all-day deadline, not midnight.
+        if isinstance(due_ts, str) and len(due_ts) == 10:
+            due_date, due_ts = due_ts, None
         if start_dt:
             try:
                 if isinstance(start_dt, str):
@@ -179,9 +183,14 @@ def build_calendar(
             if due_at.tzinfo is None:
                 due_at = due_at.replace(tzinfo=CST)
             due_at = due_at.astimezone(CST)
+            deadline_at = due_at
+            # DTEND is exclusive: ending at midnight belongs to the previous day.
+            marker_end = due_at.replace(second=0, microsecond=0)
+            marker_start = marker_end - timedelta(minutes=1)
             event_lines.extend([
-                f"DTSTART;TZID=Asia/Shanghai:{due_at.strftime('%Y%m%dT%H%M%S')}",
-                f"DTEND;TZID=Asia/Shanghai:{(due_at + timedelta(hours=1)).strftime('%Y%m%dT%H%M%S')}",
+                f"DTSTART;TZID=Asia/Shanghai:{marker_start.strftime('%Y%m%dT%H%M%S')}",
+                f"DTEND;TZID=Asia/Shanghai:{marker_end.strftime('%Y%m%dT%H%M%S')}",
+                "TRANSP:TRANSPARENT",
             ])
         elif due_date:
             try:
@@ -199,8 +208,24 @@ def build_calendar(
         if item.get("location"):
             event_lines.append(f"LOCATION:{_escape_ics(str(item['location']))}")
         description = _description(item)
+        if deadline_at is not None:
+            deadline_note = (
+                f"截止时间：{deadline_at.strftime('%Y-%m-%d %H:%M:%S')}（上海时间）\n"
+                "日历显示为截止前一分钟，提醒设在截止前一小时。"
+            )
+            description = f"{deadline_note}\n{description}" if description else deadline_note
         if description:
             event_lines.append(f"DESCRIPTION:{_escape_ics(description)}")
+        if deadline_at is not None:
+            # Absolute UTC keeps the alarm tied to the real deadline, including seconds.
+            alarm_at = (deadline_at - timedelta(hours=1)).astimezone(timezone.utc)
+            event_lines.extend([
+                "BEGIN:VALARM",
+                "ACTION:DISPLAY",
+                f"TRIGGER;VALUE=DATE-TIME:{alarm_at.strftime('%Y%m%dT%H%M%SZ')}",
+                f"DESCRIPTION:{_escape_ics('一小时后截止：' + str(item.get('title') or 'Untitled task'))}",
+                "END:VALARM",
+            ])
         event_lines.append("END:VEVENT")
         lines.extend(event_lines)
     lines.append("END:VCALENDAR")

@@ -208,7 +208,10 @@ def test_existing_calendar_link_reflects_cached_updates_and_local_state(
     updated = events()
     assert set(updated) == {uid, f"{source}-new@canvas-dashboard"}
     assert str(updated[uid]["SUMMARY"]) == "本地改名"
-    assert updated[uid].decoded("DTSTART").isoformat() == "2099-07-14T23:59:00+08:00"
+    assert updated[uid].decoded("DTSTART").isoformat() == "2099-07-14T23:58:00+08:00"
+    assert updated[uid].decoded("DTEND").isoformat() == "2099-07-14T23:59:00+08:00"
+    alarm, = updated[uid].walk("VALARM")
+    assert alarm.decoded("TRIGGER").isoformat() == "2099-07-14T14:59:00+00:00"
     assert str(updated[f"{source}-new@canvas-dashboard"]["SUMMARY"]) == "新同步的作业"
 
     state_path.write_text(json.dumps({"completed": [item_id], "deleted": ["new"]}), encoding="utf-8")
@@ -377,6 +380,15 @@ def test_calendar_subscription_includes_recent_assignments_and_midnight(calendar
     assert "今日零点截止作业" in body
     assert "两周前逾期作业" in body
     assert "两月前逾期过久作业" not in body
+    midnight_event = next(
+        event for event in Calendar.from_ical(body).walk("VEVENT")
+        if str(event["SUMMARY"]) == "今日零点截止作业"
+    )
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    assert midnight_event.decoded("DTSTART") == midnight - dashboard_app.timedelta(minutes=1)
+    assert midnight_event.decoded("DTEND") == midnight
+    alarm, = midnight_event.walk("VALARM")
+    assert alarm.decoded("TRIGGER") == midnight - dashboard_app.timedelta(hours=1)
 
 
 def test_calendar_category_subscriptions_isolation(calendar_client):
