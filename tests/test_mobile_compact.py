@@ -39,6 +39,9 @@ def test_mobile_overview_has_aligned_readable_content(live_app, browser, test_no
     page.evaluate("switchDashboardView('settings')")
     page.locator(f'[data-appearance-theme="{theme}"]').click()
     page.evaluate("switchDashboardView('overview')")
+    expect(page.locator('#project-overview-content .proj-summary-row')).to_have_count(1)
+    expect(page.locator('#project-overview-content')).to_contain_text('项目今天的计划')
+    expect(page.locator('#project-overview-content .project-task-item')).to_have_count(0)
     expect(page.locator('.todo-row', has_text=long_title)).to_be_visible()
     expect(page.locator('.todo-row', has_text='项目今天的计划')).to_be_visible()
     expect(page.locator('.todo-row', has_text='项目今天的计划').locator('.todo-date-mobile')).to_have_text('计划 今天')
@@ -92,28 +95,32 @@ def test_mobile_project_tasks_keep_title_space_and_working_actions(live_app, bro
     })
     page.reload()
     page.locator('[data-mobile-tab="projects"]').click()
-    row = page.locator(f'.project-task-item[data-task-id="{task["id"]}"]')
-    expect(row).to_be_visible()
-    row.scroll_into_view_if_needed()
+    current = page.locator('.project-current-step-card')
+    expect(current).to_be_visible()
+    expect(current.locator('.project-current-step-details')).to_have_text('保留完整项目资料')
+    current.scroll_into_view_if_needed()
     browser_env.wait_for_layout_settled(page)
-    # +1px 只覆盖 scrollWidth/clientWidth 的亚像素取整，避免把不换行的标题误判为溢出。
-    assert row.evaluate("""e => {
-      const title = e.querySelector('.project-task-name-btn');
-      const actions = e.querySelector('.project-task-actions').getBoundingClientRect();
+    assert current.evaluate("""e => {
+      const title = e.querySelector('.project-current-step-title');
+      const actions = e.querySelector('.project-current-step-controls').getBoundingClientRect();
       const rect = title.getBoundingClientRect();
       return rect.width > 160 && title.scrollWidth <= title.clientWidth + 1
         && actions.top >= rect.bottom && actions.right <= innerWidth
         && document.documentElement.scrollWidth <= innerWidth;
     }""")
-    row.locator('.project-task-name-btn').click()
+    current.get_by_role('button', name='安排日程', exact=True).click()
     expect(page.locator('#action-detail-dialog')).to_contain_text('保留完整项目资料')
     page.get_by_role('button', name='关闭事项详情').click()
-    row.get_by_title('编辑', exact=True).click()
+    current.get_by_role('button', name='编辑步骤', exact=True).click()
     expect(page.locator('#project-task-modal')).to_be_visible()
     assert page.locator('#project-task-modal .project-modal-card').bounding_box()['width'] <= width
     page.locator('#project-task-modal .project-modal-close').click()
-    row.locator('input[type="checkbox"]').check()
-    expect(page.locator('#project-detail .project-completed-tasks')).to_contain_text('已完成 1 项')
+    current.get_by_role('button', name='完成步骤', exact=True).click()
+    history = page.locator('#project-detail > .project-finished-groups')
+    expect(history).to_contain_text('已完成')
+    expect(history).not_to_have_attribute('open', '')
+    expect(history.locator('.project-finished-task-row')).to_have_count(1)
+    assert project_store.load_projects(username)[0]['tasks'][0]['done'] is True
     page.locator('[data-mobile-tab="schedule"]').click()
     expect(page.locator('.period-day')).to_have_count(7)
     expect(page.locator('.period-cell:visible')).to_have_count(4)

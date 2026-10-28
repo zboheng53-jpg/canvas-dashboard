@@ -25,18 +25,19 @@ def _client(tmp_path, monkeypatch, username="testuser"):
 def test_todo_items_include_category_next_action_and_main_flag(tmp_path, monkeypatch):
     client, headers = _client(tmp_path, monkeypatch)
 
+    today = workspace_service.datetime.now(workspace_service.CST).date().isoformat()
     res1 = client.post("/api/projects", json={"name": "竞赛 | TU主线与技术积累", "due_date": "2026-10-01"}, headers=headers)
     p1 = res1.get_json()["project"]
     client.post(f"/api/projects/{p1['id']}/set-main", headers=headers)
 
     client.post(
         f"/api/projects/{p1['id']}/tasks",
-        json={"name": "数模：确认分工与最小交付", "due_date": "2026-09-14", "is_next_action": True, "commitment": "obligation"},
+        json={"name": "数模：确认分工与最小交付", "due_date": "2026-09-14", "is_next_action": True, "commitment": "obligation", "planned_on": today},
         headers=headers,
     )
     client.post(
         f"/api/projects/{p1['id']}/tasks",
-        json={"name": "两周全局复盘", "due_date": "2026-09-27", "commitment": "obligation"},
+        json={"name": "两周全局复盘", "due_date": "2026-09-27", "commitment": "obligation", "planned_on": today},
         headers=headers,
     )
 
@@ -44,7 +45,7 @@ def test_todo_items_include_category_next_action_and_main_flag(tmp_path, monkeyp
     p2 = res2.get_json()["project"]
     client.post(
         f"/api/projects/{p2['id']}/tasks",
-        json={"name": "完成一次完整六级诊断并记录分项错因", "due_date": "2026-09-19", "commitment": "obligation"},
+        json={"name": "完成一次完整六级诊断并记录分项错因", "due_date": "2026-09-19", "commitment": "obligation", "planned_on": today},
         headers=headers,
     )
 
