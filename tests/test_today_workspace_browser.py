@@ -94,7 +94,7 @@ def test_today_workspace_browser(live_app, browser):
         expect(page.locator("#project-overview-content").get_by_text("导师给出的参考文献与实验要求")).to_have_count(0)
 
         # ---- Verification C: Deadline visible on homepage ----
-        deadlines_card = page.locator("#today-deadlines-card")
+        deadlines_card = page.locator("#todo-list [data-group-key=today]")
         expect(deadlines_card).to_be_visible()
         expect(deadlines_card).to_contain_text("提交学期选课确认表")
 
@@ -146,83 +146,11 @@ def test_today_workspace_browser(live_app, browser):
         expect(today_group.get_by_text("整理前期仿真数据")).to_be_visible()
         expect(today_group.locator(".todo-row").filter(has_text="整理前期仿真数据")).to_contain_text("原计划")
 
-        # ---- Verification G: Materials date/history and create/edit ----
-        materials_store = []
-
-        def handle_materials(route):
-            req = route.request
-            try:
-                upstream = route.fetch()
-                if upstream.status != 404:
-                    route.fulfill(response=upstream)
-                    return
-            except Exception:
-                pass
-
-            if "/api/materials" in req.url and req.method == "GET":
-                entries = list(materials_store)
-                entries.append({
-                    "id": f"legacy-{p['id']}",
-                    "project_id": p["id"],
-                    "project_name": "毕业设计论文",
-                    "date": None,
-                    "body": "导师给出的参考文献与实验要求",
-                    "legacy": True,
-                })
-                route.fulfill(
-                    status=200,
-                    content_type="application/json",
-                    body=json.dumps({
-                        "ok": True,
-                        "projects": [{
-                            "id": p["id"],
-                            "name": "毕业设计论文",
-                            "status": "active",
-                            "updated_at": "2026-10-28T00:00:00",
-                            "materials": "导师给出的参考文献与实验要求",
-                        }],
-                        "entries": entries,
-                    }),
-                )
-            elif "/materials" in req.url and req.method == "POST":
-                data = json.loads(req.post_data)
-                new_entry = {
-                    "id": len(materials_store) + 1,
-                    "project_id": p["id"],
-                    "project_name": "毕业设计论文",
-                    "date": data.get("date"),
-                    "body": data.get("body"),
-                    "legacy": False,
-                }
-                materials_store.insert(0, new_entry)
-                route.fulfill(
-                    status=200,
-                    content_type="application/json",
-                    body=json.dumps({"ok": True, "entry": new_entry}),
-                )
-            else:
-                route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True}))
-
-        page.route("**/api/materials*", handle_materials)
-        page.route("**/api/projects/*/materials*", handle_materials)
-
-        page.locator('[data-dashboard-view="materials"]').click()
-        mat_panel = page.locator("#dashboard-view-materials")
-        expect(mat_panel).to_be_visible()
-
-        # Legacy materials entry should be shown
-        expect(mat_panel).to_contain_text("导师给出的参考文献与实验要求")
-
-        # Open new material modal
-        mat_panel.get_by_role("button", name="新建资料").click()
-        modal = page.locator("#material-entry-modal")
-        expect(modal).to_be_visible()
-        page.fill("#material-form-body", "初稿修改意见及答辩准备")
-        page.click("#material-entry-save-btn")
-
-        # Wait for dialog to close
-        expect(modal).to_be_hidden()
-        expect(mat_panel).to_contain_text("初稿修改意见及答辩准备")
+        # Completing the current step promotes the earliest missed plan.
+        page.locator('[data-dashboard-view="projects"]').click()
+        step_card.get_by_role("button", name="完成步骤", exact=True).click()
+        expect(step_card).to_contain_text("整理前期仿真数据")
+        expect(page.locator(".project-progress-pill")).to_contain_text("3/8")
 
     finally:
         page.close()

@@ -2,7 +2,7 @@ from services import workspace as workspace_service
 
 import json
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 import app as dashboard
@@ -36,11 +36,12 @@ def create_project(client, headers):
 def test_growth_plan_and_undated_obligation_have_distinct_views(workspace):
     c, h = workspace
     p = create_project(c, h)
-    growth = c.post(f"/api/projects/{p['id']}/tasks", json={"name": "练习听力", "planned_on": "2026-09-14", "details": "先听音频，再核对原文。"}, headers=h).get_json()["task"]
+    today = workspace_service.datetime.now(workspace_service.CST).date().isoformat()
+    growth = c.post(f"/api/projects/{p['id']}/tasks", json={"name": "练习听力", "planned_on": today, "details": "先听音频，再核对原文。"}, headers=h).get_json()["task"]
     hard = c.post(f"/api/projects/{p['id']}/tasks", json={"name": "核实报名资格", "commitment": "obligation"}, headers=h).get_json()["task"]
     assert growth["commitment"] == "growth" and growth["due_date"] is None
-    assert [a["title"] for a in c.get("/api/projects/todos").get_json()["items"]] == [hard["name"]]
-    agenda = c.get("/api/agenda?start=2026-09-14&end=2026-09-16").get_json()
+    assert [a["title"] for a in c.get("/api/projects/todos").get_json()["items"]] == [growth["name"]]
+    agenda = c.get(f"/api/agenda?start={today}&end={today}").get_json()
     assert agenda["days"][0]["planned"][0]["title"] == growth["name"]
     assert agenda["days"][0]["deadlines"] == []
     assert "sync_status" in agenda
@@ -84,14 +85,16 @@ def test_legacy_title_and_due_are_preserved_until_explicit_edit(workspace):
     c, h = workspace
     path = user_paths.user_dir("alice") / "projects.json"
     long_title = "听力练习及具体步骤与完成标准；" * 8
-    path.write_text(json.dumps({"version": 2, "projects": [{"id": 1, "name": "英语", "tasks": [{"id": 7, "name": long_title, "due_date": "2026-09-14"}]}]}, ensure_ascii=False), encoding="utf-8")
+    today = workspace_service.datetime.now(workspace_service.CST).date()
+    tomorrow = (today + timedelta(days=1)).isoformat()
+    path.write_text(json.dumps({"version": 2, "projects": [{"id": 1, "name": "英语", "tasks": [{"id": 7, "name": long_title, "due_date": today.isoformat()}]}]}, ensure_ascii=False), encoding="utf-8")
     action = c.get("/api/actions/project:1:7").get_json()["action"]
     assert action["commitment"] == "legacy"
     assert c.get("/api/projects/todos").get_json()["count"] == 1
-    c.put("/api/actions/project:1:7", json={"title": "完成听力练习", "details": long_title, "commitment": "growth", "planned_on": "2026-09-14", "due_date": None}, headers=h)
+    c.put("/api/actions/project:1:7", json={"title": "完成听力练习", "details": long_title, "commitment": "growth", "planned_on": tomorrow, "due_date": None}, headers=h)
     action = c.get("/api/actions/project:1:7").get_json()["action"]
     assert action["original_name"] == long_title and action["id"] == 7
-    assert action["due_date"] is None and action["planned_on"] == "2026-09-14"
+    assert action["due_date"] is None and action["planned_on"] == tomorrow
     assert c.get("/api/projects/todos").get_json()["count"] == 0
 
 
@@ -118,12 +121,15 @@ def test_agent_uses_same_actions_aggregate_and_account_boundary(workspace):
     token = agent_auth.create_token("alice", scopes=["read", "write", "delete"])
     bearer = {"Authorization": f"Bearer {token}"}
     p = create_project(c, h)
-    res = c.post(f"/api/agent/v1/projects/{p['id']}/tasks", headers=bearer, json={"name": "完成听力练习", "commitment": "growth", "planned_on": "2026-09-14", "request_id": "agent-task"})
+    today = workspace_service.datetime.now(workspace_service.CST).date().isoformat()
+    res = c.post(f"/api/agent/v1/projects/{p['id']}/tasks", headers=bearer, json={"name": "完成听力练习", "commitment": "growth", "planned_on": today, "request_id": "agent-task"})
     assert res.status_code == 201
     ref = res.get_json()["ref"]
     assert c.get(f"/api/agent/v1/actions/{ref}", headers=bearer).get_json()["action"]["title"] == "完成听力练习"
     assert c.get("/api/agent/v1/agenda?start=2026-09-14&end=2026-09-14", headers=bearer).get_json()["days"] == c.get("/api/agenda?start=2026-09-14&end=2026-09-14").get_json()["days"]
-    assert c.get("/api/agent/v1/todos", headers=bearer).get_json()["count"] == 0
+    todos = c.get("/api/agent/v1/todos", headers=bearer).get_json()
+    assert todos["count"] == 1
+    assert todos["todos"][0]["due_date"] is None
     with c.session_transaction() as sess:
         sess["username"] = "bob"
     assert c.get(f"/api/actions/{ref}").status_code == 404

@@ -78,6 +78,9 @@
           button.removeAttribute('aria-current');
         }
       });
+      const todoCard = document.getElementById('todo-workspace-card');
+      const todoHost = viewName === 'todos' ? document.getElementById('all-todos-host') : document.querySelector('#dashboard-view-overview .main-column');
+      if (todoCard && todoHost && todoCard.parentElement !== todoHost) todoHost.append(todoCard);
       document.getElementById('dashboard-right-rail').classList.toggle('hidden', viewName !== 'overview');
       workspaceStack.classList.toggle('is-focus-view', viewName !== 'overview');
       dashboardShell.classList.toggle('schedule-workspace-active', viewName === 'schedule');

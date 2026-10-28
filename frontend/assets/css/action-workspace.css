@@ -154,6 +154,8 @@ details[open] > summary .project-disclosure-chevron {
 .forward-footer { display: flex; flex-wrap: wrap; gap: 4px 10px; border-top: 1px solid var(--ds-line); padding-top: 12px; }
 .forward-footer button { font-size: 12px; padding: 2px 0; }
 @media (min-width: 961px) {
+  #today-deadlines-card { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  #today-deadlines-list { flex: 1; max-height: none; min-height: 0; }
   .todo-row { padding-top: 8px !important; padding-bottom: 8px !important; }
   .todo-row .action-title-button { min-height: 0; height: auto; line-height: 1.4; }
   .todo-group-heading { padding-top: 4px !important; padding-bottom: 6px !important; }
@@ -299,3 +301,59 @@ details[open] > summary .project-disclosure-chevron {
   color: var(--text-main, var(--ds-ink, #333));
 }
 
+.today-timeline-card { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 260px; }
+.today-deadlines-list { max-height: 240px; overflow-y: auto; }
+#today-schedule-content.timeline { display: block; width: 100%; padding: var(--space-3); }
+#long-term-projects-card { flex: 0 1 auto !important; height: auto !important; max-height: 100%; }
+.project-current-step-card { display: block; box-shadow: none; }
+.project-current-step-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.project-detail-progress { width: 100%; height: 8px; margin: var(--space-3) 0 var(--space-5); accent-color: var(--color-action); }
+.project-roadmap-list { gap: 0 !important; }
+.project-roadmap-row { border-left: 2px solid var(--ds-line); margin-left: var(--space-2); padding-left: var(--space-3); }
+.project-roadmap-row > summary { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) 0; cursor: pointer; }
+.project-roadmap-row > summary::before { content: '›'; color: var(--color-text-muted); }
+.project-roadmap-row[open] > summary::before { transform: rotate(90deg); }
+.roadmap-task-title { flex: 1; min-width: 0; }
+.project-roadmap-meta { color: var(--color-text-secondary); font-size: var(--font-size-control-sm); }
+.project-roadmap-body { padding: 0 0 var(--space-4) var(--space-4); }
+.project-step-details, .project-current-step-details { white-space: pre-wrap; overflow-wrap: anywhere; margin-bottom: var(--space-3); }
+.project-order-management { margin-top: var(--space-5); }
+.project-order-management > summary { cursor: pointer; padding: var(--space-3) 0; color: var(--color-text-secondary); }
+.material-entry-card { margin-bottom: var(--space-3); padding: var(--space-4); }
+.material-entry-header, .material-entry-meta, .material-entry-actions { display: flex; align-items: center; gap: var(--space-2); }
+.material-entry-header { justify-content: space-between; margin-bottom: var(--space-3); }
+.material-entry-meta { min-width: 0; flex-wrap: wrap; }
+.material-entry-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; }
+.materials-history { margin-top: var(--space-5); }
+.materials-history-summary { padding: var(--space-3) var(--space-4); cursor: pointer; }
+.materials-history-body { padding: var(--space-4); }
+.materials-date-group { margin-bottom: var(--space-5); }
+@media (min-width: 961px) {
+  #dashboard-view-overview { overflow-y: auto; }
+  #dashboard-view-overview main { min-height: 380px !important; }
+}
+@media (max-width: 768px) {
+  .today-deadline-row { align-items: flex-start !important; flex-wrap: wrap; }
+  .today-deadline-row > div { min-width: 0; }
+  .today-deadline-row button { white-space: normal !important; height: auto; min-height: 32px; }
+  .today-deadline-row > div:last-child { margin-left: auto; }
+  .project-roadmap-row > summary { flex-wrap: wrap; gap: var(--space-2); }
+  .roadmap-task-title { flex-basis: 85%; }
+  .project-roadmap-meta { padding-left: var(--space-3); }
+  .project-current-step-controls .ui-button { min-height: 44px; }
+  .project-detail-actions { flex-wrap: wrap; }
+  .material-entry-header { align-items: flex-start; flex-wrap: wrap; }
+  .material-entry-actions .ui-button { min-height: 44px; }
+}
+.today-context-bar { display: flex; justify-content: space-between; gap: var(--space-3); align-items: center; padding: var(--space-4) 0; flex-shrink: 0; }
+.today-context-bar h1 { margin: 0; font-size: 24px; }
+.today-context-bar p { margin: var(--space-2) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-control-sm); }
+.today-context-weather { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); font-size: var(--font-size-control-sm); }
+.project-summary-list { width: 100%; }
+#project-overview-content .proj-summary-row { width: 100%; padding: var(--space-3); border: 0; border-bottom: 1px solid var(--ds-line-soft); background: transparent; color: var(--color-text-primary); text-align: left; display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); cursor: pointer; border-radius: 0; }
+.proj-summary-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: var(--space-1); }
+.proj-summary-copy strong, .proj-summary-copy .proj-summary-next { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proj-summary-copy strong { font-size: var(--font-size-control); }
+.proj-summary-copy .proj-summary-next, .proj-summary-copy small { font-size: var(--font-size-control-sm); color: var(--color-text-secondary); }
+.proj-summary-progress { flex: none; font-variant-numeric: tabular-nums; font-size: var(--font-size-control-sm); }
+.proj-summary-row:focus-visible { outline: 2px solid var(--color-action); outline-offset: -2px; }

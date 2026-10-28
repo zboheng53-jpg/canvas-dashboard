@@ -268,23 +268,24 @@
       return null;
     }
 
-    function timeGroupForTodo(item) {
-      const today = window.customToday || new Date().toISOString().slice(0, 10);
-      const weekEnd = new Date(`${today}T00:00:00Z`);
-      weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
-      const dueDate = item.due_ts ? item.due_ts.slice(0, 10) : '';
-      if (item.done) return 'today';
-      if (dueDate && dueDate <= today) return 'today';
-      if (dueDate && dueDate <= weekEnd.toISOString().slice(0, 10)) return 'week';
-      return 'later';
+    function todoDeadlineState(item) {
+      const today = workspaceTodayISO();
+      const raw = String(item.due_str || item.due_date || '').trim();
+      const timestamp = item.due_ts ? new Date(item.due_ts) : null;
+      const valid = timestamp && !Number.isNaN(timestamp.getTime());
+      const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(raw);
+      const day = valid
+        ? new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Shanghai', year:'numeric', month:'2-digit', day:'2-digit'}).format(timestamp)
+        : (raw.match(/^\d{4}-\d{2}-\d{2}/)?.[0] || '');
+      return {day, overdue: Boolean(day && (day < today || (!dateOnly && valid && timestamp.getTime() < Date.now())))};
     }
 
     function buildTodoGroups(items) {
       const labels = {
         overdue: '已逾期',
         today: '今天',
-        next3: '未来3天',
-        later: '更晚',
+        next3: '近三天',
+        later: '以后',
         nodate: '无日期',
         completed: '已完成',
       };
@@ -304,33 +305,8 @@
 
         // Determine if genuinely overdue:
         // True timestamp deadline before now => overdue; date-only due_date is end-of-day.
-        let isGenuinelyOverdue = false;
-        let datePart = '';
-        const rawDueStr = (item.due_str || '').trim();
-        const rawDueDate = (item.due_date || '').trim();
-
-        if (item.due_ts) {
-          const ts = new Date(item.due_ts);
-          if (!Number.isNaN(ts.getTime())) {
-            datePart = new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'}).format(ts);
-            const isDateOnly = (item.source === 'custom' && !/\d{2}:\d{2}/.test(rawDueStr)) ||
-              (item.source === 'project' && !/\d{2}:\d{2}/.test(rawDueStr)) ||
-              /^\d{4}-\d{2}-\d{2}$/.test(rawDueStr);
-
-            if (isDateOnly) {
-              if (datePart < todayStr) isGenuinelyOverdue = true;
-            } else {
-              if (ts < now) isGenuinelyOverdue = true;
-            }
-          }
-        } else if (rawDueDate || rawDueStr) {
-          const str = rawDueDate || rawDueStr;
-          const match = str.match(/^\d{4}-\d{2}-\d{2}/);
-          if (match) {
-            datePart = match[0];
-            if (datePart < todayStr) isGenuinelyOverdue = true;
-          }
-        }
+        const {day: datePart, overdue: isGenuinelyOverdue} = todoDeadlineState(item);
+        item.isGenuinelyOverdue = isGenuinelyOverdue;
 
         // Genuine overdue priority
         if (isGenuinelyOverdue) {
@@ -430,21 +406,10 @@
 
       // Ordinary platform/custom/recurring assignments due today or overdue, even scheduled.
       // Project deadlines/missed plans belong in their one project summary row, no project steps list on homepage.
-      const candidates = unified.filter((item) => {
-        if (item.done || item.hidden || item.source === 'project') return false;
-        let isDueTodayOrOverdue = false;
-        if (item.due_ts) {
-          const ts = new Date(item.due_ts);
-          if (!Number.isNaN(ts.getTime())) {
-            const datePart = new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'}).format(ts);
-            if (datePart <= todayStr) isDueTodayOrOverdue = true;
-          }
-        } else if (item.due_str || item.due_date) {
-          const match = (item.due_str || item.due_date).match(/^\d{4}-\d{2}-\d{2}/);
-          if (match && match[0] <= todayStr) isDueTodayOrOverdue = true;
-        }
-        return isDueTodayOrOverdue;
-      });
+      const candidates = unified.filter(item => {
+        const {day} = todoDeadlineState(item);
+        return !item.done && !item.hidden && item.source !== 'project' && day && day <= todayStr;
+      }).sort((a,b) => (a.due_ts || a.due_str || '').localeCompare(b.due_ts || b.due_str || ''));
 
       if (countEl) countEl.textContent = `${candidates.length} 项`;
 
@@ -457,19 +422,19 @@
         <div class="today-deadlines-items" style="display: flex; flex-direction: column; gap: 6px; padding: 10px 14px;">
           ${candidates.map((item) => {
             const dateLabel = compactTodoDateLabel(item, todayStr);
-            const isOverdue = item.isGenuinelyOverdue || (item.due_ts && new Date(item.due_ts) < now);
+            const isOverdue = todoDeadlineState(item).overdue;
             const refArg = item.ref || `${item.source}:${item.rawId || item.id}`;
             return `
               <div class="today-deadline-row ui-card ui-card--subtle" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--color-border); background: var(--color-surface); gap: 10px;">
                 <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
                   <span class="ui-badge ui-badge--source" style="font-size: 11px;">${escapeHtml(item.type || item.source)}</span>
-                  <button type="button" class="ui-button ui-button--text" onclick="openActionDetail('${refArg}')" style="font-size: 13px; font-weight: 500; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0;">
+                  <button type="button" class="ui-button ui-button--text" onclick="openActionDetail(${escapeHtml(JSON.stringify(refArg))})" style="font-size: 13px; font-weight: 500; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0;">
                     ${escapeHtml(item.title)}
                   </button>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
                   <span class="ui-tag ${isOverdue ? 'ui-tag--danger' : 'ui-tag--warning'}" style="font-size: 11px;">${dateLabel}</span>
-                  <button type="button" class="ui-button ui-button--secondary ui-button--compact" onclick="openActionDetail('${refArg}')" style="font-size: 12px; padding: 2px 6px; height: 24px;">详情</button>
+                  <button type="button" class="ui-button ui-button--secondary ui-button--compact" onclick="openActionDetail(${escapeHtml(JSON.stringify(refArg))})" style="font-size: 12px; padding: 2px 6px; height: 24px;">详情</button>
                 </div>
               </div>`;
           }).join('')}
@@ -494,8 +459,8 @@
       // LINK-05: collect today scheduled action references
       const today = window.customToday || new Date().toISOString().split('T')[0];
       const todayScheduledRefs = new Set();
-      if (window.workspaceTodayData?.days?.[0]?.timed) {
-        for (const e of window.workspaceTodayData.days[0].timed) {
+      if (workspaceTodayData?.days?.[0]?.timed) {
+        for (const e of workspaceTodayData.days[0].timed) {
           if (e.action_ref && !e.occurrence_done && !e.done) {
             todayScheduledRefs.add(e.action_ref);
           }
@@ -658,7 +623,7 @@
           isMainProject: Boolean(item.is_main),
           groupName: item.group_name || '',
           due_str: item.due_date || '',
-          due_ts: item.due_date ? `${item.due_date}T23:59:59` : null,
+          due_ts: item.due_date ? `${item.due_date}T23:59:59+08:00` : null,
           type: category,
           url: '',
           done: false,
@@ -703,6 +668,7 @@
           repeat_label: item.repeat_label,
           ref: item.ref,
           isTodayAction: isTodayAction,
+          plannedOn: item.planned_on || '',
         });
       });
 
@@ -1036,7 +1002,7 @@
       const totalEl = document.getElementById('stat-total');
       const urgentEl = document.getElementById('stat-urgent');
       if (totalEl) totalEl.textContent = pending;
-      if (urgentEl) urgentEl.textContent = overdue + due72h;
+      if (urgentEl) urgentEl.textContent = due72h;
 
       // Update Top KPI Cards
       const pendingCountEl = document.getElementById('stat-pending-count');

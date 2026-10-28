@@ -431,7 +431,7 @@ function renderProjectDetail() {
   const completedTasks = project.tasks.filter(t => t.done);
   const totalTasksCount = (project.completed_count || 0) + (project.pending_count || 0);
 
-  const currentGroup = nextActionTask?.group_id ? project.groups.find(g => g.id === nextActionTask.group_id) : (project.groups[0] || null);
+  const currentGroup = nextActionTask?.group_id ? project.groups.find(g => g.id === nextActionTask.group_id) : null;
   const currentStageName = currentGroup?.name || "未分组";
 
   let nextActionHtml = "";
@@ -453,7 +453,7 @@ function renderProjectDetail() {
         <div class="project-current-step-controls" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
           <button type="button" class="ui-button ui-button--primary project-next-action-btn-complete" onclick="toggleProjectTask(${project.id}, ${nextActionTask.id}, true)">完成步骤</button>
           <button type="button" class="ui-button ui-button--secondary" onclick="openProjectTaskModal(${project.id}, ${nextActionTask.id})">编辑步骤</button>
-          <button type="button" class="ui-button ui-button--secondary" onclick="openActionDetail('project:${project.id}:${nextActionTask.id}')">安排日程</button>
+          <button type="button" class="ui-button ui-button--secondary" onclick="scheduleProjectStep(${project.id}, ${nextActionTask.id})">安排日程</button>
           ${activeTasks.length > 1 ? `<button type="button" class="ui-button ui-button--secondary project-next-action-btn-choose" onclick="openProjectChoiceModal(${project.id})">更换下一步</button>` : ""}
         </div>
       </div>
@@ -484,7 +484,7 @@ function renderProjectDetail() {
           <p class="project-objective">${pEscape(project.objective || "尚未填写一句话目标")}</p>
           <div class="project-tags-row">
             <span class="ui-status ui-status--${project.status === "active" ? "success" : project.status === "completed" ? "info" : "neutral"} project-tag-pill status-tag">${project.status === "active" ? "进行中" : project.status === "completed" ? "已完成" : "暂放"}</span>
-            <span class="ui-tag project-tag-pill stage-tag">阶段：${pEscape(currentStageName)}</span>
+            ${currentGroup ? `<span class="ui-tag project-tag-pill stage-tag">${pEscape(currentGroup.name)}</span>` : ""}
             ${project.due_date ? `<span class="ui-tag project-tag-pill due-tag">截止 ${project.due_date}</span>` : ""}
             <span class="ui-count-pill project-progress-pill">进度 ${project.completed_count || 0}/${totalTasksCount}</span>
             ${project.id === mainProjectId ? '<span class="ui-tag is-selected project-tag-pill main-project-tag" style="display:inline-flex;align-items:center;gap:3px"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>已置顶</span>' : ""}
@@ -526,6 +526,7 @@ function renderProjectDetail() {
         </div>
       </div>` : ""}
 
+    <progress class="project-detail-progress" max="${totalTasksCount || 1}" value="${project.completed_count || 0}" aria-label="项目完成进度"></progress>
     ${nextActionHtml}
 
     <hr class="project-detail-divider">
@@ -543,22 +544,7 @@ function renderProjectDetail() {
           </div>` : ""}
       </div>
       <div class="project-roadmap-list" style="display: flex; flex-direction: column; gap: 6px;">
-        ${otherPendingTasks.length ? otherPendingTasks.map(t => {
-          const grp = project.groups?.find(g => g.id === t.group_id);
-          return `
-            <div class="project-roadmap-row ui-card ui-card--subtle" data-task-id="${t.id}" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--color-border); background: var(--color-surface);">
-              <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
-                <span class="roadmap-task-title" style="font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${pEscape(t.name)}</span>
-                ${grp ? `<span class="muted" style="font-size: 12px;">${pEscape(grp.name)}</span>` : ''}
-              </div>
-              <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
-                ${t.planned_on ? `<span class="ui-tag" style="font-size: 11px;">计划 ${pEscape(t.planned_on)}</span>` : ''}
-                ${t.due_date ? `<span class="ui-tag ui-tag--danger" style="font-size: 11px;">截止 ${pEscape(t.due_date)}</span>` : ''}
-                ${active ? `<button type="button" class="ui-button ui-button--text" onclick="setProjectNextAction(${project.id}, ${t.id})" style="font-size: 12px;">设为当前</button>` : ''}
-                <button type="button" class="ui-button ui-button--text" onclick="openProjectTaskModal(${project.id}, ${t.id})" style="font-size: 12px;">编辑</button>
-              </div>
-            </div>`;
-        }).join('') : '<p class="muted" style="font-size: 13px; padding: 12px 0;">除当前步骤外，暂无其他细分步骤。</p>'}
+        ${otherPendingTasks.length ? otherPendingTasks.map(t => renderRoadmapStep(project, t, active)).join('') : '<p class="muted">暂无后续步骤</p>'}
       </div>
     </div>
 
@@ -578,7 +564,34 @@ function renderProjectDetail() {
         </div>
       </details>
     ` : ''}
+    ${active ? `<details class="project-order-management"><summary>管理分组与排序</summary><div class="project-groups">${renderProjectGroups(project)}</div></details>` : ''}
+
   `;
+}
+
+function scheduleProjectStep(projectId, taskId) {
+  const task = projectById(projectId)?.tasks.find(t => t.id === taskId);
+  if (task) scheduleAction({...task, ref: `project:${projectId}:${taskId}`, title: task.name});
+}
+
+function renderRoadmapStep(project, task, active) {
+  const group = project.groups.find(g => g.id === task.group_id);
+  const missed = task.planned_on && task.planned_on < workspaceTodayISO();
+  return `<details class="project-roadmap-row" data-task-id="${task.id}">
+    <summary><span class="roadmap-task-title">${pEscape(task.name)}</span>
+      <span class="project-roadmap-meta">${task.planned_on ? `${missed ? '原计划' : '计划'} ${pEscape(task.planned_on)}` : ''}${task.due_date ? ` · 截止 ${pEscape(task.due_date)}` : ''}</span></summary>
+    <div class="project-roadmap-body">
+      ${group ? `<p class="muted">${pEscape(group.name)}</p>` : ''}
+      <div class="project-step-details">${pEscape(task.details || '')}</div>
+      ${active ? `<div class="project-current-step-controls">
+        <button type="button" class="ui-button ui-button--secondary" onclick="toggleProjectTask(${project.id},${task.id},true)">完成步骤</button>
+        <button type="button" class="ui-button ui-button--secondary" onclick="setProjectNextAction(${project.id},${task.id})">设为当前</button>
+        <button type="button" class="ui-button ui-button--text" onclick="openProjectTaskModal(${project.id},${task.id})">编辑步骤</button>
+        <button type="button" class="ui-button ui-button--text" onclick="scheduleProjectStep(${project.id},${task.id})">安排日程</button>
+        <button type="button" class="ui-button ui-button--text" onclick="moveTaskToMaterials(${project.id},${task.id})">转为资料</button>
+        <button type="button" class="ui-button ui-button--text" onclick="confirmDeleteProjectTask(${project.id},${task.id})">删除步骤</button>
+      </div>` : ''}
+    </div></details>`;
 }
 
 async function setProjectNextAction(projectId, taskId) {
@@ -1159,40 +1172,16 @@ function renderProjectOverview(data) {
   const todayStr = window.customToday || (typeof workspaceTodayISO === 'function' ? workspaceTodayISO() : new Date().toISOString().slice(0, 10));
 
   // 全部概览模式：每个进行中项目一行紧凑摘要
-  container.innerHTML = `
-    <div class="proj proj-overview-all">
-      <div class="proj-overview-compact-list" style="display: flex; flex-direction: column; gap: 8px;">
-        ${sortedProjects.map((p) => {
-          const total = (p.completed_count || 0) + (p.pending_count || 0);
-          const nextName = p.next_action?.name || (p.tasks?.find(t => !t.done)?.name) || '无细分步骤';
+  container.innerHTML = `<div class="project-summary-list">${sortedProjects.map(p => {
+    const total = (p.completed_count || 0) + (p.pending_count || 0);
+    const signals = [p.missed_plan_count ? `原计划未完成 ${p.missed_plan_count}` : '', p.due_today_count ? `今日截止 ${p.due_today_count}` : '', p.overdue_count ? `逾期 ${p.overdue_count}` : ''].filter(Boolean);
+    return `<button type="button" class="ui-button ui-button--text proj-summary-row${p.is_main ? ' is-pinned' : ''}" onclick="openProjectsView(${p.id})">
+      <span class="proj-summary-copy"><strong title="${pEscape(p.name)}">${pEscape(p.name)}</strong>
+      <span class="proj-summary-next" title="${pEscape(p.next_action?.name || '')}">${pEscape(p.next_action?.name || '暂无细分步骤')}</span>
+      ${signals.length ? `<small>${pEscape(signals.join(' · '))}</small>` : ''}</span>
+      <span class="proj-summary-progress">${p.completed_count || 0}/${total}</span></button>`;
+  }).join('')}</div><button type="button" class="ui-button ui-button--text" onclick="openProjectsView()">查看所有项目 →</button>`;
 
-          // Inline counts if positive, compute fallbacks from available project data only if needed
-          const missedPlan = p.missed_plan_count ?? (p.tasks ? p.tasks.filter(t => !t.done && t.planned_on && t.planned_on < todayStr).length : 0);
-          const dueToday = p.due_today_count ?? (p.tasks ? p.tasks.filter(t => !t.done && (t.due_date === todayStr || t.planned_on === todayStr)).length : 0);
-          const overdue = p.overdue_count ?? (p.tasks ? p.tasks.filter(t => !t.done && t.due_date && t.due_date < todayStr).length : 0);
-
-          return `
-            <div class="proj-summary-row ui-card${p.is_main ? ' is-pinned' : ''}" onclick="openProjectsView(${p.id})" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')openProjectsView(${p.id})" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 8px; cursor: pointer; border: 1px solid var(--color-border); background: var(--color-surface); gap: 10px;">
-              <div class="proj-summary-main" style="display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;">
-                <span role="button" tabindex="0" class="proj-pin-btn${p.is_main ? ' is-pinned' : ''}" onclick="event.stopPropagation(); togglePinProject(event, ${p.id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.stopPropagation(); togglePinProject(event, ${p.id});}" title="${p.is_main ? '已置顶，点击取消置顶' : '置顶此项目'}" aria-label="${p.is_main ? '已置顶，点击取消置顶' : '置顶此项目'}">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
-                </span>
-                <button type="button" class="ui-button ui-button--text action-project-name" onclick="event.stopPropagation(); openProjectsView(${p.id})" style="font-weight: 600; font-size: 14px; padding: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px;">${pEscape(p.name)}</button>
-                <span class="proj-summary-next muted" title="下一步：${pEscape(nextName)}" style="font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px;"><b style="margin-right: 4px; font-weight: 500;">下一步</b>${pEscape(nextName)}</span>
-              </div>
-              <div class="proj-summary-side" style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
-                ${missedPlan > 0 ? `<span class="ui-tag ui-tag--warning proj-inline-count" title="延误计划数" style="font-size: 11px;">延误 ${missedPlan}</span>` : ''}
-                ${dueToday > 0 ? `<span class="ui-tag ui-tag--danger proj-inline-count" title="今日截止数" style="font-size: 11px;">今日 ${dueToday}</span>` : ''}
-                ${overdue > 0 ? `<span class="ui-tag ui-tag--danger proj-inline-count" title="已逾期数" style="font-size: 11px;">逾期 ${overdue}</span>` : ''}
-                <span class="proj-summary-progress ui-count-pill" style="font-size: 12px; font-variant-numeric: tabular-nums;">${p.completed_count || 0}/${total}</span>
-              </div>
-            </div>`;
-        }).join('')}
-      </div>
-      <div class="proj-links" style="margin-top: 10px;">
-        <button type="button" onclick="openProjectsView()" class="ui-button ui-button--text">查看所有项目 →</button>
-      </div>
-    </div>`;
 }
 
 async function loadProjectOverview() {
