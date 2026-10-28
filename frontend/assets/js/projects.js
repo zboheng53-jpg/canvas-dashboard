@@ -437,7 +437,7 @@ function renderProjectDetail() {
   let nextActionHtml = "";
   if (nextActionTask && active) {
     nextActionHtml = `
-      <div class="project-next-action-card project-current-step-card ui-card" style="margin-bottom: 20px; padding: 18px 20px; border: 1.5px solid var(--color-primary, #3b82f6); border-radius: 10px; background: var(--color-surface);">
+      <div class="project-next-action-card project-current-step-card ui-card" style="margin-bottom: 20px; padding: 18px 20px; border: 1.5px solid var(--color-action); border-radius: 10px; background: var(--color-surface);">
         <div class="project-current-step-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
           <div style="display: flex; align-items: center; gap: 8px;">
             <span class="ui-tag ui-tag--primary project-next-action-label" style="font-weight: 600;">当前步骤</span>
@@ -607,6 +607,19 @@ async function setProjectNextAction(projectId, taskId) {
   }
 }
 window.setProjectNextAction = setProjectNextAction;
+
+function renderProjectGroups(project) {
+  const groups = [...project.groups].sort((a, b) => a.sort_order - b.sort_order);
+  const current = [], finished = [];
+  for (const group of [...groups, null]) {
+    const tasks = project.tasks.filter(t => t.group_id === (group?.id ?? null));
+    if (!group && !tasks.length) continue;
+    const html = renderProjectGroup(project, group);
+    (tasks.length && tasks.every(t => t.done) ? finished : current).push(html);
+  }
+  if (finished.length) current.push(`<details class="project-finished-groups"><summary>已完成步骤 · ${finished.length}</summary>${finished.join('')}</details>`);
+  return current.join('').replaceAll('class="project-group-card"', 'class="ui-card ui-card--subtle project-task-group"');
+}
 
 function renderProjectGroup(project, group) {
   const groupId = group?.id ?? null;
@@ -1172,10 +1185,10 @@ function renderProjectOverview(data) {
   const todayStr = window.customToday || (typeof workspaceTodayISO === 'function' ? workspaceTodayISO() : new Date().toISOString().slice(0, 10));
 
   // 全部概览模式：每个进行中项目一行紧凑摘要
-  container.innerHTML = `<div class="project-summary-list">${sortedProjects.map(p => {
+  container.innerHTML = `<div class="proj project-summary-list">${sortedProjects.map(p => {
     const total = (p.completed_count || 0) + (p.pending_count || 0);
     const signals = [p.missed_plan_count ? `原计划未完成 ${p.missed_plan_count}` : '', p.due_today_count ? `今日截止 ${p.due_today_count}` : '', p.overdue_count ? `逾期 ${p.overdue_count}` : ''].filter(Boolean);
-    return `<button type="button" class="ui-button ui-button--text proj-summary-row${p.is_main ? ' is-pinned' : ''}" onclick="openProjectsView(${p.id})">
+    return `<button type="button" class="ui-button ui-button--text proj-summary-row${p.is_main ? ' is-pinned' : ''}" aria-label="${pEscape(p.name)}" onclick="openProjectsView(${p.id})">
       <span class="proj-summary-copy"><strong title="${pEscape(p.name)}">${pEscape(p.name)}</strong>
       <span class="proj-summary-next" title="${pEscape(p.next_action?.name || '')}">${pEscape(p.next_action?.name || '暂无细分步骤')}</span>
       ${signals.length ? `<small>${pEscape(signals.join(' · '))}</small>` : ''}</span>

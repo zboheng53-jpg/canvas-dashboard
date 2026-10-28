@@ -107,6 +107,18 @@ def test_today_workspace_browser(live_app, browser):
         # Project steps should NOT be in timeline
         expect(timeline.get_by_text("撰写绪论与研究背景")).to_have_count(0)
 
+        # The central list and the all-todos page share one live composer.
+        expect(page.locator('#todo-list')).to_be_visible()
+        page.fill('#new-todo-input', '保留这条待办草稿')
+        page.locator('[data-dashboard-view="todos"]').click()
+        expect(page.locator('#todo-list')).to_be_visible()
+        expect(page.locator('#new-todo-input')).to_have_value('保留这条待办草稿')
+        assert page.locator('#todo-list').count() == 1
+        page.locator('[data-dashboard-view="overview"]').click()
+        expect(page.locator('#new-todo-input')).to_have_value('保留这条待办草稿')
+        expect(page.locator('#dashboard-right-rail #today-schedule-card')).to_be_visible()
+        assert page.locator('#today-schedule-card').bounding_box()['y'] > page.locator('#long-term-projects-card').bounding_box()['y']
+
         # ---- Verification E: Project Detail ----
         # Click project row on homepage to open project detail
         proj_rows.first.click()

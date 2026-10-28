@@ -396,51 +396,6 @@
       return `${hasDeadline ? '截止' : '计划'} ${day}${time ? ' ' + time : ''}`;
     }
 
-    function renderTodayDeadlines(unified) {
-      const listEl = document.getElementById('today-deadlines-list');
-      const countEl = document.getElementById('today-deadlines-count');
-      if (!listEl) return;
-
-      const todayStr = window.customToday || new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'}).format(new Date());
-      const now = new Date();
-
-      // Ordinary platform/custom/recurring assignments due today or overdue, even scheduled.
-      // Project deadlines/missed plans belong in their one project summary row, no project steps list on homepage.
-      const candidates = unified.filter(item => {
-        const {day} = todoDeadlineState(item);
-        return !item.done && !item.hidden && item.source !== 'project' && day && day <= todayStr;
-      }).sort((a,b) => (a.due_ts || a.due_str || '').localeCompare(b.due_ts || b.due_str || ''));
-
-      if (countEl) countEl.textContent = `${candidates.length} 项`;
-
-      if (!candidates.length) {
-        listEl.innerHTML = '<p class="muted" style="padding: 14px 16px; font-size: 13px; margin: 0;">暂无今日或逾期截止</p>';
-        return;
-      }
-
-      listEl.innerHTML = `
-        <div class="today-deadlines-items" style="display: flex; flex-direction: column; gap: 6px; padding: 10px 14px;">
-          ${candidates.map((item) => {
-            const dateLabel = compactTodoDateLabel(item, todayStr);
-            const isOverdue = todoDeadlineState(item).overdue;
-            const refArg = item.ref || `${item.source}:${item.rawId || item.id}`;
-            return `
-              <div class="today-deadline-row ui-card ui-card--subtle" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--color-border); background: var(--color-surface); gap: 10px;">
-                <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
-                  <span class="ui-badge ui-badge--source" style="font-size: 11px;">${escapeHtml(item.type || item.source)}</span>
-                  <button type="button" class="ui-button ui-button--text" onclick="openActionDetail(${escapeHtml(JSON.stringify(refArg))})" style="font-size: 13px; font-weight: 500; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0;">
-                    ${escapeHtml(item.title)}
-                  </button>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-                  <span class="ui-tag ${isOverdue ? 'ui-tag--danger' : 'ui-tag--warning'}" style="font-size: 11px;">${dateLabel}</span>
-                  <button type="button" class="ui-button ui-button--secondary ui-button--compact" onclick="openActionDetail(${escapeHtml(JSON.stringify(refArg))})" style="font-size: 12px; padding: 2px 6px; height: 24px;">详情</button>
-                </div>
-              </div>`;
-          }).join('')}
-        </div>`;
-    }
-
     function renderUnifiedList() {
       const container = document.getElementById('todo-list');
       // Keep the live editor (and its handlers) until the user commits or cancels.
@@ -692,7 +647,6 @@
       updateStatsBar(unified);
 
       // Render compact deadline list on Today overview
-      renderTodayDeadlines(unified);
 
       // 侧栏 nav-count 数字：全部待办移动到了 todos
       const todosCount = unified.filter((it) => !it.done && !it.hidden && (!it.is_scheduled_action || it.isTodayAction)).length;
@@ -764,6 +718,8 @@
           }
         }
 
+        if (todoDeadlineState(item).overdue) urgencyClass = 'urgent is-overdue';
+        else if (item.missedPlan) urgencyClass = 'remote is-missed-plan';
         const flagIcon = manualFlag ? '&#x2691;' : '&#x2690;';
         const flagTitle = manualFlag ? '\u53d6\u6d88\u6807\u7ea2' : '\u6807\u7ea2';
         const flagClass = manualFlag ? 'btn-flag active' : 'btn-flag';
@@ -844,7 +800,7 @@
         const dueHtml = (item.source === 'custom' && !item.is_recurring)
           ? `<span class="ui-list-item__meta item-due editable-due" data-id="${item.rawId}" data-field="due_date" data-value="${escapeHtml(item.due_str || '')}">${dueLabel}</span>`
           : item.source === 'project'
-            ? `<button class="ui-button ui-button--text ui-list-item__meta item-due project-due-editable" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" data-date-field="${!item.due_str && item.isTodayAction ? 'planned_on' : 'due_date'}" data-date-value="${item.due_str || item.plannedOn}" aria-label="${!item.due_str && item.isTodayAction ? '修改计划日期' : '修改截止日期'}" title="${!item.due_str && item.isTodayAction ? '计划推进：' + (item.plannedOn || '') + '（点击修改）' : '截止日期：' + (item.due_str || item.plannedOn || '') + '（点击修改）'}">${dueLabel}</button>`
+            ? `<button class="ui-button ui-button--text ui-list-item__meta item-due project-due-editable" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" data-date-field="${(item.missedPlan && !item.isGenuinelyOverdue) || (!item.due_str && item.isTodayAction) ? 'planned_on' : 'due_date'}" data-date-value="${item.missedPlan && !item.isGenuinelyOverdue ? item.plannedOn : (item.due_str || item.plannedOn)}" aria-label="${(item.missedPlan && !item.isGenuinelyOverdue) || (!item.due_str && item.isTodayAction) ? '修改计划日期' : '修改截止日期'}" title="${(item.missedPlan && !item.isGenuinelyOverdue) || (!item.due_str && item.isTodayAction) ? '计划推进：' + (item.plannedOn || '') + '（点击修改）' : '截止日期：' + (item.due_str || item.plannedOn || '') + '（点击修改）'}">${dueLabel}</button>`
             : `<span class="ui-list-item__meta item-due">${dueLabel}</span>`;
 
         const srcLabels = { canvas: 'Canvas', haoke: '好课', zhixuemeng: '智学盟', zhihuishu: '智慧树', ketangpai: '课堂派', tongjioj: '同济OJ', project: '项目', custom: '自定义' };
@@ -936,7 +892,7 @@
       container.innerHTML = buildTodoGroups(filteredItems).map((group) => {
         const isCollapsed = collapsedTodoGroups.has(group.key);
         return `
-        <section class="todo-group ${['overdue', 'today'].includes(group.key) ? 'is-overdue' : ''} ${group.key === 'completed' ? 'is-completed' : ''} ${isCollapsed ? 'is-collapsed' : ''}" data-group-key="${group.key}">
+        <section class="todo-group ${group.key === 'overdue' ? 'is-overdue' : ''} ${group.key === 'completed' ? 'is-completed' : ''} ${isCollapsed ? 'is-collapsed' : ''}" data-group-key="${group.key}">
           <div class="todo-group-heading" onclick="toggleTodoGroup('${group.key}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTodoGroup('${group.key}');}" role="button" tabindex="0" aria-expanded="${!isCollapsed}" title="点击${isCollapsed ? '展开' : '折叠'}">
             <div class="todo-group-heading-left">
               <span class="todo-group-chevron-wrap" aria-hidden="true">
@@ -1029,6 +985,7 @@
       const collections = {canvas: canvasItems, haoke: haokeItems, zhixuemeng: zhixuemengItems, zhihuishu: zhihuishuItems, ketangpai: ketangpaiItems, tongjioj: tongjiojItems};
       const item = (collections[platform] || []).find((entry) => String(entry.id) === String(id));
       if (item) item.done = !done;
+      if (!done) collapsedTodoGroups.delete("completed");
       renderUnifiedList();
       const refreshers = {canvas: fetchCanvasTodos, haoke: fetchHaokeTodos, zhixuemeng: fetchZhixuemengTodos,
         zhihuishu: fetchZhihuishuTodos, ketangpai: fetchKetangpaiTodos, tongjioj: fetchTongjiojTodos};
@@ -1495,6 +1452,7 @@
     }
 
     async function toggleTodoCheck(id, done) {
+      if (!done) collapsedTodoGroups.delete("completed");
       if (typeof id === 'string' && id.startsWith('recurring_')) {
         const parts = id.split('_');
         const seriesId = parts[1];

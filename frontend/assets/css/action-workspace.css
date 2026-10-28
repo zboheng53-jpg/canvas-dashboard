@@ -357,3 +357,5 @@ details[open] > summary .project-disclosure-chevron {
 .proj-summary-copy .proj-summary-next, .proj-summary-copy small { font-size: var(--font-size-control-sm); color: var(--color-text-secondary); }
 .proj-summary-progress { flex: none; font-variant-numeric: tabular-nums; font-size: var(--font-size-control-sm); }
 .proj-summary-row:focus-visible { outline: 2px solid var(--color-action); outline-offset: -2px; }
+
+@media (min-width: 961px) { #long-term-projects-card { max-height: 45%; } }

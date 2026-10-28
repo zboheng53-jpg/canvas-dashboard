@@ -113,7 +113,7 @@ def test_dashboard_four_deadline_states(live_app, isolated_data, browser, test_n
     # 固定分组层次：已逾期 → 今天 → 无日期，且不再有「明天」「此前未完成」。
     keys = page.locator(".todo-group").evaluate_all("nodes => nodes.map(n => n.dataset.groupKey)")
     assert "tomorrow" not in keys and "previous" not in keys
-    assert keys == [k for k in ["overdue", "today", "week", "nodate", "later", "completed"] if k in keys]
+    assert keys == [k for k in ["overdue", "today", "next3", "later", "nodate", "completed"] if k in keys]
     assert keys.index("overdue") < keys.index("today")
     assert keys.index("today") < keys.index("nodate")
     assert "completed" not in keys or keys[-1] == "completed"

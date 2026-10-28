@@ -68,7 +68,7 @@ def test_mobile_overview_has_aligned_readable_content(live_app, browser, test_no
     title = page.locator('.todo-row', has_text=long_title).locator('.item-title')
     if width <= 430:
         assert title.bounding_box()['height'] >= 40
-    expect(page.locator('.mobile-bottom-nav .mobile-nav-item')).to_have_count(3)
+    expect(page.locator('.mobile-bottom-nav .mobile-nav-item')).to_have_count(4)
     expect(page.locator('.weather-detail')).to_be_hidden()
     expect(page.locator('.opt1-time')).to_be_hidden()
     page.wait_for_function("""() => {
@@ -109,8 +109,8 @@ def test_mobile_project_tasks_keep_title_space_and_working_actions(live_app, bro
         && document.documentElement.scrollWidth <= innerWidth;
     }""")
     current.get_by_role('button', name='安排日程', exact=True).click()
-    expect(page.locator('#action-detail-dialog')).to_contain_text('保留完整项目资料')
-    page.get_by_role('button', name='关闭事项详情').click()
+    expect(page.locator('#schedule-item-modal')).to_be_visible()
+    page.evaluate('closeScheduleItemModal()')
     current.get_by_role('button', name='编辑步骤', exact=True).click()
     expect(page.locator('#project-task-modal')).to_be_visible()
     assert page.locator('#project-task-modal .project-modal-card').bounding_box()['width'] <= width

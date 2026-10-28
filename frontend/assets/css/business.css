@@ -443,8 +443,8 @@
 
 .todo-source-manager-trigger:hover,
 .todo-source-manager[open] .todo-source-manager-trigger {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  border-color: var(--color-action);
+  color: var(--color-action);
   background: var(--color-primary-soft);
 }
 
@@ -526,7 +526,7 @@
 .todo-source-visibility-option input {
   grid-row: 1 / 3;
   margin: 0;
-  accent-color: var(--color-primary);
+  accent-color: var(--color-action);
 }
 
 .todo-source-visibility-option .dot {
@@ -1087,11 +1087,11 @@
 
 .proj-summary-row:hover {
   background-color: var(--color-surface-hover, var(--color-surface));
-  border-color: var(--color-primary-subtle, var(--color-border));
+  border-color: var(--color-action-soft);
 }
 
 .proj-summary-row.is-pinned {
-  border-left: 3px solid var(--color-primary);
+  border-left: 3px solid var(--color-action);
 }
 
 /* Project detail: current step card and roadmap */
@@ -1144,5 +1144,5 @@
 }
 
 .material-entry-card:hover {
-  border-color: var(--color-primary-subtle, var(--color-border));
+  border-color: var(--color-action-soft);
 }

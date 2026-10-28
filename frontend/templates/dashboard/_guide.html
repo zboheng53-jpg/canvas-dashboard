@@ -115,7 +115,7 @@
           <h2 id="guide-overview-title" tabindex="-1">2 · 今日总览</h2>
           <p class="guide-block__lead">所有来源汇成一张清单，按截止时间排开，先看见最要紧的事。</p>
           <ul class="guide-points">
-            <li>所有来源汇成一份清单，固定按「已逾期 → 今天 → 本周内 → 无日期」分段，与事项来自哪个平台无关；清单里没有「明天」和「此前未完成」分段。</li>
+            <li>所有来源汇成一份清单，固定按「已逾期 → 今天 → 近三天 → 以后 → 无日期」分段，与事项来自哪个平台无关；清单里没有「明天」和「此前未完成」分段。</li>
             <li><strong>看颜色就知道急不急</strong>：每个截止日期都是同一枚小胶囊，只换颜色——逾期和今天红色，三天内黄色，其余灰蓝；只有逾期那一行还带红底。</li>
             <li>勾选只记录你的进度，不会替你提交作业，也不会改写教学平台的数据。</li>
             <li>手机上打开就是这张清单；连接、设置和这份指南都在左上角菜单里。</li>
@@ -367,6 +367,13 @@
         </div>
       </section>
       {% endif %}
+
+      <section id="guide-materials" class="guide-section guide-block" aria-labelledby="guide-materials-title">
+        <div class="guide-block__copy"><h2 id="guide-materials-title" tabindex="-1">项目资料</h2>
+          <p>资料按日期记录，最新日期展开，旧记录收进历史。可以筛选项目、新增日志、编辑单条记录；已有资料保留完整原文。</p>
+          <button type="button" class="ui-button ui-button--secondary" data-open-view="materials">打开项目资料</button>
+        </div>
+      </section>
 
       <section id="guide-agent" class="guide-section guide-block" aria-labelledby="guide-agent-title">
         <div class="guide-block__copy">

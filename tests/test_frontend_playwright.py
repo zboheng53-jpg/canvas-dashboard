@@ -234,7 +234,8 @@ def test_frontend_v2_desktop_shell_uses_bounded_three_column_layout(live_app, br
     assert first_rail_box is not None
     assert second_rail_box is not None
     browser_env.assert_close(first_rail_box["width"], second_rail_box["width"], 1, label="右栏卡片宽度")
-    browser_env.assert_close(first_rail_box["height"], second_rail_box["height"], 1, label="右栏卡片高度")
+    assert first_rail_box["y"] + first_rail_box["height"] <= second_rail_box["y"]
+    assert second_rail_box["height"] >= 200
     todo_card = page.locator(".workspace-main .listcard")
     expect(todo_card).to_have_css(
         "transform", "none"
@@ -341,7 +342,7 @@ def test_frontend_overview_rich_content_uses_internal_scroll_regions(live_app, b
             });
           }
           await json(`/api/projects/${project.id}/set-main`, 'POST');
-          for (let index = 0; index < 8; index += 1) {
+          for (let index = 0; index < 14; index += 1) {
             const hour = String(8 + index).padStart(2, '0');
             await json('/api/schedule/one-off', 'POST', {
               title: `今日日程 ${index + 1}`,
@@ -361,8 +362,8 @@ def test_frontend_overview_rich_content_uses_internal_scroll_regions(live_app, b
     expect(page.locator("#project-overview-content .proj-summary-row")).to_have_count(1)
     expect(page.locator("#project-overview-content")).not_to_contain_text("项目任务 2")
     expect(page.locator("#dashboard-view-overview #todo-list")).to_be_visible()
-    expect(page.locator("#today-schedule-content .period-event--one_off")).to_have_count(8)
-    expect(page.locator("#today-schedule-content")).to_contain_text("今日日程 8")
+    expect(page.locator("#today-schedule-content .period-event--one_off")).to_have_count(14)
+    expect(page.locator("#today-schedule-content")).to_contain_text("今日日程 14")
 
     page.locator("#today-schedule-card").get_by_role("button", name="添加日程").click()
     expect(page.locator("#dashboard-view-schedule")).to_be_visible()
@@ -382,7 +383,7 @@ def test_frontend_overview_rich_content_uses_internal_scroll_regions(live_app, b
     project_content.evaluate(
         """element => {
           const project = element.querySelector('.proj-summary-row');
-          for (let index = 0; index < 5; index += 1) element.append(project.cloneNode(true));
+          for (let index = 0; index < 20; index += 1) element.append(project.cloneNode(true));
         }"""
     )
     assert project_content.evaluate("element => element.scrollHeight > element.clientHeight")
