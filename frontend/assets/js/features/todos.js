@@ -178,7 +178,7 @@
       renderUnifiedList();
     }
 
-    let collapsedTodoGroups = new Set(['previous']);
+    let collapsedTodoGroups = new Set(['completed']);
     function toggleTodoGroup(key) {
       if (collapsedTodoGroups.has(key)) {
         collapsedTodoGroups.delete(key);
@@ -280,41 +280,121 @@
     }
 
     function buildTodoGroups(items) {
-      // 固定层次：已逾期 / 今天 / 本周内 / 无日期 / 更晚；无日期固定排在本周内之后。
-      // 分组只看有效截止时间，与来源（平台 / 项目 / 自定义）无关。
-      const labels = { overdue: '已逾期', today: '今天', week: '本周内', nodate: '无日期', later: '更晚', completed: '已完成' };
-      const groups = { overdue: [], today: [], week: [], nodate: [], later: [], completed: [] };
-      const todayStr = window.customToday || new Date().toISOString().slice(0, 10);
-      const today = new Date(todayStr + 'T00:00:00');
-      const weekEnd = new Date(today.getTime() + 7 * 86400000);
-      const dueDateOf = (item) => todoDueDate(item);
+      const labels = {
+        overdue: '已逾期',
+        today: '今天',
+        next3: '未来3天',
+        later: '更晚',
+        nodate: '无日期',
+        completed: '已完成',
+      };
+      const groups = { overdue: [], today: [], next3: [], later: [], nodate: [], completed: [] };
+      const todayStr = window.customToday || new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'}).format(new Date());
+      const now = new Date();
+
+      const todayDate = new Date(`${todayStr}T00:00:00+08:00`);
+      const tomorrowDate = new Date(todayDate.getTime() + 86400000);
+      const tomorrowStr = new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'}).format(tomorrowDate);
+      const next3EndDate = new Date(todayDate.getTime() + 3 * 86400000);
+      const next3EndStr = new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'}).format(next3EndDate);
+
       items.forEach((item) => {
         if (item.done) { groups.completed.push(item); return; }
-        // 项目行动的「计划日期」是排期而不是截止：没被今日总览选为今日行动的项目步骤不占待办，
-        // 但仍会出现在对应项目的下一步与「查看所有项目」里。
         if (item.is_scheduled_action && !item.isTodayAction) return;
-        const dueDate = dueDateOf(item);
-        if (dueDate && !Number.isNaN(dueDate.getTime()) && dueDate < today) { groups.overdue.push(item); return; }
-        if (dueDate && !Number.isNaN(dueDate.getTime()) && dueDate.getTime() === today.getTime()) { groups.today.push(item); return; }
-        if (item.isTodayAction) { groups.today.push(item); return; }
-        if (!dueDate || Number.isNaN(dueDate.getTime())) { groups.nodate.push(item); return; }
-        if (dueDate <= weekEnd) { groups.week.push(item); return; }
-        groups.later.push(item);
+
+        // Determine if genuinely overdue:
+        // True timestamp deadline before now => overdue; date-only due_date is end-of-day.
+        let isGenuinelyOverdue = false;
+        let datePart = '';
+        const rawDueStr = (item.due_str || '').trim();
+        const rawDueDate = (item.due_date || '').trim();
+
+        if (item.due_ts) {
+          const ts = new Date(item.due_ts);
+          if (!Number.isNaN(ts.getTime())) {
+            datePart = new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'}).format(ts);
+            const isDateOnly = (item.source === 'custom' && !/\d{2}:\d{2}/.test(rawDueStr)) ||
+              (item.source === 'project' && !/\d{2}:\d{2}/.test(rawDueStr)) ||
+              /^\d{4}-\d{2}-\d{2}$/.test(rawDueStr);
+
+            if (isDateOnly) {
+              if (datePart < todayStr) isGenuinelyOverdue = true;
+            } else {
+              if (ts < now) isGenuinelyOverdue = true;
+            }
+          }
+        } else if (rawDueDate || rawDueStr) {
+          const str = rawDueDate || rawDueStr;
+          const match = str.match(/^\d{4}-\d{2}-\d{2}/);
+          if (match) {
+            datePart = match[0];
+            if (datePart < todayStr) isGenuinelyOverdue = true;
+          }
+        }
+
+        // Genuine overdue priority
+        if (isGenuinelyOverdue) {
+          item.isGenuinelyOverdue = true;
+          groups.overdue.push(item);
+          return;
+        }
+
+        // Missed plan stays TODAY every day, label '原计划 YYYY-MM-DD', never fake overdue or rewrite due.
+        const planDate = (item.plannedOn || item.planned_on || '').slice(0, 10);
+        const isMissedPlan = Boolean(item.missed_plan || item.missedPlan || (planDate && planDate < todayStr));
+        if (isMissedPlan) {
+          item.missedPlan = true;
+          groups.today.push(item);
+          return;
+        }
+
+        // Today items:
+        // - Genuine deadline is today
+        // - Pure ordinary planned today
+        // - Scheduled today / isTodayAction / is_today
+        if (datePart === todayStr || planDate === todayStr || item.isTodayAction || item.is_today) {
+          groups.today.push(item);
+          return;
+        }
+
+        // Target comparison date (deadline takes priority, otherwise planned date)
+        const targetDate = datePart || planDate;
+        if (!targetDate) {
+          groups.nodate.push(item);
+          return;
+        }
+
+        if (targetDate >= tomorrowStr && targetDate <= next3EndStr) {
+          groups.next3.push(item);
+          return;
+        }
+
+        if (targetDate > next3EndStr) {
+          groups.later.push(item);
+          return;
+        }
+
+        groups.nodate.push(item);
       });
-      const dueKey = (item) => item.due_ts || '9999-12-31T23:59:59';
+
+      const dueKey = (item) => item.due_ts || (item.plannedOn ? `${item.plannedOn}T00:00:00` : '9999-12-31T23:59:59');
       const sortGroup = (arr) => arr.sort((a, b) =>
         (a.done ? 1 : 0) - (b.done ? 1 : 0) ||
         (b.manualHighlighted ? 1 : 0) - (a.manualHighlighted ? 1 : 0) ||
         dueKey(a).localeCompare(dueKey(b)) || a._stableIndex - b._stableIndex
       );
       Object.values(groups).forEach(sortGroup);
-      const order = ['overdue', 'today', 'week', 'nodate', 'later', 'completed'];
+      const order = ['overdue', 'today', 'next3', 'later', 'nodate', 'completed'];
       return order
         .filter((k) => groups[k].length)
         .map((k) => ({ key: k, title: labels[k], items: groups[k] }));
     }
 
     function compactTodoDateLabel(item, today) {
+      if ((item.missedPlan || item.missed_plan) && !item.isGenuinelyOverdue) {
+        const pDate = item.plannedOn || item.planned_on || '';
+        if (pDate) return `原计划 ${pDate}`;
+      }
       const hasDeadline = Boolean(item.due_ts || (item.due_str && !['—', '--'].includes(item.due_str.trim())));
       let day = (hasDeadline ? item.due_str : item.plannedOn) || '';
       let time = '';
@@ -322,7 +402,7 @@
         const timestamp = new Date(item.due_ts);
         if (!Number.isNaN(timestamp.getTime())) {
           day = new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'}).format(timestamp);
-          if (!['custom', 'project'].includes(item.source) && /\d{2}:\d{2}/.test(item.due_str || '')) {
+          if (/\d{2}:\d{2}/.test(item.due_str || '')) {
             time = new Intl.DateTimeFormat('en-GB', {timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).format(timestamp);
           }
         }
@@ -338,6 +418,62 @@
           : `${match[1] === today.slice(0, 4) ? '' : match[1] + '/'}${Number(match[2])}/${Number(match[3])}`;
       }
       return `${hasDeadline ? '截止' : '计划'} ${day}${time ? ' ' + time : ''}`;
+    }
+
+    function renderTodayDeadlines(unified) {
+      const listEl = document.getElementById('today-deadlines-list');
+      const countEl = document.getElementById('today-deadlines-count');
+      if (!listEl) return;
+
+      const todayStr = window.customToday || new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'}).format(new Date());
+      const now = new Date();
+
+      // Ordinary platform/custom/recurring assignments due today or overdue, even scheduled.
+      // Project deadlines/missed plans belong in their one project summary row, no project steps list on homepage.
+      const candidates = unified.filter((item) => {
+        if (item.done || item.hidden || item.source === 'project') return false;
+        let isDueTodayOrOverdue = false;
+        if (item.due_ts) {
+          const ts = new Date(item.due_ts);
+          if (!Number.isNaN(ts.getTime())) {
+            const datePart = new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'}).format(ts);
+            if (datePart <= todayStr) isDueTodayOrOverdue = true;
+          }
+        } else if (item.due_str || item.due_date) {
+          const match = (item.due_str || item.due_date).match(/^\d{4}-\d{2}-\d{2}/);
+          if (match && match[0] <= todayStr) isDueTodayOrOverdue = true;
+        }
+        return isDueTodayOrOverdue;
+      });
+
+      if (countEl) countEl.textContent = `${candidates.length} 项`;
+
+      if (!candidates.length) {
+        listEl.innerHTML = '<p class="muted" style="padding: 14px 16px; font-size: 13px; margin: 0;">暂无今日或逾期截止</p>';
+        return;
+      }
+
+      listEl.innerHTML = `
+        <div class="today-deadlines-items" style="display: flex; flex-direction: column; gap: 6px; padding: 10px 14px;">
+          ${candidates.map((item) => {
+            const dateLabel = compactTodoDateLabel(item, todayStr);
+            const isOverdue = item.isGenuinelyOverdue || (item.due_ts && new Date(item.due_ts) < now);
+            const refArg = item.ref || `${item.source}:${item.rawId || item.id}`;
+            return `
+              <div class="today-deadline-row ui-card ui-card--subtle" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--color-border); background: var(--color-surface); gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+                  <span class="ui-badge ui-badge--source" style="font-size: 11px;">${escapeHtml(item.type || item.source)}</span>
+                  <button type="button" class="ui-button ui-button--text" onclick="openActionDetail('${refArg}')" style="font-size: 13px; font-weight: 500; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0;">
+                    ${escapeHtml(item.title)}
+                  </button>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                  <span class="ui-tag ${isOverdue ? 'ui-tag--danger' : 'ui-tag--warning'}" style="font-size: 11px;">${dateLabel}</span>
+                  <button type="button" class="ui-button ui-button--secondary ui-button--compact" onclick="openActionDetail('${refArg}')" style="font-size: 12px; padding: 2px 6px; height: 24px;">详情</button>
+                </div>
+              </div>`;
+          }).join('')}
+        </div>`;
     }
 
     function renderUnifiedList() {
@@ -534,9 +670,10 @@
           taskId: item.task_id,
           projectKind: item.kind,
           isTodayAction: Boolean(item.is_today),
+          missedPlan: Boolean(item.missed_plan),
           plannedOn: item.planned_on || '',
           occurrences: item.occurrences || [],
-          ref: item.ref,
+          ref: item.ref || item.action_ref || `project:${item.project_id}:${item.task_id || item.id}`,
         });
       });
 
@@ -569,38 +706,16 @@
         });
       });
 
-      (window.projectPreviousActions || []).forEach(item => {
-        if (!unified.some(u => u.ref === item.ref)) {
-          unified.push({
-            id: `p${item.id}`,
-            source: 'project',
-            title: item.title,
-            course: item.project_name,
-            category: '此前未完成',
-            isNextAction: false,
-            isMainProject: false,
-            groupName: '',
-            due_str: item.due_date || item.planned_on || '',
-            due_ts: item.due_date ? `${item.due_date}T23:59:59` : null,
-            type: '此前未完成',
-            url: '',
-            done: false,
-            hidden: false,
-            highlighted: false,
-            rawId: item.id,
-            manualHighlighted: false,
-            projectId: item.project_id,
-            taskId: item.task_id,
-            projectKind: 'project_task',
-            isTodayAction: false,
-            is_previous: true,
-            is_scheduled_action: true,
-            plannedOn: item.planned_on || '',
-            occurrences: item.occurrences || [],
-            ref: item.ref,
-          });
-        }
+      // Stable ref dedup
+      const seenRefs = new Set();
+      const dedupedUnified = [];
+      unified.forEach((item) => {
+        const ref = item.ref || `${item.source}:${item.rawId || item.id}`;
+        if (seenRefs.has(ref)) return;
+        seenRefs.add(ref);
+        dedupedUnified.push(item);
       });
+      unified = dedupedUnified;
 
       // Stable sorting happens inside each requested time group: highlighted
       // tasks never leap across a due-date group, and completed tasks remain
@@ -609,13 +724,19 @@
 
       renderTodoSourceFilters(unified);
       updateStatsBar(unified);
-      // 侧栏 nav-count 数字：今日总览的未完成待办数；长期项目的进行中数（从 #active-project-count 读）
-      const overviewCount = unified.filter((it) => !it.done && !it.hidden && (!it.is_scheduled_action || it.isTodayAction)).length;
-      const overviewEl = document.querySelector('[data-nav-count="overview"]');
-      if (overviewEl) {
-        if (overviewCount > 0) { overviewEl.textContent = overviewCount; overviewEl.hidden = false; }
-        else { overviewEl.textContent = ''; overviewEl.hidden = true; }
+
+      // Render compact deadline list on Today overview
+      renderTodayDeadlines(unified);
+
+      // 侧栏 nav-count 数字：全部待办移动到了 todos
+      const todosCount = unified.filter((it) => !it.done && !it.hidden && (!it.is_scheduled_action || it.isTodayAction)).length;
+      const todosEl = document.querySelector('[data-nav-count="todos"]');
+      if (todosEl) {
+        if (todosCount > 0) { todosEl.textContent = todosCount; todosEl.hidden = false; }
+        else { todosEl.textContent = ''; todosEl.hidden = true; }
       }
+      const overviewEl = document.querySelector('[data-nav-count="overview"]');
+      if (overviewEl) overviewEl.hidden = true;
 
       const todayStr = window.customToday || new Date().toISOString().split('T')[0];
 

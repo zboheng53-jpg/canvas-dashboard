@@ -1,0 +1,75 @@
+<section class="dashboard-view dashboard-placeholder-view hidden" id="dashboard-view-materials" data-view-panel="materials">
+  <div class="card materials-manager-card">
+    <div class="materials-manager-heading">
+      <div>
+        <h1>项目资料</h1>
+        <p>按日期汇总与查阅长期项目沉淀的研究材料、方法记录与历史文本。</p>
+      </div>
+      <div class="materials-header-actions">
+        <label class="materials-filter-label">
+          <span class="muted" style="font-size: 13px; margin-right: 6px;">项目筛选：</span>
+          <select id="materials-project-filter" class="ui-control select" style="min-width: 160px; height: 32px;" onchange="onMaterialsProjectFilterChange(this.value)">
+            <option value="">全部项目</option>
+          </select>
+        </label>
+        <button type="button" class="ui-button ui-button--primary" onclick="openNewMaterialModal()">＋ 新建资料</button>
+      </div>
+    </div>
+    <p id="materials-status" class="ui-feedback ui-feedback--neutral materials-status" role="status" aria-live="polite" style="display: none;"></p>
+    <div id="materials-container" class="materials-container" aria-live="polite">
+      <div class="ui-loading ui-loading--block" role="status">正在加载项目资料…</div>
+    </div>
+  </div>
+</section>
+
+<!-- Native Material Entry Modal -->
+<div class="project-modal-backdrop hidden" id="material-entry-modal">
+  <div class="project-modal-card" role="dialog" aria-modal="true" aria-labelledby="material-entry-title">
+    <div class="project-modal-header">
+      <div><h2 id="material-entry-title">新建资料记录</h2></div>
+      <button type="button" class="ui-icon-button project-modal-close" onclick="closeMaterialEntryModal()" aria-label="关闭">×</button>
+    </div>
+    <form id="material-entry-form" class="project-modal-form" onsubmit="handleMaterialEntrySubmit(event)">
+      <input type="hidden" name="material_id">
+      <input type="hidden" name="expected_updated_at">
+      <label class="ui-field ui-label">所属项目
+        <select name="project_id" id="material-form-project" required class="ui-control"></select>
+      </label>
+      <label class="ui-field ui-label">记录日期（可选）
+        <input name="date" id="material-form-date" type="date" class="ui-control">
+      </label>
+      <label class="ui-field ui-label">资料内容
+        <textarea name="body" id="material-form-body" rows="7" required maxlength="50000" class="ui-control" placeholder="步骤说明、研究材料、要点记录或讨论备忘…"></textarea>
+      </label>
+      <p class="ui-error project-modal-error" id="material-entry-error" role="alert"></p>
+      <div class="project-modal-actions">
+        <button type="button" class="ui-button ui-button--danger is-danger hidden" id="material-entry-delete-btn" onclick="handleDeleteCurrentMaterial()">删除记录</button>
+        <button type="button" class="ui-button ui-button--secondary" onclick="closeMaterialEntryModal()">取消</button>
+        <button type="submit" class="ui-button ui-button--primary" id="material-entry-save-btn">保存资料</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Legacy Materials Edit Modal ('编辑原文') -->
+<div class="project-modal-backdrop hidden" id="legacy-materials-modal">
+  <div class="project-modal-card" role="dialog" aria-modal="true" aria-labelledby="legacy-materials-title">
+    <div class="project-modal-header">
+      <div><h2 id="legacy-materials-title">编辑项目资料原文</h2></div>
+      <button type="button" class="ui-icon-button project-modal-close" onclick="closeLegacyMaterialsModal()" aria-label="关闭">×</button>
+    </div>
+    <form id="legacy-materials-form" class="project-modal-form" onsubmit="handleLegacyMaterialsSubmit(event)">
+      <input type="hidden" name="project_id" id="legacy-project-id">
+      <input type="hidden" name="expected_updated_at" id="legacy-expected-updated-at">
+      <p class="muted" id="legacy-project-name" style="font-size: 13px; margin: 0 0 8px 0;"></p>
+      <label class="ui-field ui-label">原始项目资料
+        <textarea name="materials" id="legacy-materials-body" rows="10" maxlength="50000" class="ui-control" placeholder="项目资料与说明"></textarea>
+      </label>
+      <p class="ui-error project-modal-error" id="legacy-materials-error" role="alert"></p>
+      <div class="project-modal-actions">
+        <button type="button" class="ui-button ui-button--secondary" onclick="closeLegacyMaterialsModal()">取消</button>
+        <button type="submit" class="ui-button ui-button--primary" id="legacy-materials-save-btn">保存原文</button>
+      </div>
+    </form>
+  </div>
+</div>

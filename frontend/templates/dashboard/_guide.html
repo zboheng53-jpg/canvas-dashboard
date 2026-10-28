@@ -9,13 +9,14 @@
           <span class="guide-toc-group__label">功能介绍</span>
           <ol>
             <li><a href="#guide-overview">2 · 今日总览</a></li>
-            <li><a href="#guide-todos">3 · 待办与重复待办</a></li>
+            <li><a href="#guide-todos">3 · 全部待办</a></li>
             <li><a href="#guide-projects">4 · 长期项目</a></li>
             <li><a href="#guide-schedule">5 · 日程与课表</a></li>
-            <li><a href="#guide-connections">6 · 连接与同步</a></li>
-            <li><a href="#guide-calendar">7 · 日历订阅</a></li>
-            <li><a href="#guide-agent">8 · Agent 接入</a></li>
-            <li><a href="#guide-account">9 · 偏好设置与账号</a></li>
+            <li><a href="#guide-materials">6 · 项目资料</a></li>
+            <li><a href="#guide-connections">7 · 连接与同步</a></li>
+            <li><a href="#guide-calendar">8 · 日历订阅</a></li>
+            <li><a href="#guide-agent">9 · Agent 接入</a></li>
+            <li><a href="#guide-account">10 · 偏好设置与账号</a></li>
           </ol>
         </li>
         <li><a href="#guide-help">10 · 常见问题</a></li>
@@ -65,15 +66,23 @@
         <dl class="guide-definitions guide-entries">
           <div>
             <dt><span class="guide-entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg></span>今日总览</dt>
-            <dd>所有来源的未完成事项合成一张清单，按时间排开。回答“现在要做什么”。</dd>
+            <dd>聚焦今天的紧凑总览，先看见今日截止与今日日程时间线，右侧一览项目进度。</dd>
+          </div>
+          <div>
+            <dt><span class="guide-entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 11 3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg></span>全部待办</dt>
+            <dd>跨平台聚合的所有未完成事项清单，支持添加待办、多来源筛选与按时间段分组。</dd>
           </div>
           <div>
             <dt><span class="guide-entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7Z"></path></svg></span>长期项目</dt>
-            <dd>持续推进的目标，和单个待办不是一回事。回答“这件事推进到哪一步了”。</dd>
+            <dd>持续推进的目标与细分步骤，聚焦当前步骤，展开后续规划路线图。</dd>
           </div>
           <div>
             <dt><span class="guide-entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M8 3v4m8-4v4M4 10h16"></path></svg></span>日程与课表</dt>
             <dd>回答“什么时候做”，同济课表也在这里导入。和总览看的是同一批事，只是换成了时间视图。</dd>
+          </div>
+          <div>
+            <dt><span class="guide-entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></span>项目资料</dt>
+            <dd>按日期汇总与查阅长期项目沉淀的研究材料、方法记录与历史原稿。</dd>
           </div>
           <div>
             <dt><span class="guide-entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 17a4 4 0 1 1 .6-7.97A5.5 5.5 0 0 1 18.3 11 3.5 3.5 0 0 1 17.5 17H7Z"></path></svg></span>连接与同步</dt>
@@ -149,7 +158,7 @@
 
       <section id="guide-todos" class="guide-section guide-block" aria-labelledby="guide-todos-title">
         <div class="guide-block__copy">
-          <h2 id="guide-todos-title" tabindex="-1">3 · 待办与重复待办</h2>
+          <h2 id="guide-todos-title" tabindex="-1">3 · 全部待办</h2>
           <p class="guide-block__lead">平台作业之外，也可以记自己的事，还能把一件事拆成几步。</p>
           <ul class="guide-points">
             <li>写标题就能存，日期可以不填；有明确要求时再填真实截止日期。</li>
@@ -157,7 +166,7 @@
             <li>每周、隔周重复的事：第一次的截止日期决定星期几；这次不做可以跳过，不影响下一次。</li>
             <li>完成且未到截止的事项沉底；完成且过截止的事项自动删除，不能恢复。未完成逾期和今天截止标红，3 天内截止标黄；只有日期时按当天结束计算。</li>
           </ul>
-          <button type="button" class="ui-button ui-button--secondary" data-open-view="overview">打开今日总览</button>
+          <button type="button" class="ui-button ui-button--secondary" data-open-view="todos">打开全部待办</button>
         </div>
         <div class="guide-block__visual">
           <div class="guide-specimen" aria-hidden="true">

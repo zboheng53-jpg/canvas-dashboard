@@ -84,6 +84,14 @@
       let loadPromise = Promise.resolve();
       if (viewName === 'schedule') loadPromise = loadScheduleManager();
       if (viewName === 'projects') loadPromise = loadProjects();
+      if (viewName === 'todos') {
+        if (typeof renderUnifiedList === 'function') renderUnifiedList();
+      }
+      if (viewName === 'materials') {
+        if (typeof loadMaterials === 'function') {
+          loadPromise = loadMaterials(typeof selectedMaterialsProjectId !== 'undefined' ? selectedMaterialsProjectId : null);
+        }
+      }
       if (viewName === 'connections') {
         if (typeof selectConnectionPlatform === 'function') {
           selectConnectionPlatform(activeConnectionPlatform);
