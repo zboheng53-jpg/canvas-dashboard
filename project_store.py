@@ -350,106 +350,6 @@ def update_project(username, project_id, changes):
     return _project_view(project) if result.get("found") else None
 
 
-def _material_payload(payload, *, partial=False, today=None):
-    if not isinstance(payload, dict):
-        raise ActionValidationError("请填写资料内容")
-    fields = {}
-    if not partial or "body" in payload:
-        body = payload.get("body")
-        if not isinstance(body, str) or not body.strip() or len(body) > 20000:
-            raise ActionValidationError("每条资料必须是 1–20000 字的文本")
-        fields["body"] = body
-    if not partial or "date" in payload:
-        day = payload.get("date")
-        if day is None and not partial:
-            day = (today or datetime.now(timezone(timedelta(hours=8))).date()).isoformat()
-        try:
-            if not isinstance(day, str):
-                raise ValueError
-            fields["date"] = date.fromisoformat(day).isoformat()
-        except ValueError as exc:
-            raise ActionValidationError("记录日期请使用 YYYY-MM-DD") from exc
-    for key in ("request_id", "expected_updated_at"):
-        if key in payload:
-            value = payload[key]
-            if not isinstance(value, str) or not value.strip() or len(value) > 128:
-                raise ActionValidationError(f"{key} 必须是非空短文本")
-            fields[key] = value
-    return fields
-
-
-def _append_material(project, payload, now, source_ref=None):
-    entries = project.setdefault("material_entries", [])
-    entry_id = max(project.get("next_material_entry_id", 1), _next_id(entries))
-    entry = {"id": entry_id, "date": payload["date"], "body": payload["body"],
-             "created_at": now, "updated_at": now}
-    if source_ref:
-        entry["source_ref"] = source_ref
-    if payload.get("request_id"):
-        entry.update(request_id=payload["request_id"], request_fingerprint=fingerprint(payload))
-    entries.append(entry)
-    project["next_material_entry_id"] = entry_id + 1
-    project["updated_at"] = now
-    return entry
-
-
-def create_material_entry(username, project_id, payload, today=None):
-    fields = _material_payload(payload, today=today)
-    request_fields = {key: value for key, value in fields.items() if key != "date" or payload.get("date") is not None}
-    def mutation(state, result):
-        project = _find_project(state, project_id)
-        if project is None:
-            return
-        existing = replay(project.get("material_entries", []), request_fields)
-        entry = existing or _append_material(project, fields, _now())
-        if not existing and fields.get("request_id"):
-            entry["request_fingerprint"] = fingerprint(request_fields)
-        result["entry"] = copy.deepcopy(entry)
-    _, result = _mutate(username, mutation)
-    return result.get("entry")
-
-
-def update_material_entry(username, project_id, entry_id, payload, *, delete=False):
-    fields = _material_payload(payload, partial=True)
-    if not fields.get("expected_updated_at"):
-        raise ActionValidationError("修改资料请提供 expected_updated_at")
-    def mutation(state, result):
-        project = _find_project(state, project_id)
-        if project is None:
-            return
-        entries = project.get("material_entries", [])
-        entry = next((item for item in entries if item["id"] == entry_id), None)
-        if entry is None:
-            return
-        check_version(entry, fields)
-        now = _now()
-        if delete:
-            project["material_entries"] = [item for item in entries if item["id"] != entry_id]
-        else:
-            entry.update({key: fields[key] for key in ("date", "body") if key in fields})
-            entry["updated_at"] = now
-        project["updated_at"] = now
-        result["entry"] = copy.deepcopy(entry)
-    _, result = _mutate(username, mutation)
-    return result.get("entry")
-
-
-def material_log(username, project_id=None):
-    from material_log import parse_legacy_materials
-    projects, entries = [], []
-    for project in load_projects(username):
-        if project_id is not None and project["id"] != project_id:
-            continue
-        projects.append({key: project[key] for key in ("id", "name", "status", "updated_at", "materials")})
-        common = {"project_id": project["id"], "project_name": project["name"]}
-        for entry in parse_legacy_materials(project["materials"]):
-            entries.append({**entry, **common, "legacy": True, "created_at": None,
-                            "updated_at": project["updated_at"]})
-        for entry in project["material_entries"]:
-            entries.append({**copy.deepcopy(entry), **common, "legacy": False})
-    return {"projects": projects, "entries": entries}
-
-
 def set_main_project(username, project_id):
     def mutation(state, result):
         project = _find_project(state, project_id)
@@ -737,9 +637,9 @@ def set_next_task(username, project_id, task_id):
 
 
 def manage_record(username, project_id, operation, changes=None, task_id=None):
-    """Delete (permanently) or preserve a task as materials in one locked update."""
+    """Delete (permanently) or restore a project record."""
     changes = changes or {}
-    if operation not in {"delete", "restore", "to-materials"}:
+    if operation not in {"delete", "restore"}:
         raise ActionValidationError("未知项目操作")
     def mutation(state, result):
         project = _find_project(state, project_id, include_deleted=True)
@@ -747,34 +647,9 @@ def manage_record(username, project_id, operation, changes=None, task_id=None):
             return
         record = _find_task(project, task_id, include_deleted=True) if task_id is not None else project
         if record is None:
-            if operation == "to-materials" and any(
-                entry.get("source_ref") == f"project:{project_id}:{task_id}"
-                for entry in project.get("material_entries", [])
-            ):
-                result["found"] = True
-                result["view"] = _project_view(project)
             return
         check_version(record, changes)
         now = _now()
-        if operation == "to-materials":
-            if task_id is None:
-                raise ActionValidationError("请选择要转为资料的任务")
-            check_version(project, {"expected_updated_at": changes.get("expected_project_updated_at")})
-            ref = f"project:{project_id}:{task_id}"
-            text = f"### {record['name']}\n来源：{ref}\n{record.get('details') or ''}"
-            if record.get("original_name"):
-                text += f"\n原标题：{record['original_name']}"
-            for key, label in (("planned_on", "原计划日期"), ("due_date", "原截止日期")):
-                if record.get(key):
-                    text += f"\n{label}：{record[key]}"
-            payload = _material_payload({"body": text, "date": changes.get("material_date")})
-            _append_material(project, payload, now, source_ref=ref)
-            project["tasks"] = [t for t in project["tasks"] if t["id"] != task_id]
-            project["updated_at"] = now
-            result["found"] = True
-            result["view"] = _project_view(project)
-            return
-
         if operation == "delete":
             if task_id is not None:
                 project["tasks"] = [t for t in project["tasks"] if t["id"] != task_id]

@@ -72,10 +72,10 @@ def test_project_recycle_restore_and_materials(live_app, browser):
         page.locator('#project-overview-content').get_by_role('button', name='可恢复项目', exact=True).click()
         # Ensure recycle bin tab does not exist
         expect(page.get_by_role('button', name='回收站', exact=True)).to_have_count(0)
-        page.locator('.project-order-management > summary').click()
-        page.get_by_role('button', name='转为资料', exact=True).click()
+        expect(page.locator('#project-detail').get_by_role('checkbox', name='完成远期方向', exact=True)).to_be_visible()
+        page.locator('.project-task-actions button.is-danger').click()
+        page.locator('#project-confirm-modal').get_by_role('button', name='永久删除', exact=True).click()
         expect(page.locator('#project-detail').get_by_role('checkbox', name='完成远期方向', exact=True)).to_have_count(0)
-        assert '保留原文' in project_store.load_projects(username)[0]['material_entries'][0]['body']
         expect(page.locator('.project-tab-btn[data-tab="active"]')).to_be_visible()
         expect(page.locator('#project-detail h2')).to_have_text('可恢复项目')
         page.locator('.project-more-menu summary').click()

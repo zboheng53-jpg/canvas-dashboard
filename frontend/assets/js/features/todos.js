@@ -648,15 +648,13 @@
 
       // Render compact deadline list on Today overview
 
-      // 侧栏 nav-count 数字：全部待办移动到了 todos
-      const todosCount = unified.filter((it) => !it.done && !it.hidden && (!it.is_scheduled_action || it.isTodayAction)).length;
-      const todosEl = document.querySelector('[data-nav-count="todos"]');
-      if (todosEl) {
-        if (todosCount > 0) { todosEl.textContent = todosCount; todosEl.hidden = false; }
-        else { todosEl.textContent = ''; todosEl.hidden = true; }
-      }
+      // 侧栏 nav-count 数字：今日总览的未完成待办数
+      const overviewCount = unified.filter((it) => !it.done && !it.hidden && (!it.is_scheduled_action || it.isTodayAction)).length;
       const overviewEl = document.querySelector('[data-nav-count="overview"]');
-      if (overviewEl) overviewEl.hidden = true;
+      if (overviewEl) {
+        if (overviewCount > 0) { overviewEl.textContent = overviewCount; overviewEl.hidden = false; }
+        else { overviewEl.textContent = ''; overviewEl.hidden = true; }
+      }
 
       const todayStr = window.customToday || new Date().toISOString().split('T')[0];
 
