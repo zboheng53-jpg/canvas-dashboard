@@ -11,6 +11,7 @@ from datetime import datetime
 from flask import Blueprint, abort, jsonify, redirect, request, session
 from login_capacity import LoginCapacityError
 from services.academic import get_term_info
+from services.materials import materials_response, material_write_response
 from services.workspace import (
     _complete_schedule_occurrence,
     _create_custom_action,
@@ -22,6 +23,7 @@ from services.workspace import (
     _project_payload,
     _project_status_response,
     _project_task_payload,
+    _project_todo_items,
     _project_trash,
     _recurring_occurrence_complete_response,
     _recurring_occurrence_skip_response,
@@ -370,9 +372,20 @@ def api_projects_overview():
 
 @bp.route("/api/projects/todos")
 def api_project_todos():
-    items = project_store.todo_items(session["username"])
+    items = _project_todo_items(session["username"])
     items.sort(key=lambda item: (item.get("due_date") or "9999-12-31", item["project_id"], item["id"]))
     return jsonify({"ok": True, "items": items, "count": len(items)})
+
+
+@bp.route("/api/materials")
+def api_materials():
+    return materials_response(session["username"])
+
+
+@bp.route("/api/projects/<int:project_id>/materials", methods=["POST"])
+@bp.route("/api/projects/<int:project_id>/materials/<int:entry_id>", methods=["PUT", "DELETE"])
+def api_material_write(project_id, entry_id=None):
+    return material_write_response(session["username"], project_id, entry_id, today=datetime.now(CST).date())
 
 
 @bp.route("/api/projects/<int:project_id>", methods=["PUT", "DELETE"])

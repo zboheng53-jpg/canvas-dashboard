@@ -87,15 +87,18 @@ def focus(actions, agenda, day, schedules):
             continue
         occurrences = [e for e in events if e.get("action_ref") == action["ref"]]
         pending_occurrences = [e for e in occurrences if not e.get("occurrence_done")]
-        item = {**action, "occurrences": occurrences}
         due, planned = action.get("due_date"), action.get("planned_on")
+        missed = bool(planned and planned < target)
+        item = {**action, "occurrences": occurrences, "missed_plan": missed}
         if due and due < target:
             overdue.append(item)
-        if pending_occurrences or due == target or (planned == target and not occurrences):
+        if pending_occurrences or due == target or planned == target or missed:
             today.append(item)
-        elif ((planned and planned < target) or (action["ref"] in past_refs)) and not occurrences and action["ref"] not in future_refs:
+        if missed:
             previous.append(item)
-        elif action.get("is_next_action") and not occurrences and not (planned and planned > target) and action["ref"] not in future_refs:
+        elif (action["ref"] in past_refs) and not occurrences and action["ref"] not in future_refs:
+            previous.append(item)
+        elif due != target and planned != target and action.get("is_next_action") and not occurrences and not (planned and planned > target) and action["ref"] not in future_refs:
             candidates.append(item)
     key = lambda a: (a.get("due_date") or "9999", a.get("project_id", 0), a["ref"])
     return {"date": target, "today": sorted(today, key=key), "previous": sorted(previous, key=key),

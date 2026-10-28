@@ -942,6 +942,20 @@ def _workspace_action_response(username, ref):
     return jsonify({"ok": True, "action": action, "schedules": linked})
 
 
+def _project_todo_items(username):
+    today = datetime.now(CST).date()
+    courses = schedule_store.load_courses(username)
+    semester_start = courses.get("semester_start") or get_term_info()[2]
+    day = schedule_store.today_entries(username, today, semester_start, courses, schedule_store.load_items(username))
+    by_ref = {}
+    for event in day["timed"]:
+        if event.get("action_ref"):
+            by_ref.setdefault(event["action_ref"], []).append(event)
+    pending_refs = {ref for ref, events in by_ref.items() if any(not e.get("occurrence_done") for e in events)}
+    return [{**item, "occurrences": by_ref.get(item["ref"], [])}
+            for item in project_store.todo_items(username, today=today, scheduled_refs=pending_refs)]
+
+
 def _aggregate_agent_todos(username: str, source: str = "all", status: str = "pending", _include_focus: bool = True) -> list[dict]:
     all_todos = []
 
@@ -1055,10 +1069,10 @@ def _aggregate_agent_todos(username: str, source: str = "all", status: str = "pe
     add_platform_items("tongjioj", "tongjioj_cache.json", load_tjoj_state)
 
     # 3. Project tasks
-    seen_project_refs = set()
-    for item in project_store.todo_items(username):
-        ref = item.get("action_ref") or f"project_due:{item['project_id']}"
-        seen_project_refs.add(ref)
+    # _workspace_actions calls this with _include_focus=False only for platforms.
+    # Keep project visibility out of that base collection to avoid recursion.
+    for item in (_project_todo_items(username) if _include_focus and source in ("all", "project") else []):
+        ref = item["ref"]
         all_todos.append({
             "id": str(item["id"]),
             "title": item["title"],
@@ -1066,34 +1080,15 @@ def _aggregate_agent_todos(username: str, source: str = "all", status: str = "pe
             "commitment": item.get("commitment", "obligation"),
             "course": item["project_name"],
             "due_date": item.get("due_date"),
+            "planned_on": item.get("planned_on"),
+            "missed_plan": item.get("missed_plan", False),
+            "is_today": item.get("is_today", False),
+            "occurrences": item.get("occurrences", []),
             "source": "project",
             "done": bool(item.get("done")),
             "labels": [],
             "url": None,
         })
-
-    if _include_focus and source in ("all", "project"):
-        try:
-            f_data = _project_focus_data(username)
-            for act in f_data.get("today", []):
-                ref = act.get("ref") or act.get("action_ref")
-                if ref and ref not in seen_project_refs and not act.get("done"):
-                    seen_project_refs.add(ref)
-                    all_todos.append({
-                        "id": str(act.get("task_id") or act.get("id")),
-                        "title": act.get("title") or act.get("name", ""),
-                        "ref": ref,
-                        "commitment": act.get("commitment", "growth"),
-                        "course": act.get("project_name", ""),
-                        "due_date": act.get("due_date") or act.get("planned_on"),
-                        "planned_on": act.get("planned_on"),
-                        "source": "project",
-                        "done": False,
-                        "labels": [],
-                        "url": None,
-                    })
-        except Exception:
-            pass
 
     # Filtering
     filtered = []
@@ -1228,6 +1223,8 @@ def _complete_agent_todo(username: str, todo_id: str, source: str = "custom") ->
 def _manage_project_record(username, project_id, operation, task_id=None):
     data = read_json_request() or {}
     changes = action_fields(data)
+    if operation == "to-materials":
+        changes["material_date"] = datetime.now(CST).date().isoformat()
     if operation == "to-materials":
         version = data.get("expected_project_updated_at")
         if not isinstance(version, str) or not version.strip():

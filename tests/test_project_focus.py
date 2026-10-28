@@ -27,13 +27,14 @@ def test_focus_deduplicates_today_and_separates_old_plans(workspace):
     old = task(p, "旧计划", planned_on=(day-timedelta(days=1)).isoformat())
     overdue = task(p, "真实承诺", due_date=(day-timedelta(days=1)).isoformat(), commitment="obligation")
     data = c.get("/api/actions/focus").get_json()
-    assert [a["ref"] for a in data["today"]] == [ref]
+    assert [a["ref"] for a in data["today"]] == [ref, f"project:{p['id']}:{old['id']}"]
+    assert data["today"][1]["missed_plan"] is True
     assert len(data["today"][0]["occurrences"]) == 2
     assert [a["task_id"] for a in data["previous"]] == [old["id"]]
     assert [a["task_id"] for a in data["overdue"]] == [overdue["id"]]
     assert not data["candidates"]
     c.put(f"/api/actions/{ref}", json={"done": True, "expected_updated_at": a["updated_at"]}, headers=h)
-    assert not c.get("/api/actions/focus").get_json()["today"]
+    assert [a["task_id"] for a in c.get("/api/actions/focus").get_json()["today"]] == [old["id"]]
 
 
 def test_focus_candidates_do_not_assign_dates_or_repeat_completed_occurrences(workspace):
@@ -99,8 +100,11 @@ def test_materials_conversion_conflict_replay_restore_and_reorder(workspace):
     payload["expected_project_updated_at"] = p["updated_at"]
     assert c.post(path+"/to-materials", json=payload, headers=h).status_code == 200
     current = project_store.load_projects("alice")[0]
-    assert current["materials"].count("保留完整方案") == 1
-    assert f"project:{p['id']}:{a['id']}" in current["materials"]
+    assert current["material_entries"][0]["body"].count("保留完整方案") == 1
+    assert current["material_entries"][0]["source_ref"] == f"project:{p['id']}:{a['id']}"
+    assert current["materials"] == ""
+    assert c.post(path+"/to-materials", json=payload, headers=h).status_code == 200
+    assert len(project_store.load_projects("alice")[0]["material_entries"]) == 1
     assert [t["id"] for t in current["tasks"]] == [b["id"]]
     assert project_store.reorder_tasks("alice", p["id"], [{"id":b["id"], "group_id":None}])
     assert c.get("/api/projects/trash").get_json()["tasks"] == []
@@ -117,7 +121,9 @@ def test_materials_overflow_preserves_task_and_project(workspace):
     c, h = workspace
     p = create_project(c, h)
     project_store.update_project("alice", p["id"], {"materials":"x"*20000})
-    a = task(p)
+    # Legacy tasks can have long original names; the per-entry limit must fail
+    # atomically even when normal new-task validation prevents such input.
+    a = task(p, name="x" * 20001)
     p = project_store.load_projects("alice")[0]
     response = c.post(f"/api/projects/{p['id']}/tasks/{a['id']}/to-materials", json={"expected_updated_at":a["updated_at"], "expected_project_updated_at":p["updated_at"]}, headers=h)
     assert response.status_code == 400

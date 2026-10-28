@@ -29,7 +29,7 @@ def action_fields(data):
             value = data[field]
             if not isinstance(value, str) or len(value) > limit:
                 raise ActionValidationError(f"{field} 必须是最多 {limit} 字的文本")
-            result[field] = value.strip()
+            result[field] = value if field == "materials" else value.strip()
     if "commitment" in data:
         if data["commitment"] not in ("obligation", "growth"):
             raise ActionValidationError("commitment 请选择 obligation（责任）或 growth（成长）")

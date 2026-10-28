@@ -1,6 +1,6 @@
 """Atomic per-user storage for long-term projects, groups, and tasks."""
 import copy
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, timedelta
 
 from storage import locked_json_update, read_json_file
 import user_paths
@@ -93,9 +93,10 @@ def _pick_default_next_task(groups, tasks, exclude_task_id=None):
 
     def sort_key(task):
         gid = task.get("group_id")
+        planned = task.get("planned_on") or "9999-12-31"
         if gid is not None and gid in group_order:
-            return (0, group_order[gid], task.get("sort_order", 0), task.get("id", 0))
-        return (1, (0, 0), task.get("sort_order", 0), task.get("id", 0))
+            return (planned, 0, group_order[gid], task.get("sort_order", 0), task.get("id", 0))
+        return (planned, 1, (0, 0), task.get("sort_order", 0), task.get("id", 0))
 
     return min(candidates, key=sort_key)
 
@@ -149,6 +150,19 @@ def _normalize_project(project, fallback_id, fallback_order):
         completed_at = project.get("updated_at") or now
     if status == "archived" and not archived_at:
         archived_at = project.get("updated_at") or now
+    material_fields = {}
+    if "material_entries" in project:
+        entries = project["material_entries"]
+        if not isinstance(entries, list) or any(
+            not isinstance(entry, dict) or type(entry.get("id")) is not int
+            or entry["id"] < 1 or not isinstance(entry.get("body"), str)
+            for entry in entries
+        ) or len({entry["id"] for entry in entries}) != len(entries):
+            raise ActionValidationError("资料日志存储格式损坏，未覆盖原数据")
+        material_fields = {
+            "material_entries": copy.deepcopy(entries),
+            "next_material_entry_id": max(_int(project.get("next_material_entry_id"), 1), _next_id(entries)),
+        }
     return {
         "id": _int(project.get("id"), fallback_id),
         "name": str(project.get("name") or "未命名项目")[:100],
@@ -166,6 +180,7 @@ def _normalize_project(project, fallback_id, fallback_order):
         "archived_at": archived_at,
         "groups": groups,
         "tasks": tasks,
+        **material_fields,
     }
 
 
@@ -229,6 +244,7 @@ def _due_state(due_date, today=None):
 
 def _project_view(project, today=None, include_deleted=False):
     value = copy.deepcopy(project)
+    value.setdefault("material_entries", [])
     if not include_deleted:
         value["tasks"] = [task for task in value["tasks"] if not task.get("deleted_at")]
     value["groups"].sort(key=lambda group: (group["sort_order"], group["id"]))
@@ -332,6 +348,106 @@ def update_project(username, project_id, changes):
     state, result = _mutate(username, mutation)
     project = _find_project(state, project_id)
     return _project_view(project) if result.get("found") else None
+
+
+def _material_payload(payload, *, partial=False, today=None):
+    if not isinstance(payload, dict):
+        raise ActionValidationError("请填写资料内容")
+    fields = {}
+    if not partial or "body" in payload:
+        body = payload.get("body")
+        if not isinstance(body, str) or not body.strip() or len(body) > 20000:
+            raise ActionValidationError("每条资料必须是 1–20000 字的文本")
+        fields["body"] = body
+    if not partial or "date" in payload:
+        day = payload.get("date")
+        if day is None and not partial:
+            day = (today or datetime.now(timezone(timedelta(hours=8))).date()).isoformat()
+        try:
+            if not isinstance(day, str):
+                raise ValueError
+            fields["date"] = date.fromisoformat(day).isoformat()
+        except ValueError as exc:
+            raise ActionValidationError("记录日期请使用 YYYY-MM-DD") from exc
+    for key in ("request_id", "expected_updated_at"):
+        if key in payload:
+            value = payload[key]
+            if not isinstance(value, str) or not value.strip() or len(value) > 128:
+                raise ActionValidationError(f"{key} 必须是非空短文本")
+            fields[key] = value
+    return fields
+
+
+def _append_material(project, payload, now, source_ref=None):
+    entries = project.setdefault("material_entries", [])
+    entry_id = max(project.get("next_material_entry_id", 1), _next_id(entries))
+    entry = {"id": entry_id, "date": payload["date"], "body": payload["body"],
+             "created_at": now, "updated_at": now}
+    if source_ref:
+        entry["source_ref"] = source_ref
+    if payload.get("request_id"):
+        entry.update(request_id=payload["request_id"], request_fingerprint=fingerprint(payload))
+    entries.append(entry)
+    project["next_material_entry_id"] = entry_id + 1
+    project["updated_at"] = now
+    return entry
+
+
+def create_material_entry(username, project_id, payload, today=None):
+    fields = _material_payload(payload, today=today)
+    request_fields = {key: value for key, value in fields.items() if key != "date" or payload.get("date") is not None}
+    def mutation(state, result):
+        project = _find_project(state, project_id)
+        if project is None:
+            return
+        existing = replay(project.get("material_entries", []), request_fields)
+        entry = existing or _append_material(project, fields, _now())
+        if not existing and fields.get("request_id"):
+            entry["request_fingerprint"] = fingerprint(request_fields)
+        result["entry"] = copy.deepcopy(entry)
+    _, result = _mutate(username, mutation)
+    return result.get("entry")
+
+
+def update_material_entry(username, project_id, entry_id, payload, *, delete=False):
+    fields = _material_payload(payload, partial=True)
+    if not fields.get("expected_updated_at"):
+        raise ActionValidationError("修改资料请提供 expected_updated_at")
+    def mutation(state, result):
+        project = _find_project(state, project_id)
+        if project is None:
+            return
+        entries = project.get("material_entries", [])
+        entry = next((item for item in entries if item["id"] == entry_id), None)
+        if entry is None:
+            return
+        check_version(entry, fields)
+        now = _now()
+        if delete:
+            project["material_entries"] = [item for item in entries if item["id"] != entry_id]
+        else:
+            entry.update({key: fields[key] for key in ("date", "body") if key in fields})
+            entry["updated_at"] = now
+        project["updated_at"] = now
+        result["entry"] = copy.deepcopy(entry)
+    _, result = _mutate(username, mutation)
+    return result.get("entry")
+
+
+def material_log(username, project_id=None):
+    from material_log import parse_legacy_materials
+    projects, entries = [], []
+    for project in load_projects(username):
+        if project_id is not None and project["id"] != project_id:
+            continue
+        projects.append({key: project[key] for key in ("id", "name", "status", "updated_at", "materials")})
+        common = {"project_id": project["id"], "project_name": project["name"]}
+        for entry in parse_legacy_materials(project["materials"]):
+            entries.append({**entry, **common, "legacy": True, "created_at": None,
+                            "updated_at": project["updated_at"]})
+        for entry in project["material_entries"]:
+            entries.append({**copy.deepcopy(entry), **common, "legacy": False})
+    return {"projects": projects, "entries": entries}
 
 
 def set_main_project(username, project_id):
@@ -631,6 +747,12 @@ def manage_record(username, project_id, operation, changes=None, task_id=None):
             return
         record = _find_task(project, task_id, include_deleted=True) if task_id is not None else project
         if record is None:
+            if operation == "to-materials" and any(
+                entry.get("source_ref") == f"project:{project_id}:{task_id}"
+                for entry in project.get("material_entries", [])
+            ):
+                result["found"] = True
+                result["view"] = _project_view(project)
             return
         check_version(record, changes)
         now = _now()
@@ -639,16 +761,14 @@ def manage_record(username, project_id, operation, changes=None, task_id=None):
                 raise ActionValidationError("请选择要转为资料的任务")
             check_version(project, {"expected_updated_at": changes.get("expected_project_updated_at")})
             ref = f"project:{project_id}:{task_id}"
-            text = f"\n\n### {record['name']}\n来源：{ref}\n{record.get('details') or ''}"
+            text = f"### {record['name']}\n来源：{ref}\n{record.get('details') or ''}"
             if record.get("original_name"):
                 text += f"\n原标题：{record['original_name']}"
             for key, label in (("planned_on", "原计划日期"), ("due_date", "原截止日期")):
                 if record.get(key):
                     text += f"\n{label}：{record[key]}"
-            materials = (project.get("materials", "") + text).strip()
-            if len(materials) > 20000:
-                raise ActionValidationError("资料超过 20000 字；请先整理资料，原任务未改变")
-            project["materials"] = materials
+            payload = _material_payload({"body": text, "date": changes.get("material_date")})
+            _append_material(project, payload, now, source_ref=ref)
             project["tasks"] = [t for t in project["tasks"] if t["id"] != task_id]
             project["updated_at"] = now
             result["found"] = True
@@ -757,10 +877,16 @@ def overview(username, today=None):
         value["project_category"] = parts[0] if len(parts) > 1 and parts[0] else "项目"
         value["is_main"] = (proj["id"] == main_id)
         value["next_action"] = task_view(next_action) if next_action else None
+        target = (today or datetime.now(timezone(timedelta(hours=8))).date()).isoformat()
+        value["missed_plan_count"] = sum(bool(t.get("planned_on") and t["planned_on"] < target) for t in pending)
+        value["due_today_count"] = sum(t.get("due_date") == target for t in pending) + int(value.get("due_date") == target)
+        value["overdue_count"] = sum(bool(t.get("due_date") and t["due_date"] < target) for t in pending) + int(bool(value.get("due_date") and value["due_date"] < target))
         value["upcoming_tasks"] = [task_view(task) for task in upcoming[:limit]]
         value["hidden_task_count"] = max(0, len(upcoming) - limit)
         value.pop("groups", None)
         value.pop("tasks", None)
+        value.pop("material_entries", None)
+        value.pop("materials", None)
         return value
 
     active_projects = [build_project_entry(p, limit=2) for p in active]
@@ -778,7 +904,8 @@ def overview(username, today=None):
     }
 
 
-def todo_items(username):
+def _project_items(username):
+    """All pending project records, independent of a view's visibility window."""
     items = []
     state = load_state(username)
     main_id = state.get("main_project_id")
@@ -810,9 +937,7 @@ def todo_items(username):
                 "uid": f"project-due-{project['id']}@canvas-dashboard",
             })
         for task in project["tasks"]:
-            if task["done"] or task.get("commitment") == "growth":
-                continue
-            if task.get("commitment") == "legacy" and not task.get("due_date"):
+            if task["done"]:
                 continue
             items.append({
                 "source": "Project",
@@ -841,18 +966,28 @@ def todo_items(username):
     return items
 
 
+def todo_items(username, today=None, scheduled_refs=None):
+    target = (today or datetime.now(timezone(timedelta(hours=8))).date()).isoformat()
+    scheduled_refs = set(scheduled_refs or ())
+    result = []
+    for item in _project_items(username):
+        ref = item.get("action_ref") or f"project_due:{item['project_id']}"
+        due, planned = item.get("due_date"), item.get("planned_on")
+        missed = bool(planned and planned < target)
+        is_today = bool((planned and planned <= target) or due == target or ref in scheduled_refs)
+        if item["kind"] == "project_due" or is_today or (due and due < target):
+            result.append({**item, "ref": ref, "action_ref": ref,
+                           "is_today": is_today, "missed_plan": missed})
+    return result
+
+
 def calendar_items(username):
-    """Keep stable subscription UIDs when legacy dated practice becomes a growth plan."""
-    items = todo_items(username)
-    for project in load_projects(username):
-        if project["status"] != "active":
-            continue
-        for task in project["tasks"]:
-            day = task.get("due_date") or task.get("planned_on")
-            if task["done"] or task.get("commitment") != "growth" or not day:
-                continue
-            items.append({"id": f"task-{project['id']}-{task['id']}", "due_date": day,
-                          "project_name": project["name"],
-                          "calendar_title": f"{'' if task.get('due_date') else '计划 · '}{task['name']} · {project['name']}",
-                          "uid": f"project-task-{project['id']}-{task['id']}@canvas-dashboard"})
-    return [item for item in items if item.get("due_date")]
+    """Calendar dates never depend on today's todo eligibility; UIDs stay stable."""
+    items = []
+    for item in _project_items(username):
+        day = item.get("due_date") or item.get("planned_on")
+        if day:
+            if not item.get("due_date"):
+                item["calendar_title"] = "计划 · " + item["calendar_title"]
+            items.append({**item, "due_date": day})
+    return items
