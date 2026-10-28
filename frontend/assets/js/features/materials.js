@@ -1,444 +1,229 @@
-/* Dashboard: features/materials.js; loaded in index.html order. */
-let materialsProjects = [];
-let materialsEntries = [];
-let selectedMaterialsProjectId = null;
-let materialEditorOpener = null;
-let legacyMaterialsOpener = null;
-let currentEditingMaterial = null;
+/* Material logs use the project's API and shared tracked modals. */
+let materialsProjects = [], materialsEntries = [];
+let selectedMaterialsProjectId = null, materialsLoadSequence = 0;
+let materialsReady = false, currentEditingMaterial = null, materialCreateAttempt = null;
+let legacyMaterialsOriginal = '';
+const mEscape = pEscape;
 
-function mEscape(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
+function setMaterialsStatus(message, error = false) {
+  const status = document.getElementById('materials-status');
+  status.textContent = message;
+  status.classList.toggle('hidden', !message);
+  applyFeedbackSemantic(status, error ? 'danger' : 'neutral');
 }
 
-async function loadMaterials(projectId = null) {
+async function loadMaterials(projectId = selectedMaterialsProjectId) {
   selectedMaterialsProjectId = projectId ? Number(projectId) : null;
+  const sequence = ++materialsLoadSequence;
   const container = document.getElementById('materials-container');
-  if (container) container.setAttribute('aria-busy', 'true');
-  const filterSelect = document.getElementById('materials-project-filter');
-  if (filterSelect && selectedMaterialsProjectId) {
-    filterSelect.value = String(selectedMaterialsProjectId);
-  }
-
+  const createButton = document.getElementById('materials-new-button');
+  container.setAttribute('aria-busy', 'true');
+  createButton.disabled = true;
   try {
-    const url = `/api/materials${selectedMaterialsProjectId ? `?project_id=${selectedMaterialsProjectId}` : ''}`;
-    let resp = await fetch(url);
-    if (!resp.ok) {
-      // Fallback if backend /api/materials is not integrated yet: synthesize from /api/projects
-      const projResp = await fetch('/api/projects');
-      if (projResp.ok) {
-        const projData = await projResp.json();
-        const projects = projData.projects || [];
-        const entries = [];
-        projects.forEach((p) => {
-          if (p.materials && p.materials.trim()) {
-            entries.push({
-              id: `legacy-${p.id}`,
-              project_id: p.id,
-              project_name: p.name,
-              date: null,
-              body: p.materials,
-              legacy: true,
-              created_at: p.created_at,
-              updated_at: p.updated_at,
-            });
-          }
-        });
-        materialsProjects = projects;
-        materialsEntries = entries;
-        renderMaterials();
-        return;
-      }
-      throw new Error(`加载资料失败: ${resp.status}`);
-    }
-    const data = await resp.json();
-    materialsProjects = data.projects || [];
-    materialsEntries = data.entries || [];
+    const data = await projectRequest('/api/materials');
+    if (sequence !== materialsLoadSequence) return false;
+    if (!Array.isArray(data.projects) || !Array.isArray(data.entries)) throw new Error('资料响应不完整，请重试');
+    materialsProjects = data.projects;
+    materialsEntries = data.entries;
+    materialsReady = true;
+    setMaterialsStatus('');
     renderMaterials();
+    return true;
   } catch (error) {
-    console.error('Failed to load materials:', error);
-    if (container) {
-      container.innerHTML = `<div class="ui-empty ui-empty--danger"><p>加载项目资料失败：${mEscape(error.message)}</p></div>`;
-    }
+    if (sequence !== materialsLoadSequence) return false;
+    materialsReady = false;
+    setMaterialsStatus(`加载资料失败：${error.message}`, true);
+    container.innerHTML = '<div class="ui-empty"><button type="button" class="ui-button ui-button--secondary" data-material-action="retry">重新加载</button></div>';
+    return false;
   } finally {
-    if (container) container.setAttribute('aria-busy', 'false');
+    if (sequence === materialsLoadSequence) {
+      container.setAttribute('aria-busy', 'false');
+      createButton.disabled = !materialsReady || !materialsProjects.length;
+    }
   }
 }
 
 function onMaterialsProjectFilterChange(value) {
   selectedMaterialsProjectId = value ? Number(value) : null;
-  loadMaterials(selectedMaterialsProjectId);
+  if (materialsReady) renderMaterials();
 }
-
 function openProjectMaterials(projectId) {
   selectedMaterialsProjectId = Number(projectId);
-  switchDashboardView('materials');
-  loadMaterials(selectedMaterialsProjectId);
+  return switchDashboardView('materials');
 }
 window.openProjectMaterials = openProjectMaterials;
 
 function renderMaterials() {
   const container = document.getElementById('materials-container');
-  if (!container) return;
-
-  // Update project dropdown options
-  const filterSelect = document.getElementById('materials-project-filter');
-  if (filterSelect) {
-    const currentVal = selectedMaterialsProjectId ? String(selectedMaterialsProjectId) : '';
-    filterSelect.innerHTML = `<option value="">全部项目</option>` +
-      materialsProjects.map(p => `<option value="${p.id}" ${String(p.id) === currentVal ? 'selected' : ''}>${mEscape(p.name)}</option>`).join('');
+  const select = document.getElementById('materials-project-filter');
+  select.innerHTML = '<option value="">全部项目</option>' + materialsProjects.map(project => `<option value="${project.id}">${mEscape(project.name)}</option>`).join('');
+  select.value = selectedMaterialsProjectId ? String(selectedMaterialsProjectId) : '';
+  const entries = materialsEntries.filter(entry => !selectedMaterialsProjectId || Number(entry.project_id) === selectedMaterialsProjectId);
+  if (!entries.length) { container.innerHTML = '<div class="ui-empty"><strong>暂无资料记录</strong></div>'; return; }
+  const dates = [...new Set(entries.map(entry => entry.date).filter(Boolean))].sort().reverse();
+  const latestDate = dates[0];
+  const latest = latestDate ? entries.filter(entry => entry.date === latestDate) : [];
+  const history = entries.filter(entry => !latestDate || entry.date !== latestDate);
+  const cards = values => values.map(renderMaterialEntryCard).join('');
+  let html = latest.length ? `<section class="materials-latest-section"><div class="materials-date-group-header"><h3>${mEscape(latestDate)}</h3></div><div class="materials-entries-list">${cards(latest)}</div></section>` : '';
+  if (history.length) {
+    const groups = [...dates.slice(1), ...(history.some(entry => !entry.date) ? [null] : [])];
+    html += `<details class="materials-history ui-card ui-card--subtle" id="materials-history"><summary class="materials-history-summary">历史 · ${history.length}</summary><div class="materials-history-body">${groups.map(day => `<section class="materials-date-group"><h4>${mEscape(day || '无日期')}</h4><div class="materials-entries-list">${cards(history.filter(entry => (entry.date || null) === day))}</div></section>`).join('')}</div></details>`;
   }
-
-  // Filter entries
-  let entries = materialsEntries;
-  if (selectedMaterialsProjectId) {
-    entries = entries.filter(e => Number(e.project_id) === Number(selectedMaterialsProjectId));
-  }
-
-  if (!entries.length) {
-    container.innerHTML = `
-      <div class="ui-empty" style="padding: 48px 16px; text-align: center;">
-        <strong>暂无资料记录</strong>
-        <p style="margin-top: 8px; color: var(--color-text-secondary);">
-          ${selectedMaterialsProjectId ? '该项目暂无记录，可点击上方“新建资料”添加。' : '还没有任何项目的资料记录，点击上方“新建资料”开始记录。'}
-        </p>
-      </div>`;
-    return;
-  }
-
-  // Separate dated entries vs undated/legacy
-  const datedMap = new Map();
-  const undatedEntries = [];
-
-  entries.forEach(entry => {
-    const d = (entry.date || '').trim();
-    if (d && /^\d{4}-\d{2}-\d{2}/.test(d)) {
-      const dateKey = d.slice(0, 10);
-      if (!datedMap.has(dateKey)) datedMap.set(dateKey, []);
-      datedMap.get(dateKey).push(entry);
-    } else {
-      undatedEntries.push(entry);
-    }
-  });
-
-  const sortedDates = [...datedMap.keys()].sort((a, b) => b.localeCompare(a));
-
-  // If no dated entries, render directly in History style without a huge blank Latest area
-  if (sortedDates.length === 0) {
-    container.innerHTML = `
-      <div class="materials-history-standalone">
-        <div class="materials-history-heading">
-          <h3>资料记录 (${undatedEntries.length})</h3>
-        </div>
-        <div class="materials-entries-list">
-          ${undatedEntries.map(e => renderMaterialEntryCard(e)).join('')}
-        </div>
-      </div>`;
-    return;
-  }
-
-  // With dated entries:
-  // Latest date is OPEN
-  const latestDate = sortedDates[0];
-  const latestEntries = datedMap.get(latestDate);
-  const olderDates = sortedDates.slice(1);
-  const historyCount = olderDates.reduce((acc, dt) => acc + datedMap.get(dt).length, 0) + undatedEntries.length;
-
-  let html = `
-    <div class="materials-latest-section">
-      <div class="materials-date-group-header">
-        <span class="materials-latest-badge ui-tag ui-tag--primary">最新</span>
-        <h3>${mEscape(latestDate)}</h3>
-        <span class="muted" style="font-size: 13px;">${latestEntries.length} 条记录</span>
-      </div>
-      <div class="materials-entries-list">
-        ${latestEntries.map(e => renderMaterialEntryCard(e)).join('')}
-      </div>
-    </div>`;
-
-  if (historyCount > 0) {
-    html += `
-      <details class="materials-history ui-card ui-card--subtle" style="margin-top: 24px;" id="materials-history">
-        <summary class="materials-history-summary" style="padding: 12px 16px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
-          <span>历史资料与未定日期 · ${historyCount} 条</span>
-          <span class="muted" style="font-size: 12px; font-weight: normal;">展开查看历史 →</span>
-        </summary>
-        <div class="materials-history-body" style="padding: 16px;">
-          ${olderDates.map(dt => `
-            <div class="materials-date-group" style="margin-bottom: 20px;">
-              <h4 style="font-size: 14px; margin-bottom: 8px; color: var(--color-text-secondary);">${mEscape(dt)}</h4>
-              <div class="materials-entries-list">
-                ${datedMap.get(dt).map(e => renderMaterialEntryCard(e)).join('')}
-              </div>
-            </div>
-          `).join('')}
-          ${undatedEntries.length ? `
-            <div class="materials-date-group" style="margin-bottom: 16px;">
-              <h4 style="font-size: 14px; margin-bottom: 8px; color: var(--color-text-secondary);">未定日期 / 历史原稿</h4>
-              <div class="materials-entries-list">
-                ${undatedEntries.map(e => renderMaterialEntryCard(e)).join('')}
-              </div>
-            </div>
-          ` : ''}
-        </div>
-      </details>`;
-  }
-
   container.innerHTML = html;
 }
 
 function renderMaterialEntryCard(entry) {
-  const isLegacy = Boolean(entry.legacy);
-  return `
-    <article class="material-entry-card ui-card" data-entry-id="${mEscape(entry.id)}" style="margin-bottom: 12px; padding: 14px 16px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface);">
-      <div class="material-entry-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-        <div class="material-entry-meta" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-          <span class="ui-tag ui-tag--accent" style="font-weight: 500;">${mEscape(entry.project_name || '项目')}</span>
-          ${entry.date ? `<span class="muted" style="font-size: 12px;">${mEscape(entry.date)}</span>` : '<span class="muted" style="font-size: 12px;">未定日期</span>'}
-          ${isLegacy ? '<span class="ui-tag" style="font-size: 11px;">历史原稿</span>' : ''}
-        </div>
-        <div class="material-entry-actions" style="display: flex; gap: 6px;">
-          ${isLegacy ? `
-            <button type="button" class="ui-button ui-button--secondary ui-button--compact" onclick="openLegacyMaterialsModal(${entry.project_id})" style="font-size: 12px; padding: 3px 8px; height: 26px;">编辑原文</button>
-          ` : `
-            <button type="button" class="ui-button ui-button--secondary ui-button--compact" onclick="openMaterialEditorModal(${entry.project_id}, '${mEscape(entry.id)}')" style="font-size: 12px; padding: 3px 8px; height: 26px;">编辑</button>
-            <button type="button" class="ui-button ui-button--danger ui-button--compact is-danger" onclick="deleteMaterialEntry(${entry.project_id}, '${mEscape(entry.id)}', '${mEscape(entry.updated_at || '')}')" style="font-size: 12px; padding: 3px 8px; height: 26px;">删除</button>
-          `}
-        </div>
-      </div>
-      <div class="material-entry-body" style="white-space: pre-wrap; font-family: inherit; font-size: 14px; line-height: 1.6; color: var(--color-text-primary);">${mEscape(entry.body || '')}</div>
-    </article>`;
+  const actions = entry.legacy
+    ? '<button type="button" class="ui-button ui-button--text" data-material-action="legacy">编辑原文</button>'
+    : '<button type="button" class="ui-button ui-button--text" data-material-action="edit">编辑</button><button type="button" class="ui-button ui-button--text is-danger" data-material-action="delete">删除</button>';
+  return `<article class="material-entry-card ui-card" data-project-id="${entry.project_id}" data-entry-id="${mEscape(entry.id)}"><div class="material-entry-header materials-header-actions">${selectedMaterialsProjectId ? '' : `<span class="material-entry-meta">${mEscape(entry.project_name)}</span>`}<div class="material-entry-actions materials-header-actions">${actions}</div></div><div class="material-entry-body action-detail-text">${mEscape(entry.body)}</div></article>`;
 }
 
 function openNewMaterialModal() {
-  materialEditorOpener = document.activeElement;
-  const modal = document.getElementById('material-entry-modal');
-  const form = document.getElementById('material-entry-form');
-  const title = document.getElementById('material-entry-title');
-  const deleteBtn = document.getElementById('material-entry-delete-btn');
-  const err = document.getElementById('material-entry-error');
-  if (!modal || !form) return;
-
+  if (!materialsReady || !materialsProjects.length) return;
   currentEditingMaterial = null;
-  form.reset();
-  form.material_id.value = '';
-  form.expected_updated_at.value = '';
-  title.textContent = '新建资料记录';
-  if (deleteBtn) deleteBtn.classList.add('hidden');
-  if (err) { err.textContent = ''; err.style.display = 'none'; }
-
-  // Populate projects select
-  const select = document.getElementById('material-form-project');
-  select.innerHTML = materialsProjects.map(p =>
-    `<option value="${p.id}" ${selectedMaterialsProjectId && p.id === selectedMaterialsProjectId ? 'selected' : ''}>${mEscape(p.name)}</option>`
-  ).join('');
-
-  modal.classList.remove('hidden');
-  setTimeout(() => form.querySelector('[name="body"]')?.focus(), 50);
-}
-
-function openMaterialEditorModal(projectId, entryId) {
-  materialEditorOpener = document.activeElement;
-  const modal = document.getElementById('material-entry-modal');
+  materialCreateAttempt = null;
   const form = document.getElementById('material-entry-form');
-  const title = document.getElementById('material-entry-title');
-  const deleteBtn = document.getElementById('material-entry-delete-btn');
-  const err = document.getElementById('material-entry-error');
-  if (!modal || !form) return;
-
-  const entry = materialsEntries.find(e => String(e.id) === String(entryId) && Number(e.project_id) === Number(projectId));
-  if (!entry) return;
-
-  currentEditingMaterial = entry;
-  form.material_id.value = entry.id;
-  form.expected_updated_at.value = entry.updated_at || '';
-  form.date.value = entry.date || '';
-  form.body.value = entry.body || '';
-  title.textContent = '编辑资料记录';
-  if (deleteBtn) deleteBtn.classList.remove('hidden');
-  if (err) { err.textContent = ''; err.style.display = 'none'; }
-
+  form.reset();
+  form.elements.material_id.value = '';
+  form.elements.expected_updated_at.value = '';
+  form.elements.date.value = workspaceTodayISO();
+  prepareMaterialEditor('新建资料记录', selectedMaterialsProjectId);
+}
+function prepareMaterialEditor(title, projectId) {
+  document.getElementById('material-entry-title').textContent = title;
+  document.getElementById('material-entry-error').textContent = '';
+  document.getElementById('material-entry-delete-btn').classList.toggle('hidden', !currentEditingMaterial);
   const select = document.getElementById('material-form-project');
-  select.innerHTML = materialsProjects.map(p =>
-    `<option value="${p.id}" ${p.id === Number(projectId) ? 'selected' : ''}>${mEscape(p.name)}</option>`
-  ).join('');
-
-  modal.classList.remove('hidden');
-  setTimeout(() => form.querySelector('[name="body"]')?.focus(), 50);
+  select.innerHTML = materialsProjects.map(project => `<option value="${project.id}">${mEscape(project.name)}</option>`).join('');
+  if (projectId) select.value = String(projectId);
+  select.disabled = Boolean(currentEditingMaterial);
+  openTrackedModal('material-entry-modal', '[name=body]');
 }
-
-function closeMaterialEntryModal() {
-  const modal = document.getElementById('material-entry-modal');
-  if (modal) modal.classList.add('hidden');
-  if (materialEditorOpener?.isConnected) materialEditorOpener.focus();
+function openMaterialEditorModal(projectId, entryId) {
+  const entry = materialsEntries.find(value => String(value.id) === String(entryId) && Number(value.project_id) === Number(projectId));
+  if (!entry || entry.legacy) return;
+  currentEditingMaterial = entry;
+  const form = document.getElementById('material-entry-form');
+  form.elements.material_id.value = entry.id;
+  form.elements.expected_updated_at.value = entry.updated_at;
+  form.elements.date.value = entry.date;
+  form.elements.body.value = entry.body;
+  prepareMaterialEditor('编辑资料记录', projectId);
 }
-
+function closeMaterialEntryModal(force = false) {
+  if (document.getElementById('material-entry-modal').dataset.saving !== 'true') closeTrackedModal('material-entry-modal', force);
+}
+function materialModalBusy(modalId, busy) {
+  const modal = document.getElementById(modalId);
+  modal.dataset.saving = String(busy);
+  modal.querySelectorAll('button, textarea, input, select').forEach(control => {
+    if (busy) { control.dataset.wasDisabled = String(control.disabled); control.disabled = true; }
+    else { control.disabled = control.dataset.wasDisabled === 'true'; delete control.dataset.wasDisabled; }
+  });
+}
+async function refreshMaterialsAfterWrite() {
+  await loadMaterials(selectedMaterialsProjectId);
+  document.getElementById('materials-project-filter').focus();
+}
 async function handleMaterialEntrySubmit(event) {
   event.preventDefault();
   const form = event.target;
-  const projectId = form.project_id.value;
-  const materialId = form.material_id.value;
-  const dateVal = form.date.value.trim() || null;
-  const bodyVal = form.body.value.trim();
-  const expectedUpdatedAt = form.expected_updated_at.value;
-  const err = document.getElementById('material-entry-error');
-  const saveBtn = document.getElementById('material-entry-save-btn');
-
-  if (!bodyVal) {
-    if (err) { err.textContent = '资料内容不能为空'; err.style.display = 'block'; }
-    return;
+  if (document.getElementById('material-entry-modal').dataset.saving === 'true') return;
+  const projectId = form.elements.project_id.value, materialId = form.elements.material_id.value;
+  const body = form.elements.body.value, day = form.elements.date.value;
+  const error = document.getElementById('material-entry-error');
+  if (!body.trim() || !day) { error.textContent = '请填写记录日期和资料内容'; return; }
+  const payload = {date: day, body};
+  if (materialId) payload.expected_updated_at = form.elements.expected_updated_at.value;
+  else {
+    const signature = JSON.stringify({projectId, ...payload});
+    if (materialCreateAttempt?.signature !== signature) materialCreateAttempt = {signature, id: `mat-${crypto.randomUUID()}`};
+    payload.request_id = materialCreateAttempt.id;
   }
-
-  saveBtn.disabled = true;
-  if (err) { err.textContent = ''; err.style.display = 'none'; }
-
+  error.textContent = '';
+  materialModalBusy('material-entry-modal', true);
   try {
-    const isEdit = Boolean(materialId);
-    const url = isEdit
-      ? `/api/projects/${projectId}/materials/${materialId}`
-      : `/api/projects/${projectId}/materials`;
-    const method = isEdit ? 'PUT' : 'POST';
-    const payload = isEdit
-      ? { date: dateVal, body: bodyVal, expected_updated_at: expectedUpdatedAt }
-      : { date: dateVal, body: bodyVal, request_id: `mat-${Date.now()}` };
-
-    const resp = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': window.CSRF_TOKEN || '',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const result = await resp.json().catch(() => ({}));
-    if (!resp.ok || result.ok === false) {
-      throw new Error(result.error || result.message || '保存资料失败');
-    }
-
-    closeMaterialEntryModal();
-    await Promise.all([
-      loadMaterials(selectedMaterialsProjectId),
-      typeof loadProjectOverview === 'function' ? loadProjectOverview() : Promise.resolve(),
-    ]);
-  } catch (error) {
-    // PRESERVE input on error/conflict
-    if (err) {
-      err.textContent = error.message;
-      err.style.display = 'block';
-    }
-  } finally {
-    saveBtn.disabled = false;
-  }
+    await projectRequest(`/api/projects/${projectId}/materials${materialId ? `/${materialId}` : ''}`, {method: materialId ? 'PUT' : 'POST', body: JSON.stringify(payload)});
+    markProjectModalClean('material-entry-modal');
+    closeTrackedModal('material-entry-modal');
+    await refreshMaterialsAfterWrite();
+  } catch (failure) { error.textContent = failure.message; }
+  finally { materialModalBusy('material-entry-modal', false); }
 }
-
-async function deleteMaterialEntry(projectId, materialId, expectedUpdatedAt = '') {
-  if (!confirm('确定要删除这条资料记录吗？此操作无法撤销。')) return;
-
+async function deleteMaterialEntry(projectId, materialId, expectedUpdatedAt, fromEditor = false) {
+  if (!confirm('删除这条资料记录？')) return false;
+  if (fromEditor) materialModalBusy('material-entry-modal', true);
   try {
-    const url = `/api/projects/${projectId}/materials/${materialId}`;
-    const resp = await fetch(url, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': window.CSRF_TOKEN || '',
-      },
-      body: JSON.stringify({ expected_updated_at: expectedUpdatedAt }),
-    });
-    const result = await resp.json().catch(() => ({}));
-    if (!resp.ok || result.ok === false) {
-      throw new Error(result.error || '删除资料失败');
-    }
-    await Promise.all([
-      loadMaterials(selectedMaterialsProjectId),
-      typeof loadProjectOverview === 'function' ? loadProjectOverview() : Promise.resolve(),
-    ]);
+    await projectRequest(`/api/projects/${projectId}/materials/${materialId}`, {method: 'DELETE', body: JSON.stringify({expected_updated_at: expectedUpdatedAt})});
+    if (fromEditor) { markProjectModalClean('material-entry-modal'); closeTrackedModal('material-entry-modal'); }
+    await refreshMaterialsAfterWrite();
+    return true;
   } catch (error) {
-    alert(error.message);
-  }
+    if (fromEditor) document.getElementById('material-entry-error').textContent = error.message;
+    else setMaterialsStatus(error.message, true);
+    return false;
+  } finally { if (fromEditor) materialModalBusy('material-entry-modal', false); }
 }
-
 function handleDeleteCurrentMaterial() {
-  if (!currentEditingMaterial) return;
-  closeMaterialEntryModal();
-  deleteMaterialEntry(
-    currentEditingMaterial.project_id,
-    currentEditingMaterial.id,
-    currentEditingMaterial.updated_at
-  );
+  if (currentEditingMaterial && document.getElementById('material-entry-modal').dataset.saving !== 'true') return deleteMaterialEntry(currentEditingMaterial.project_id, currentEditingMaterial.id, currentEditingMaterial.updated_at, true);
 }
-
 function openLegacyMaterialsModal(projectId) {
-  legacyMaterialsOpener = document.activeElement;
-  const modal = document.getElementById('legacy-materials-modal');
-  const form = document.getElementById('legacy-materials-form');
-  const proj = materialsProjects.find(p => p.id === Number(projectId));
-  if (!modal || !form) return;
-
-  document.getElementById('legacy-project-id').value = String(projectId);
-  document.getElementById('legacy-expected-updated-at').value = proj?.updated_at || '';
-  document.getElementById('legacy-project-name').textContent = proj ? `所属项目：${proj.name}` : '';
-  document.getElementById('legacy-materials-body').value = proj?.materials || '';
-
-  const err = document.getElementById('legacy-materials-error');
-  if (err) { err.textContent = ''; err.style.display = 'none'; }
-
-  modal.classList.remove('hidden');
-  setTimeout(() => document.getElementById('legacy-materials-body')?.focus(), 50);
+  const project = materialsProjects.find(value => value.id === Number(projectId));
+  if (!project) return;
+  legacyMaterialsOriginal = project.materials;
+  document.getElementById('legacy-project-id').value = projectId;
+  document.getElementById('legacy-expected-updated-at').value = project.updated_at;
+  document.getElementById('legacy-project-name').textContent = project.name;
+  document.getElementById('legacy-materials-body').value = legacyMaterialsOriginal;
+  document.getElementById('legacy-materials-error').textContent = '';
+  openTrackedModal('legacy-materials-modal', '[name=materials]');
 }
-
-function closeLegacyMaterialsModal() {
-  const modal = document.getElementById('legacy-materials-modal');
-  if (modal) modal.classList.add('hidden');
-  if (legacyMaterialsOpener?.isConnected) legacyMaterialsOpener.focus();
+function closeLegacyMaterialsModal(force = false) {
+  if (document.getElementById('legacy-materials-modal').dataset.saving !== 'true') closeTrackedModal('legacy-materials-modal', force);
 }
-
 async function handleLegacyMaterialsSubmit(event) {
   event.preventDefault();
-  const form = event.target;
+  if (document.getElementById('legacy-materials-modal').dataset.saving === 'true') return;
+  const value = document.getElementById('legacy-materials-body').value;
+  // A textarea normalizes line endings even when the user did not edit them.
+  const materials = value === legacyMaterialsOriginal.replace(/\r\n?/g, '\n') ? legacyMaterialsOriginal : value;
   const projectId = document.getElementById('legacy-project-id').value;
-  const materials = document.getElementById('legacy-materials-body').value;
-  const expectedUpdatedAt = document.getElementById('legacy-expected-updated-at').value;
-  const err = document.getElementById('legacy-materials-error');
-  const saveBtn = document.getElementById('legacy-materials-save-btn');
-
-  saveBtn.disabled = true;
-  if (err) { err.textContent = ''; err.style.display = 'none'; }
-
+  const error = document.getElementById('legacy-materials-error');
+  error.textContent = '';
+  materialModalBusy('legacy-materials-modal', true);
   try {
-    const url = `/api/projects/${projectId}`;
-    const resp = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': window.CSRF_TOKEN || '',
-      },
-      body: JSON.stringify({
-        materials,
-        expected_updated_at: expectedUpdatedAt,
-      }),
-    });
-    const result = await resp.json().catch(() => ({}));
-    if (!resp.ok || result.ok === false) {
-      throw new Error(result.error || result.message || '更新项目资料失败');
-    }
-
-    closeLegacyMaterialsModal();
-    await Promise.all([
-      loadMaterials(selectedMaterialsProjectId),
-      typeof loadProjects === 'function' ? loadProjects(projectId) : Promise.resolve(),
-      typeof loadProjectOverview === 'function' ? loadProjectOverview() : Promise.resolve(),
-    ]);
-  } catch (error) {
-    if (err) {
-      err.textContent = error.message;
-      err.style.display = 'block';
-    }
-  } finally {
-    saveBtn.disabled = false;
-  }
+    await projectRequest(`/api/projects/${projectId}`, {method: 'PUT', body: JSON.stringify({materials, expected_updated_at: document.getElementById('legacy-expected-updated-at').value})});
+    markProjectModalClean('legacy-materials-modal');
+    closeTrackedModal('legacy-materials-modal');
+    await refreshMaterialsAfterWrite();
+  } catch (failure) { error.textContent = failure.message; }
+  finally { materialModalBusy('legacy-materials-modal', false); }
 }
+
+document.getElementById('materials-container')?.addEventListener('click', event => {
+  const button = event.target.closest('[data-material-action]');
+  if (!button) return;
+  if (button.dataset.materialAction === 'retry') { loadMaterials(); return; }
+  const card = button.closest('[data-entry-id]');
+  const projectId = Number(card.dataset.projectId);
+  const entry = materialsEntries.find(value => value.project_id === projectId && String(value.id) === card.dataset.entryId);
+  if (!entry) return;
+  if (button.dataset.materialAction === 'legacy') openLegacyMaterialsModal(projectId);
+  if (button.dataset.materialAction === 'edit') openMaterialEditorModal(projectId, entry.id);
+  if (button.dataset.materialAction === 'delete') deleteMaterialEntry(projectId, entry.id, entry.updated_at);
+});
+window.addEventListener('beforeunload', event => {
+  if (['material-entry-modal', 'legacy-materials-modal'].some(id => {
+    const modal = document.getElementById(id);
+    return !modal.classList.contains('hidden') && modal.dataset.dirty === 'true';
+  })) { event.preventDefault(); event.returnValue = ''; }
+});
+['material-entry-modal', 'legacy-materials-modal'].forEach(id => {
+  document.getElementById(id)?.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && event.currentTarget.dataset.saving === 'true') {
+      event.preventDefault(); event.stopPropagation();
+    }
+  });
+});
