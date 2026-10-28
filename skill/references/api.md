@@ -14,7 +14,7 @@
 ## 重复作业
 
 - 用 `create_recurring_todo_series` 创建系列：`first_due_date` 确定基准，`interval_weeks=1|2`，范围明确时传 `end_date`。节奏不确定则只录本次普通待办，周期原文放 `details`。
-- 首页每个系列只展示最近一次未完成、未跳过的期次（7 天内或已逾期），完成或跳过后推进；旧次未完成不阻止后续期次产生。
+- 全部待办每个系列只展示最近一次未完成、未跳过的期次（7 天内或已逾期），今天页保留其中今日到期／逾期的截止提醒；完成或跳过后推进，旧次未完成不阻止后续期次产生。
 - 不默认推演整个学期的普通任务。用户明确要求逐条录入且范围、各次截止可确定时，可批量创建普通待办；数量不改变归属。
 
 | 操作 | HTTP 接口／客户端方法 | 关键参数 |
@@ -39,9 +39,16 @@
 | 项目与今日行动 | `GET /projects`、`GET /actions/focus`；`get_projects`、`get_project_focus` | 返回项目／任务 ID、资料、版本或今日行动分类 |
 | 添加项目行动 | `POST /projects/<project_id>/tasks`；`add_project_task` | 行动字段、`request_id` |
 | 行动读写 | `GET/PUT /actions/<ref>`；`get_action`、`update_action` | 修改字段及 `expected_updated_at` |
-| 合并更新项目资料 | `PUT /projects/<project_id>` | `materials`、`expected_updated_at` |
+| 查询资料日志与旧原文分段 | `GET /materials` | 可选 `project_id`；返回项目原文及日志条目，`legacy` 区分旧原文段落 |
+| 追加资料日志 | `POST /projects/<project_id>/materials` | `body`（最多 20000 字）、可选 `date`（默认上海当天）、`request_id` |
+| 编辑／删除资料日志 | `PUT/DELETE /projects/<project_id>/materials/<entry_id>` | `expected_updated_at`；编辑仅传变更的 `body`、`date` |
+| 编辑旧资料原文 | `PUT /projects/<project_id>` | `materials`、项目 `expected_updated_at`；只更新原文，不覆盖原生日志 |
 | 永久删除项目／任务 | `POST /projects/<project_id>/delete`、`/projects/<project_id>/tasks/<task_id>/delete`；`manage_project_record` | `expected_updated_at` |
 | 任务转资料 | `POST /projects/<project_id>/tasks/<task_id>/to-materials`；`manage_project_record` | `expected_updated_at`、`expected_project_updated_at`；原子保存资料并移除任务 |
+
+新资料默认追加日志，旧 `materials` 工具仅维护历史原文。旧段落只读展示，日期缺失不从正文或邻段推断；需要修改时读取完整原文再带项目版本提交。新日志逐条编辑，禁止整数组覆盖；重试新增时使用原 `request_id`。
+
+项目的已有下一步完成后，自动按最早 `planned_on` 推进已有未完成步骤，无日期最后；不会自动生成新步骤。有效手动指定继续保留。项目步骤仅在计划日已到、截止已到或今天有未完成时间块时进入待办；错过计划日的步骤持续显示为今天的原计划未完成，直到完成或明确改期。未来时间块和单次完成不消除这个状态，计划日不作为真实截止。
 
 ### 纠错与整理
 

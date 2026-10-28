@@ -32,9 +32,9 @@ def test_focus_select_today_complete_and_finished_group(live_app, browser, width
         row = todos.locator('.todo-row').filter(has=page.get_by_role('button', name='整理一个问题', exact=True))
         expect(row).to_have_count(1)
         expect(todos.locator('.todo-group').filter(has=page.get_by_role('heading', name='今天', exact=True)).get_by_role('button', name='整理一个问题', exact=True)).to_be_visible()
-        expect(todos.get_by_role('button', name='此前的计划', exact=True)).to_have_count(0)
+        expect(todos.locator('.todo-group').filter(has=page.get_by_role('heading', name='今天', exact=True)).get_by_role('button', name='此前的计划', exact=True)).to_be_visible()
         expect(todos.get_by_role('button', name='未来的计划', exact=True)).to_have_count(0)
-        expect(page.locator('#src-count-project')).to_have_text('1')
+        expect(page.locator('#src-count-project')).to_have_text('2')
         page.locator('[data-todo-source="custom"]').click()
         expect(row).to_have_count(0)
         page.locator('[data-todo-source="project"]').click()
@@ -47,12 +47,13 @@ def test_focus_select_today_complete_and_finished_group(live_app, browser, width
         actions.get_by_role('button', name='完成', exact=True).click()
         expect(row).to_have_count(0)
         assert next(t for t in project_store.load_projects(username)[0]['tasks'] if t['id'] == a['id'])['done']
+        page.evaluate("switchDashboardView('overview')")
         page.locator('#project-overview-content').get_by_role('button', name='探索项目', exact=True).click()
         expect(page.locator('.project-next-action-card .project-next-action-text')).to_have_text('此前的计划')
         page.locator('.project-next-action-card').get_by_role('button', name='更换下一步', exact=True).click()
         page.locator('#project-choice-modal').get_by_role('button', name='未来的计划').click()
         expect(page.locator('.project-next-action-card .project-next-action-text')).to_have_text('未来的计划')
-        history = page.locator('.project-finished-groups')
+        history = page.locator('#project-detail > .project-finished-groups')
         expect(history).to_be_visible()
         assert history.get_attribute('open') is None
         expect(page.get_by_text('暂无未完成任务', exact=True)).to_have_count(0)
@@ -71,9 +72,10 @@ def test_project_recycle_restore_and_materials(live_app, browser):
         page.locator('#project-overview-content').get_by_role('button', name='可恢复项目', exact=True).click()
         # Ensure recycle bin tab does not exist
         expect(page.get_by_role('button', name='回收站', exact=True)).to_have_count(0)
+        page.locator('.project-order-management > summary').click()
         page.get_by_role('button', name='转为资料', exact=True).click()
         expect(page.locator('#project-detail').get_by_role('checkbox', name='完成远期方向', exact=True)).to_have_count(0)
-        assert '保留原文' in project_store.load_projects(username)[0]['materials']
+        assert '保留原文' in project_store.load_projects(username)[0]['material_entries'][0]['body']
         expect(page.locator('.project-tab-btn[data-tab="active"]')).to_be_visible()
         expect(page.locator('#project-detail h2')).to_have_text('可恢复项目')
         page.locator('.project-more-menu summary').click()
@@ -134,6 +136,7 @@ def test_recurring_occurrence_completion_keeps_original_action(live_app, browser
         row = page.locator('#todo-list .todo-row').filter(has=page.get_by_role('button', name='一次练习', exact=True))
         expect(row).to_be_visible()
         expect(row).to_contain_text('19:00–19:30')
+        page.evaluate("switchDashboardView('overview')")
         page.locator('#today-schedule-content .forward-day').first.get_by_role('button', name='19:00–19:30 一次练习', exact=False).click()
         page.locator('#action-detail-dialog').get_by_role('button', name='完成本次安排', exact=True).click()
         page.get_by_role('button', name='关闭事项详情', exact=True).click()

@@ -443,8 +443,8 @@
 
 .todo-source-manager-trigger:hover,
 .todo-source-manager[open] .todo-source-manager-trigger {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  border-color: var(--color-action);
+  color: var(--color-action);
   background: var(--color-primary-soft);
 }
 
@@ -526,7 +526,7 @@
 .todo-source-visibility-option input {
   grid-row: 1 / 3;
   margin: 0;
-  accent-color: var(--color-primary);
+  accent-color: var(--color-action);
 }
 
 .todo-source-visibility-option .dot {
@@ -1065,4 +1065,84 @@
     align-items: stretch;
     flex-direction: column;
   }
+}
+
+/* Today overview: compact deadline list and timeline */
+.today-deadlines-card {
+  margin-bottom: var(--space-4);
+}
+
+.today-deadlines-list {
+  min-height: 48px;
+}
+
+.today-timeline-card {
+  margin-top: var(--space-2);
+}
+
+/* Project summary compact rows */
+.proj-summary-row {
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.proj-summary-row:hover {
+  background-color: var(--color-surface-hover, var(--color-surface));
+  border-color: var(--color-action-soft);
+}
+
+.proj-summary-row.is-pinned {
+  border-left: 3px solid var(--color-action);
+}
+
+/* Project detail: current step card and roadmap */
+.project-current-step-card {
+  box-shadow: var(--shadow-hover);
+}
+
+.project-roadmap-row {
+  transition: background-color 150ms ease;
+}
+
+.project-roadmap-row:hover {
+  background-color: var(--color-surface-hover, var(--color-surface));
+}
+
+/* Materials management */
+.materials-manager-card {
+  padding: var(--space-6);
+}
+
+.materials-manager-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.materials-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.materials-date-group-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.materials-history-summary {
+  user-select: none;
+}
+
+.material-entry-card {
+  transition: border-color 150ms ease;
+}
+
+.material-entry-card:hover {
+  border-color: var(--color-action-soft);
 }

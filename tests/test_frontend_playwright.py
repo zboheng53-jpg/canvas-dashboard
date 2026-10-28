@@ -29,6 +29,12 @@ def register_dashboard_user(page, live_app, username):
     browser_env.wait_for_layout_settled(page)
 
 
+def open_todos(page):
+    page.evaluate("switchDashboardView('todos')")
+    expect(page.locator("#dashboard-view-todos")).to_be_visible()
+    browser_env.wait_for_layout_settled(page)
+
+
 def test_timetable_dom_reader_ignores_hidden_tables_and_expands_rowspans(browser):
     page = browser.new_page()
     page.set_content("""
@@ -62,8 +68,8 @@ def test_frontend_todo_heading_is_centered_in_header(live_app, browser):
     page = browser.new_page()
     register_dashboard_user(page, live_app, "headinguser")
 
-    header_box = page.locator(".section-header").bounding_box()
-    title_box = page.locator(".section-header h2").bounding_box()
+    header_box = page.locator(".listcard .section-header").bounding_box()
+    title_box = page.locator(".listcard .section-header h2").bounding_box()
     assert header_box is not None
     assert title_box is not None
 
@@ -127,7 +133,7 @@ def test_frontend_titles_follow_v103_type_hierarchy(live_app, browser):
     register_dashboard_user(page, live_app, "seriftitles")
 
     for selector, expected_font, expected_weight in (
-        (".section-header h2", "Noto Serif SC", "400"),
+        (".listcard .section-header h2", "Noto Serif SC", "400"),
         ("#long-term-projects-title", "Noto Serif SC", "500"),
         ("#today-schedule-title", "Noto Serif SC", "500"),
     ):
@@ -228,8 +234,9 @@ def test_frontend_v2_desktop_shell_uses_bounded_three_column_layout(live_app, br
     assert first_rail_box is not None
     assert second_rail_box is not None
     browser_env.assert_close(first_rail_box["width"], second_rail_box["width"], 1, label="右栏卡片宽度")
-    browser_env.assert_close(first_rail_box["height"], second_rail_box["height"], 1, label="右栏卡片高度")
-    todo_card = page.locator(".workspace-main .enter-main-card")
+    assert first_rail_box["y"] + first_rail_box["height"] <= second_rail_box["y"]
+    assert second_rail_box["height"] >= 200
+    todo_card = page.locator(".workspace-main .listcard")
     expect(todo_card).to_have_css(
         "transform", "none"
     )
@@ -274,7 +281,7 @@ def test_frontend_desktop_todo_card_scrolls_without_outgrowing_sidebars(live_app
         }"""
     )
 
-    todo_card = page.locator(".workspace-main .enter-main-card")
+    todo_card = page.locator(".workspace-main .listcard")
     todo_list = page.locator("#todo-list")
     sidebar = page.locator("#academic-sidebar")
     expect(todo_list.locator(".todo-row")).to_have_count(18)
@@ -335,7 +342,7 @@ def test_frontend_overview_rich_content_uses_internal_scroll_regions(live_app, b
             });
           }
           await json(`/api/projects/${project.id}/set-main`, 'POST');
-          for (let index = 0; index < 8; index += 1) {
+          for (let index = 0; index < 14; index += 1) {
             const hour = String(8 + index).padStart(2, '0');
             await json('/api/schedule/one-off', 'POST', {
               title: `今日日程 ${index + 1}`,
@@ -352,8 +359,11 @@ def test_frontend_overview_rich_content_uses_internal_scroll_regions(live_app, b
     expect(page.locator("#todo-list .todo-row").filter(has_text="设计验收待办")).to_have_count(10)
     expect(page.locator("#project-overview-content")).to_contain_text("毕业设计冲刺")
     expect(page.locator("#project-overview-content")).to_contain_text("项目任务 1")
-    expect(page.locator("#today-schedule-content .period-event--one_off")).to_have_count(8)
-    expect(page.locator("#today-schedule-content")).to_contain_text("今日日程 8")
+    expect(page.locator("#project-overview-content .proj-summary-row")).to_have_count(1)
+    expect(page.locator("#project-overview-content")).not_to_contain_text("项目任务 2")
+    expect(page.locator("#dashboard-view-overview #todo-list")).to_be_visible()
+    expect(page.locator("#today-schedule-content .period-event--one_off")).to_have_count(14)
+    expect(page.locator("#today-schedule-content")).to_contain_text("今日日程 14")
 
     page.locator("#today-schedule-card").get_by_role("button", name="添加日程").click()
     expect(page.locator("#dashboard-view-schedule")).to_be_visible()
@@ -372,8 +382,8 @@ def test_frontend_overview_rich_content_uses_internal_scroll_regions(live_app, b
 
     project_content.evaluate(
         """element => {
-          const project = element.querySelector('.proj');
-          for (let index = 0; index < 5; index += 1) element.append(project.cloneNode(true));
+          const project = element.querySelector('.proj-summary-row');
+          for (let index = 0; index < 20; index += 1) element.append(project.cloneNode(true));
         }"""
     )
     assert project_content.evaluate("element => element.scrollHeight > element.clientHeight")
@@ -439,7 +449,7 @@ def test_frontend_console_navigation_groups_features_without_overview_duplicates
     expect(page.locator(".sidebar-nav-group")).to_have_count(4)
     expect(page.locator(".sidebar-section-label")).to_have_text(["工作区", "计划", "管理", "帮助"])
     expect(page.locator("[data-dashboard-view] .sidebar-label")).to_have_text(
-        ["今日总览", "长期项目", "日程与课表", "连接与同步", "日历订阅", "Agent 接入", "偏好设置", "上手指南"]
+        ["今日总览", "全部待办", "长期项目", "日程与课表", "项目资料", "连接与同步", "日历订阅", "Agent 接入", "偏好设置", "上手指南"]
     )
     expect(page.locator("#dashboard-view-overview .login-trigger")).to_have_count(0)
     expect(page.locator("#dashboard-view-overview .account-row")).to_have_count(0)
@@ -455,7 +465,7 @@ def test_frontend_console_navigation_groups_features_without_overview_duplicates
     expect(page.locator("#schedule-timetable-grid")).to_be_visible()
     expect(page.locator("#schedule-week-label")).to_be_visible()
 
-    for view_name in ("overview", "projects", "schedule", "connections", "calendar", "agent", "settings", "guide"):
+    for view_name in ("overview", "todos", "projects", "schedule", "materials", "connections", "calendar", "agent", "settings", "guide"):
         button = page.locator(f'[data-dashboard-view="{view_name}"]')
         button.click()
         expect(page.locator(f'[data-view-panel="{view_name}"]')).to_be_visible()
@@ -504,6 +514,7 @@ def test_frontend_hides_calendar_view_when_feature_is_disabled(live_app, browser
 def test_frontend_source_filters_and_focus_views(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     register_dashboard_user(page, live_app, "groupingv2")
+    open_todos(page)
 
     source_filters = page.locator("[data-todo-source]")
     expect(source_filters).to_have_count(9)
@@ -513,16 +524,18 @@ def test_frontend_source_filters_and_focus_views(live_app, browser):
     expect(page.locator('[data-todo-source="custom"]')).to_have_text("自定义 0")
     expect(page.locator("#todo-source-select option[value='all']")).to_have_text("全部 (1)")
     expect(page.locator("#todo-source-select option[value='canvas']")).to_have_text("Canvas (1)")
-    expect(page.locator(".todo-group-heading").first).to_contain_text("更晚")
+    expect(page.locator(".todo-group-heading").first).to_contain_text("以后")
     page.fill("#new-todo-input", "Tag grouping task #automation")
-    page.fill("#new-todo-due", "2026-07-16")
+    page.fill("#new-todo-due", "2026-07-12")
     page.click("#add-todo-form button")
-    expect(page.locator(".todo-group-heading").filter(has_text="本周内")).to_be_visible()
+    expect(page.locator(".todo-group-heading").filter(has_text="近三天")).to_be_visible()
     page.select_option("#todo-source-select", "custom")
     expect(page.locator('[data-todo-source="custom"]')).to_have_text("自定义 1")
     expect(page.locator(".todo-row").filter(has_text="Tag grouping task")).to_be_visible()
     expect(page.locator(".todo-row").filter(has_text="Canvas seeded")).to_have_count(0)
 
+    page.evaluate("switchDashboardView('overview')")
+    browser_env.wait_for_layout_settled(page)
     overview_width = page.locator(".workspace-main").bounding_box()["width"]
     page.locator('[data-dashboard-view="projects"]').click()
     expect(page.locator("#dashboard-view-projects")).to_be_visible()
@@ -854,6 +867,7 @@ def test_frontend_project_main_card_groups_tasks_and_todo_jump(live_app, browser
           name:'完成 NumPy 数组练习',
           group_id:group.id,
           due_date:'2026-07-10',
+          planned_on:'2026-07-09',
           is_next_action:true,
           commitment:'obligation'
         })).task;
@@ -872,7 +886,8 @@ def test_frontend_project_main_card_groups_tasks_and_todo_jump(live_app, browser
     expect(page.locator("#project-overview-content .proj-tasks")).to_have_count(0)
 
     page.select_option("#todo-source-select", "project")
-    expect(page.locator("#todo-list .todo-row")).to_have_count(3)
+    expect(page.locator("#todo-list .todo-row")).to_have_count(2)
+    expect(page.locator("#todo-list .todo-row").filter(has_text="复习 pandas")).to_have_count(0)
     project_task = page.locator("#todo-list .todo-row").filter(has_text="完成 NumPy 数组练习")
     expect(project_task).to_be_visible()
     expect(project_task.locator(".item-desktop-actions .btn-delete")).to_have_count(1)
@@ -881,18 +896,24 @@ def test_frontend_project_main_card_groups_tasks_and_todo_jump(live_app, browser
     expect(page.locator("#project-detail")).to_contain_text("Python 学习")
     expect(page.locator("#project-detail")).to_contain_text("数据处理")
 
-    page.locator(f'.project-task-item[data-task-id="{seeded["taskId"]}"] input[type="checkbox"]').check()
-    expect(page.locator("#project-detail .project-completed-tasks")).to_contain_text("已完成 1 项")
-    expect(page.locator("#project-detail .project-completed-tasks")).not_to_have_attribute("open", "")
-
-    # 完成步骤默认沉底，先展开步骤历史，再展开其中的任务。
-    page.locator("#project-detail .project-finished-groups > summary").click()
-    page.locator("#project-detail .project-completed-tasks summary").click()
-    expect(page.locator("#project-detail .project-completed-tasks")).to_have_attribute("open", "")
-    expect(page.locator("#project-detail .project-completed-clear-btn")).to_be_visible()
+    page.locator('.project-current-step-card').get_by_role('button', name='完成步骤', exact=True).click()
+    history = page.locator('#project-detail > .project-finished-groups')
+    expect(history).to_contain_text('已完成')
+    expect(history).not_to_have_attribute('open', '')
+    history.locator('summary').click()
+    expect(history.locator('.project-finished-task-row')).to_have_count(1)
+    expect(history).to_contain_text('完成 NumPy 数组练习')
+    page.locator('.project-order-management > summary').click()
+    page.locator('.project-order-management .project-finished-groups > summary').click()
+    completed = page.locator('.project-order-management .project-completed-tasks')
+    expect(completed).to_contain_text('已完成 1 项')
+    expect(completed).not_to_have_attribute('open', '')
+    completed.locator('summary').click()
+    expect(completed).to_have_attribute('open', '')
+    expect(completed.locator('.project-completed-clear-btn')).to_be_visible()
 
     # 打开编辑弹窗验证删除按钮可见
-    page.locator(f'#project-detail .project-completed-tasks .project-task-item[data-task-id="{seeded["taskId"]}"] .project-task-action-btn[title="编辑"]').click()
+    page.locator(f'.project-order-management .project-completed-tasks .project-task-item[data-task-id="{seeded["taskId"]}"] .project-task-action-btn[title="编辑"]').click()
     expect(page.locator("#project-task-modal")).to_be_visible()
     expect(page.locator("#project-task-delete-btn")).to_be_visible()
     page.locator('#project-task-modal .project-modal-close').click()
@@ -956,7 +977,7 @@ def test_frontend_mobile_alignment_places_controls_on_the_right(live_app, browse
       if (!item?.checkVisibility()) return false;
       const rect = (selector, parent = document) => parent.querySelector(selector).getBoundingClientRect();
       const title = rect('.item-title', item), subtask = rect('.item-subtask-slot', item);
-      const heading = rect('.section-header h2'), header = rect('.section-header');
+      const heading = rect('.listcard .section-header h2'), header = rect('.listcard .section-header');
       const emoji = rect('.weather-emoji'), temp = rect('.weather-temp');
       // 35px 是「标题大致落在头部中线」的设计容差（头部含状态行、图标与换行），
       // 5px 是天气图标与温度文字的中线对齐容差；两者都不是逐像素约束。
@@ -1528,9 +1549,10 @@ def test_frontend_todo_completion_sinks_and_syncs_with_agenda(live_app, browser)
     expect(today_group).to_be_visible()
     expect(today_group.locator(".todo-row").filter(has_text="今日必做测试")).to_be_visible()
 
-    schedule_item = page.locator("#today-schedule-content .period-event").filter(has_text="今日必做测试")
-    expect(schedule_item).to_be_visible()
-    expect(schedule_item).not_to_have_class(re.compile(r"\bis-done\b"))
+    expect(page.locator('#today-schedule-content .period-event').filter(has_text='今日必做测试')).to_have_count(0)
+    agenda_url = f'{live_app}/api/agenda?start={today_str}&end={today_str}'
+    day = page.request.get(agenda_url).json()['days'][0]
+    assert next(item for item in day['deadlines'] if item['title'] == '今日必做测试')['done'] is False
 
     todo_row = page.locator(".todo-row").filter(has_text="今日必做测试")
     todo_row.locator(".item-desktop-actions .btn-dismiss").click()
@@ -1541,7 +1563,9 @@ def test_frontend_todo_completion_sinks_and_syncs_with_agenda(live_app, browser)
     expect(completed_group.locator(".todo-row").filter(has_text="今日必做测试")).to_be_visible()
     expect(page.locator(".todo-group-heading .ui-card__title").filter(has_text=re.compile(r"^今天$"))).to_have_count(0)
 
-    expect(schedule_item).to_have_class(re.compile(r"\bis-done\b"))
+    day = page.request.get(agenda_url).json()['days'][0]
+    assert next(item for item in day['deadlines'] if item['title'] == '今日必做测试')['done'] is True
+    expect(page.locator('#today-schedule-content .period-event').filter(has_text='今日必做测试')).to_have_count(0)
 
     # Test that courses past their end_time are marked is-done, while future courses are not
     course_classes = page.evaluate("""() => {

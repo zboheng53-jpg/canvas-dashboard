@@ -61,6 +61,11 @@ def test_oj_manual_completion_and_undo_survive_cache_upgrade_and_refresh(live_ap
 
     row = page.locator(".todo-row-wrap").filter(has_text=title)
     def expect_completion(expected):
+        if expected:
+            heading = page.locator('[data-group-key="completed"] .todo-group-heading')
+            expect(heading).to_be_visible()
+            if heading.get_attribute('aria-expanded') == 'false':
+                heading.click()
         expect(row).to_be_visible()
         action = row.locator(".item-desktop-actions .btn-dismiss")
         expect(action).to_have_attribute("title", "取消完成" if expected else "完成")

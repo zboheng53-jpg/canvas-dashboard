@@ -178,7 +178,7 @@
       renderUnifiedList();
     }
 
-    let collapsedTodoGroups = new Set(['previous']);
+    let collapsedTodoGroups = new Set(['completed']);
     function toggleTodoGroup(key) {
       if (collapsedTodoGroups.has(key)) {
         collapsedTodoGroups.delete(key);
@@ -268,53 +268,109 @@
       return null;
     }
 
-    function timeGroupForTodo(item) {
-      const today = window.customToday || new Date().toISOString().slice(0, 10);
-      const weekEnd = new Date(`${today}T00:00:00Z`);
-      weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
-      const dueDate = item.due_ts ? item.due_ts.slice(0, 10) : '';
-      if (item.done) return 'today';
-      if (dueDate && dueDate <= today) return 'today';
-      if (dueDate && dueDate <= weekEnd.toISOString().slice(0, 10)) return 'week';
-      return 'later';
+    function todoDeadlineState(item) {
+      const today = workspaceTodayISO();
+      const raw = String(item.due_str || item.due_date || '').trim();
+      const timestamp = item.due_ts ? new Date(item.due_ts) : null;
+      const valid = timestamp && !Number.isNaN(timestamp.getTime());
+      const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(raw);
+      const day = valid
+        ? new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Shanghai', year:'numeric', month:'2-digit', day:'2-digit'}).format(timestamp)
+        : (raw.match(/^\d{4}-\d{2}-\d{2}/)?.[0] || '');
+      return {day, overdue: Boolean(day && (day < today || (!dateOnly && valid && timestamp.getTime() < Date.now())))};
     }
 
     function buildTodoGroups(items) {
-      // 固定层次：已逾期 / 今天 / 本周内 / 无日期 / 更晚；无日期固定排在本周内之后。
-      // 分组只看有效截止时间，与来源（平台 / 项目 / 自定义）无关。
-      const labels = { overdue: '已逾期', today: '今天', week: '本周内', nodate: '无日期', later: '更晚', completed: '已完成' };
-      const groups = { overdue: [], today: [], week: [], nodate: [], later: [], completed: [] };
-      const todayStr = window.customToday || new Date().toISOString().slice(0, 10);
-      const today = new Date(todayStr + 'T00:00:00');
-      const weekEnd = new Date(today.getTime() + 7 * 86400000);
-      const dueDateOf = (item) => todoDueDate(item);
+      const labels = {
+        overdue: '已逾期',
+        today: '今天',
+        next3: '近三天',
+        later: '以后',
+        nodate: '无日期',
+        completed: '已完成',
+      };
+      const groups = { overdue: [], today: [], next3: [], later: [], nodate: [], completed: [] };
+      const todayStr = window.customToday || new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'}).format(new Date());
+      const now = new Date();
+
+      const todayDate = new Date(`${todayStr}T00:00:00+08:00`);
+      const tomorrowDate = new Date(todayDate.getTime() + 86400000);
+      const tomorrowStr = new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'}).format(tomorrowDate);
+      const next3EndDate = new Date(todayDate.getTime() + 3 * 86400000);
+      const next3EndStr = new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'}).format(next3EndDate);
+
       items.forEach((item) => {
         if (item.done) { groups.completed.push(item); return; }
-        // 项目行动的「计划日期」是排期而不是截止：没被今日总览选为今日行动的项目步骤不占待办，
-        // 但仍会出现在对应项目的下一步与「查看所有项目」里。
         if (item.is_scheduled_action && !item.isTodayAction) return;
-        const dueDate = dueDateOf(item);
-        if (dueDate && !Number.isNaN(dueDate.getTime()) && dueDate < today) { groups.overdue.push(item); return; }
-        if (dueDate && !Number.isNaN(dueDate.getTime()) && dueDate.getTime() === today.getTime()) { groups.today.push(item); return; }
-        if (item.isTodayAction) { groups.today.push(item); return; }
-        if (!dueDate || Number.isNaN(dueDate.getTime())) { groups.nodate.push(item); return; }
-        if (dueDate <= weekEnd) { groups.week.push(item); return; }
-        groups.later.push(item);
+
+        // Determine if genuinely overdue:
+        // True timestamp deadline before now => overdue; date-only due_date is end-of-day.
+        const {day: datePart, overdue: isGenuinelyOverdue} = todoDeadlineState(item);
+        item.isGenuinelyOverdue = isGenuinelyOverdue;
+
+        // Genuine overdue priority
+        if (isGenuinelyOverdue) {
+          item.isGenuinelyOverdue = true;
+          groups.overdue.push(item);
+          return;
+        }
+
+        // Missed plan stays TODAY every day, label '原计划 YYYY-MM-DD', never fake overdue or rewrite due.
+        const planDate = (item.plannedOn || item.planned_on || '').slice(0, 10);
+        const isMissedPlan = Boolean(item.missed_plan || item.missedPlan || (planDate && planDate < todayStr));
+        if (isMissedPlan) {
+          item.missedPlan = true;
+          groups.today.push(item);
+          return;
+        }
+
+        // Today items:
+        // - Genuine deadline is today
+        // - Pure ordinary planned today
+        // - Scheduled today / isTodayAction / is_today
+        if (datePart === todayStr || planDate === todayStr || item.isTodayAction || item.is_today) {
+          groups.today.push(item);
+          return;
+        }
+
+        // Target comparison date (deadline takes priority, otherwise planned date)
+        const targetDate = datePart || planDate;
+        if (!targetDate) {
+          groups.nodate.push(item);
+          return;
+        }
+
+        if (targetDate >= tomorrowStr && targetDate <= next3EndStr) {
+          groups.next3.push(item);
+          return;
+        }
+
+        if (targetDate > next3EndStr) {
+          groups.later.push(item);
+          return;
+        }
+
+        groups.nodate.push(item);
       });
-      const dueKey = (item) => item.due_ts || '9999-12-31T23:59:59';
+
+      const dueKey = (item) => item.due_ts || (item.plannedOn ? `${item.plannedOn}T00:00:00` : '9999-12-31T23:59:59');
       const sortGroup = (arr) => arr.sort((a, b) =>
         (a.done ? 1 : 0) - (b.done ? 1 : 0) ||
         (b.manualHighlighted ? 1 : 0) - (a.manualHighlighted ? 1 : 0) ||
         dueKey(a).localeCompare(dueKey(b)) || a._stableIndex - b._stableIndex
       );
       Object.values(groups).forEach(sortGroup);
-      const order = ['overdue', 'today', 'week', 'nodate', 'later', 'completed'];
+      const order = ['overdue', 'today', 'next3', 'later', 'nodate', 'completed'];
       return order
         .filter((k) => groups[k].length)
         .map((k) => ({ key: k, title: labels[k], items: groups[k] }));
     }
 
     function compactTodoDateLabel(item, today) {
+      if ((item.missedPlan || item.missed_plan) && !item.isGenuinelyOverdue) {
+        const pDate = item.plannedOn || item.planned_on || '';
+        if (pDate) return `原计划 ${pDate}`;
+      }
       const hasDeadline = Boolean(item.due_ts || (item.due_str && !['—', '--'].includes(item.due_str.trim())));
       let day = (hasDeadline ? item.due_str : item.plannedOn) || '';
       let time = '';
@@ -322,7 +378,7 @@
         const timestamp = new Date(item.due_ts);
         if (!Number.isNaN(timestamp.getTime())) {
           day = new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'}).format(timestamp);
-          if (!['custom', 'project'].includes(item.source) && /\d{2}:\d{2}/.test(item.due_str || '')) {
+          if (/\d{2}:\d{2}/.test(item.due_str || '')) {
             time = new Intl.DateTimeFormat('en-GB', {timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'}).format(timestamp);
           }
         }
@@ -358,8 +414,8 @@
       // LINK-05: collect today scheduled action references
       const today = window.customToday || new Date().toISOString().split('T')[0];
       const todayScheduledRefs = new Set();
-      if (window.workspaceTodayData?.days?.[0]?.timed) {
-        for (const e of window.workspaceTodayData.days[0].timed) {
+      if (workspaceTodayData?.days?.[0]?.timed) {
+        for (const e of workspaceTodayData.days[0].timed) {
           if (e.action_ref && !e.occurrence_done && !e.done) {
             todayScheduledRefs.add(e.action_ref);
           }
@@ -522,7 +578,7 @@
           isMainProject: Boolean(item.is_main),
           groupName: item.group_name || '',
           due_str: item.due_date || '',
-          due_ts: item.due_date ? `${item.due_date}T23:59:59` : null,
+          due_ts: item.due_date ? `${item.due_date}T23:59:59+08:00` : null,
           type: category,
           url: '',
           done: false,
@@ -534,9 +590,10 @@
           taskId: item.task_id,
           projectKind: item.kind,
           isTodayAction: Boolean(item.is_today),
+          missedPlan: Boolean(item.missed_plan),
           plannedOn: item.planned_on || '',
           occurrences: item.occurrences || [],
-          ref: item.ref,
+          ref: item.ref || item.action_ref || `project:${item.project_id}:${item.task_id || item.id}`,
         });
       });
 
@@ -566,41 +623,20 @@
           repeat_label: item.repeat_label,
           ref: item.ref,
           isTodayAction: isTodayAction,
+          plannedOn: item.planned_on || '',
         });
       });
 
-      (window.projectPreviousActions || []).forEach(item => {
-        if (!unified.some(u => u.ref === item.ref)) {
-          unified.push({
-            id: `p${item.id}`,
-            source: 'project',
-            title: item.title,
-            course: item.project_name,
-            category: '此前未完成',
-            isNextAction: false,
-            isMainProject: false,
-            groupName: '',
-            due_str: item.due_date || item.planned_on || '',
-            due_ts: item.due_date ? `${item.due_date}T23:59:59` : null,
-            type: '此前未完成',
-            url: '',
-            done: false,
-            hidden: false,
-            highlighted: false,
-            rawId: item.id,
-            manualHighlighted: false,
-            projectId: item.project_id,
-            taskId: item.task_id,
-            projectKind: 'project_task',
-            isTodayAction: false,
-            is_previous: true,
-            is_scheduled_action: true,
-            plannedOn: item.planned_on || '',
-            occurrences: item.occurrences || [],
-            ref: item.ref,
-          });
-        }
+      // Stable ref dedup
+      const seenRefs = new Set();
+      const dedupedUnified = [];
+      unified.forEach((item) => {
+        const ref = item.ref || `${item.source}:${item.rawId || item.id}`;
+        if (seenRefs.has(ref)) return;
+        seenRefs.add(ref);
+        dedupedUnified.push(item);
       });
+      unified = dedupedUnified;
 
       // Stable sorting happens inside each requested time group: highlighted
       // tasks never leap across a due-date group, and completed tasks remain
@@ -609,13 +645,18 @@
 
       renderTodoSourceFilters(unified);
       updateStatsBar(unified);
-      // 侧栏 nav-count 数字：今日总览的未完成待办数；长期项目的进行中数（从 #active-project-count 读）
-      const overviewCount = unified.filter((it) => !it.done && !it.hidden && (!it.is_scheduled_action || it.isTodayAction)).length;
-      const overviewEl = document.querySelector('[data-nav-count="overview"]');
-      if (overviewEl) {
-        if (overviewCount > 0) { overviewEl.textContent = overviewCount; overviewEl.hidden = false; }
-        else { overviewEl.textContent = ''; overviewEl.hidden = true; }
+
+      // Render compact deadline list on Today overview
+
+      // 侧栏 nav-count 数字：全部待办移动到了 todos
+      const todosCount = unified.filter((it) => !it.done && !it.hidden && (!it.is_scheduled_action || it.isTodayAction)).length;
+      const todosEl = document.querySelector('[data-nav-count="todos"]');
+      if (todosEl) {
+        if (todosCount > 0) { todosEl.textContent = todosCount; todosEl.hidden = false; }
+        else { todosEl.textContent = ''; todosEl.hidden = true; }
       }
+      const overviewEl = document.querySelector('[data-nav-count="overview"]');
+      if (overviewEl) overviewEl.hidden = true;
 
       const todayStr = window.customToday || new Date().toISOString().split('T')[0];
 
@@ -677,6 +718,8 @@
           }
         }
 
+        if (todoDeadlineState(item).overdue) urgencyClass = 'urgent is-overdue';
+        else if (item.missedPlan) urgencyClass = 'remote is-missed-plan';
         const flagIcon = manualFlag ? '&#x2691;' : '&#x2690;';
         const flagTitle = manualFlag ? '\u53d6\u6d88\u6807\u7ea2' : '\u6807\u7ea2';
         const flagClass = manualFlag ? 'btn-flag active' : 'btn-flag';
@@ -757,7 +800,7 @@
         const dueHtml = (item.source === 'custom' && !item.is_recurring)
           ? `<span class="ui-list-item__meta item-due editable-due" data-id="${item.rawId}" data-field="due_date" data-value="${escapeHtml(item.due_str || '')}">${dueLabel}</span>`
           : item.source === 'project'
-            ? `<button class="ui-button ui-button--text ui-list-item__meta item-due project-due-editable" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" data-date-field="${!item.due_str && item.isTodayAction ? 'planned_on' : 'due_date'}" data-date-value="${item.due_str || item.plannedOn}" aria-label="${!item.due_str && item.isTodayAction ? '修改计划日期' : '修改截止日期'}" title="${!item.due_str && item.isTodayAction ? '计划推进：' + (item.plannedOn || '') + '（点击修改）' : '截止日期：' + (item.due_str || item.plannedOn || '') + '（点击修改）'}">${dueLabel}</button>`
+            ? `<button class="ui-button ui-button--text ui-list-item__meta item-due project-due-editable" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" data-date-field="${(item.missedPlan && !item.isGenuinelyOverdue) || (!item.due_str && item.isTodayAction) ? 'planned_on' : 'due_date'}" data-date-value="${item.missedPlan && !item.isGenuinelyOverdue ? item.plannedOn : (item.due_str || item.plannedOn)}" aria-label="${(item.missedPlan && !item.isGenuinelyOverdue) || (!item.due_str && item.isTodayAction) ? '修改计划日期' : '修改截止日期'}" title="${(item.missedPlan && !item.isGenuinelyOverdue) || (!item.due_str && item.isTodayAction) ? '计划推进：' + (item.plannedOn || '') + '（点击修改）' : '截止日期：' + (item.due_str || item.plannedOn || '') + '（点击修改）'}">${dueLabel}</button>`
             : `<span class="ui-list-item__meta item-due">${dueLabel}</span>`;
 
         const srcLabels = { canvas: 'Canvas', haoke: '好课', zhixuemeng: '智学盟', zhihuishu: '智慧树', ketangpai: '课堂派', tongjioj: '同济OJ', project: '项目', custom: '自定义' };
@@ -849,7 +892,7 @@
       container.innerHTML = buildTodoGroups(filteredItems).map((group) => {
         const isCollapsed = collapsedTodoGroups.has(group.key);
         return `
-        <section class="todo-group ${['overdue', 'today'].includes(group.key) ? 'is-overdue' : ''} ${group.key === 'completed' ? 'is-completed' : ''} ${isCollapsed ? 'is-collapsed' : ''}" data-group-key="${group.key}">
+        <section class="todo-group ${group.key === 'overdue' ? 'is-overdue' : ''} ${group.key === 'completed' ? 'is-completed' : ''} ${isCollapsed ? 'is-collapsed' : ''}" data-group-key="${group.key}">
           <div class="todo-group-heading" onclick="toggleTodoGroup('${group.key}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTodoGroup('${group.key}');}" role="button" tabindex="0" aria-expanded="${!isCollapsed}" title="点击${isCollapsed ? '展开' : '折叠'}">
             <div class="todo-group-heading-left">
               <span class="todo-group-chevron-wrap" aria-hidden="true">
@@ -915,7 +958,7 @@
       const totalEl = document.getElementById('stat-total');
       const urgentEl = document.getElementById('stat-urgent');
       if (totalEl) totalEl.textContent = pending;
-      if (urgentEl) urgentEl.textContent = overdue + due72h;
+      if (urgentEl) urgentEl.textContent = due72h;
 
       // Update Top KPI Cards
       const pendingCountEl = document.getElementById('stat-pending-count');
@@ -942,6 +985,7 @@
       const collections = {canvas: canvasItems, haoke: haokeItems, zhixuemeng: zhixuemengItems, zhihuishu: zhihuishuItems, ketangpai: ketangpaiItems, tongjioj: tongjiojItems};
       const item = (collections[platform] || []).find((entry) => String(entry.id) === String(id));
       if (item) item.done = !done;
+      if (!done) collapsedTodoGroups.delete("completed");
       renderUnifiedList();
       const refreshers = {canvas: fetchCanvasTodos, haoke: fetchHaokeTodos, zhixuemeng: fetchZhixuemengTodos,
         zhihuishu: fetchZhihuishuTodos, ketangpai: fetchKetangpaiTodos, tongjioj: fetchTongjiojTodos};
@@ -1408,6 +1452,7 @@
     }
 
     async function toggleTodoCheck(id, done) {
+      if (!done) collapsedTodoGroups.delete("completed");
       if (typeof id === 'string' && id.startsWith('recurring_')) {
         const parts = id.split('_');
         const seriesId = parts[1];

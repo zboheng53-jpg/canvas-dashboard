@@ -55,7 +55,6 @@
       <input type="hidden" name="project_id">
       <label class="ui-field ui-label">项目名称<input name="name" required maxlength="100" autocomplete="off" class="ui-control"></label>
       <label class="ui-field ui-label">一句话目标<textarea name="objective" maxlength="240" rows="3" placeholder="这个项目最终希望达成什么？" class="ui-control"></textarea></label>
-      <label class="ui-field ui-label">项目资料与说明<textarea name="materials" rows="5" maxlength="20000" class="ui-control" placeholder="长期方法、参考材料和暂缓决定"></textarea></label>
       <label class="ui-field ui-label">项目截止日期（可选）<input name="due_date" type="date" class="ui-control"></label>
       <p class="ui-error project-modal-error" id="project-editor-error" role="alert"></p>
       <div class="project-modal-actions">
@@ -77,7 +76,6 @@
       <input type="hidden" name="task_id">
       <label class="ui-field ui-label">任务名称<input name="name" required maxlength="40" autocomplete="off" class="ui-control"></label>
       <label class="ui-field ui-label">详细说明<textarea name="details" rows="5" maxlength="12000" class="ui-control" placeholder="步骤、材料与完成标准"></textarea></label>
-      <label class="action-todo-choice ui-checkbox-label"><input type="checkbox" name="show_in_todos" class="ui-checkbox">同时加入待办清单</label>
       <div class="action-date-fields"><label class="ui-field ui-label">计划日期<input name="planned_on" type="date" class="ui-control"></label><label class="ui-field ui-label">预计分钟数<input name="estimate_minutes" type="number" min="1" max="1440" class="ui-control"></label></div>
       <label class="ui-field ui-label">所属分组<select name="group_id" class="ui-control"></select></label>
       <label class="ui-field ui-label">最晚截止日期（可选）<input name="due_date" type="date" class="ui-control"></label>
