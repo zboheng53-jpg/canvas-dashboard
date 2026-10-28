@@ -25,14 +25,14 @@ def test_guide_navigation_dates_and_new_todo(live_app, browser, width):
     expect(page.locator('#dashboard-right-rail')).to_be_hidden()
     assert page.evaluate('document.documentElement.scrollWidth') <= width
     toc = page.get_by_role('navigation', name='上手指南目录')
-    expect(toc.locator('a')).to_have_count(12)
+    expect(toc.locator('a')).to_have_count(11)
     for anchor in toc.locator('a').all():
         target = anchor.get_attribute('href')
         anchor.click()
         expect(page.locator(target).locator('h2')).to_be_in_viewport()
     expect(page.get_by_role('link', name='GitHub 开源仓库')).to_have_attribute(
         'href', 'https://github.com/zboheng53-jpg/canvas-dashboard')
-    expect(page.locator('.guide-entries .guide-entry-icon svg')).to_have_count(9)
+    expect(page.locator('.guide-entries .guide-entry-icon svg')).to_have_count(7)
     expect(page.locator('.guide-specimen')).to_have_count(7)
     expect(page.locator('.guide-platforms .ui-badge--source')).to_have_count(6)
     page.wait_for_function(

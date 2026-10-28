@@ -527,9 +527,7 @@ function renderProjectDetail() {
         </div>` : ""}
     </div>
 
-    <div class="project-groups">
-      ${renderProjectGroups(project)}
-    </div>
+    ${active ? `<details class="project-order-management"><summary>管理分组与排序</summary><div class="project-groups">${renderProjectGroups(project)}</div></details>` : ""}
 
     ${completedTasks.length ? `
       <details class="project-finished-groups project-finished-tasks ui-card ui-card--subtle" style="margin-top: 20px;">
