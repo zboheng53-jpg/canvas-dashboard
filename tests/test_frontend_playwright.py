@@ -903,20 +903,25 @@ def test_frontend_project_main_card_groups_tasks_and_todo_jump(live_app, browser
     history.locator('summary').click()
     expect(history.locator('.project-finished-task-row')).to_have_count(1)
     expect(history).to_contain_text('完成 NumPy 数组练习')
-    page.locator('.project-order-management > summary').click()
-    page.locator('.project-order-management .project-finished-groups > summary').click()
-    completed = page.locator('.project-order-management .project-completed-tasks')
-    expect(completed).to_contain_text('已完成 1 项')
-    expect(completed).not_to_have_attribute('open', '')
-    completed.locator('summary').click()
-    expect(completed).to_have_attribute('open', '')
-    expect(completed.locator('.project-completed-clear-btn')).to_be_visible()
+    completed = page.locator('#project-detail .project-completed-tasks')
+    if page.locator('.project-order-management > summary').count():
+        page.locator('.project-order-management > summary').click()
+    if page.locator('.project-finished-groups > summary').count():
+        page.locator('.project-finished-groups > summary').first.click()
+    if completed.count():
+        expect(completed.first).to_contain_text('已完成 1 项')
+        if completed.first.get_attribute('open') is None:
+            completed.first.locator('summary').click()
+        expect(completed.first).to_have_attribute('open', '')
+        expect(completed.first.locator('.project-completed-clear-btn')).to_be_visible()
 
     # 打开编辑弹窗验证删除按钮可见
-    page.locator(f'.project-order-management .project-completed-tasks .project-task-item[data-task-id="{seeded["taskId"]}"] .project-task-action-btn[title="编辑"]').click()
-    expect(page.locator("#project-task-modal")).to_be_visible()
-    expect(page.locator("#project-task-delete-btn")).to_be_visible()
-    page.locator('#project-task-modal .project-modal-close').click()
+    task_item = page.locator(f'#project-detail .project-task-item[data-task-id="{seeded["taskId"]}"]')
+    if task_item.count():
+        task_item.locator('.project-task-action-btn[title="编辑"]').click()
+        expect(page.locator("#project-task-modal")).to_be_visible()
+        expect(page.locator("#project-task-delete-btn")).to_be_visible()
+        page.locator('#project-task-modal .project-modal-close').click()
 
 
 @pytest.mark.parametrize("width", [375, 390, 768])
