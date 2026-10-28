@@ -1512,8 +1512,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
 }
 .proj-overview-all-card.is-main,
 .proj-overview-all-card.is-pinned {
-  border-color: var(--color-action-border);
-  background: var(--button-primary-bg);
+  border-color: var(--color-action-border, #bfdbfe);
 }
 .proj-pin-btn {
   display: inline-flex;
@@ -2403,6 +2402,85 @@ section.card.listcard,
   border-radius: var(--ds-radius, 10px) !important;
   padding: 13px 16px !important;
   box-shadow: none !important;
+}
+
+/* 当前步骤卡片（纵向卡片结构，全宽排版） */
+.project-current-step-card {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  margin-top: 18px !important;
+  margin-bottom: 20px !important;
+  padding: 18px 20px !important;
+  border: 1px solid var(--ds-line, #e2e8f0) !important;
+  border-left: 4px solid var(--color-action, #2563eb) !important;
+  background: var(--color-surface, #ffffff) !important;
+  border-radius: var(--ds-radius, 10px) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  gap: 0 !important;
+}
+.project-current-step-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  margin-bottom: 12px !important;
+  flex-wrap: wrap !important;
+  width: 100% !important;
+}
+.project-current-step-meta-left {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+}
+.project-current-step-badge {
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+}
+.project-current-step-group {
+  font-size: 13px !important;
+  color: var(--color-text-secondary, #64748b) !important;
+}
+.project-current-step-dates {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-shrink: 0 !important;
+}
+.project-current-step-title {
+  margin: 0 0 12px 0 !important;
+  font-size: 16.5px !important;
+  font-weight: 600 !important;
+  color: var(--color-text-primary, #1c2330) !important;
+  line-height: 1.45 !important;
+  width: 100% !important;
+  word-break: break-word !important;
+}
+.project-current-step-details {
+  font-size: 13.5px !important;
+  line-height: 1.65 !important;
+  color: var(--color-text-secondary, #475569) !important;
+  background: var(--color-surface-subtle, #f8fafc) !important;
+  border: 1px solid var(--ds-line-soft, #edf2f7) !important;
+  border-radius: 6px !important;
+  padding: 12px 16px !important;
+  margin-bottom: 16px !important;
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+.project-current-step-controls {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  flex-wrap: wrap !important;
+  width: 100% !important;
+}
+.project-current-step-controls .ui-button {
+  flex: none !important;
+  margin-left: 0 !important;
 }
 .project-next-action-left {
   display: flex !important;

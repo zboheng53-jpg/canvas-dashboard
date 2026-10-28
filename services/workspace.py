@@ -1223,13 +1223,6 @@ def _complete_agent_todo(username: str, todo_id: str, source: str = "custom") ->
 def _manage_project_record(username, project_id, operation, task_id=None):
     data = read_json_request() or {}
     changes = action_fields(data)
-    if operation == "to-materials":
-        changes["material_date"] = datetime.now(CST).date().isoformat()
-    if operation == "to-materials":
-        version = data.get("expected_project_updated_at")
-        if not isinstance(version, str) or not version.strip():
-            raise ActionValidationError("转为资料前请读取项目版本 expected_project_updated_at")
-        changes["expected_project_updated_at"] = version
     project = project_store.manage_record(username, project_id, operation, changes, task_id)
     if project is None:
         return api_error("project_record_not_found", "项目或任务不存在", 404)

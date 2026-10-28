@@ -11,7 +11,6 @@ from datetime import datetime
 from flask import Blueprint, abort, jsonify, redirect, request, session
 from login_capacity import LoginCapacityError
 from services.academic import get_term_info
-from services.materials import materials_response, material_write_response
 from services.workspace import (
     _complete_schedule_occurrence,
     _create_custom_action,
@@ -377,17 +376,6 @@ def api_project_todos():
     return jsonify({"ok": True, "items": items, "count": len(items)})
 
 
-@bp.route("/api/materials")
-def api_materials():
-    return materials_response(session["username"])
-
-
-@bp.route("/api/projects/<int:project_id>/materials", methods=["POST"])
-@bp.route("/api/projects/<int:project_id>/materials/<int:entry_id>", methods=["PUT", "DELETE"])
-def api_material_write(project_id, entry_id=None):
-    return material_write_response(session["username"], project_id, entry_id, today=datetime.now(CST).date())
-
-
 @bp.route("/api/projects/<int:project_id>", methods=["PUT", "DELETE"])
 def api_project(project_id):
     if request.method == "DELETE":
@@ -586,7 +574,7 @@ def api_project_restore(project_id):
 
 @bp.route("/api/projects/<int:project_id>/tasks/<int:task_id>/<operation>", methods=["POST"])
 def api_project_task_manage(project_id, task_id, operation):
-    if operation not in {"restore", "to-materials"}:
+    if operation != "restore":
         abort(404)
     return _manage_project_record(session["username"], project_id, operation, task_id)
 

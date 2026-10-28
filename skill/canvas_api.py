@@ -127,7 +127,7 @@ class CanvasDashboard:
         return self._req("/api/agent/v1/projects/trash")
 
     def manage_project_record(self, project_id, operation, task_id=None, **fields) -> dict:
-        if operation not in ("delete", "restore", "to-materials") or (operation == "to-materials" and task_id is None):
+        if operation not in ("delete", "restore"):
             raise ValueError("Invalid project operation")
         path = f"/api/agent/v1/projects/{int(project_id)}"
         if task_id is not None:
@@ -136,20 +136,6 @@ class CanvasDashboard:
 
     def get_projects(self) -> dict:
         return self._req("/api/agent/v1/projects")
-
-    def get_materials(self, project_id=None) -> dict:
-        query = "?" + urllib.parse.urlencode({"project_id": project_id}) if project_id is not None else ""
-        return self._req("/api/agent/v1/materials" + query)
-
-    def add_material_entry(self, project_id, body, **fields) -> dict:
-        return self._req(f"/api/agent/v1/projects/{int(project_id)}/materials", method="POST", data={"body": body, **fields})
-
-    def update_material_entry(self, project_id, entry_id, **changes) -> dict:
-        return self._req(f"/api/agent/v1/projects/{int(project_id)}/materials/{int(entry_id)}", method="PUT", data=changes)
-
-    def delete_material_entry(self, project_id, entry_id, expected_updated_at) -> dict:
-        return self._req(f"/api/agent/v1/projects/{int(project_id)}/materials/{int(entry_id)}", method="DELETE",
-                         data={"expected_updated_at": expected_updated_at})
 
     def add_project_task(self, project_id: str, **fields) -> dict:
         return self._req(f"/api/agent/v1/projects/{urllib.parse.quote(project_id)}/tasks", method="POST", data=fields)

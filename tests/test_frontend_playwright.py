@@ -30,8 +30,8 @@ def register_dashboard_user(page, live_app, username):
 
 
 def open_todos(page):
-    page.evaluate("switchDashboardView('todos')")
-    expect(page.locator("#dashboard-view-todos")).to_be_visible()
+    page.evaluate("switchDashboardView('overview')")
+    expect(page.locator("#dashboard-view-overview")).to_be_visible()
     browser_env.wait_for_layout_settled(page)
 
 
@@ -449,7 +449,7 @@ def test_frontend_console_navigation_groups_features_without_overview_duplicates
     expect(page.locator(".sidebar-nav-group")).to_have_count(4)
     expect(page.locator(".sidebar-section-label")).to_have_text(["工作区", "计划", "管理", "帮助"])
     expect(page.locator("[data-dashboard-view] .sidebar-label")).to_have_text(
-        ["今日总览", "全部待办", "长期项目", "日程与课表", "项目资料", "连接与同步", "日历订阅", "Agent 接入", "偏好设置", "上手指南"]
+        ["今日总览", "长期项目", "日程与课表", "连接与同步", "日历订阅", "Agent 接入", "偏好设置", "上手指南"]
     )
     expect(page.locator("#dashboard-view-overview .login-trigger")).to_have_count(0)
     expect(page.locator("#dashboard-view-overview .account-row")).to_have_count(0)
@@ -465,7 +465,7 @@ def test_frontend_console_navigation_groups_features_without_overview_duplicates
     expect(page.locator("#schedule-timetable-grid")).to_be_visible()
     expect(page.locator("#schedule-week-label")).to_be_visible()
 
-    for view_name in ("overview", "todos", "projects", "schedule", "materials", "connections", "calendar", "agent", "settings", "guide"):
+    for view_name in ("overview", "projects", "schedule", "connections", "calendar", "agent", "settings", "guide"):
         button = page.locator(f'[data-dashboard-view="{view_name}"]')
         button.click()
         expect(page.locator(f'[data-view-panel="{view_name}"]')).to_be_visible()

@@ -87,57 +87,30 @@ def test_permanent_delete_filters_agenda_and_cleans_project(workspace):
     assert project_store.load_projects("alice") == []
 
 
-def test_materials_conversion_conflict_replay_restore_and_reorder(workspace):
+def test_task_reorder_and_delete(workspace):
     c, h = workspace
     p = create_project(c, h)
     a = task(p, details="保留完整方案", is_next_action=True)
     b = task(p, "另一个明确行动")
     p = project_store.load_projects("alice")[0]
-    path = f"/api/projects/{p['id']}/tasks/{a['id']}"
-    payload = {"expected_updated_at": a["updated_at"], "expected_project_updated_at": "old"}
-    assert c.post(path+"/to-materials", json=payload, headers=h).status_code == 409
-    assert len(project_store.load_projects("alice")[0]["tasks"]) == 2
-    payload["expected_project_updated_at"] = p["updated_at"]
-    assert c.post(path+"/to-materials", json=payload, headers=h).status_code == 200
-    current = project_store.load_projects("alice")[0]
-    assert current["material_entries"][0]["body"].count("保留完整方案") == 1
-    assert current["material_entries"][0]["source_ref"] == f"project:{p['id']}:{a['id']}"
-    assert current["materials"] == ""
-    assert c.post(path+"/to-materials", json=payload, headers=h).status_code == 200
-    assert len(project_store.load_projects("alice")[0]["material_entries"]) == 1
-    assert [t["id"] for t in current["tasks"]] == [b["id"]]
-    assert project_store.reorder_tasks("alice", p["id"], [{"id":b["id"], "group_id":None}])
+    assert project_store.reorder_tasks("alice", p["id"], [{"id":b["id"], "group_id":None}, {"id":a["id"], "group_id":None}])
     assert c.get("/api/projects/trash").get_json()["tasks"] == []
     # Test permanent task delete
     assert c.delete(f"/api/projects/{p['id']}/tasks/{b['id']}", headers=h).status_code == 200
-    assert project_store.load_projects("alice")[0]["tasks"] == []
+    assert len(project_store.load_projects("alice")[0]["tasks"]) == 1
     # Test permanent project delete
     assert c.delete(f"/api/projects/{p['id']}", headers=h).status_code == 200
     assert project_store.load_projects("alice") == []
     assert project_store.load_projects("bob", include_deleted=True) == []
 
 
-def test_materials_overflow_preserves_task_and_project(workspace):
-    c, h = workspace
-    p = create_project(c, h)
-    project_store.update_project("alice", p["id"], {"materials":"x"*20000})
-    # Legacy tasks can have long original names; the per-entry limit must fail
-    # atomically even when normal new-task validation prevents such input.
-    a = task(p, name="x" * 20001)
-    p = project_store.load_projects("alice")[0]
-    response = c.post(f"/api/projects/{p['id']}/tasks/{a['id']}/to-materials", json={"expected_updated_at":a["updated_at"], "expected_project_updated_at":p["updated_at"]}, headers=h)
-    assert response.status_code == 400
-    assert len(project_store.load_projects("alice")[0]["tasks"]) == 1
-    assert project_store.load_projects("alice")[0]["materials"] == "x"*20000
-
-
 def test_mcp_projects_preserve_context_and_management_versions():
     client = Mock()
-    full = {"ok":True,"projects":[{"id":1,"updated_at":"v1","materials":"背景","tasks":[{"id":2,"updated_at":"v2"}]}]}
+    full = {"ok":True,"projects":[{"id":1,"updated_at":"v1","tasks":[{"id":2,"updated_at":"v2"}]}]}
     client.request.return_value = full
     assert json.loads(agent_mcp.handle_tool_call(client,"get_projects",{})) == full
-    agent_mcp.handle_tool_call(client,"manage_project_record",{"project_id":1,"task_id":2,"operation":"to-materials","expected_updated_at":"v2","expected_project_updated_at":"v1"})
-    client.request.assert_called_with("/api/agent/v1/projects/1/tasks/2/to-materials",method="POST",data={"expected_updated_at":"v2","expected_project_updated_at":"v1"})
+    agent_mcp.handle_tool_call(client,"manage_project_record",{"project_id":1,"task_id":2,"operation":"delete","expected_updated_at":"v2"})
+    client.request.assert_called_with("/api/agent/v1/projects/1/tasks/2/delete",method="POST",data={"expected_updated_at":"v2"})
 
 
 def test_exported_rules_match_and_agent_auth_is_required(workspace):

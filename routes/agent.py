@@ -5,7 +5,6 @@ import schedule_store
 from datetime import date, datetime
 from flask import Blueprint, abort, jsonify, request
 from services.academic import get_term_info
-from services.materials import materials_response, material_write_response
 from services.workspace import (
     _aggregate_agent_todos,
     _complete_agent_todo,
@@ -36,19 +35,6 @@ from services.workspace import (
 from web_common import CST, api_error, invalid_request_response, read_json_request, require_agent_auth
 
 bp = Blueprint("agent", __name__)
-
-
-@bp.route("/api/agent/v1/materials")
-@require_agent_auth
-def api_agent_materials():
-    return materials_response(request.agent_username)
-
-
-@bp.route("/api/agent/v1/projects/<int:project_id>/materials", methods=["POST"])
-@bp.route("/api/agent/v1/projects/<int:project_id>/materials/<int:entry_id>", methods=["PUT", "DELETE"])
-@require_agent_auth
-def api_agent_material_write(project_id, entry_id=None):
-    return material_write_response(request.agent_username, project_id, entry_id, today=datetime.now(CST).date())
 
 
 @bp.route("/api/agent/v1/schedule/recurring/<int:item_id>/exception", methods=["POST"])
@@ -283,7 +269,7 @@ def api_agent_project_manage(project_id, operation):
 @bp.route("/api/agent/v1/projects/<int:project_id>/tasks/<int:task_id>/<operation>", methods=["POST"])
 @require_agent_auth
 def api_agent_project_task_manage(project_id, task_id, operation):
-    if operation not in {"delete", "restore", "to-materials"}:
+    if operation not in {"delete", "restore"}:
         abort(404)
     if operation == "delete" and "delete" not in request.agent_scopes:
         return api_error("insufficient_scope", "当前 Agent Token 缺少删除 (delete) 权限，无法执行删除操作", 403)

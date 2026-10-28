@@ -9,7 +9,18 @@
 .proj-overview-all-title strong { overflow-wrap: anywhere; }
 .action-project-name { padding: 0; min-width: 0; min-height: 0; height: auto; text-align: left; color: inherit; font-size: inherit; line-height: inherit; white-space: normal; }
 .proj-overview-meta { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 3px 10px; margin-top: 5px; }
-.proj-overview-all-progress { font-size: 11px; }
+.proj-overview-all-progress {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+  flex-shrink: 0;
+  font-weight: 500;
+}
 .proj-overview-all-card .biz-project-item__next--compact { display: flex; align-items: flex-start; gap: 8px; min-height: 0; height: auto; padding: 0; border: 0; background: transparent; box-shadow: none; margin-top: 5px; font-size: 12px; line-height: 1.5; width: 100%; }
 .proj-overview-all-card .biz-project-item__next b { flex: none; white-space: nowrap; }
 .proj-overview-all-card .next-title { flex: 1; min-width: 0; text-align: left; }
@@ -319,15 +330,6 @@ details[open] > summary .project-disclosure-chevron {
 .project-step-details, .project-current-step-details { white-space: pre-wrap; overflow-wrap: anywhere; margin-bottom: var(--space-3); }
 .project-order-management { margin-top: var(--space-5); }
 .project-order-management > summary { cursor: pointer; padding: var(--space-3) 0; color: var(--color-text-secondary); }
-.material-entry-card { margin-bottom: var(--space-3); padding: var(--space-4); }
-.material-entry-header, .material-entry-meta, .material-entry-actions { display: flex; align-items: center; gap: var(--space-2); }
-.material-entry-header { justify-content: space-between; margin-bottom: var(--space-3); }
-.material-entry-meta { min-width: 0; flex-wrap: wrap; }
-.material-entry-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; }
-.materials-history { margin-top: var(--space-5); }
-.materials-history-summary { padding: var(--space-3) var(--space-4); cursor: pointer; }
-.materials-history-body { padding: var(--space-4); }
-.materials-date-group { margin-bottom: var(--space-5); }
 @media (min-width: 961px) {
   #dashboard-view-overview { overflow-y: auto; }
   #dashboard-view-overview main { min-height: 380px !important; }
@@ -342,17 +344,11 @@ details[open] > summary .project-disclosure-chevron {
   .project-roadmap-meta { padding-left: var(--space-3); }
   .project-current-step-controls .ui-button { min-height: 44px; }
   .project-detail-actions { flex-wrap: wrap; }
-  .material-entry-header { align-items: flex-start; flex-wrap: wrap; }
-  .material-entry-actions .ui-button { min-height: 44px; }
 }
 .today-context-bar { display: flex; justify-content: space-between; gap: var(--space-3); align-items: center; padding: var(--space-4) 0; flex-shrink: 0; }
 .today-context-bar h1 { margin: 0; font-size: 24px; }
 .today-context-bar p { margin: var(--space-2) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-control-sm); }
 .today-context-weather { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); font-size: var(--font-size-control-sm); }
-.project-summary-list { width: 100%; }
-#project-overview-content .proj-summary-row { width: 100%; padding: var(--space-3); border: 0; border-bottom: 1px solid var(--ds-line-soft); background: transparent; color: var(--color-text-primary); text-align: left; display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); cursor: pointer; border-radius: 0; }
-.proj-summary-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: var(--space-1); }
-.proj-summary-copy strong, .proj-summary-copy .proj-summary-next { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .proj-summary-copy strong { font-size: var(--font-size-control); }
 .proj-summary-copy .proj-summary-next, .proj-summary-copy small { font-size: var(--font-size-control-sm); color: var(--color-text-secondary); }
 .proj-summary-progress { flex: none; font-variant-numeric: tabular-nums; font-size: var(--font-size-control-sm); }
