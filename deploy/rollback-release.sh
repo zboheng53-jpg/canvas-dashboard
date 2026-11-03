@@ -24,6 +24,7 @@ mv -Tf "$root/current.next" "$root/current"
 
 for unit in \
     canvas-dashboard.service \
+    canvas-dashboard-oj-vpn.service \
     zhihuishu-worker.service \
     zhihuishu-login-cleanup.service \
     zhihuishu-login-cleanup.timer \
@@ -45,6 +46,12 @@ if sudo test -f /etc/letsencrypt/live/canvas-dashboard.xyz/fullchain.pem &&
 fi
 sudo install -m 0644 "$nginx_source" /etc/nginx/sites-enabled/canvas-dashboard
 sudo systemctl daemon-reload
+if sudo test -f /etc/canvas-dashboard/oj-vpn.cred && [ -f "$target/deploy/canvas-dashboard-oj-vpn.service" ]; then
+    sudo systemctl enable canvas-dashboard-oj-vpn.service
+    sudo systemctl restart canvas-dashboard-oj-vpn.service
+else
+    sudo systemctl disable --now canvas-dashboard-oj-vpn.service 2>/dev/null || true
+fi
 sudo nginx -t
 sudo systemctl restart canvas-dashboard.service zhihuishu-worker.service
 sudo systemctl try-restart zhihuishu-login-cleanup.timer canvas-dashboard-account-cleanup.timer canvas-dashboard-backup.timer

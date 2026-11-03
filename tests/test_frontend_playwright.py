@@ -1141,6 +1141,32 @@ def test_frontend_connection_actions_stay_with_the_selected_platform(live_app, b
         assert page.evaluate("document.documentElement.scrollWidth") <= 1440
 
 
+@pytest.mark.parametrize("mode", ["iam", "local"])
+def test_tongjioj_login_submits_once(live_app, browser, mode):
+    page = browser.new_page()
+    register_dashboard_user(page, live_app, "ojlogin" + mode)
+    page.locator('[data-dashboard-view="connections"]').click()
+    page.locator('#login-cards [data-platform="tongjioj"]').click()
+    calls = []
+
+    def reject_login(route):
+        calls.append(route.request.url)
+        route.fulfill(status=200, json={"ok": False, "error": "测试登录失败"})
+
+    page.route("**/api/tongjioj/login-" + mode, reject_login)
+    if mode == "iam":
+        page.locator("#tjoj-student-id-inline").fill("student")
+        page.locator("#tjoj-iam-password-inline").fill("password")
+    else:
+        page.locator("#tjoj-tab-btn-local").click()
+        page.locator("#tjoj-username-inline").fill("student")
+        page.locator("#tjoj-local-password-inline").fill("password")
+    page.locator(f"#tjoj-{mode}-form-inline button[type=submit]").click()
+    expect(page.locator("#tongjioj-error-inline")).to_have_text("测试登录失败")
+    assert len(calls) == 1
+    page.close()
+
+
 def test_frontend_connections_detail_scrolls_inside_fixed_workspace(live_app, browser):
     page = browser.new_page(viewport={"width": 1440, "height": 720})
     register_dashboard_user(page, live_app, "connectionscroll")

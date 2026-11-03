@@ -13,6 +13,7 @@ Environment=CANVAS_DASHBOARD_ENV=production
 Environment=CANVAS_DASHBOARD_COOKIE_SECURE=1
 Environment=CANVAS_DASHBOARD_PUBLIC_BASE_URL=https://canvas-dashboard.xyz
 Environment=CANVAS_DASHBOARD_TRUSTED_HOSTS=canvas-dashboard.xyz,www.canvas-dashboard.xyz
+Environment=TONGJIOJ_VPN_PROXY_URL=http://127.0.0.1:18080
 Environment=ZHIHUISHU_CHROMIUM_EXECUTABLE=/usr/bin/google-chrome-stable
 ExecStart=/home/ubuntu/canvas-dashboard/current/.venv/bin/python serve.py
 Restart=on-failure

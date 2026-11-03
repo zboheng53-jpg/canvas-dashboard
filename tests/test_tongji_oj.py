@@ -554,6 +554,20 @@ def test_rsa_encrypt_password():
     assert decrypted.decode("utf-8") == "MyiamPass!123"
 
 
+def test_iam_login_reports_oj_forbidden_without_submitting_credentials(monkeypatch, test_env):
+    session = MagicMock()
+    session.headers = {}
+    session.get.return_value = MagicMock(status_code=403, url=tongji_oj_client.OJ_IAM_LOGIN_URL, text="您的访问请求已被拦截")
+    monkeypatch.setattr(tongji_oj_client.requests, "Session", lambda: session)
+
+    result = tongji_oj_client.iam_login("alice", "student", "password")
+
+    assert result["ok"] is False
+    assert "403" in result["error"]
+    session.post.assert_not_called()
+    assert not tongji_oj_client.has_credentials("alice")
+
+
 def test_iam_login_flow(monkeypatch, test_env):
     user = "alice"
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=1024)

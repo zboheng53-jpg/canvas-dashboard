@@ -1482,12 +1482,17 @@
       });
     }
 
+    let tjojIamLoginPending = false;
     async function doTongjiojIamLoginInline(e) {
       if (e) e.preventDefault();
+      if (tjojIamLoginPending) return;
       const studentId = (document.getElementById('tjoj-student-id-inline')?.value || '').trim();
       const password = (document.getElementById('tjoj-iam-password-inline')?.value || '').trim();
       if (!studentId || !password) { showTongjiojErrorInline('请输入同济大学学号和统一身份认证密码'); return; }
       hideTongjiojErrorInline();
+      tjojIamLoginPending = true;
+      const button = document.querySelector('#tjoj-iam-form-inline button[type="submit"]');
+      if (button) button.disabled = true;
 
       try {
         const resp = await fetch('/api/tongjioj/login-iam', {
@@ -1513,6 +1518,9 @@
         }
       } catch (e) {
         showTongjiojErrorInline('网络错误');
+      } finally {
+        tjojIamLoginPending = false;
+        if (button) button.disabled = false;
       }
     }
 

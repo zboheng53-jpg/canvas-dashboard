@@ -1,0 +1,22 @@
+[Unit]
+Description=Canvas Dashboard OJ VPN gateway
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+StartLimitIntervalSec=3600
+StartLimitBurst=3
+
+[Service]
+Type=simple
+EnvironmentFile=-/home/ubuntu/canvas-dashboard/current/release.env
+LoadCredentialEncrypted=oj-vpn:/etc/canvas-dashboard/oj-vpn.cred
+ExecStart=/bin/bash /home/ubuntu/canvas-dashboard/current/deploy/run-oj-vpn.sh
+ExecStop=-/usr/bin/docker stop --time 10 canvas-dashboard-oj-vpn
+Restart=on-failure
+RestartPreventExitStatus=77
+RestartSec=120
+TimeoutStopSec=25
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

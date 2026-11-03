@@ -1,4 +1,4 @@
-﻿param(
+param(
     [switch]$SkipPreDeployBackup,
     [switch]$SkipLocalRegression,
     [switch]$ForceLocalRegression
@@ -94,7 +94,7 @@ try {
     $RemoteCommand = "mkdir -p '$RemoteRoot/releases/$ReleaseName' && tar -xzf '$RemoteRoot/incoming/$ReleaseName.tar.gz' -C '$RemoteRoot/releases/$ReleaseName' && bash '$RemoteInstall' '$RemoteRoot/incoming/$ReleaseName.tar.gz' '$ReleaseName'"
     Invoke-DeploySsh -Command $RemoteCommand -Attempts 1 -Description "Remote release activation (the server restores the previous release on failure)"
 
-    Invoke-DeploySsh -Command "systemctl is-active canvas-dashboard.service zhihuishu-worker.service zhihuishu-login-cleanup.timer canvas-dashboard-backup.timer canvas-dashboard-monitor.timer nginx && curl -fsS --max-time 10 http://127.0.0.1:5000/healthz && if sudo test -f /etc/letsencrypt/live/canvas-dashboard.xyz/fullchain.pem; then curl -fsS --max-time 10 --resolve canvas-dashboard.xyz:443:127.0.0.1 https://canvas-dashboard.xyz/healthz; fi" -Description "Post-deployment service verification"
+    Invoke-DeploySsh -Command "systemctl is-active canvas-dashboard.service zhihuishu-worker.service zhihuishu-login-cleanup.timer canvas-dashboard-backup.timer canvas-dashboard-monitor.timer nginx && if sudo test -f /etc/canvas-dashboard/oj-vpn.cred; then systemctl is-active canvas-dashboard-oj-vpn.service; fi && curl -fsS --max-time 10 http://127.0.0.1:5000/healthz && if sudo test -f /etc/letsencrypt/live/canvas-dashboard.xyz/fullchain.pem; then curl -fsS --max-time 10 --resolve canvas-dashboard.xyz:443:127.0.0.1 https://canvas-dashboard.xyz/healthz; fi" -Description "Post-deployment service verification"
 }
 finally {
     Remove-Item -LiteralPath $TarFile -ErrorAction SilentlyContinue

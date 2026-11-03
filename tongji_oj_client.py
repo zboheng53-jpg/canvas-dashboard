@@ -290,6 +290,20 @@ def _save_courses(username: str, courses: list[dict]):
 
 # ---- Authentication Flows ----
 
+def _oj_session():
+    """Use the dedicated local VPN gateway for all OJ and IAM requests when configured."""
+    sess = requests.Session()
+    sess.headers.update(DEFAULT_HEADERS)
+    if settings.TONGJIOJ_VPN_PROXY_URL:
+        proxy = urlsplit(settings.TONGJIOJ_VPN_PROXY_URL)
+        if (proxy.scheme != "http" or proxy.hostname not in ("127.0.0.1", "localhost")
+                or not proxy.port or proxy.username or proxy.password
+                or proxy.path not in ("", "/") or proxy.query or proxy.fragment):
+            raise ValueError("Invalid OJ VPN proxy configuration")
+        sess.trust_env = False
+        sess.proxies.update({"http": settings.TONGJIOJ_VPN_PROXY_URL, "https": settings.TONGJIOJ_VPN_PROXY_URL})
+    return sess
+
 def _extract_iam_page_params(html: str, current_url: str) -> tuple[str | None, str | None]:
     """Extract (authnLcKey, spAuthChainCode) from Tongji IAM ActionAuthChain HTML."""
     m_key = re.search(r"authnLcKey=([A-Za-z0-9_-]+)", current_url)
@@ -393,12 +407,13 @@ def iam_login(username: str, student_id: str, password: str) -> dict:
     if not student_id or not password:
         return {"ok": False, "error": "请输入学号/工号和统一身份认证密码"}
 
-    sess = requests.Session()
-    sess.headers.update(DEFAULT_HEADERS)
+    sess = _oj_session()
 
     try:
         # Step 1: Visit OJ Unified_Certification endpoint, which redirects to iam.tongji.edu.cn
         r1 = sess.get(OJ_IAM_LOGIN_URL, timeout=15, allow_redirects=True)
+        if r1.status_code == 403 and urlsplit(str(r1.url)).hostname == "oj.tongji.edu.cn":
+            return {"ok": False, "error": "同济 OJ 拒绝了服务器的访问（HTTP 403），请联系平台管理员检查服务器 IP"}
         if _is_oj_authenticated_response(r1) and "/index.php/dashboard" in str(r1.url):
             cookies = _session_cookies_dict(sess)
             save_credentials(username, student_id, password, login_mode="iam", cookies=cookies)
@@ -678,8 +693,7 @@ def local_login(username: str, oj_account: str, password: str) -> dict:
     if not oj_account or not password:
         return {"ok": False, "error": "请输入实训平台用户名和密码"}
 
-    sess = requests.Session()
-    sess.headers.update(DEFAULT_HEADERS)
+    sess = _oj_session()
 
     try:
         r1 = sess.get(OJ_LOCAL_LOGIN_URL, timeout=15, allow_redirects=True)
@@ -1044,8 +1058,7 @@ def start_background_refresh(username: str) -> bool:
 
 def _fetch_authenticated_assignments(username: str) -> tuple[str | None, str | None]:
     """Return `(assignments_html, error_message)` using stored session or re-login."""
-    sess = requests.Session()
-    sess.headers.update(DEFAULT_HEADERS)
+    sess = _oj_session()
 
     cookies = _load_cookies(username)
     if cookies:

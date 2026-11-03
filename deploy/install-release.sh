@@ -26,6 +26,7 @@ install_configs() {
     local source=$1
     for unit in \
         canvas-dashboard.service \
+        canvas-dashboard-oj-vpn.service \
         zhihuishu-worker.service \
         zhihuishu-login-cleanup.service \
         zhihuishu-login-cleanup.timer \
@@ -58,6 +59,13 @@ build_browser_login_image() {
     ) || return
 }
 
+build_oj_vpn_image() {
+    local source=$1
+    if [ -f "$source/deploy/build-oj-vpn-image.sh" ]; then
+        sudo bash "$source/deploy/build-oj-vpn-image.sh" || return
+    fi
+}
+
 correct_runtime_permissions() {
     # The application and worker run as ubuntu.  Keep all durable user data
     # private. Chromium can remove cache entries while shutting down, so accept
@@ -88,6 +96,12 @@ activate_release() {
     install_configs "$target" || return
     correct_runtime_permissions || return
     sudo systemctl enable canvas-dashboard.service zhihuishu-worker.service || return
+    if sudo test -f /etc/canvas-dashboard/oj-vpn.cred && [ -f "$target/deploy/canvas-dashboard-oj-vpn.service" ]; then
+        sudo systemctl enable canvas-dashboard-oj-vpn.service || return
+        sudo systemctl restart canvas-dashboard-oj-vpn.service || return
+    elif [ ! -f "$target/deploy/canvas-dashboard-oj-vpn.service" ]; then
+        sudo systemctl disable --now canvas-dashboard-oj-vpn.service 2>/dev/null || true
+    fi
     sudo systemctl enable --now zhihuishu-login-cleanup.timer canvas-dashboard-account-cleanup.timer canvas-dashboard-backup.timer || return
     if [ -f "$target/scripts/monitor_runtime.py" ]; then
         sudo systemctl enable --now canvas-dashboard-monitor.timer || return
@@ -208,6 +222,11 @@ if ! build_browser_login_image "$release"; then
     exit 1
 fi
 
+if ! build_oj_vpn_image "$release"; then
+    echo "OJ VPN image build failed; release was not activated" >&2
+    exit 1
+fi
+
 # Pin the built browser by immutable image ID for this release.
 browser_image=$(sudo docker image inspect --format '{{.Id}}' canvas-dashboard-zhihuishu-login:latest)
 case "$browser_image" in
@@ -215,6 +234,11 @@ case "$browser_image" in
     *) echo "Invalid browser image ID" >&2; exit 1 ;;
 esac
 printf 'ZHIHUISHU_LOGIN_DOCKER_IMAGE=%s\nTONGJI_LOGIN_DOCKER_IMAGE=%s\n' "$browser_image" "$browser_image" > "$release/release.env"
+if [ -f "$release/deploy/build-oj-vpn-image.sh" ]; then
+    oj_vpn_image=$(sudo docker image inspect --format '{{.Id}}' canvas-dashboard-oj-vpn:latest)
+    case "$oj_vpn_image" in sha256:*) ;; *) echo 'Invalid OJ VPN image ID' >&2; exit 1 ;; esac
+    printf 'OJ_VPN_IMAGE=%s\n' "$oj_vpn_image" >> "$release/release.env"
+fi
 
 rollback_on_failure() {
     status=$?
@@ -257,6 +281,9 @@ if sudo test -f /etc/letsencrypt/live/canvas-dashboard.xyz/fullchain.pem; then
 fi
 
 systemctl is-active --quiet canvas-dashboard.service
+if sudo test -f /etc/canvas-dashboard/oj-vpn.cred && [ -f "$release/deploy/canvas-dashboard-oj-vpn.service" ]; then
+    systemctl is-active --quiet canvas-dashboard-oj-vpn.service
+fi
 systemctl is-active --quiet zhihuishu-worker.service
 systemctl is-active --quiet zhihuishu-login-cleanup.timer
 systemctl is-active --quiet canvas-dashboard-account-cleanup.timer
