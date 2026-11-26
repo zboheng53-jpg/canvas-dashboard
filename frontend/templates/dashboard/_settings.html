@@ -3,7 +3,7 @@
     <div class="console-manager-heading business-manager-heading">
       <div>
         <h1>偏好设置</h1>
-        <p>调整界面外观与账户安全设置；数据说明与危险操作可按需展开。</p>
+        <p>调整界面外观与账户安全设置；安全操作与危险操作可按需展开。</p>
       </div>
     </div>
     <div class="ui-card settings-summary-grid settings-progressive-layout">
@@ -14,23 +14,32 @@
             <button type="button" class="ui-button ui-button--choice ui-theme-choice" data-appearance-theme="blue" aria-pressed="true"><span class="ui-theme-swatch ui-theme-swatch--blue" aria-hidden="true"></span><span><strong>蓝白</strong><small>清爽、明亮</small></span></button>
             <button type="button" class="ui-button ui-button--choice ui-theme-choice" data-appearance-theme="moss" aria-pressed="false"><span class="ui-theme-swatch ui-theme-swatch--moss" aria-hidden="true"></span><span><strong>苔绿</strong><small>暖白底色，苔绿点缀</small></span></button>
           </div>
+          <div class="appearance-mode-row">
+            <span class="ui-label settings-field-label" id="appearance-color-mode-label">明暗模式</span>
+            <div class="ui-segmented appearance-mode-segmented" role="group" aria-labelledby="appearance-color-mode-label">
+              <button type="button" class="ui-button ui-button--choice" data-color-mode="system" aria-pressed="true">跟随系统</button>
+              <button type="button" class="ui-button ui-button--choice" data-color-mode="light" aria-pressed="false">浅色</button>
+              <button type="button" class="ui-button ui-button--choice" data-color-mode="dark" aria-pressed="false">深色</button>
+            </div>
+          </div>
           <p class="ui-help" id="appearance-status" role="status">仅保存在此浏览器。布局与操作方式保持一致；动效跟随系统的“减少动态效果”设置。</p>
         </div>
       </section>
 
       <section class="ui-card-section settings-item settings-account-overview" aria-labelledby="settings-account-title">
         <div class="settings-section-heading"><span class="ui-section-label manager-section-index">账号</span><h2 class="ui-card__title" id="settings-account-title">当前账号</h2></div>
-        <div class="settings-section-content settings-account-row"><div><p class="settings-account-name">{{ username }}</p><p>平台连接、同步数据与日历订阅均按此站点账号隔离保存。</p></div><span class="ui-status ui-status--success settings-account-status">当前设备已登录</span></div>
+        <div class="settings-section-content settings-account-row">
+          <div>
+            <p class="settings-account-name">{{ username }}</p>
+            <p>平台连接、同步数据与日历订阅均按此站点账号隔离保存；连续 30 天未访问后登录状态会自动失效。</p>
+          </div>
+        </div>
       </section>
 
-      <section class="ui-card-section settings-item settings-session-security" aria-labelledby="settings-security-title">
-        <div class="settings-section-heading">
-          <span class="ui-section-label manager-section-index">登录安全</span>
-          <h2 class="ui-card__title" id="settings-security-title">退出其他设备</h2>
-        </div>
-        <div class="settings-section-content">
-          <p>连续 30 天未访问网站后，登录状态会自动失效。</p>
-          <p id="revoke-sessions-help">如果你曾在公共电脑或其他设备上登录，可验证当前密码后退出其他设备。</p>
+      <details class="settings-disclosure settings-session-disclosure" id="settings-session-disclosure">
+        <summary><span><b>退出其他设备</b><small>曾在公共电脑或其他设备登录时，可验证密码强制下线其他会话</small></span><i aria-hidden="true">⌄</i></summary>
+        <div class="settings-disclosure-content">
+          <p id="revoke-sessions-help">验证当前网站密码后，除当前浏览器外的其他已登录设备将在下次请求时退出。</p>
           <label class="ui-label settings-field-label" for="revoke-sessions-password">当前网站密码</label>
           <form class="session-revoke-row" id="revoke-sessions-form" onsubmit="event.preventDefault(); revokeOtherSessions();">
             <input id="revoke-sessions-password" type="password" autocomplete="current-password" placeholder="输入当前网站密码" aria-describedby="revoke-sessions-help revoke-sessions-status" class="ui-control">
@@ -38,7 +47,7 @@
           </form>
           <p id="revoke-sessions-status" class="ui-feedback ui-feedback--neutral calendar-subscription-status" role="status" aria-live="polite"></p>
         </div>
-      </section>
+      </details>
 
       <details class="settings-disclosure settings-data-disclosure">
         <summary><span><b>数据与隐私说明</b><small>了解凭据、同步数据和订阅链接如何保存</small></span><i aria-hidden="true">⌄</i></summary>
@@ -77,38 +86,3 @@
     </div>
   </div>
 </section>
-
-<div class="project-modal-backdrop hidden" id="platform-data-confirm-modal">
-  <div class="project-modal-card project-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="platform-data-confirm-title">
-    <div class="project-modal-header"><div><h2 id="platform-data-confirm-title">清除平台数据</h2></div><button type="button" class="ui-icon-button project-modal-close" onclick="closePlatformDataConfirm()" aria-label="关闭">×</button></div>
-    <p class="project-confirm-copy" id="platform-data-confirm-copy"></p>
-    <div class="project-modal-actions"><button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="closePlatformDataConfirm()">取消</button><button type="button" class="ui-button ui-button--danger project-button-danger" onclick="confirmClearPlatformData()">确认清除</button></div>
-  </div>
-</div>
-
-<div class="project-modal-backdrop hidden" id="ktp-figure-modal" onclick="if (event.target === this) closeKetangpaiFigureModal()">
-  <div class="project-modal-card project-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="ktp-figure-modal-title">
-    <div class="project-modal-header">
-      <div>
-        <h2 id="ktp-figure-modal-title">安全验证</h2>
-      </div>
-      <button type="button" class="ui-icon-button project-modal-close" onclick="closeKetangpaiFigureModal()" aria-label="关闭">×</button>
-    </div>
-    <form class="project-modal-form" id="ktp-figure-form" onsubmit="submitKetangpaiFigureCode(event); return false;">
-      <p class="ui-help ktp-figure-prompt">请输入计算结果以发送短信验证码：</p>
-      <div class="ktp-figure-preview-wrap">
-        <img id="ktp-figure-img" src="" alt="计算验证码" class="ktp-figure-img" onclick="refreshKetangpaiFigureCode()" title="看不清？点击刷新验证码">
-        <button type="button" class="ui-button ui-button--secondary ui-button--sm btn-sm" onclick="refreshKetangpaiFigureCode()">换一张</button>
-      </div>
-      <div class="ktp-field-group">
-        <label class="ui-label connection-field-label" for="ktp-figure-input">计算结果</label>
-        <input type="text" id="ktp-figure-input" placeholder="请输入图片中的计算结果" autocomplete="off" class="ui-control">
-      </div>
-      <div class="ui-alert ui-alert--danger ui-alert--compact error-banner hidden" id="ktp-figure-error" role="alert"></div>
-      <div class="project-modal-actions">
-        <button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="closeKetangpaiFigureModal()">取消</button>
-        <button type="submit" id="ktp-figure-submit-btn" class="ui-button ui-button--primary project-button-primary">确认发送</button>
-      </div>
-    </form>
-  </div>
-</div>

@@ -13,26 +13,56 @@
     }
   }
 
+  function abortableSleep(ms, signal) {
+    return new Promise((resolve, reject) => {
+      if (signal && signal.aborted) {
+        reject(new DOMException('The operation was aborted.', 'AbortError'));
+        return;
+      }
+      const onAbort = () => {
+        clearTimeout(sleepId);
+        reject(new DOMException('The operation was aborted.', 'AbortError'));
+      };
+      const sleepId = setTimeout(() => {
+        if (signal) signal.removeEventListener('abort', onAbort);
+        resolve();
+      }, ms);
+      if (signal) {
+        signal.addEventListener('abort', onAbort, { once: true });
+      }
+    });
+  }
+
   async function resolveOperation(response, signal) {
     if (response.status !== 202) return response;
     const task = await response.clone().json();
     if (!task.async_task || !task.status_url) return response;
     const statusUrl = new URL(task.status_url, window.location.origin);
     if (statusUrl.origin !== window.location.origin || !statusUrl.pathname.startsWith('/api/operations/')) return response;
+
+    // Async operation has been queued on the server; disarm the initial 25s request timeout while polling.
+    const cancelMap = window.__cdaCancelTimeoutMap;
+    if (signal && cancelMap && typeof cancelMap.get === 'function') {
+      const cancelTimeout = cancelMap.get(signal);
+      if (typeof cancelTimeout === 'function') cancelTimeout();
+    }
+
     const deadline = Date.now() + 10 * 60 * 1000;
     while (Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      const statusResponse = await originalFetch(statusUrl.href, {signal, credentials: 'same-origin'});
+      await abortableSleep(1000, signal);
+      const statusResponse = await originalFetch(statusUrl.href, { signal, credentials: 'same-origin' });
       if (!statusResponse.ok) return statusResponse;
       const status = await statusResponse.json();
       if (status.state === 'done') {
         return new Response(JSON.stringify(status.result), {
-          status: status.result_status || 200, headers: {'Content-Type': 'application/json', ...status.result_headers},
+          status: status.result_status || 200,
+          headers: { 'Content-Type': 'application/json', ...status.result_headers },
         });
       }
     }
-    return new Response(JSON.stringify({ok: false, error: '操作仍在后台执行，请稍后查看状态'}), {
-      status: 504, headers: {'Content-Type': 'application/json'},
+    return new Response(JSON.stringify({ ok: false, error: '操作仍在后台执行，请稍后查看状态' }), {
+      status: 504,
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 
@@ -63,18 +93,17 @@
           headers.set('X-CSRF-Token', token);
         }
         const options = Object.assign({}, init, { headers });
-        return originalFetch(input, options).then(response => resolveOperation(response, options.signal));
-      } else {
-        const options = init ? Object.assign({}, init) : {};
-        const headers = new Headers(options.headers || {});
-        if (!headers.has('X-CSRF-Token')) {
-          headers.set('X-CSRF-Token', token);
-        }
-        options.headers = headers;
-        return originalFetch(input, options).then(response => resolveOperation(response, options.signal));
+        return originalFetch(input, options).then((response) => resolveOperation(response, options.signal || input.signal));
       }
+      const options = init ? Object.assign({}, init) : {};
+      const headers = new Headers(options.headers || {});
+      if (!headers.has('X-CSRF-Token')) {
+        headers.set('X-CSRF-Token', token);
+      }
+      options.headers = headers;
+      return originalFetch(input, options).then((response) => resolveOperation(response, options.signal));
     }
 
-    return originalFetch(input, init).then(response => resolveOperation(response, init?.signal));
+    return originalFetch(input, init).then((response) => resolveOperation(response, init?.signal));
   };
 })();

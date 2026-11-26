@@ -1,0 +1,483 @@
+/*
+ * Unified Apple-grade motion, feedback, and disclosure primitives.
+ * Pure GPU-composited animations (transform/opacity) and grid-row accordions.
+ */
+
+/* ---- Theme switching sync ---- */
+html.is-theme-switching,
+html.is-theme-switching body,
+html.is-theme-switching .card,
+html.is-theme-switching .rail-card,
+html.is-theme-switching .kpi,
+html.is-theme-switching .academic-sidebar,
+html.is-theme-switching .top-bar.opt1-header,
+html.is-theme-switching .ui-card,
+html.is-theme-switching .ui-surface,
+html.is-theme-switching .ui-control,
+html.is-theme-switching .ui-button,
+html.is-theme-switching .auth-landing-intro,
+html.is-theme-switching .auth-landing-right,
+html.is-theme-switching .auth-card {
+  transition:
+    background-color var(--motion-duration-panel) var(--ease-standard),
+    border-color var(--motion-duration-panel) var(--ease-standard),
+    color var(--motion-duration-panel) var(--ease-standard);
+}
+
+/* ---- Mobile drawer body scroll lock ---- */
+@media (max-width: 960px) {
+  body.mobile-nav-locked {
+    overflow: hidden;
+    touch-action: none;
+  }
+}
+
+/* ---- Grid-row accordion (.ui-collapse) ---- */
+.ui-collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    grid-template-rows var(--motion-duration-panel) var(--motion-ease-spring),
+    opacity var(--motion-duration-panel) var(--ease-standard);
+}
+
+.ui-collapse > .ui-collapse__inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ui-collapse.is-collapsed,
+.todo-group.is-collapsed > .ui-collapse {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    grid-template-rows var(--motion-duration-panel) var(--motion-ease-spring),
+    opacity var(--duration-fast) var(--ease-standard),
+    visibility 0s linear var(--motion-duration-panel);
+}
+
+/* ---- Gliding pill indicator ---- */
+.ui-glide-host {
+  position: relative;
+}
+
+.ui-glide-host > :not(.ui-glide-pill) {
+  position: relative;
+  z-index: 1;
+}
+
+.ui-glide-pill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  box-sizing: border-box;
+  border-radius: var(--radius-pill);
+  background: var(--color-action-soft);
+  border: var(--border-width) solid var(--color-action-border);
+  pointer-events: none;
+  transform-origin: top left;
+}
+
+.project-tabs .ui-glide-pill,
+.ktp-auth-tabs .ui-glide-pill,
+.agent-tabs .ui-glide-pill,
+.ui-segmented .ui-glide-pill,
+.weather-campus-switch .ui-glide-pill {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  border-radius: var(--radius-control);
+  box-shadow: var(--color-shadow-card);
+}
+
+.opt1-header .weather-campus-switch .ui-glide-pill {
+  border-radius: var(--radius-pill);
+  border-color: transparent;
+}
+
+/* ---- View entry & directional slides ---- */
+@keyframes ui-view-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.is-view-entering {
+  animation: ui-view-enter var(--motion-duration-panel) var(--motion-ease-spring);
+}
+
+@keyframes ui-slide-from-right {
+  from {
+    opacity: 0.72;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ui-slide-from-left {
+  from {
+    opacity: 0.72;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.ui-slide-next {
+  animation: ui-slide-from-right var(--motion-duration-panel) var(--motion-ease-spring);
+}
+
+.ui-slide-prev {
+  animation: ui-slide-from-left var(--motion-duration-panel) var(--motion-ease-spring);
+}
+
+/* ---- Row arrival pulse & project step handoff ---- */
+@keyframes ui-arrival-pulse {
+  0% {
+    opacity: 0.72;
+    background-color: var(--color-action-soft);
+    transform: translateY(4px);
+  }
+  45% {
+    opacity: 1;
+    background-color: var(--color-action-soft);
+    transform: none;
+  }
+  100% {
+    background-color: transparent;
+    transform: none;
+  }
+}
+
+.ui-arrival-pulse {
+  animation: ui-arrival-pulse 720ms var(--ease-standard);
+}
+
+@keyframes ui-step-slide-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes ui-step-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.ui-step-exit {
+  animation: ui-step-slide-out 180ms var(--ease-standard) forwards;
+}
+
+.ui-step-enter {
+  animation: ui-step-slide-in 240ms var(--motion-ease-spring);
+}
+
+/* ---- GPU progress bar ---- */
+.ui-progress-track {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--color-progress-track);
+}
+
+.ui-progress-track--compact {
+  height: 4px;
+}
+
+.ui-progress-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-action);
+  transform-origin: left center;
+  transform: scaleX(var(--progress, 0));
+  transition: transform var(--motion-duration-panel) var(--motion-ease-spring);
+}
+
+/* ---- Copy success feedback ---- */
+.ui-button.is-copied,
+.ui-icon-button.is-copied {
+  color: var(--color-success);
+  border-color: var(--color-success-border);
+  background: var(--color-success-soft);
+}
+
+.ui-copied-check {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---- Weather / context loading dim & retry affordance ---- */
+.is-weather-loading .opt1-temp-row,
+.is-weather-loading .opt1-weather-detail {
+  opacity: 0.55;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+
+[data-context-retry] {
+  cursor: pointer;
+  color: var(--color-danger);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ---- Toast region & pill toasts ---- */
+.ui-toast-region {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 1600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: min(calc(100vw - 32px), 460px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+@keyframes ui-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.ui-toast {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 100%;
+  padding: 9px 12px 9px 14px;
+  border-radius: var(--radius-pill);
+  border: var(--border-width) solid var(--color-toast-border);
+  background: var(--color-toast-bg);
+  color: var(--color-toast-text);
+  box-shadow: var(--shadow-dialog);
+  font-size: var(--font-size-control-sm);
+  line-height: 1.35;
+  pointer-events: auto;
+  animation: ui-toast-in var(--motion-duration-panel) var(--motion-ease-spring);
+  transition: opacity var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
+}
+
+.ui-toast.is-leaving {
+  opacity: 0;
+  transform: translateY(8px) scale(0.97);
+  pointer-events: none;
+}
+
+.ui-toast__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--color-toast-action);
+}
+
+.ui-toast--success .ui-toast__dot { background: var(--color-success); }
+.ui-toast--warning .ui-toast__dot { background: var(--color-warning); }
+.ui-toast--danger .ui-toast__dot { background: var(--color-danger); }
+.ui-toast--info .ui-toast__dot { background: var(--color-toast-action); }
+.ui-toast--neutral .ui-toast__dot { background: var(--color-text-muted); }
+
+.ui-toast__message {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-toast__action {
+  flex: none;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--color-toast-action);
+  font-family: inherit;
+  font-size: var(--font-size-control-sm);
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.ui-toast__action:hover {
+  background: color-mix(in srgb, var(--color-toast-action) 16%, transparent);
+}
+
+.ui-toast__close {
+  flex: none;
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  opacity: 0.72;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.ui-toast__close:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--color-toast-text) 14%, transparent);
+}
+
+@media (max-width: 768px) {
+  .ui-toast-region {
+    bottom: calc(var(--mobile-bottom-bar-height) + var(--mobile-safe-bottom) + 14px);
+  }
+
+  .ui-toast {
+    width: 100%;
+    border-radius: var(--radius-surface);
+  }
+
+  .ui-toast__message {
+    white-space: normal;
+  }
+}
+
+/* ---- Shared dialog & confirm dialog animations ---- */
+@keyframes ui-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+dialog.action-dialog[open] {
+  animation: ui-dialog-in var(--motion-duration-panel) var(--motion-ease-spring);
+}
+
+.ui-confirm-dialog {
+  width: min(420px, calc(100vw - 32px));
+}
+
+.ui-confirm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.ui-confirm-title {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.ui-confirm-message {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-control);
+  line-height: 1.6;
+}
+
+.ui-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}
+
+/* ---- Reduced motion override: freeze all decorative & infinite CSS animations ---- */
+@media (prefers-reduced-motion: reduce) {
+  html.is-theme-switching,
+  html.is-theme-switching body,
+  html.is-theme-switching .card,
+  html.is-theme-switching .rail-card,
+  html.is-theme-switching .kpi,
+  html.is-theme-switching .academic-sidebar,
+  html.is-theme-switching .top-bar.opt1-header,
+  html.is-theme-switching .ui-card,
+  html.is-theme-switching .ui-surface,
+  html.is-theme-switching .ui-control,
+  html.is-theme-switching .ui-button,
+  html.is-theme-switching .auth-landing-intro,
+  html.is-theme-switching .auth-landing-right,
+  html.is-theme-switching .auth-card,
+  .ui-collapse,
+  .ui-collapse.is-collapsed,
+  .todo-group.is-collapsed > .ui-collapse,
+  .ui-progress-fill,
+  .ui-toast {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+
+  .is-view-entering,
+  .ui-slide-next,
+  .ui-slide-prev,
+  .ui-arrival-pulse,
+  .ui-step-exit,
+  .ui-step-enter,
+  .ui-toast,
+  dialog.action-dialog[open] {
+    animation: none;
+  }
+
+  .ui-skeleton::after,
+  .ui-spinner,
+  .ui-loading::before,
+  .ui-button[aria-busy="true"]::before,
+  .ui-icon-button[aria-busy="true"]::before,
+  .ui-input-shell.is-loading::after,
+  #btn-refresh.is-refreshing svg {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}

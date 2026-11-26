@@ -71,7 +71,7 @@
 }
 .due::before { content: ""; width: 5px; height: 5px; border-radius: 50%; display: none; flex: none; }
 .due.today::before { display: block; background: var(--ds-accent); }
-.due.soon::before { display: block; background: #d99a2b; }
+.due.soon::before { display: block; background: var(--ds-amber); }
 .due.overdue { color: var(--ds-danger); }
 .due.overdue::before { display: block; background: var(--ds-danger); }
 
@@ -79,21 +79,21 @@
 .empty-block strong { display: block; font-size: 13.5px; color: var(--ds-ink-2); font-weight: 600; margin-bottom: 3px; }
 .empty-block p { font-size: 12px; }
 .sk-row { display: flex; align-items: center; gap: 11px; padding: 10px 18px; }
-.sk-dot { width: 16px; height: 16px; border-radius: 50%; background: #edf0f4; flex: none; }
-.sk-line { height: 10px; border-radius: 5px; background: #edf0f4; }
+.sk-dot { width: 16px; height: 16px; border-radius: 50%; background: var(--color-pill-muted-bg); flex: none; }
+.sk-line { height: 10px; border-radius: 5px; background: var(--color-pill-muted-bg); }
 .sk-line.w60 { width: 60%; } .sk-line.w35 { width: 35%; }
 .sk-anim { animation: ds-sk-pulse 1.4s ease-in-out infinite; }
 @keyframes ds-sk-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
-@media (prefers-reduced-motion: reduce) { .sk-anim { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .sk-anim { animation-duration: 0.01ms; animation-iteration-count: 1; } }
 
-.main-tag { font-size: 10px; font-weight: 600; color: var(--ds-src-project); background: #f3effc; border-radius: 4px; padding: 1px 5px; font-style: normal; }
+.main-tag { font-size: 10px; font-weight: 600; color: var(--ds-src-project); background: var(--color-series-planned-soft); border-radius: 4px; padding: 1px 5px; font-style: normal; }
 
 .tt-block { border-radius: 6px; padding: 5px 7px 5px 9px; font-size: 11px; line-height: 1.35; overflow: hidden; border: 1px solid; border-left-width: 3px; }
 .tt-block .tb-name { font-weight: 600; font-size: 11.5px; display: block; }
 .tt-block .tb-sub { opacity: .8; font-size: 10.5px; display: block; margin-top: 1px; }
-.tb-course { background: var(--ds-series-course-soft); border-color: var(--ds-series-course-border); color: #2f5f8f; }
-.tb-recurring { background: var(--ds-series-recurring-soft); border-color: var(--ds-series-recurring-border); color: #316a4e; }
-.tb-oneoff { background: var(--ds-series-oneoff-soft); border-color: var(--ds-series-oneoff-border); color: #7d5028; }
+.tb-course { background: var(--ds-series-course-soft); border-color: var(--ds-series-course-border); color: var(--series-course-ink); }
+.tb-recurring { background: var(--ds-series-recurring-soft); border-color: var(--ds-series-recurring-border); color: var(--series-recurring-ink); }
+.tb-oneoff { background: var(--ds-series-oneoff-soft); border-color: var(--ds-series-oneoff-border); color: var(--series-oneoff-ink); }
 
 button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--color-focus-outline); outline-offset: 1px; }
 
@@ -106,7 +106,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
 .biz-todo__title { font-size: 13.5px; font-weight: 500; }
 .biz-todo__meta { font-size: 12px; color: var(--ds-ink-3); margin-top: 1px; }
 .biz-todo__right { display: flex; align-items: center; gap: 10px; flex: none; }
-.biz-todo.is-done .biz-todo__title { color: var(--ds-ink-3); text-decoration: line-through; text-decoration-color: #c3cad4; }
+.biz-todo.is-done .biz-todo__title { color: var(--ds-ink-3); text-decoration: line-through; text-decoration-color: var(--color-border-strong); }
 .biz-src { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--ds-ink-3); }
 .biz-src .dot { width: 6px; height: 6px; border-radius: 50%; }
 
@@ -123,7 +123,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
 .biz-project-item.is-sel { background: var(--ds-accent-soft); border-color: var(--color-action-border); }
 .biz-project-item__name { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
 .biz-project-item__next { font-size: 11.5px; color: var(--ds-ink-3); margin-top: 2px; }
-.biz-progress { display: block; height: 4px; border-radius: 2px; background: #e9edf3; margin-top: 8px; overflow: hidden; }
+.biz-progress { display: block; height: 4px; border-radius: 2px; background: var(--color-progress-track); margin-top: 8px; overflow: hidden; }
 .biz-progress > i { display: block; height: 100%; border-radius: 2px; background: var(--ds-src-project); }
 
 /* 4. 项目任务 */
@@ -132,8 +132,8 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
 .biz-task__name { font-size: 13px; font-weight: 500; }
 .biz-task__date { font-size: 11.5px; color: var(--ds-ink-3); font-variant-numeric: tabular-nums; margin-left: auto; }
 .biz-task__actions { display: flex; gap: 2px; flex: none; }
-.biz-task.is-next { background: #fdfaf3; }
-.biz-next-tag { font-size: 10.5px; font-weight: 600; color: var(--ds-src-project); background: #f3effc; border-radius: 4px; padding: 1px 6px; margin-left: 7px; }
+.biz-task.is-next { background: var(--ds-amber-soft); }
+.biz-next-tag { font-size: 10.5px; font-weight: 600; color: var(--ds-src-project); background: var(--color-series-planned-soft); border-radius: 4px; padding: 1px 6px; margin-left: 7px; }
 
 /* 5/6. 日程项 / 课程项 —— 视觉沿用 .tt-block，业务层只给定位容器 */
 .biz-grid { position: relative; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 27px, var(--ds-line-soft) 27px, var(--ds-line-soft) 28px); border: 1px solid var(--ds-line-soft); border-radius: var(--ds-radius-sm); padding: 6px; }
@@ -225,7 +225,8 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
     justify-content: stretch !important;
     gap: 24px !important;
   }
-  .dashboard-shell.sidebar-collapsed .dashboard-grid { grid-template-columns: 72px minmax(0, 1fr); justify-content: stretch; }
+  .dashboard-shell.sidebar-collapsed .dashboard-grid,
+  html[data-sidebar-collapsed="1"] .dashboard-shell .dashboard-grid { grid-template-columns: 72px minmax(0, 1fr); justify-content: stretch; }
   .workspace-stack {
     display: grid !important;
     align-items: start !important;
@@ -246,14 +247,22 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   .dashboard-shell:not(.sidebar-collapsed) .academic-sidebar .sidebar-label,
   .dashboard-shell:not(.sidebar-collapsed) .academic-sidebar .sidebar-section-label { display: block !important; }
   .academic-sidebar .sidebar-nav { gap: 16px !important; }
-  .academic-sidebar .sidebar-heading,
-  .academic-sidebar .sidebar-user {
+  .academic-sidebar .sidebar-heading {
     justify-content: space-between !important;
     padding-right: 10px !important;
     padding-left: 10px !important;
   }
+  .academic-sidebar .sidebar-user {
+    justify-content: flex-start !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    padding: 6px 8px !important;
+  }
   .academic-sidebar .sidebar-brand { display: flex !important; }
-  .academic-sidebar .sidebar-collapse-toggle { transform: none !important; }
+  .academic-sidebar .sidebar-collapse-toggle {
+    transform: none !important;
+    transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), transform var(--motion-duration-panel) var(--ease-standard) !important;
+  }
   .academic-sidebar .sidebar-nav-item,
   .academic-sidebar .sidebar-footer-action {
     justify-content: flex-start !important;
@@ -400,7 +409,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
     background: var(--color-glass);
     border: 1px solid var(--color-glass-border);
     border-radius: 14px;
-    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.9), 0 4px 20px -2px rgba(70, 80, 72, 0.04);
+    box-shadow: var(--color-glass-shadow);
     backdrop-filter: blur(16px) saturate(135%);
     -webkit-backdrop-filter: blur(16px) saturate(135%);
     transition: background var(--duration-normal) var(--ease-standard), border-color var(--duration-normal) var(--ease-standard), box-shadow var(--duration-normal) var(--ease-standard);
@@ -408,7 +417,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   .top-bar.opt1-header:hover {
     background: var(--color-glass-hover);
     border-color: var(--color-glass-border-hover);
-    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 1), 0 6px 24px -4px rgba(70, 80, 72, 0.07);
+    box-shadow: var(--color-glass-shadow-hover);
   }
   .opt1-col {
     display: flex;
@@ -468,7 +477,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #D97706;
+    color: var(--color-weather-icon);
   }
   .opt1-weather-detail {
     display: flex;
@@ -845,7 +854,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   font-size: 11px !important;
   font-weight: 600 !important;
   font-family: var(--font-number, inherit) !important;
-  background: #f1f3f6 !important;
+  background: var(--color-pill-muted-bg) !important;
   border: none !important;
   padding: 1px 7px !important;
   min-height: auto !important;
@@ -867,14 +876,14 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
 
 /* 已逾期 / 今天：标题、Chevron与点变红，计数胶囊微红调
    （标题红色的取胜规则在 legacy 层，见 dashboard-v103.css） */
-.todo-group.is-overdue .todo-group-heading .ui-count-pill { color: var(--ds-danger, #d64545) !important; background: rgba(214, 69, 69, 0.12) !important; opacity: .95; }
+.todo-group.is-overdue .todo-group-heading .ui-count-pill { color: var(--ds-danger, #d64545) !important; background: var(--ds-danger-soft) !important; opacity: .95; }
 .todo-group.is-overdue .todo-group-heading .todo-group-chevron-wrap { color: var(--ds-danger, #d64545) !important; opacity: .85; }
 .todo-group.is-overdue .todo-group-heading .todo-group-divider-line { background: rgba(214, 69, 69, 0.16) !important; }
 .todo-group.is-overdue .todo-group-heading:hover .todo-group-divider-line { background: rgba(214, 69, 69, 0.28) !important; }
 
 /* 已完成组：低调柔和 */
 .todo-group.is-completed .todo-group-heading h3.ui-card__title { color: var(--ds-ink-3, #7d8694) !important; font-weight: 500 !important; }
-.todo-group.is-completed .todo-group-heading .ui-count-pill { color: var(--ds-ink-3, #7d8694) !important; background: #f1f3f6 !important; opacity: .7; }
+.todo-group.is-completed .todo-group-heading .ui-count-pill { color: var(--ds-ink-3, #7d8694) !important; background: var(--color-pill-muted-bg) !important; opacity: .7; }
 .todo-group.is-completed .todo-group-heading .todo-group-chevron-wrap { color: var(--ds-ink-3, #7d8694) !important; opacity: .6; }
 .todo-group.is-completed .todo-group-heading .todo-group-divider-line { opacity: .6 !important; }
 
@@ -988,7 +997,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
 .todo-row.dismissed .biz-todo__title {
   color: var(--ds-ink-3, #7d8694) !important;
   text-decoration: line-through !important;
-  text-decoration-color: #c3cad4 !important;
+  text-decoration-color: var(--color-border-strong) !important;
 }
 /* 项目行特殊：项目行没有副标题，让 body 垂直居中 */
 .todo-row[data-source="project"] .biz-todo__body { justify-content: center; }
@@ -1084,7 +1093,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
 .todo-row.dismissed .item-title {
   color: var(--ds-ink-3, #7d8694) !important;
   text-decoration: line-through !important;
-  text-decoration-color: #c3cad4 !important;
+  text-decoration-color: var(--color-border-strong) !important;
 }
 .todo-row .item-course:not(button) {
   font-size: 12.5px !important;
@@ -1154,7 +1163,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #cbd5e1;
+  background: var(--color-border-strong);
   margin-top: 4px;
   z-index: 2;
   flex: none;
@@ -1304,7 +1313,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   cursor: pointer;
   white-space: nowrap;
   flex: 0 0 auto;
-  transition: all var(--duration-fast) var(--ease-standard);
+  transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
 }
 .proj-rail-tab:hover {
   background: var(--button-secondary-bg-active);
@@ -1317,7 +1326,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   font-weight: 600;
 }
 .proj-rail-tab.is-main .proj-tab-star {
-  color: #d97706;
+  color: var(--color-star-main);
   margin-right: 3px;
   font-size: 11px;
 }
@@ -1340,9 +1349,9 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
 .proj-badge-main {
   font-size: 10px;
   font-weight: 600;
-  color: #b45309;
-  background: #fef3c7;
-  border: 1px solid #fde68a;
+  color: var(--color-warning);
+  background: var(--color-warning-soft);
+  border: 1px solid var(--color-warning-border);
   border-radius: 4px;
   padding: 0.5px 5px;
   white-space: nowrap;
@@ -1387,7 +1396,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
 .bar {
   height: 5px;
   border-radius: 3px;
-  background: #eff1f5;
+  background: var(--color-progress-track);
   margin: 9px 0 7px;
   overflow: hidden;
 }
@@ -1466,7 +1475,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   height: 14px;
   border-radius: 4px;
   flex: none;
-  border: 1.5px solid #c6cdd8;
+  border: 1.5px solid var(--color-border-strong);
   display: grid;
   place-items: center;
   appearance: none;
@@ -1508,7 +1517,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   background: var(--color-surface-subtle);
   border: 1px solid var(--ds-line-soft, #eef0f3);
   border-radius: 8px;
-  transition: all var(--duration-fast) var(--ease-standard);
+  transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
 }
 .proj-overview-all-card.is-main,
 .proj-overview-all-card.is-pinned {
@@ -1524,7 +1533,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   color: var(--ds-ink-3, #7d8694);
   cursor: pointer;
   flex-shrink: 0;
-  transition: all var(--duration-fast) var(--ease-standard);
+  transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
   user-select: none;
 }
 .proj-pin-btn:hover {
@@ -1602,7 +1611,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   background: linear-gradient(90deg, color-mix(in srgb, var(--color-action) 4%, transparent) 0%, transparent 45%);
 }
 .biz-todo__star-main {
-  color: #d97706;
+  color: var(--color-star-main);
   font-weight: bold;
   margin-right: 2px;
 }
@@ -1737,7 +1746,7 @@ section.card.listcard,
   flex: none !important;
 }
 .academic-sidebar .sidebar-nav-item:hover:not(.is-active) {
-  background: #f4f6f9 !important;
+  background: var(--color-nav-hover) !important;
   color: var(--ds-ink, #1c2330) !important;
 }
 .academic-sidebar .sidebar-nav-item.is-active {
@@ -1783,24 +1792,30 @@ section.card.listcard,
   gap: 6px !important;
 }
 .academic-sidebar .sidebar-user {
+  display: flex !important;
+  align-items: center !important;
   justify-content: flex-start !important;
   background: transparent !important;
   border: none !important;
-  border-radius: 7px !important;
+  border-radius: 9px !important;
   min-height: 44px !important;
-  padding: 9px 10px !important;
+  padding: 6px 8px !important;
   margin-bottom: 0 !important;
   gap: 10px !important;
+  text-align: left !important;
+  color: inherit !important;
+  font: inherit !important;
+  cursor: pointer !important;
 }
 .academic-sidebar .sidebar-user:hover,
 .academic-sidebar .sidebar-user:focus-visible {
-  background: #f4f6f9 !important;
+  background: var(--color-nav-hover) !important;
   border: none !important;
 }
 .academic-sidebar .sidebar-user-avatar {
   width: 32px !important;
   height: 32px !important;
-  background: #e8ecf3 !important;
+  background: var(--color-pill-muted-bg) !important;
   border: none !important;
   color: var(--ds-ink-2, #5b6472) !important;
   font-size: 13px !important;
@@ -1825,8 +1840,8 @@ section.card.listcard,
   opacity: 0.7;
 }
 .academic-sidebar .sidebar-logout:hover {
-  background: #fef2f2 !important;
-  color: #b91c1c !important;
+  background: var(--color-danger-soft) !important;
+  color: var(--color-danger-hover) !important;
 }
 .academic-sidebar .sidebar-footer-meta {
   display: flex;
@@ -1874,17 +1889,20 @@ section.card.listcard,
   opacity: 0.95;
 }
 /* ---------- 6b. 折叠侧栏细节精致化（打开按钮、收起数字、对称圆角） ---------- */
-.sidebar-collapsed .user-profile {
+.sidebar-collapsed .user-profile,
+html[data-sidebar-collapsed="1"] .user-profile {
   flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
   padding: 6px 0 10px !important;
   gap: 8px !important;
 }
-.sidebar-collapsed .user-profile .up-info {
+.sidebar-collapsed .user-profile .up-info,
+html[data-sidebar-collapsed="1"] .user-profile .up-info {
   display: none !important;
 }
-.sidebar-collapsed .academic-sidebar .sidebar-collapse-toggle {
+.sidebar-collapsed .academic-sidebar .sidebar-collapse-toggle,
+html[data-sidebar-collapsed="1"] .academic-sidebar .sidebar-collapse-toggle {
   display: grid !important;
   place-items: center !important;
   width: 28px !important;
@@ -1894,30 +1912,37 @@ section.card.listcard,
   transform: rotate(180deg) !important;
   color: var(--ds-ink-3, #7d8694) !important;
   cursor: pointer !important;
-  transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+  transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), transform var(--motion-duration-panel) var(--ease-standard) !important;
 }
-.sidebar-collapsed .academic-sidebar .sidebar-collapse-toggle:hover {
-  background: #f4f6f9 !important;
+.sidebar-collapsed .academic-sidebar .sidebar-collapse-toggle:hover,
+html[data-sidebar-collapsed="1"] .academic-sidebar .sidebar-collapse-toggle:hover {
+  background: var(--color-nav-hover) !important;
   color: var(--ds-ink-1, #1c2330) !important;
 }
 .sidebar-collapsed .academic-sidebar .nav-count,
-.sidebar-collapsed .academic-sidebar [data-nav-count] {
+.sidebar-collapsed .academic-sidebar [data-nav-count],
+html[data-sidebar-collapsed="1"] .academic-sidebar .nav-count,
+html[data-sidebar-collapsed="1"] .academic-sidebar [data-nav-count] {
   display: none !important;
 }
-.sidebar-collapsed .academic-sidebar .sidebar-nav {
+.sidebar-collapsed .academic-sidebar .sidebar-nav,
+html[data-sidebar-collapsed="1"] .academic-sidebar .sidebar-nav {
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
   width: 100% !important;
 }
-.sidebar-collapsed .academic-sidebar .sidebar-nav-group {
+.sidebar-collapsed .academic-sidebar .sidebar-nav-group,
+html[data-sidebar-collapsed="1"] .academic-sidebar .sidebar-nav-group {
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
   width: 100% !important;
 }
 .sidebar-collapsed .academic-sidebar .sidebar-nav-item,
-.sidebar-collapsed .academic-sidebar .sidebar-footer-action {
+.sidebar-collapsed .academic-sidebar .sidebar-footer-action,
+html[data-sidebar-collapsed="1"] .academic-sidebar .sidebar-nav-item,
+html[data-sidebar-collapsed="1"] .academic-sidebar .sidebar-footer-action {
   width: 44px !important;
   height: 44px !important;
   min-height: 44px !important;
@@ -1928,15 +1953,30 @@ section.card.listcard,
   border-radius: 10px !important;
   gap: 0 !important;
 }
-.sidebar-collapsed .academic-sidebar .sidebar-nav-item:hover:not(.is-active) {
+.sidebar-collapsed .academic-sidebar .sidebar-nav-item:hover:not(.is-active),
+html[data-sidebar-collapsed="1"] .academic-sidebar .sidebar-nav-item:hover:not(.is-active) {
   border-radius: 10px !important;
-  background: #f4f6f9 !important;
+  background: var(--color-nav-hover) !important;
 }
-.sidebar-collapsed .academic-sidebar .sidebar-nav-item.is-active {
+.sidebar-collapsed .academic-sidebar .sidebar-nav-item.is-active,
+html[data-sidebar-collapsed="1"] .academic-sidebar .sidebar-nav-item.is-active {
   border-radius: 10px !important;
   background: var(--ds-accent-soft, #eff4fe) !important;
 }
-.sidebar-collapsed .academic-sidebar .sidebar-user {
+.sidebar-collapsed .academic-sidebar .sidebar-user,
+html[data-sidebar-collapsed="1"] .academic-sidebar .sidebar-user {
+  width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  flex: none !important;
+  padding: 0 !important;
+  margin: 0 auto !important;
+  justify-content: center !important;
+  align-items: center !important;
+  border-radius: 10px !important;
+}
+.sidebar-collapsed .academic-sidebar .sidebar-logout,
+html[data-sidebar-collapsed="1"] .academic-sidebar .sidebar-logout {
   width: 44px !important;
   height: 44px !important;
   min-height: 44px !important;
@@ -1946,24 +1986,17 @@ section.card.listcard,
   align-items: center !important;
   border-radius: 10px !important;
 }
-.sidebar-collapsed .academic-sidebar .sidebar-logout {
-  width: 44px !important;
-  height: 44px !important;
-  min-height: 44px !important;
-  padding: 0 !important;
-  margin: 0 auto !important;
-  justify-content: center !important;
-  align-items: center !important;
-  border-radius: 10px !important;
-}
-.sidebar-collapsed .academic-sidebar .sidebar-footer-meta {
+.sidebar-collapsed .academic-sidebar .sidebar-footer-meta,
+html[data-sidebar-collapsed="1"] .academic-sidebar .sidebar-footer-meta {
   flex-direction: column !important;
   justify-content: center !important;
   gap: 2px !important;
   padding: 2px 0 0 !important;
 }
 .sidebar-collapsed .academic-sidebar .sidebar-github-link,
-.sidebar-collapsed .academic-sidebar .sidebar-privacy-link {
+.sidebar-collapsed .academic-sidebar .sidebar-privacy-link,
+html[data-sidebar-collapsed="1"] .academic-sidebar .sidebar-github-link,
+html[data-sidebar-collapsed="1"] .academic-sidebar .sidebar-privacy-link {
   width: 34px !important;
   height: 30px !important;
   padding: 0 !important;
@@ -2041,7 +2074,7 @@ section.card.listcard,
 /* ---------- 11. 标红待办行（设计稿 .biz-todo.is-flagged：inset 红条 + 红标题） ---------- */
 .todo-row.manual-flagged {
   box-shadow: inset 2px 0 0 var(--ds-danger, #d64545) !important;
-  background: #fffdfd !important;
+  background: var(--color-danger-card) !important;
 }
 .todo-row.manual-flagged .biz-todo__title,
 .todo-row.manual-flagged .item-title {
@@ -2318,7 +2351,7 @@ section.card.listcard,
   display: block !important;
   height: 4px !important;
   border-radius: 2px !important;
-  background: #e9edf3 !important;
+  background: var(--color-progress-track) !important;
   margin-top: 8px !important;
   overflow: hidden !important;
   border: none !important;
@@ -2628,7 +2661,7 @@ section.card.listcard,
   background: transparent !important;
   border: none !important;
 }
-.project-task-action-btn:hover { background: #f1f3f6 !important; color: var(--ds-ink, #1c2330) !important; }
+.project-task-action-btn:hover { background: var(--color-pill-muted-bg) !important; color: var(--ds-ink, #1c2330) !important; }
 .project-task-action-btn.is-active-next { color: var(--ds-accent, #2563eb) !important; }
 .project-task-action-btn.is-danger:hover { background: var(--ds-danger-soft, #fdf0f0) !important; color: var(--ds-danger, #d64545) !important; }
 /* 已完成汇总（设计稿 .done-summary） */
@@ -2654,7 +2687,7 @@ section.card.listcard,
   display: none !important;
 }
 .project-completed-tasks > summary:hover {
-  background-color: #fafbfc !important;
+  background-color: var(--color-surface-subtle) !important;
   color: var(--ds-ink-2, #475569) !important;
 }
 .project-completed-tasks > summary:hover .project-disclosure-chevron {
@@ -2785,7 +2818,11 @@ section.card.listcard,
 }
 .schedule-legend .legend-course .legend-dot { background: var(--color-series-course, #4078b5) !important; }
 .schedule-legend .legend-recurring .legend-dot { background: var(--color-series-recurring, #3f815f) !important; }
-.schedule-legend .legend-weekly .legend-dot { background: var(--color-series-one-off, #986036) !important; }
+.schedule-legend .legend-weekly .legend-dot,
+.schedule-legend .legend-one-off .legend-dot,
+.schedule-legend .legend-oneoff .legend-dot { background: var(--color-series-one-off, #986036) !important; }
+.schedule-legend .legend-deadline .legend-dot { background: var(--color-danger) !important; }
+.schedule-legend .legend-planned .legend-dot { background: var(--color-series-planned) !important; }
 /* 网格细节：表头与今日列贴近设计稿 .tt-day */
 .schedule-grid-wrapper {
   border-top: none !important;
@@ -2797,10 +2834,10 @@ section.card.listcard,
   border-bottom: 1px solid var(--ds-line-soft, #eef0f3) !important;
 }
 .schedule-grid-header-cell.is-today {
-  background: #f0f6ff !important;
+  background: var(--color-schedule-today-header) !important;
   color: var(--ds-accent-ink, #1d4fd7) !important;
 }
-.schedule-day-column.is-today { background: #f6f9ff !important; }
+.schedule-day-column.is-today { background: var(--color-schedule-today-bg) !important; }
 .schedule-time-label {
   font-size: 10.5px !important;
   color: var(--ds-ink-3, #7d8694) !important;
@@ -3079,7 +3116,7 @@ section.card.listcard,
   font-weight: 500 !important;
   cursor: pointer !important;
   box-shadow: none !important;
-  transition: all var(--duration-fast) var(--ease-standard) !important;
+  transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard) !important;
 }
 .ktp-auth-tab:hover {
   color: var(--ds-ink, #1c2330) !important;
@@ -3360,7 +3397,7 @@ section.card.listcard,
   margin: 18px 0 !important;
   border: 1px solid var(--ds-danger-border, #f0c7c4) !important;
   border-radius: var(--ds-radius, 10px) !important;
-  background: #fffdfc !important;
+  background: var(--color-danger-card) !important;
   padding: 0 !important;
 }
 .settings-danger-zone .settings-section-heading { padding: 14px 18px 0 !important; }
@@ -3378,7 +3415,7 @@ section.card.listcard,
   margin: 10px 0 14px !important;
 }
 .account-delete-warning strong { display: block !important; font-size: 12.5px !important; }
-.account-delete-warning p { color: #c16a6a !important; font-size: 12px !important; margin: 2px 0 0 !important; }
+.account-delete-warning p { color: var(--color-danger-muted-text) !important; font-size: 12px !important; margin: 2px 0 0 !important; }
 /* 两步确认表单（设计稿 .dz-form） */
 .account-delete-field {
   display: block !important;
@@ -3399,7 +3436,7 @@ section.card.listcard,
   width: 16px !important;
   height: 16px !important;
   border-radius: 50% !important;
-  background: #f3e0df !important;
+  background: var(--color-danger-badge-bg) !important;
   color: var(--ds-danger, #d64545) !important;
   font-size: 10.5px !important;
   margin-right: 6px !important;
@@ -3463,8 +3500,8 @@ section.card.listcard,
   border: none !important;
   border-radius: 999px !important;
   padding: 4px 9px !important;
-  background: #edf8f3 !important;
-  color: #176b4c !important;
+  background: var(--color-success-tint) !important;
+  color: var(--color-success-ink) !important;
   font-size: 11px !important;
 }
 .settings-disclosure {
@@ -3529,13 +3566,13 @@ section.card.listcard,
   padding: 0 16px !important;
   border: 1px solid var(--ds-danger-border, #f0c7c4) !important;
   border-radius: var(--ds-radius, 10px) !important;
-  background: #fffafa !important;
+  background: var(--color-danger-tint) !important;
 }
 .settings-danger-zone > summary { min-height: 62px !important; padding: 14px 0 !important; }
 .settings-danger-zone > summary b { color: var(--ds-danger, #d64545) !important; }
-.settings-danger-zone > summary:hover b { color: #b83232 !important; }
+.settings-danger-zone > summary:hover b { color: var(--color-danger-hover) !important; }
 .settings-danger-content { max-width: none !important; padding-bottom: 18px !important; }
-.settings-danger-content > p { color: #795050 !important; }
+.settings-danger-content > p { color: var(--color-danger-muted-text) !important; }
 .settings-danger-zone:not([open]) .account-delete-form,
 .settings-danger-zone:not([open]) .account-delete-warning { display: none !important; }
 
@@ -3892,4 +3929,49 @@ body:has(.auth-landing-page, .privacy-center-page, .privacy-shell) {
 }
 .connection-data-disclosure:not([open]) > summary {
   margin-bottom: 0 !important;
+}
+
+.connections-detail-panel button.connection-primary-action:disabled {
+  color: var(--control-disabled-text) !important;
+  background: var(--control-disabled-bg) !important;
+  border-color: var(--control-border) !important;
+  box-shadow: none !important;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Glide indicator overrides for segmented tabs styled in design-system.css */
+.ui-glide-host {
+  position: relative;
+}
+.ui-glide-host > :not(.ui-glide-pill) {
+  position: relative;
+  z-index: 1;
+}
+.ui-glide-host.has-glide-indicator .f-chip.is-on,
+.ui-glide-host.has-glide-indicator .f-chip.is-active,
+.ui-glide-host.has-glide-indicator .proj-rail-tab.is-active,
+.ui-glide-host.has-glide-indicator .project-tab-btn.active,
+.ui-glide-host.has-glide-indicator .project-tab-btn.is-on,
+.ui-glide-host.has-glide-indicator .ktp-auth-tab.is-active,
+.ui-glide-host.has-glide-indicator .ktp-auth-tab[aria-selected="true"],
+.ui-glide-host.has-glide-indicator .weather-campus-option.is-active,
+.ui-glide-host.has-glide-indicator .agent-tab-btn.is-active {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+.filter-chips.ui-glide-host .ui-glide-pill,
+.proj-rail-tabs.ui-glide-host .ui-glide-pill {
+  background: var(--ds-accent-soft) !important;
+  border: 1px solid var(--color-action-border) !important;
+  box-shadow: none !important;
+}
+
+@media (min-width: 769px) {
+  html[data-sidebar-collapsed="1"] .dashboard-shell .academic-sidebar .sidebar-label,
+  html[data-sidebar-collapsed="1"] .dashboard-shell .academic-sidebar .sidebar-section-label,
+  html[data-sidebar-collapsed="1"] .dashboard-shell .academic-sidebar .sidebar-brand-copy {
+    display: none !important;
+  }
 }

@@ -1,4 +1,6 @@
 """Appearance persists locally without changing data or desktop geometry."""
+import re
+
 import pytest
 from playwright.sync_api import expect
 
@@ -117,3 +119,76 @@ def test_entry_fade_finishes_and_respects_reduced_motion(live_app, browser):
     assert page.evaluate("document.getAnimations().filter(a => a.animationName === 'workspace-arrive').length") == 0
     page.emulate_media(reduced_motion='reduce')
     expect(workspace).to_have_css('animation-name', 'none')
+
+
+def test_color_mode_follows_system_and_persists_dark_palettes(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 900}, reduced_motion="reduce")
+    register_dashboard_user(page, live_app, "appearancedark")
+    expect(page.locator("html")).to_have_attribute("data-color-mode", "system")
+    expect(page.locator("html")).to_have_attribute("data-resolved-scheme", "light")
+
+    page.emulate_media(color_scheme="dark")
+    expect(page.locator("html")).to_have_attribute("data-resolved-scheme", "dark")
+    expect(page.locator("#theme-color-meta")).to_have_attribute("content", "#0d1117")
+    expect(page.locator("body")).to_have_css("background-color", "rgb(13, 17, 23)")
+    expect(page.locator(".listcard")).to_have_css("background-color", "rgb(21, 27, 35)")
+    expect(page.locator("#academic-sidebar")).to_have_css("background-color", "rgb(17, 22, 29)")
+
+    _set_theme(page, "moss")
+    expect(page.locator("html")).to_have_attribute("data-theme", "moss")
+    expect(page.locator("#theme-color-meta")).to_have_attribute("content", "#111510")
+    expect(page.locator("body")).to_have_css("background-color", "rgb(17, 21, 16)")
+    expect(page.locator(".listcard")).to_have_css("background-color", "rgb(25, 31, 23)")
+    expect(page.locator("#academic-sidebar")).to_have_css("background-color", "rgb(20, 25, 19)")
+
+    page.locator('[data-color-mode="light"]').click()
+    expect(page.locator("html")).to_have_attribute("data-color-mode", "light")
+    expect(page.locator("html")).to_have_attribute("data-resolved-scheme", "light")
+    page.locator('[data-color-mode="dark"]').click()
+    expect(page.locator("html")).to_have_attribute("data-color-mode", "dark")
+    expect(page.locator("html")).to_have_attribute("data-resolved-scheme", "dark")
+
+    page.reload()
+    expect(page.locator("html")).to_have_attribute("data-theme", "moss")
+    expect(page.locator("html")).to_have_attribute("data-color-mode", "dark")
+    expect(page.locator("html")).to_have_attribute("data-resolved-scheme", "dark")
+    page.goto(f"{live_app}/reset-password")
+    expect(page.locator("html")).to_have_attribute("data-resolved-scheme", "dark")
+
+
+def test_sidebar_collapse_hash_routing_and_shared_feedback_primitives(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 900}, reduced_motion="reduce")
+    register_dashboard_user(page, live_app, "shellfeedback")
+
+    page.locator("#sidebar-collapse-toggle").click()
+    expect(page.locator("#dashboard-shell")).to_have_class(re.compile(r"\bsidebar-collapsed\b"))
+    page.reload()
+    expect(page.locator("#dashboard-shell")).to_have_class(re.compile(r"\bsidebar-collapsed\b"))
+
+    page.locator('[data-dashboard-view="settings"]').click()
+    expect(page).to_have_url(re.compile(r"#settings$"))
+    page.locator("#settings-session-disclosure > summary").click()
+    expect(page.locator("#revoke-sessions-password")).to_be_visible()
+    page.go_back()
+    expect(page.locator("#dashboard-view-overview")).to_be_visible()
+
+    confirmed = page.evaluate("""async () => {
+        window.uiToast.show('已保存更改', { tone: 'success' });
+        const trigger = document.getElementById('sidebar-collapse-toggle');
+        trigger.focus();
+        const pending = window.uiConfirm({
+            title: '确认测试',
+            message: '验证焦点恢复',
+            confirmLabel: '确认',
+            cancelLabel: '取消',
+        });
+        document.querySelector('#ui-confirm-dialog [data-ui-confirm-cancel].ui-button').click();
+        const result = await pending;
+        return {
+            result,
+            toastCount: document.querySelectorAll('#ui-toast-region .ui-toast').length,
+            activeId: document.activeElement?.id || '',
+        };
+    }""")
+    assert confirmed == {"result": False, "toastCount": 1, "activeId": "sidebar-collapse-toggle"}
+

@@ -826,6 +826,102 @@
 .auth-card-meta-sep { color: var(--color-text-muted); }
 .auth-card-github-link { display: inline-flex; align-items: center; gap: 4px; }
 .auth-card-github-link svg { width: 13px; height: 13px; fill: currentColor; stroke: none; }
+
+.auth-color-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  min-height: 28px;
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
+}
+
+.auth-color-mode-btn:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+.auth-color-mode-btn:focus-visible {
+  outline: 2px solid var(--color-action);
+  outline-offset: 1px;
+}
+
+.auth-color-mode-btn svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.auth-form .ui-input-shell {
+  position: relative;
+  width: 100%;
+}
+
+.auth-form .ui-input-shell .ui-control {
+  padding-right: 42px;
+}
+
+.auth-pw-toggle {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-control);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
+}
+
+.auth-pw-toggle:hover {
+  color: var(--color-text-primary);
+  background: var(--color-surface-subtle);
+}
+
+.auth-pw-toggle:focus-visible {
+  outline: 2px solid var(--color-action);
+  outline-offset: 1px;
+}
+
+.auth-pw-toggle svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.auth-reset-banner {
+  margin-bottom: 14px;
+}
+
+.auth-reset-desc {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--color-text-secondary);
+}
+
 @media (max-width: 400px) {
   .auth-landing-title { font-size: 24px; }
 }

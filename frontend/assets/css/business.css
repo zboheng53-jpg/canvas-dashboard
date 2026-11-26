@@ -106,8 +106,8 @@
   align-items: center;
   gap: var(--space-2);
   padding: 4px var(--space-2);
-  border-radius: var(--radius-sm);
-  transition: background var(--duration-fast, 0.15s) ease;
+  border-radius: var(--radius-control);
+  transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
 .todo-subtask-row:hover {
@@ -120,10 +120,10 @@
   height: 26px;
   padding: 0 var(--space-2);
   font-size: 11.5px;
-  border-radius: 13px;
+  border-radius: var(--radius-pill);
   border-width: 1px;
   border-style: solid;
-  border-color: var(--ds-line-soft);
+  border-color: var(--color-border);
   background: var(--color-surface);
   color: var(--color-text-secondary);
   cursor: pointer;
@@ -136,9 +136,9 @@
   font-size: 13px;
   border: none;
   background: transparent;
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  transition: opacity var(--duration-fast, 0.15s) ease, color var(--duration-fast, 0.15s) ease, background var(--duration-fast, 0.15s) ease;
+  border-radius: var(--radius-control);
+  color: var(--color-text-muted);
+  transition: opacity var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
 }
 
 .todo-subtask-row:hover .subtask-delete,
@@ -176,10 +176,10 @@
   height: 26px;
   padding: 0 var(--space-2);
   font-size: 11.5px;
-  border-radius: 13px;
+  border-radius: var(--radius-pill);
   border-width: 1px;
   border-style: solid;
-  border-color: var(--ds-line-soft);
+  border-color: var(--color-border);
   background: var(--color-surface);
   color: var(--color-text-secondary);
 }
@@ -434,7 +434,7 @@
   cursor: pointer;
   font-size: 12px;
   list-style: none;
-  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
+  transition: border-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
 }
 
 .todo-source-manager-trigger::-webkit-details-marker {
@@ -480,7 +480,7 @@
 }
 
 .todo-source-manager-heading strong {
-  color: var(--color-text);
+  color: var(--color-text-primary);
   font-family: var(--font-serif);
   font-size: 15px;
 }
@@ -537,7 +537,7 @@
 
 .todo-source-visibility-option > span:not(.dot) {
   overflow: hidden;
-  color: var(--color-text);
+  color: var(--color-text-primary);
   font-size: 12px;
   font-weight: 600;
   text-overflow: ellipsis;
@@ -782,6 +782,113 @@
   margin-bottom: var(--space-3);
 }
 
+.appearance-mode-row {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.appearance-mode-row .settings-field-label {
+  margin: 0;
+}
+
+.ui-segmented,
+.agent-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px;
+  border-radius: var(--radius-surface);
+  background: var(--color-surface-subtle);
+  border: var(--border-width) solid var(--color-border);
+}
+
+.ui-segmented .ui-button--choice,
+.agent-tabs .agent-tab-btn {
+  min-height: var(--control-height-sm);
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--color-text-secondary);
+}
+
+.ui-segmented .ui-button--choice:is(.is-active, [aria-pressed="true"], [aria-selected="true"]),
+.agent-tabs .agent-tab-btn:is(.is-active, [aria-pressed="true"], [aria-selected="true"]) {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.calendar-active-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-surface);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-control-sm);
+}
+
+.calendar-details {
+  margin-top: var(--space-4);
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+.calendar-feed-heading {
+  font-size: var(--font-size-control-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin: var(--space-1) 0;
+}
+
+.agent-token-plaintext-card {
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--color-action-border);
+  border-radius: var(--radius-surface);
+  background: var(--color-action-soft);
+}
+
+.schedule-import-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--color-success-border);
+  border-radius: var(--radius-surface);
+  background: var(--color-success-tint);
+  color: var(--color-success-ink);
+  font-size: var(--font-size-control-sm);
+}
+
+.schedule-import-primary-box {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-surface);
+  background: var(--color-surface-subtle);
+}
+
+.schedule-import-fallback {
+  margin-top: var(--space-3);
+  border-top: var(--border-width) solid var(--color-border);
+}
+
+.ui-menu-divider,
+.project-menu-divider {
+  height: 1px;
+  margin: var(--space-1) 0;
+  border: 0;
+  background: var(--color-border);
+}
+
 .mobile-add-toggle {
   display: none;
 }
@@ -834,9 +941,9 @@
 .agent-token-options-panel {
   margin-bottom: var(--space-3);
   padding: var(--space-3);
-  background: var(--surface-soft, var(--page));
-  border-radius: var(--radius-md, 6px);
-  border: 1px solid var(--line);
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-control);
+  border: var(--border-width) solid var(--color-border);
 }
 
 .agent-token-options-field {
@@ -882,9 +989,9 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-2) var(--space-3);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md, 6px);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-control);
   gap: var(--space-2);
 }
 
@@ -901,8 +1008,8 @@
 }
 
 .agent-token-item-meta {
-  font-size: var(--font-size-help, 11px);
-  color: var(--ink-3);
+  font-size: var(--font-size-help);
+  color: var(--color-text-muted);
   margin-top: var(--space-1);
 }
 
@@ -1101,4 +1208,135 @@
 
 .project-roadmap-row:hover {
   background-color: var(--color-surface-hover, var(--color-surface));
+}
+
+/* Interactive KPI cards and mobile attention banner buttons */
+button.kpi {
+  appearance: none;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
+}
+
+button.kpi:hover {
+  border-color: var(--color-action-border);
+  box-shadow: var(--shadow-hover);
+}
+
+button.kpi:active {
+  transform: translateY(1px);
+}
+
+button.kpi:focus-visible {
+  outline: 0;
+  border-color: var(--control-focus-border);
+  box-shadow: var(--control-focus-shadow);
+}
+
+button.mobile-attention-banner {
+  appearance: none;
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+button.mobile-attention-banner:focus-visible {
+  outline: 0;
+  box-shadow: var(--control-focus-shadow);
+}
+
+/* Todo desktop actions: detail button + safe separation before destructive delete */
+.item-desktop-actions .btn-detail {
+  appearance: none;
+  padding: 3px var(--space-2);
+  border-radius: var(--radius-control);
+  border: var(--border-width) solid transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: var(--font-size-control-sm);
+  font-weight: 500;
+  line-height: 1.3;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+
+.item-desktop-actions .btn-detail:hover,
+.item-desktop-actions .btn-detail:focus-visible {
+  color: var(--color-action-hover);
+  background: var(--color-action-soft);
+  border-color: var(--color-action-border);
+}
+
+.item-desktop-actions .btn-delete {
+  position: relative;
+  margin-left: var(--space-2);
+}
+
+.item-desktop-actions .btn-delete::before {
+  position: absolute;
+  left: calc(var(--space-1) * -1);
+  top: 50%;
+  width: 1px;
+  height: 14px;
+  background: var(--color-border);
+  transform: translateY(-50%);
+  content: "";
+  pointer-events: none;
+}
+
+.subtask-count-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  border: var(--border-width) solid var(--color-border);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  font-family: var(--font-number);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.todo-row .subtask-toggle:not(.subtask-toggle-placeholder) {
+  width: auto;
+  min-width: 28px;
+  padding: 0 5px;
+  gap: var(--space-1);
+  border-radius: var(--radius-control);
+}
+
+.settings-session-disclosure .settings-disclosure-content {
+  max-width: 640px;
+}
+
+@media (max-width: 768px) {
+  .ui-segmented,
+  .agent-tabs {
+    display: flex;
+    width: 100%;
+  }
+
+  .ui-segmented .ui-button--choice,
+  .agent-tabs .agent-tab-btn {
+    flex: 1 1 0;
+  }
 }

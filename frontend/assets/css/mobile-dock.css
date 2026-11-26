@@ -213,7 +213,7 @@
     width: 18px !important;
     height: 18px !important;
     background: var(--amber) !important;
-    color: #fff !important;
+    color: var(--color-on-strong) !important;
     border-radius: 9999px !important;
     display: inline-flex !important;
     align-items: center !important;
@@ -617,7 +617,7 @@
     cursor: pointer !important;
     font-size: 11px !important;
     line-height: 1.2 !important;
-    transition: all 0.15s ease !important;
+    transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard) !important;
   }
 
   .period-day.is-today {
@@ -626,7 +626,7 @@
 
   .period-day[aria-pressed="true"] {
     background: var(--ink) !important;
-    color: #fff !important;
+    color: var(--surface) !important;
     border-color: var(--ink) !important;
   }
 
@@ -824,7 +824,7 @@
     top: -2px !important;
     right: -4px !important;
     background: var(--danger) !important;
-    color: #fff !important;
+    color: var(--color-on-strong) !important;
     font-size: 9px !important;
     font-weight: 700 !important;
     min-width: 14px !important;

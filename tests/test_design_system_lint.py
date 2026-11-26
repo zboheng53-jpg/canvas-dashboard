@@ -14,6 +14,7 @@ MODERN_CSS_FILES = [
     CSS_DIR / "components.css",
     CSS_DIR / "patterns.css",
     CSS_DIR / "business.css",
+    CSS_DIR / "motion.css",
 ]
 
 

@@ -74,3 +74,16 @@ Badge、Tag、Status Dot、Count Pill、Success、Warning、Danger、Info、Aler
 待办、子任务、项目项、项目任务、日程项、课程项、平台连接项、设置项和日历订阅操作区通过 `business.css` 组合基础组件。新业务类只定义模块特有布局；Surface、Card、List Item、Nav Item、标题/辅助文字、交互控件和反馈状态的视觉均来自 `components.css`。
 
 完整映射、例外和数据回归边界见 `BUSINESS_COMPONENT_MIGRATION.md`。
+
+## 深浅色外观与多主题正交体系
+
+外观由 **主题色（`data-theme`：`blue` / `moss`，键 `cda_appearance_v2`）** 与 **明暗模式（`data-color-mode`：`system` 默认 / `light` / `dark`，解析结果 `data-resolved-scheme`，键 `cda_color_mode_v1`）** 正交组合。
+
+- `<head>` 中的 [appearance.js](file:///frontend/assets/js/appearance.js) 在首帧前同步写入 `data-theme`、`data-color-mode`、`data-resolved-scheme`、`data-sidebar-collapsed`（键 `cda_sidebar_collapsed_v1`）与 `<meta name="theme-color" id="theme-color-meta">`，消除闪烁。
+- [tokens.css](file:///frontend/assets/css/tokens.css) 为浅蓝、浅青苔、深蓝（`:root[data-resolved-scheme="dark"]`）与深青苔（`:root[data-theme="moss"][data-resolved-scheme="dark"]`）提供全套语义令牌；深色模式下切勿依赖硬编码白色或浅灰背景。
+- 手动切换主题或明暗时，[appearance.js](file:///frontend/assets/js/appearance.js) 临时为 `<html>` 挂载 `.is-theme-switching`（`220ms` 统一过渡）并同步各面板中的 `.appearance-mode-segmented` 滑块指示器。
+
+## 动效系统与共享反馈原语
+
+- `@layer utilities` 中的 [motion.css](file:///frontend/assets/css/motion.css) 与 [core/motion.js](file:///frontend/assets/js/core/motion.js)（`window.uiMotion`）统一负责 GPU 合成动画：手风琴 `.ui-collapse`、可打断 FLIP 列表重排 `flipList()`、分段滑块 `glideIndicator()`、数字滚动 `animateNumber()`、`<details>` 高度过渡 `enhanceDisclosure()`、`pulseArrival()` 与 `nudgeError()`。禁止新增 `transition: all` 或对布局属性做动画；所有循环动画必须在 `prefers-reduced-motion: reduce` 下于单次极短周期停止。
+- [core/ui-feedback.js](file:///frontend/assets/js/core/ui-feedback.js) 提供共享反馈与无障碍对话框原语：`uiToast.show()`（`#ui-toast-region`，最多叠加 2 条，悬停/聚焦暂停计时）、`uiConfirm()`（`<dialog id="ui-confirm-dialog">`）、`withButtonBusy()`、`copyWithFeedback()` 与 `uiDialog`（Escape / 遮罩点击 / 脏表单保护 / 焦点环绕与触发按钮焦点恢复）。

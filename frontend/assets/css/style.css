@@ -374,7 +374,7 @@ a:hover { color: var(--accent-hover); }
   height: 23px;
   padding: 0 6px;
   color: var(--text-muted);
-  background: #f3f1ed;
+  background: var(--color-surface-subtle);
   border-radius: 999px;
   font-family: var(--font-number);
   font-size: 12px;
@@ -398,7 +398,7 @@ a:hover { color: var(--accent-hover); }
 .unified-item:first-child { border-top: none; }
 
 .unified-item:hover {
-  background: #fafaf8;
+  background: var(--color-surface-subtle);
   border-radius: var(--radius-sm);
 }
 
@@ -441,7 +441,7 @@ a:hover { color: var(--accent-hover); }
 
 /* Remote: no deadline 鈥?gray, subtle */
 .unified-item.remote {
-  border-left-color: #c8c4bc;
+  border-left-color: var(--color-border-strong);
 }
 
 .unified-item.manual-flagged .item-title {
@@ -545,7 +545,7 @@ a:hover { color: var(--accent-hover); }
   font-size: 17px;
   line-height: 1;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard);
 }
 
 .btn-flag { color: var(--text-muted); }
@@ -623,7 +623,7 @@ a:hover { color: var(--accent-hover); }
   font-size: 17px;
   line-height: 1;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard);
 
 
 
@@ -654,7 +654,7 @@ a:hover { color: var(--accent-hover); }
   margin: -4px 20px 12px 61px;
   padding: 8px 12px 10px;
   border-left: 2px solid var(--border);
-  background: #fafaf8;
+  background: var(--color-surface-subtle);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
@@ -772,7 +772,7 @@ a:hover { color: var(--accent-hover); }
   padding: 3px 10px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color var(--duration-normal) var(--ease-standard), background-color var(--duration-normal) var(--ease-standard), border-color var(--duration-normal) var(--ease-standard);
   font-family: inherit;
   white-space: nowrap;
   line-height: 1.4;
@@ -806,7 +806,7 @@ a:hover { color: var(--accent-hover); }
   border-radius: var(--radius-sm);
   padding: 12px 14px;
   text-decoration: none;
-  transition: all 0.2s;
+  transition: border-color var(--duration-normal) var(--ease-standard), box-shadow var(--duration-normal) var(--ease-standard), transform var(--duration-normal) var(--ease-standard);
   cursor: pointer;
 }
 

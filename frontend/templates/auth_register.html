@@ -17,10 +17,14 @@
 
       <section class="auth-landing-right" aria-label="账号注册">
         <div class="auth-landing-right-top">
-          <div class="auth-theme-toggle" role="group" aria-label="外观模式">
+          <div class="auth-theme-toggle" role="group" aria-label="主题配色">
             <button type="button" class="ui-button ui-button--choice auth-theme-btn" data-appearance-theme="blue" title="蓝白外观" aria-label="切换为蓝白外观">蓝白</button>
             <button type="button" class="ui-button ui-button--choice auth-theme-btn" data-appearance-theme="moss" title="苔绿外观" aria-label="切换为苔绿外观">苔绿</button>
           </div>
+          <button type="button" class="ui-button ui-button--choice auth-color-mode-btn" data-color-mode-toggle title="切换浅色或深色外观" aria-label="切换为深色外观" aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>
+            <span data-color-mode-toggle-label>深色</span>
+          </button>
           <span class="auth-card-meta-sep" aria-hidden="true">·</span>
           <a href="/privacy">数据与隐私中心</a>
           <span class="auth-card-meta-sep" aria-hidden="true">·</span>
@@ -42,11 +46,16 @@
           <form class="auth-form" id="register-form">
             <div class="field-group">
               <label class="field-label" for="register-username">用户名</label>
-              <input type="text" id="register-username" placeholder="3-20位字母/数字/下划线" autocomplete="username" class="ui-control input">
+              <input type="text" id="register-username" placeholder="3-20位字母/数字/下划线" autocomplete="username" autofocus class="ui-control input">
             </div>
             <div class="field-group">
               <label class="field-label" for="register-password">密码</label>
-              <input type="password" id="register-password" placeholder="至少6位" autocomplete="new-password" class="ui-control input">
+              <div class="ui-input-shell">
+                <input type="password" id="register-password" placeholder="至少6位" autocomplete="new-password" class="ui-control input">
+                <span role="button" tabindex="0" class="auth-pw-toggle" data-pw-toggle="register-password" aria-label="显示密码" aria-pressed="false" title="显示或隐藏密码">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z"></path><circle cx="12" cy="12" r="2.75"></circle></svg>
+                </span>
+              </div>
             </div>
             <button type="submit" class="ui-button ui-button--primary ui-button--block auth-submit-btn">注册</button>
           </form>
@@ -87,43 +96,86 @@
   </div>
 
   <script>
-    async function doRegister(e) {
-      e.preventDefault();
-      const username = document.getElementById('register-username').value.trim();
-      const password = document.getElementById('register-password').value;
-      if (!username || !password) return;
+    (function initRegisterPage() {
+      const registerForm = document.getElementById('register-form');
+      if (!registerForm) return;
 
-      const btn = document.querySelector('#register-form button');
-      btn.textContent = '...';
-      btn.disabled = true;
+      const usernameInput = document.getElementById('register-username');
+      const passwordInput = document.getElementById('register-password');
+      const errorEl = document.getElementById('register-error');
 
-      try {
-        const resp = await fetch('/api/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password }),
+      const showError = (msg) => {
+        if (!errorEl) return;
+        errorEl.textContent = msg;
+        errorEl.classList.remove('hidden');
+      };
+      const clearError = () => {
+        if (!errorEl) return;
+        errorEl.textContent = '';
+        errorEl.classList.add('hidden');
+      };
+
+      usernameInput.addEventListener('input', clearError);
+      passwordInput.addEventListener('input', clearError);
+
+      document.querySelectorAll('[data-pw-toggle]').forEach((toggle) => {
+        const targetInput = document.getElementById(toggle.dataset.pwToggle);
+        if (!targetInput) return;
+        const flip = () => {
+          const reveal = targetInput.type === 'password';
+          targetInput.type = reveal ? 'text' : 'password';
+          toggle.setAttribute('aria-pressed', String(reveal));
+          toggle.setAttribute('aria-label', reveal ? '隐藏密码' : '显示密码');
+        };
+        toggle.addEventListener('click', flip);
+        toggle.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            flip();
+          }
         });
-        const result = await resp.json();
-        if (result.ok) {
-          window.location.href = '/';
-        } else {
-          document.getElementById('register-error').textContent = result.error || '注册失败';
-          document.getElementById('register-error').classList.remove('hidden');
-        }
-      } catch (e) {
-        document.getElementById('register-error').textContent = '网络错误';
-        document.getElementById('register-error').classList.remove('hidden');
-      } finally {
-        btn.textContent = '注册';
-        btn.disabled = false;
-      }
-    }
+      });
 
-    // The capacity guard renders an explanation instead of the form.
-    const registerForm = document.getElementById('register-form');
-    if (registerForm) {
-      registerForm.addEventListener('submit', doRegister);
-    }
+      registerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        clearError();
+        const username = usernameInput.value.trim();
+        const password = passwordInput.value;
+        if (!username) {
+          showError('请输入用户名。');
+          usernameInput.focus();
+          return;
+        }
+        if (!password) {
+          showError('请输入密码。');
+          passwordInput.focus();
+          return;
+        }
+
+        const btn = document.querySelector('#register-form button');
+        btn.textContent = '注册中…';
+        btn.disabled = true;
+
+        try {
+          const resp = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
+          });
+          const result = await resp.json();
+          if (result.ok) {
+            window.location.href = '/';
+            return;
+          }
+          showError(result.error || '注册失败');
+        } catch (err) {
+          showError('网络错误，请稍后重试');
+        } finally {
+          btn.textContent = '注册';
+          btn.disabled = false;
+        }
+      });
+    })();
   </script>
 </body>
 </html>
