@@ -48,6 +48,9 @@ def test_twenty_clients_can_edit_local_tasks_while_two_upstream_jobs_are_blocked
     monkeypatch.setattr(canvas_auth.requests, 'get', blocked_get)
     monkeypatch.setattr(canvas_auth, '_parse_ical', lambda _: [])
     durations = []
+    bounded_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix='http-sync-mixed-test')
+    monkeypatch.setattr(http_sync, 'HTTP_SYNC_MAX_WORKERS', 2)
+    monkeypatch.setattr(http_sync, '_executor', bounded_executor)
     def client_work(entry):
         username, client = entry
         start = time.perf_counter()
@@ -70,8 +73,7 @@ def test_twenty_clients_can_edit_local_tasks_while_two_upstream_jobs_are_blocked
             assert len(todos) == 1 and todos[0]['text'] == username + ' local task' and todos[0]['done']
     finally:
         released.set()
-        http_sync._executor.submit(lambda: None).result(timeout=10)
-        http_sync._executor.submit(lambda: None).result(timeout=10)
+        bounded_executor.shutdown(wait=True)
     artifact = os.environ.get('CANVAS_TEST_ARTIFACTS')
     if artifact:
         ordered = sorted(durations)

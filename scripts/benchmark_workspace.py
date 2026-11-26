@@ -20,11 +20,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--clients', default='1,5,10,20')
     parser.add_argument('--rounds', type=int, default=3)
+    parser.add_argument('--threads', type=int, default=None)
     parser.add_argument('--output', type=Path)
     args = parser.parse_args()
     clients = [int(value) for value in args.clients.split(',')]
     if not clients or min(clients) < 1 or max(clients) > 50 or not 1 <= args.rounds <= 20:
         parser.error('Use 1–50 clients and 1–20 rounds')
+    if args.threads is not None and args.threads < 1:
+        parser.error('Use --threads >= 1')
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     with tempfile.TemporaryDirectory(prefix='canvas-capacity-') as temp:
         os.environ['CANVAS_DASHBOARD_DATA_DIR'] = temp
@@ -33,10 +36,12 @@ def main():
         from app import app
         import auth
         import project_store
+        import settings
         from storage import write_json_file
         from user_paths import user_dir
         from services import academic
 
+        threads = args.threads if args.threads is not None else settings.APP_THREADS
         academic._get_holidays = lambda: []
         app.config.update(TESTING=False, SESSION_COOKIE_SECURE=False)
         today = datetime.now(timezone(timedelta(hours=8))).date().isoformat()
@@ -54,13 +59,13 @@ def main():
             account_id, version = auth.session_identity(username)
             cookies.append(app.session_interface.get_signing_serializer(app).dumps(
                 {'username': username, 'account_id': account_id, 'session_version': version}))
-        server = create_server(app, host='127.0.0.1', port=0, threads=8, map={})
+        server = create_server(app, host='127.0.0.1', port=0, threads=threads, map={})
         thread = threading.Thread(target=server.run, daemon=True)
         thread.start()
         base = f'http://127.0.0.1:{server.effective_port}'
         paths = ['/api/custom/todos', '/api/projects', '/api/actions', f'/api/agenda?start={today}&end={today}']
         report = {'scope': 'local synthetic reads; excludes real sync, browser login, TLS and production hardware',
-                  'threads': 8, 'todos_per_user': 30, 'project_actions_per_user': 5, 'rounds': args.rounds, 'runs': []}
+                  'threads': threads, 'todos_per_user': 30, 'project_actions_per_user': 5, 'rounds': args.rounds, 'runs': []}
         try:
             for count in clients:
                 barrier = threading.Barrier(count)

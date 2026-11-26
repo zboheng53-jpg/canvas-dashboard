@@ -117,9 +117,12 @@ def _leases(data_dir):
 
 
 @contextmanager
-def _capacity_lock(data_dir, timeout=0.1):
-    if not _startup_lock.acquire(blocking=False):
-        raise LoginCapacityError('有认证窗口正在启动，请稍后再试。')
+def _capacity_lock(data_dir, timeout=0.1, *, fail_fast_local=True):
+    if fail_fast_local:
+        if not _startup_lock.acquire(blocking=False):
+            raise LoginCapacityError('有认证窗口正在启动，请稍后再试。')
+    elif not _startup_lock.acquire(timeout=timeout):
+        raise LoginCapacityError('浏览器资源正在分配，请稍后再试。')
     try:
         try:
             with interprocess_lock(data_dir / 'browser_capacity', timeout=timeout):
@@ -154,7 +157,7 @@ def worker_browser_slot(data_dir: Path, username: str = ""):
     import secrets
     token = secrets.token_hex(16)
     lease_path = data_dir / WORKER_LEASE_FILE
-    with _capacity_lock(data_dir):
+    with _capacity_lock(data_dir, timeout=2.0, fail_fast_local=False):
         leases = _leases(data_dir)
         active = len(leases)
         for filename in SESSION_FILES:

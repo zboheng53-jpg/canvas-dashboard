@@ -245,7 +245,8 @@ SESSION_ACTIVITY_MIN_INTERVAL = timedelta(hours=12)
 
 LOGIN_RATE_LIMIT_ATTEMPTS = 8
 LOGIN_RATE_LIMIT_SECONDS = 5 * 60
-REGISTER_RATE_LIMIT_ATTEMPTS = 5
+_DEFAULT_REGISTER_RATE_LIMIT_ATTEMPTS = settings.REGISTER_RATE_LIMIT_ATTEMPTS
+REGISTER_RATE_LIMIT_ATTEMPTS = _DEFAULT_REGISTER_RATE_LIMIT_ATTEMPTS
 REGISTER_RATE_LIMIT_SECONDS = 30 * 60
 SMS_RATE_LIMIT_ATTEMPTS = 3
 SMS_RATE_LIMIT_SECONDS = 10 * 60
@@ -729,11 +730,13 @@ def login_page(platform):
     return render_template(f"login_{platform}.html", username=session.get("username"))
 
 
-@app.route("/api/apple-calendar/subscription", methods=["POST", "DELETE"])
+@app.route("/api/apple-calendar/subscription", methods=["GET", "POST", "DELETE"])
 def api_apple_calendar_subscription():
     if not settings.APPLE_CALENDAR_ENABLED:
         abort(404)
     username = session["username"]
+    if request.method == "GET":
+        return jsonify({"ok": True, **apple_calendar.subscription_status(username)})
     if request.method == "DELETE":
         return jsonify({"ok": apple_calendar.revoke_token(username)})
 
@@ -866,14 +869,19 @@ def api_auth_register():
     # Rate limit by IP to prevent creating unlimited accounts by rotating usernames
     client_ip = _request_ip()
     skip_ip_limit = app.config.get("TESTING") and client_ip in ("127.0.0.1", "::1", "localhost")
+    register_limit = (
+        REGISTER_RATE_LIMIT_ATTEMPTS
+        if REGISTER_RATE_LIMIT_ATTEMPTS != _DEFAULT_REGISTER_RATE_LIMIT_ATTEMPTS
+        else settings.REGISTER_RATE_LIMIT_ATTEMPTS
+    )
     if not skip_ip_limit:
         allowed_ip, retry_after_ip = _check_rate_limit(
-            "auth-register-ip", client_ip, REGISTER_RATE_LIMIT_ATTEMPTS, REGISTER_RATE_LIMIT_SECONDS
+            "auth-register-ip", client_ip, register_limit, REGISTER_RATE_LIMIT_SECONDS
         )
         if not allowed_ip:
             return _rate_limited_response(retry_after_ip)
     allowed, retry_after = _check_rate_limit(
-        "auth-register", username, REGISTER_RATE_LIMIT_ATTEMPTS, REGISTER_RATE_LIMIT_SECONDS
+        "auth-register", username, register_limit, REGISTER_RATE_LIMIT_SECONDS
     )
     if not allowed:
         return _rate_limited_response(retry_after)
@@ -1908,6 +1916,33 @@ def api_zhihuishu_login_session_auth():
     return "", 204
 
 
+def _complete_zhihuishu_login_session(username: str, token: str):
+    zhihuishu_login_sessions.stop_session(username, token)
+    if not zhihuishu_worker.run_scheduled_cycle(username, force_fetch=True):
+        return jsonify({"ok": False, "error": "login not detected yet"}), 400
+    status = zhihuishu_store.load_status(username)
+    return jsonify({"ok": True, "status": status})
+
+
+@app.route("/api/zhihuishu/login-session/complete", methods=["POST"])
+@background_operation("zhihuishu", "login_complete")
+def api_zhihuishu_login_session_complete_current():
+    username = session["username"]
+    login_session = zhihuishu_login_sessions.load_session(username)
+    if not login_session or login_session.get("username") != username:
+        return jsonify({"ok": False, "error": "login session not found or expired"}), 404
+    try:
+        expires_at = float(login_session.get("expires_at", 0))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "login session not found or expired"}), 404
+    if expires_at < time.time():
+        return jsonify({"ok": False, "error": "login session not found or expired"}), 404
+    token = login_session.get("token")
+    if not token:
+        return jsonify({"ok": False, "error": "login session not found or expired"}), 404
+    return _complete_zhihuishu_login_session(username, token)
+
+
 @app.route("/api/zhihuishu/login-session/<token>/complete", methods=["POST"])
 @background_operation("zhihuishu", "api_zhihuishu_login_session_complete")
 def api_zhihuishu_login_session_complete(token):
@@ -1915,11 +1950,7 @@ def api_zhihuishu_login_session_complete(token):
     login_session = zhihuishu_login_sessions.session_for_token(token)
     if not login_session or login_session.get("username") != username:
         return jsonify({"ok": False, "error": "login session not found or expired"}), 404
-    zhihuishu_login_sessions.stop_session(username, token)
-    if not zhihuishu_worker.run_scheduled_cycle(username, force_fetch=True):
-        return jsonify({"ok": False, "error": "login not detected yet"}), 400
-    status = zhihuishu_store.load_status(username)
-    return jsonify({"ok": True, "status": status})
+    return _complete_zhihuishu_login_session(username, token)
 
 
 @app.route("/api/zhihuishu/login-session/<token>", methods=["DELETE"])

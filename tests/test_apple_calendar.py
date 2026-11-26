@@ -17,7 +17,11 @@ def test_calendar_token_is_hashed_at_rest_and_isolated(tmp_path, monkeypatch):
     assert alice_token != bob_token
     assert len(alice_token) >= 40
     assert alice_token not in stored.values()
-    assert set(stored) == {"token_hash"}
+    assert set(stored) == {"token_hash", "created_at"}
+    parsed_created = datetime.fromisoformat(stored["created_at"])
+    assert parsed_created.utcoffset() == timedelta(hours=8)
+    assert apple_calendar.subscription_status("alice") == {"active": True, "created_at": stored["created_at"]}
+    assert apple_calendar.subscription_status("charlie") == {"active": False, "created_at": None}
     assert apple_calendar.username_for_token(alice_token) == "alice"
     assert apple_calendar.username_for_token(bob_token) == "bob"
 
@@ -31,8 +35,20 @@ def test_calendar_token_revocation_only_invalidates_its_owner(tmp_path, monkeypa
 
     assert apple_calendar.revoke_token("alice") is True
     assert apple_calendar.username_for_token(alice_token) is None
+    assert apple_calendar.subscription_status("alice") == {"active": False, "created_at": None}
+    assert apple_calendar.subscription_status("bob")["active"] is True
     assert apple_calendar.username_for_token(bob_token) == "bob"
     assert apple_calendar.revoke_token("alice") is False
+
+
+def test_calendar_subscription_status_handles_legacy_record_without_created_at(tmp_path, monkeypatch):
+    monkeypatch.setattr(apple_calendar, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(apple_calendar, "user_dir", lambda username: tmp_path / "users" / username)
+    user_path = tmp_path / "users" / "legacy"
+    user_path.mkdir(parents=True)
+    (user_path / "apple_calendar.json").write_text(json.dumps({"token_hash": "abc"}), encoding="utf-8")
+
+    assert apple_calendar.subscription_status("legacy") == {"active": True, "created_at": None}
 
 
 def test_calendar_ics_includes_only_active_dated_items():

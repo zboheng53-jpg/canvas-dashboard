@@ -182,3 +182,11 @@ def test_closed_registration_page_and_api(isolated_data, monkeypatch):
     assert response.json["reason"] == capacity_guard.REASON_TOTAL_USERS
     assert "用户上限" in response.json["error"]
     assert auth.user_exists("newcomer") is False
+
+
+def test_default_admission_thresholds_match_2c8g_capacity():
+    assert capacity_guard.thresholds() == {
+        "total_users": 60,
+        "active_users": 40,
+        "connected_platforms": 180,
+    }

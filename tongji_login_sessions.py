@@ -179,7 +179,10 @@ def build_docker_command(username: str, token: str, port: int, debug_port: int) 
     command = [
         "docker", "run", "-d", "--rm", "--name", _container_name(token),
         "--label", "canvas-dashboard=tongji-login", "--security-opt", "no-new-privileges",
-        "--cap-drop", "ALL", "--cpus", "0.5", "--memory", "512m", "--pids-limit", "256",
+        "--cap-drop", "ALL",
+        "--cpus", str(settings.LOGIN_CONTAINER_CPUS),
+        "--memory", str(settings.LOGIN_CONTAINER_MEMORY),
+        "--pids-limit", str(settings.LOGIN_CONTAINER_PIDS_LIMIT),
         "--shm-size", "1g", "-p", f"127.0.0.1:{port}:6080", "-p", f"127.0.0.1:{debug_port}:9223",
         "-v", f"{profile}:/profile", "-e", f"LOGIN_URL={LOGIN_URL}",
         "-e", "CHROME_REMOTE_DEBUGGING_PORT=9222",

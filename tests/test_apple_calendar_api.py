@@ -501,3 +501,38 @@ def test_calendar_category_subscriptions_isolation(calendar_client):
         assert anonymous_client.get("/calendar/wrong-token/courses.ics").status_code == 404
 
 
+def test_calendar_subscription_get_status_lifecycle(calendar_client, monkeypatch):
+    client, _ = calendar_client
+
+    with dashboard_app.app.test_client() as anonymous:
+        assert anonymous.get("/api/apple-calendar/subscription").status_code == 401
+
+    initial = client.get("/api/apple-calendar/subscription")
+    assert initial.status_code == 200
+    assert initial.get_json() == {"ok": True, "active": False, "created_at": None}
+
+    created = client.post("/api/apple-calendar/subscription", headers=client.csrf_headers)
+    assert created.status_code == 200
+    plaintext_token = created.get_json()["token"]
+
+    active = client.get("/api/apple-calendar/subscription")
+    assert active.status_code == 200
+    active_data = active.get_json()
+    assert active_data["ok"] is True
+    assert active_data["active"] is True
+    assert isinstance(active_data["created_at"], str) and "+08:00" in active_data["created_at"]
+    assert "token" not in active_data
+    assert "token_hash" not in active_data
+    assert plaintext_token not in active.get_data(as_text=True)
+
+    revoked = client.delete("/api/apple-calendar/subscription", headers=client.csrf_headers)
+    assert revoked.status_code == 200 and revoked.get_json() == {"ok": True}
+
+    after_revoke = client.get("/api/apple-calendar/subscription")
+    assert after_revoke.status_code == 200
+    assert after_revoke.get_json() == {"ok": True, "active": False, "created_at": None}
+
+    monkeypatch.setattr(dashboard_app.settings, "APPLE_CALENDAR_ENABLED", False)
+    assert client.get("/api/apple-calendar/subscription").status_code == 404
+
+

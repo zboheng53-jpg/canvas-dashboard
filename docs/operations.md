@@ -45,7 +45,7 @@ keep URL tokens out of logs; use authenticated session metadata and service
 logs for login diagnostics. Separate domains for the other applications remain
 an operator infrastructure decision.
 
-Waitress defaults to eight request threads (`CANVAS_DASHBOARD_THREADS` overrides this). All five ordinary HTTP platforms share a bounded background executor, and their read endpoints return cached projections immediately. Explicit slow authentication operations return a task handle. The request pool remains available for local reads while upstream work runs; increasing it does not replace moving slow requests out of Web handlers.
+Waitress defaults to 16 request threads (`CANVAS_DASHBOARD_THREADS` overrides this). All five ordinary HTTP platforms share a bounded background executor, and their read endpoints return cached projections immediately. Explicit slow authentication operations return a task handle. The request pool remains available for local reads while upstream work runs; increasing it does not replace moving slow requests out of Web handlers.
 
 OJ reads only the top-level assignment list, using an 8-second connection timeout and a 45-second read timeout (`TONGJIOJ_READ_TIMEOUT_SECONDS` overrides the latter), with at most one retry for timeouts, connection failures, or 502/503/504 responses. Exhausting the retry preserves existing assignments and reports synchronization failure; expired sessions are renewed separately. Cached cookies are restored with the OJ host scope so server rotation replaces them, and renewed cookies are persisted after the assignment page succeeds.
 
@@ -76,7 +76,7 @@ The Chromium worker also starts after `user@1000.service` and receives `XDG_RUNT
 
 Set overrides in `/etc/canvas-dashboard/canvas-dashboard.env`, then restart the affected web/worker services. Production requires `CANVAS_DASHBOARD_ENV=production`, `CANVAS_DASHBOARD_COOKIE_SECURE=1`, and a fixed HTTPS `CANVAS_DASHBOARD_PUBLIC_BASE_URL` or explicit `CANVAS_DASHBOARD_TRUSTED_HOSTS`; the supplied web unit sets the production defaults and allows operator overrides through its environment file. `CANVAS_DASHBOARD_REGISTRATION_ENABLED=0` pauses new registrations without blocking existing logins.
 
-`CANVAS_DASHBOARD_LOGIN_MAX_SESSIONS=1` (default) caps both interactive login platforms and the 智慧树 background browser. Capacity/profile coordination uses cross-process locks and resource records under the shared data root. It is local-machine coordination, not a distributed semaphore. An active login record blocks the same user's worker even if the global limit is raised. Docker stop failure retains metadata/occupation for retry; do not erase leases or profiles to make room without confirming their resources have exited. Startup and completion are background operations: the initial request returns 202, and task status reports any capacity rejection as 429. The retired password-based timetable refresh endpoint returns 410 and never starts Chromium.
+`CANVAS_DASHBOARD_LOGIN_MAX_SESSIONS=3` (default) caps both interactive login platforms and the 智慧树 background browser; login containers default to `LOGIN_CONTAINER_MEMORY=768m`, `LOGIN_CONTAINER_CPUS=0.75`, and `LOGIN_CONTAINER_PIDS_LIMIT=384`. The 智慧树 worker defaults to `ZHIHUISHU_WORKER_MAX_CONCURRENCY=2`, capped at `max(1, min(ZHIHUISHU_WORKER_MAX_CONCURRENCY, max(1, LOGIN_MAX_SESSIONS - 1)))` when `LOGIN_MAX_SESSIONS >= 2` (else `1`) so one browser slot stays reserved for interactive noVNC login. Capacity/profile coordination uses cross-process locks and resource records under the shared data root. It is local-machine coordination, not a distributed semaphore. An active login record blocks the same user's worker even if the global limit is raised. Docker stop failure retains metadata/occupation for retry; do not erase leases or profiles to make room without confirming their resources have exited. Startup and completion are background operations: the initial request returns 202, and task status reports any capacity rejection as 429. The retired password-based timetable refresh endpoint returns 410 and never starts Chromium.
 
 ### Registration capacity guard
 
@@ -85,9 +85,9 @@ Set overrides in `/etc/canvas-dashboard/canvas-dashboard.env`, then restart the 
 | Variable | Default | Metric |
 | --- | --- | --- |
 | `CANVAS_DASHBOARD_CAPACITY_GUARD_ENABLED` | `1` | Evaluate the thresholds; `0` disables automatic closure (the manual pause still applies) |
-| `CANVAS_DASHBOARD_CAPACITY_MAX_TOTAL_USERS` | `15` | Registered accounts, any status except `deleting` |
-| `CANVAS_DASHBOARD_CAPACITY_MAX_ACTIVE_USERS` | `10` | Accounts active within the window below |
-| `CANVAS_DASHBOARD_CAPACITY_MAX_CONNECTED_PLATFORMS` | `40` | Sum of `connected` platform entries across accounts |
+| `CANVAS_DASHBOARD_CAPACITY_MAX_TOTAL_USERS` | `60` | Registered accounts, any status except `deleting` |
+| `CANVAS_DASHBOARD_CAPACITY_MAX_ACTIVE_USERS` | `40` | Accounts active within the window below |
+| `CANVAS_DASHBOARD_CAPACITY_MAX_CONNECTED_PLATFORMS` | `180` | Sum of `connected` platform entries across accounts |
 | `CANVAS_DASHBOARD_CAPACITY_ACTIVE_WINDOW_DAYS` | `14` | Activity window; activity is the later of `last_login_at` and the per-user presence stamp (`.capacity_presence.json`, entries pruned after 90 days) |
 
 A threshold of `0` (or a negative value) disables that single gate. `CANVAS_DASHBOARD_REGISTRATION_ENABLED=0` stays the manual pause and takes precedence. These are admission limits for the current single-process deployment, not a measured maximum concurrency; revise them with the operating thresholds in [small-group launch notes](small-group-launch.md).
@@ -102,7 +102,7 @@ cd /home/ubuntu/canvas-dashboard/current
 
 `data/.capacity_guard_state.json` records a username-free latch of the last state change (counts, thresholds, reason codes). An unreadable metric file (corrupt JSON) closes registration with reason `capacity_check_failed` instead of assuming there is room left; repair the file per [backup and restore](backup-and-restore.md) before expecting an automatic reopen. Registration reopens by itself once the counts drop below the thresholds, or when an operator raises the limits after the capacity work is finished.
 
-Canvas, 好课, 智学盟, 课堂派 and 同济 OJ share the `HTTP_SYNC_MAX_WORKERS=2` / `HTTP_SYNC_MAX_JOBS=32` budget, including queued and running jobs. Jobs deduplicate by username, platform and job type. Platforms no longer create their own HTTP fetch pools or per-user sync threads. Refresh, weather and explicit slow login operations use this budget; reads return cached/pending responses immediately. `cache_only=1` polls never restart a failed refresh. Set either limit in the Web service environment and restart to apply it. This budget belongs to the single Web process; do not run extra Web instances as a way to increase capacity.
+Canvas, 好课, 智学盟, 课堂派 and 同济 OJ share the `HTTP_SYNC_MAX_WORKERS=6` / `HTTP_SYNC_MAX_JOBS=96` budget, including queued and running jobs, with `REMOTE_OPERATIONS_MAX_TASKS=192` for async operation tracking. Agent API rate limiting defaults to `CANVAS_DASHBOARD_AGENT_RATE_LIMIT_ATTEMPTS=240` per minute, while registration rate limiting defaults to `CANVAS_DASHBOARD_REGISTER_RATE_LIMIT_ATTEMPTS=5` per 30 minutes (login 8/5m and SMS 3/10m remain fixed). Jobs deduplicate by username, platform and job type. Platforms no longer create their own HTTP fetch pools or per-user sync threads. Refresh, weather and explicit slow login operations use this budget; reads return cached/pending responses immediately. `cache_only=1` polls never restart a failed refresh. Set either limit in the Web service environment and restart to apply it. This budget belongs to the single Web process; do not run extra Web instances as a way to increase capacity.
 
 ## Static resources, request boundaries and retired applications
 
@@ -124,7 +124,7 @@ journalctl -u canvas-dashboard.service --since '15 minutes ago'
 systemctl status canvas-dashboard-monitor.timer
 ```
 
-Investigate local API p95 persistently above 1 second, available memory below 300 MiB, sustained swap traffic (initial warning at 1 MiB/s), any new OOM kill, disk use at 80%, or queued work older than 5 minutes. Compare successive samples; a nonzero swap allocation alone is not ongoing swap traffic. These are journal/manual-check thresholds, not external notification delivery. Weather and holiday cache limitations are documented in `docs/development.md`; real platform credentials and production peak memory still need observation after release.
+Investigate local API p95 persistently above 1 second, available memory below 768 MiB warning (`CANVAS_DASHBOARD_MONITOR_LOW_MEM_MIB=768`, emitting `memory_below_768_mib`) or critical alert below 300 MiB (`memory_below_300_mib`), sustained swap traffic (initial warning at 1 MiB/s), any new OOM kill, disk use at 80%, or queued work older than 5 minutes. Compare successive samples; a nonzero swap allocation alone is not ongoing swap traffic. These are journal/manual-check thresholds, not external notification delivery. Weather and holiday cache limitations are documented in `docs/development.md`; real platform credentials and production peak memory still need observation after release.
 
 Canvas feed hosts are restricted to `canvas.tongji.edu.cn` by default. For another institution, set `CANVAS_DASHBOARD_CANVAS_FEED_HOSTS` to comma-separated, operator-verified hostnames. Only HTTPS on port 443 is accepted; redirects are not followed. Do not add user-controlled hosts. Existing untrusted feed URLs retain their old cache but will fail refresh until corrected. See [small-group launch notes](small-group-launch.md) for measured capacity context and operating thresholds.
 

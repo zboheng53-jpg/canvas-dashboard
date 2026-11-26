@@ -90,7 +90,8 @@ def test_all_users_round_discovers_users_added_after_start(tmp_path, monkeypatch
     (users_dir / "bob").mkdir()
     failures = zhihuishu_worker._run_all_users_round(failures, runner=runner)
 
-    assert calls == ["alice", "alice", "bob"]
+    assert calls[0] == "alice"
+    assert sorted(calls[1:]) == ["alice", "bob"]
     assert failures == {"alice": 0, "bob": 0}
 
 
@@ -121,8 +122,92 @@ def test_timed_out_user_does_not_prevent_later_user_cycle(tmp_path, monkeypatch)
     monkeypatch.setattr(zhihuishu_worker, '_kill_process_tree', lambda proc: killed.append(proc.username))
     failures = zhihuishu_worker._run_all_users_round({})
 
-    assert calls == ["fast", "slow"]
+    assert set(calls) == {"fast", "slow"}
+    assert len(calls) == 2
     assert failures == {"fast": 0, "slow": 1}
     assert killed == ['slow']
     assert zhihuishu_store.load_status("slow")["worker"] == "error"
     assert "timed out" in zhihuishu_store.load_status("slow")["last_error"]
+
+
+def test_effective_worker_concurrency_reserves_one_login_slot(monkeypatch):
+    import settings
+    import zhihuishu_worker
+
+    monkeypatch.setattr(settings, "LOGIN_MAX_SESSIONS", 1)
+    monkeypatch.setattr(settings, "ZHIHUISHU_WORKER_MAX_CONCURRENCY", 2)
+    assert zhihuishu_worker.effective_worker_concurrency() == 1
+
+    monkeypatch.setattr(settings, "LOGIN_MAX_SESSIONS", 2)
+    monkeypatch.setattr(settings, "ZHIHUISHU_WORKER_MAX_CONCURRENCY", 2)
+    assert zhihuishu_worker.effective_worker_concurrency() == 1
+
+    monkeypatch.setattr(settings, "LOGIN_MAX_SESSIONS", 3)
+    monkeypatch.setattr(settings, "ZHIHUISHU_WORKER_MAX_CONCURRENCY", 2)
+    assert zhihuishu_worker.effective_worker_concurrency() == 2
+
+    monkeypatch.setattr(settings, "LOGIN_MAX_SESSIONS", 5)
+    monkeypatch.setattr(settings, "ZHIHUISHU_WORKER_MAX_CONCURRENCY", 2)
+    assert zhihuishu_worker.effective_worker_concurrency() == 2
+
+    monkeypatch.setattr(settings, "LOGIN_MAX_SESSIONS", 5)
+    monkeypatch.setattr(settings, "ZHIHUISHU_WORKER_MAX_CONCURRENCY", 6)
+    assert zhihuishu_worker.effective_worker_concurrency() == 4
+
+
+def test_all_users_round_runs_concurrently_up_to_reserved_cap(tmp_path, monkeypatch):
+    import threading
+    import time
+    import settings
+    import zhihuishu_store
+    import zhihuishu_worker
+
+    monkeypatch.setattr(zhihuishu_store, "DATA_DIR", tmp_path)
+    for name in ("u1", "u2", "u3", "u4"):
+        (tmp_path / "users" / name).mkdir(parents=True)
+
+    lock = threading.Lock()
+    active = 0
+    max_active = 0
+    both_entered = threading.Barrier(2)
+
+    def runner(username, dry_run=False):
+        nonlocal active, max_active
+        with lock:
+            active += 1
+            max_active = max(max_active, active)
+        try:
+            try:
+                both_entered.wait(timeout=0.5)
+            except threading.BrokenBarrierError:
+                time.sleep(0.05)
+            return True
+        finally:
+            with lock:
+                active -= 1
+
+    monkeypatch.setattr(settings, "LOGIN_MAX_SESSIONS", 3)
+    monkeypatch.setattr(settings, "ZHIHUISHU_WORKER_MAX_CONCURRENCY", 2)
+    failures = zhihuishu_worker._run_all_users_round({}, runner=runner)
+    assert failures == {"u1": 0, "u2": 0, "u3": 0, "u4": 0}
+    assert max_active == 2
+    assert (tmp_path / "worker_heartbeat.json").exists()
+
+    def runner_serial(u, dry_run=False):
+        nonlocal active, max_active
+        with lock:
+            active += 1
+            max_active = max(max_active, active)
+        try:
+            time.sleep(0.02)
+            return True
+        finally:
+            with lock:
+                active -= 1
+
+    active = 0
+    max_active = 0
+    monkeypatch.setattr(settings, "LOGIN_MAX_SESSIONS", 2)
+    failures = zhihuishu_worker._run_all_users_round({}, runner=runner_serial)
+    assert failures == {"u1": 0, "u2": 0, "u3": 0, "u4": 0}
+    assert max_active == 1

@@ -21,9 +21,10 @@ def _token_hash(token: str) -> str:
 
 def create_token(username: str) -> str:
     token = secrets.token_urlsafe(32)
+    created_at = datetime.now(CST).isoformat()
 
     def replace_token(_data):
-        return {"token_hash": _token_hash(token)}
+        return {"token_hash": _token_hash(token), "created_at": created_at}
 
     locked_json_update(_token_file(username), {}, replace_token)
     return token
@@ -35,10 +36,22 @@ def revoke_token(username: str) -> bool:
 
     def remove_token(data):
         revoked["value"] = bool(data.pop("token_hash", None))
+        data.pop("created_at", None)
         return data
 
     locked_json_update(path, {}, remove_token)
     return revoked["value"]
+
+
+def subscription_status(username: str) -> dict:
+    data = read_json_file(_token_file(username), {})
+    if not isinstance(data, dict) or not data.get("token_hash"):
+        return {"active": False, "created_at": None}
+    created_at = data.get("created_at")
+    return {
+        "active": True,
+        "created_at": str(created_at) if created_at else None,
+    }
 
 
 def username_for_token(token: str) -> str | None:

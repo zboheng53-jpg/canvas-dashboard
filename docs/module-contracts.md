@@ -45,7 +45,7 @@ canvas-dashboard/
 
 ## 架构与平台核心机制
 
-- **小范围开放与维护**：账户各自独立，不提供团队共享。左侧「上手指南」先辨析待办、项目、日程与各入口的分工，再按功能逐段说明，附 Canvas 日历馈送截图与手机日历订阅教程，底部提供最近更新；用户可感知的变化同步 `CHANGELOG.md`，实际部署后才标注发布日期。容量与运营判断见 `docs/small-group-launch.md`。`CANVAS_DASHBOARD_REGISTRATION_ENABLED` 控制新注册；`capacity_guard.py` 在总账户 15、近 14 天活跃账户 10 或已连接平台合计 40 达到时自动关闭新注册（`CANVAS_DASHBOARD_CAPACITY_*` 覆盖，单条设 0 表示不限制），注册页左侧介绍不变、右侧改为说明，登录页同步提示，已有账户不受影响；两类 noVNC 窗口共享 `CANVAS_DASHBOARD_LOGIN_MAX_SESSIONS`（默认 1），满载返回可重试的 429。Canvas 馈送仅接受管理员信任域名的 HTTPS/443，禁止重定向。
+- **小范围开放与维护**：账户各自独立，不提供团队共享。左侧「上手指南」先辨析待办、项目、日程与各入口的分工，再按功能逐段说明，附 Canvas 日历馈送截图与手机日历订阅教程，底部提供最近更新；用户可感知的变化同步 `CHANGELOG.md`，实际部署后才标注发布日期。容量与运营判断见 `docs/small-group-launch.md`。`CANVAS_DASHBOARD_REGISTRATION_ENABLED` 控制新注册；`capacity_guard.py` 在总账户 60、近 14 天活跃账户 40 或已连接平台合计 180 达到时自动关闭新注册（`CANVAS_DASHBOARD_CAPACITY_*` 覆盖，单条设 0 表示不限制），注册页左侧介绍不变、右侧改为说明，登录页同步提示，已有账户不受影响；两类 noVNC 窗口共享 `CANVAS_DASHBOARD_LOGIN_MAX_SESSIONS`（默认 3，单容器默认 `768m` / `0.75` CPU / `384` PID），满载返回可重试的 429。Canvas 馈送仅接受管理员信任域名的 HTTPS/443，禁止重定向。
 - **文件边界**：`app.py` 保留全局 Session/CSRF/限流中间件；事项和 Agent API 分别注册到 `routes/`，共享操作位于 `services/`。`index.html` 仅组装视图与脚本；普通脚本仍共享全局，依赖顺序明确保留在模板中，启动统一在 `bootstrap.js`，不在业务视图重复初始化。
 
 - **存储与并发 (`storage.py`)**：
@@ -60,13 +60,13 @@ canvas-dashboard/
   - 平台缓存不得被本地完成、隐藏、标红、删除或标题/截止时间覆盖直接改写；统一通过各平台 `PlatformStateStore` 状态文件叠加，并允许恢复上游显示值。
   - 已完成且超过有效截止的普通待办自动永久删除，不可撤销或恢复；尚未截止则沉底，无截止则保留。纯日期按上海当日结束，重复待办只清理过期的已完成单次。
   - 待办清单按「逾期 → 今天 → 近三天 → 以后 → 无日期」分桶，已完成另行折叠；近三天是上海日期的明天至第三天，来源只作为筛选器，筛选和计数使用同一可见集合。精确截止按实际时间、纯日期按上海当日结束判断逾期；计划日期不冒充截止，原计划未完成不使用真实逾期样式或计数。
-  - 普通 HTTP 平台通过 `http_sync.py` 共用全站有界预算（默认 2 个执行任务、32 个运行及排队任务），按账户、平台及任务类型去重；读取缓存后提交后台刷新。账户锁仅覆盖身份变更和最终关键写入，不覆盖整段读取或网络操作。
+  - 普通 HTTP 平台通过 `http_sync.py` 共用全站有界预算（默认 6 个执行任务、96 个运行及排队任务；`remote_operations.py` 任务表上限 `REMOTE_OPERATIONS_MAX_TASKS=192`），按账户、平台及任务类型去重；读取缓存后提交后台刷新。账户锁仅覆盖身份变更和最终关键写入，不覆盖整段读取或网络操作。
 - **外部作业子任务 (`external_subtasks.py`)**：
   - 存储位于 `data/users/<username>/external_subtasks.json`，以 `source:item_id` 为稳定键，采用锁 + 原子写。
   - 支持 `canvas`、`haoke`、`zhixuemeng`、`zhihuishu`、`ketangpai`、`tongjioj` 6 大平台。各平台 `/api/<platform>/todos` 自动装配本地持久化子任务；提供 `PUT /api/external-subtasks` 供子任务增删改查。前端所有作业均共享子任务增删改、勾选、改期与展开交互，展开状态仅保留在前端内存。
 - **平台同步元数据**：
   - `platform_sync_status.json` 只保存非敏感的连接、刷新、失败与日历资格状态；必须继续使用锁与原子写，并在损坏时 fail-closed。不得写入密码、Token、Cookie 或订阅地址。
-- **日历订阅 (`apple_calendar.py`, `services/workspace.py`)**：综合与分类订阅共用本地投影，作业覆盖六个平台与个人待办，读取订阅不触发上游同步。输出按 UTF-8 字节折行并规范文本换行，保留稳定 UID；通过 `REFRESH-INTERVAL` 与 `X-PUBLISHED-TTL` 建议 15 分钟拉取，实际刷新由日历客户端决定，不承诺实时推送。重新生成或撤销链接会使旧地址失效。
+- **日历订阅 (`apple_calendar.py`, `services/workspace.py`)**：综合与分类订阅共用本地投影，作业覆盖六个平台与个人待办，读取订阅不触发上游同步。输出按 UTF-8 字节折行并规范文本换行，保留稳定 UID；通过 `REFRESH-INTERVAL` 与 `X-PUBLISHED-TTL` 建议 15 分钟拉取，实际刷新由日历客户端决定，不承诺实时推送。`create_token` 仅存储 `token_hash` 与 ISO8601 CST `created_at`（绝不保存明文 Token），`GET /api/apple-calendar/subscription` 返回激活状态与创建时间；重新生成或撤销链接会使旧地址失效。
   - 精确截止先换算上海时间，展示为截止分钟之前的一分钟（秒数向下对齐），午夜结束点不占用第二天；原始截止精确到秒写入详情，网页截止、逾期判断与源数据不变。独立的 `DISPLAY VALARM` 在真实截止前一小时触发，使用 UTC 绝对时间，不受一分钟显示时段影响；客户端需允许此订阅的事件提醒。纯日期仍为当天全天，不捏造提醒时刻；课程与有起止时间的日程保留原时段。
 - **长期项目 (`project_store.py`)**：
   - 存储位于 `data/users/<username>/projects.json`，采用锁 + 原子写。
@@ -89,7 +89,7 @@ canvas-dashboard/
   - **Canvas**：解析 iCal feed，缓存于 `canvas_cache.json`。
   - **好课**：凭据加密存储，`/api/haoke/todos` 缓存优先，通过共享有界执行器异步刷新。
   - **智学盟**：使用 `X-Access-Token`，支持课程与作业列表抓取。
-  - **智慧树**：路由只读缓存/状态；后台通过 `zhihuishu_worker.py --all-users` 定时拉取；独立 Chromium profile 运行；支持 noVNC 远程登录窗口。
+  - **智慧树**：路由只读缓存/状态；后台通过 `zhihuishu_worker.py --all-users` 定时拉取（默认最多 `ZHIHUISHU_WORKER_MAX_CONCURRENCY=2` 路并发，且当 `LOGIN_MAX_SESSIONS >= 2` 时受 `LOGIN_MAX_SESSIONS - 1` 约束，始终为交互式 noVNC 登录预留 1 个浏览器槽位）；独立 Chromium profile 运行；支持 noVNC 远程登录窗口，`POST /api/zhihuishu/login-session/complete` 按当前活跃会话完成收尾（保留 `<token>/complete` 路由）。
   - **同济课表**：前端直接打开短时 noVNC 认证窗口；用户完成微信扫码或短信加强认证后，后端通过该窗口的 CDP 读取当前可见课表。只解析渲染中的表格并展开 `rowspan`/`colspan`，失败时保留上次成功缓存，认证结束或过期后删除临时 profile。
   - **课堂派**：凭据加密存储，支持短信验证码与账号密码双模式登录；动态获取当学期有效课程，按顺序抓取作业与随堂测验，自动滤除已交项；使用 `PlatformStateStore` 叠加本地状态。
   - **同济OJ**：凭据与会话加密存储，默认支持同济统一身份认证登录（`Unified_Certification`）并提供平台密码登录回退；仅只读抓取顶层作业列表，将每次作业作为一条待办事项导入，不读取提交记录或按分数判定完成，绝不打开题目详情或提交任何作业。完成与撤销由用户手动操作，沿用稳定作业 ID，并通过独立的 `PlatformStateStore` 叠加本地状态；同步与缓存版本更新不得重置这些状态或外部作业子任务。

@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from pathlib import Path
 import threading
 import time
@@ -10,9 +11,22 @@ import app as dashboard
 import auth
 import http_sync
 import platform_http
+import remote_operations
 import schedule_store
+import settings
 import system_monitor
 from storage import read_json_file, write_json_file
+
+
+@contextmanager
+def _bounded_http_executor(monkeypatch, max_workers=2):
+    pool = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="http-sync-test")
+    monkeypatch.setattr(http_sync, "HTTP_SYNC_MAX_WORKERS", max_workers)
+    monkeypatch.setattr(http_sync, "_executor", pool)
+    try:
+        yield pool
+    finally:
+        pool.shutdown(wait=True)
 
 
 def client_for(username="alice"):
@@ -143,19 +157,20 @@ def test_shared_queue_caps_all_five_platforms_and_dedups_by_job_type(isolated_da
         finished.append(True)
         if len(finished) == 5:
             done.set()
-    try:
-        assert http_sync.submit_http_sync("alice", "canvas", blocked, on_finished=finish)
-        assert http_sync.submit_http_sync("alice", "haoke", blocked, on_finished=finish)
-        started.wait(timeout=3)
-        for platform in ("zhixuemeng", "ketangpai", "tongjioj"):
-            assert http_sync.submit_http_sync("alice", platform, lambda: None, on_finished=finish)
-        status = http_sync.snapshot()
-        assert status["running"] == 2 and status["queued"] == 3
-        assert not http_sync.submit_http_sync("alice", "canvas", lambda: pytest.fail("duplicate"))
-        assert not http_sync.submit_http_sync("alice", "canvas", lambda: pytest.fail("capacity"), job_type="login")
-    finally:
-        release.set()
-        assert done.wait(3)
+    with _bounded_http_executor(monkeypatch, max_workers=2):
+        try:
+            assert http_sync.submit_http_sync("alice", "canvas", blocked, on_finished=finish)
+            assert http_sync.submit_http_sync("alice", "haoke", blocked, on_finished=finish)
+            started.wait(timeout=3)
+            for platform in ("zhixuemeng", "ketangpai", "tongjioj"):
+                assert http_sync.submit_http_sync("alice", platform, lambda: None, on_finished=finish)
+            status = http_sync.snapshot()
+            assert status["running"] == 2 and status["queued"] == 3
+            assert not http_sync.submit_http_sync("alice", "canvas", lambda: pytest.fail("duplicate"))
+            assert not http_sync.submit_http_sync("alice", "canvas", lambda: pytest.fail("capacity"), job_type="login")
+        finally:
+            release.set()
+            assert done.wait(3)
 
 
 def test_linux_resource_sample_reports_actual_counters(tmp_path, monkeypatch):
@@ -172,6 +187,33 @@ def test_linux_resource_sample_reports_actual_counters(tmp_path, monkeypatch):
     assert status["swap_out_pages"] == 30 and status["oom_kills"] == 1
     assert status["load_average"] == [0.25, 0.5, 0.75]
     assert "memory_below_300_mib" in status["alerts"]
+    assert "memory_below_768_mib" not in status["alerts"]
+
+
+def test_linux_resource_sample_emits_768_mib_warning_above_300_mib(tmp_path, monkeypatch):
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    (proc / "vmstat").write_text("pswpin 0\npswpout 0\noom_kill 0\n")
+    (proc / "loadavg").write_text("0.10 0.20 0.30 1/100 123\n")
+    monkeypatch.setattr(system_monitor.os, "sysconf", lambda _: 4096, raising=False)
+
+    (proc / "meminfo").write_text("MemAvailable: 512000 kB\nSwapTotal: 100000 kB\nSwapFree: 100000 kB\n")
+    warn_status = system_monitor.system_snapshot(tmp_path, proc)
+    assert "memory_below_768_mib" in warn_status["alerts"]
+    assert "memory_below_300_mib" not in warn_status["alerts"]
+
+    (proc / "meminfo").write_text("MemAvailable: 921600 kB\nSwapTotal: 100000 kB\nSwapFree: 100000 kB\n")
+    ok_status = system_monitor.system_snapshot(tmp_path, proc)
+    assert "memory_below_768_mib" not in ok_status["alerts"]
+    assert "memory_below_300_mib" not in ok_status["alerts"]
+
+    monkeypatch.setattr(settings, "MONITOR_LOW_MEM_MIB", 1024)
+    custom_status = system_monitor.system_snapshot(tmp_path, proc)
+    assert "memory_below_768_mib" in custom_status["alerts"]
+
+    missing_status = system_monitor.system_snapshot(tmp_path, tmp_path / "missing_proc")
+    assert "memory_below_768_mib" not in missing_status["alerts"]
+    assert "memory_below_300_mib" not in missing_status["alerts"]
 
 
 def test_nginx_limits_and_isolates_downstream_headers():
@@ -208,24 +250,63 @@ def test_queued_login_keeps_body_after_waitress_returns_202(live_app, isolated_d
         captured.append((username, account, password))
         return {"ok": True}
     monkeypatch.setattr(dashboard, "ktp_password_login", login)
+    with _bounded_http_executor(monkeypatch, max_workers=2):
+        try:
+            assert http_sync.submit_http_sync("queueduser", "canvas", blocked)
+            assert http_sync.submit_http_sync("queueduser", "haoke", blocked)
+            started.wait(timeout=5)
+            response = client.post(live_app + "/api/ketangpai/login-password", json={"account": "student", "password": "fake-secret"},
+                                   headers={"X-CSRF-Token": "test"}, timeout=5)
+            assert response.status_code == 202
+            assert client.get(live_app + "/api/projects", timeout=5).status_code == 200
+            release.set()
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline:
+                result = client.get(live_app + response.json()["status_url"], timeout=5).json()
+                if result["state"] == "done":
+                    break
+                finished.wait(.02)
+            assert result["result_status"] == 200 and result["result"]["ok"]
+            assert captured == [("queueduser", "student", "fake-secret")]
+        finally:
+            release.set()
+            http_sync._executor.submit(lambda: None).result(timeout=5)
+            client.close()
+
+
+def test_remote_operations_and_register_rate_limit_honor_settings(isolated_data, monkeypatch):
+    assert remote_operations.MAX_TASKS == 192
+    assert settings.REGISTER_RATE_LIMIT_ATTEMPTS == 5
+
+    auth.register("alice", "password1")
+    monkeypatch.setitem(dashboard.app.config, "TESTING", True)
+    monkeypatch.setattr(settings, "REMOTE_OPERATIONS_MAX_TASKS", 1)
+    monkeypatch.setattr(remote_operations, "_tasks", {})
+    started, release = threading.Event(), threading.Event()
+    def blocked(*_args):
+        started.set()
+        assert release.wait(5)
+        return {"ok": True}
+    monkeypatch.setattr(dashboard, "ktp_password_login", blocked)
+    client = client_for()
     try:
-        assert http_sync.submit_http_sync("queueduser", "canvas", blocked)
-        assert http_sync.submit_http_sync("queueduser", "haoke", blocked)
-        started.wait(timeout=5)
-        response = client.post(live_app + "/api/ketangpai/login-password", json={"account": "student", "password": "fake-secret"},
-                               headers={"X-CSRF-Token": "test"}, timeout=5)
-        assert response.status_code == 202
-        assert client.get(live_app + "/api/projects", timeout=5).status_code == 200
-        release.set()
-        deadline = time.monotonic() + 5
-        while time.monotonic() < deadline:
-            result = client.get(live_app + response.json()["status_url"], timeout=5).json()
-            if result["state"] == "done":
-                break
-            finished.wait(.02)
-        assert result["result_status"] == 200 and result["result"]["ok"]
-        assert captured == [("queueduser", "student", "fake-secret")]
+        first = client.post("/api/ketangpai/login-password", json={"account": "s", "password": "p"}, headers={"X-CSRF-Token": "test"})
+        assert first.status_code == 202
+        assert started.wait(2)
+        second = client.post("/api/zhixuemeng/login-password", json={"account": "s", "password": "p"}, headers={"X-CSRF-Token": "test"})
+        assert second.status_code == 429
+        assert second.json["code"] == "sync_capacity"
     finally:
         release.set()
         http_sync._executor.submit(lambda: None).result(timeout=5)
-        client.close()
+
+    monkeypatch.setattr(settings, "REGISTER_RATE_LIMIT_ATTEMPTS", 2)
+    monkeypatch.setattr(dashboard, "_rate_limit_buckets", {})
+    anon = dashboard.app.test_client()
+    with anon.session_transaction() as sess:
+        sess["_csrf_token"] = "test"
+    for idx in range(2):
+        resp = anon.post("/api/auth/register", json={"username": "ratelimituser", "password": "x"}, headers={"X-CSRF-Token": "test"})
+        assert resp.status_code == 400
+    limited = anon.post("/api/auth/register", json={"username": "ratelimituser", "password": "x"}, headers={"X-CSRF-Token": "test"})
+    assert limited.status_code == 429

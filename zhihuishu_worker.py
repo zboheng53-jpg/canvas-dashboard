@@ -1,5 +1,6 @@
 """Background worker for keeping Zhihuishu data cached outside Flask requests."""
 import argparse
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 import logging
 import os
 import subprocess
@@ -335,6 +336,13 @@ def _run_user_subprocess(username: str, dry_run: bool = False, force_fetch: bool
     return True
 
 
+def effective_worker_concurrency() -> int:
+    """Cap worker concurrency so one browser slot stays reserved for noVNC login when possible."""
+    if settings.LOGIN_MAX_SESSIONS < 2:
+        return 1
+    return max(1, min(settings.ZHIHUISHU_WORKER_MAX_CONCURRENCY, max(1, settings.LOGIN_MAX_SESSIONS - 1)))
+
+
 def _run_all_users_round(failures: dict[str, int], dry_run: bool = False, runner=None, now: float | None = None) -> dict[str, int]:
     runner = runner or _run_user_subprocess
     usernames = _all_usernames()
@@ -360,40 +368,56 @@ def _run_all_users_round(failures: dict[str, int], dry_run: bool = False, runner
 
     sorted_users = sorted(ready_users, key=priority_key)
     failures = {username: failures.get(username, 0) for username in usernames}
+    save_heartbeat()
+    if not sorted_users:
+        return {username: failures[username] for username in usernames if username in current}
 
-    for username in sorted_users:
-        save_heartbeat()
+    def _execute_user(username: str):
         owner = _capture_owner(username)
         if owner is None:
-            continue
+            return username, None, False, None
         try:
-            ok = runner(username, dry_run=dry_run)
-            if ok:
-                failures[username] = 0
-                _publish_status(username, owner, {
-                    "failure_count": 0,
-                    "next_attempt_at": 0,
-                })
-            else:
-                count = failures[username] + 1
-                failures[username] = count
-                delay = next_delay_seconds(count - 1)
-                _publish_status(username, owner, {
-                    "failure_count": count,
-                    "next_attempt_at": now + delay,
-                })
+            ok = bool(runner(username, dry_run=dry_run))
+            return username, owner, ok, None
         except Exception as exc:
-            count = failures.get(username, 0) + 1
-            failures[username] = count
-            delay = next_delay_seconds(count - 1)
-            message = f'后台同步异常 ({type(exc).__name__})'
-            _publish_status(username, owner, {
-                "worker": "error",
-                "last_error": message,
-                "failure_count": count,
-                "next_attempt_at": now + delay,
-            }, error_code='worker_failed')
-            logger.error('Worker cycle failed: %s', type(exc).__name__)
+            return username, owner, False, exc
+
+    max_workers = min(effective_worker_concurrency(), len(sorted_users))
+    with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="zhihuishu-worker") as pool:
+        pending = {pool.submit(_execute_user, username) for username in sorted_users}
+        while pending:
+            done, pending = wait(pending, timeout=30.0, return_when=FIRST_COMPLETED)
+            save_heartbeat()
+            for future in done:
+                username, owner, ok, exc = future.result()
+                if owner is None:
+                    continue
+                if exc is not None:
+                    count = failures.get(username, 0) + 1
+                    failures[username] = count
+                    delay = next_delay_seconds(count - 1)
+                    message = f'后台同步异常 ({type(exc).__name__})'
+                    _publish_status(username, owner, {
+                        "worker": "error",
+                        "last_error": message,
+                        "failure_count": count,
+                        "next_attempt_at": now + delay,
+                    }, error_code='worker_failed')
+                    logger.error('Worker cycle failed: %s', type(exc).__name__)
+                elif ok:
+                    failures[username] = 0
+                    _publish_status(username, owner, {
+                        "failure_count": 0,
+                        "next_attempt_at": 0,
+                    })
+                else:
+                    count = failures[username] + 1
+                    failures[username] = count
+                    delay = next_delay_seconds(count - 1)
+                    _publish_status(username, owner, {
+                        "failure_count": count,
+                        "next_attempt_at": now + delay,
+                    })
 
     return {username: failures[username] for username in usernames if username in current}
 

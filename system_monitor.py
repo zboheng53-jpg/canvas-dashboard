@@ -5,6 +5,9 @@ import shutil
 import time
 
 
+import settings
+
+
 def _counters(path):
     values = {}
     for line in Path(path).read_text().splitlines():
@@ -34,8 +37,12 @@ def system_snapshot(data_dir, proc_root=Path("/proc")):
     except (OSError, KeyError, ValueError, AttributeError):
         pass
     result["alerts"] = []
-    if result.get("mem_available_bytes", 300 * 1024**2) < 300 * 1024**2:
-        result["alerts"].append("memory_below_300_mib")
+    mem_available = result.get("mem_available_bytes")
+    if mem_available is not None:
+        if mem_available < 300 * 1024**2:
+            result["alerts"].append("memory_below_300_mib")
+        elif mem_available < settings.MONITOR_LOW_MEM_MIB * 1024**2:
+            result["alerts"].append("memory_below_768_mib")
     if result["disk_used_percent"] >= 80:
         result["alerts"].append("disk_above_80_percent")
     return result

@@ -8,11 +8,13 @@ from flask import copy_current_request_context, current_app, jsonify, session, r
 
 import auth
 import http_sync
+import settings
 
 _lock = threading.Lock()
 _tasks = {}
 TASK_TTL_SECONDS = 600
-MAX_TASKS = 64
+_DEFAULT_MAX_TASKS = settings.REMOTE_OPERATIONS_MAX_TASKS
+MAX_TASKS = _DEFAULT_MAX_TASKS
 
 
 def background_operation(platform, job_type):
@@ -35,7 +37,8 @@ def background_operation(platform, job_type):
                 for key in list(_tasks):
                     if _tasks[key]["state"] == "done" and now - _tasks[key]["updated"] > TASK_TTL_SECONDS:
                         _tasks.pop(key)
-                if len(_tasks) >= MAX_TASKS:
+                max_tasks = MAX_TASKS if MAX_TASKS != _DEFAULT_MAX_TASKS else settings.REMOTE_OPERATIONS_MAX_TASKS
+                if len(_tasks) >= max_tasks:
                     completed = [key for key in _tasks if _tasks[key]["state"] == "done"]
                     if completed:
                         _tasks.pop(completed[0])
