@@ -57,8 +57,10 @@ def test_mobile_todo_input_geometry_and_wrapping(live_app, browser, width):
 
 
 def test_custom_todo_delete_confirmation_flow(live_app, browser):
-    """UI-03: Verify deletion confirmation dialog, cancel, and confirmed delete."""
+    """UI-03: Verify custom #ui-confirm-dialog cancel and confirmed delete without native dialogs."""
     page = browser.new_page(viewport={"width": 1280, "height": 800})
+    native_dialogs = []
+    page.on("dialog", lambda dialog: (native_dialogs.append(dialog.message), dialog.dismiss()))
     register_user(page, live_app, "del_flow")
 
     # Add a custom todo
@@ -68,25 +70,36 @@ def test_custom_todo_delete_confirmation_flow(live_app, browser):
     expect(todo_row).to_be_visible()
 
     del_btn = todo_row.locator(".item-desktop-actions .btn-delete")
+    confirm_dialog = page.locator("#ui-confirm-dialog")
 
     # 1. Dismiss confirmation: dialog canceled
-    page.once("dialog", lambda dialog: dialog.dismiss())
     del_btn.click()
+    expect(confirm_dialog).to_be_visible()
+    expect(confirm_dialog).to_contain_text("待确认删除任务")
+    cancel_btn = confirm_dialog.locator(".ui-button--secondary[data-ui-confirm-cancel]")
+    expect(cancel_btn).to_have_text("取消")
+    cancel_btn.click()
+    expect(confirm_dialog).not_to_be_visible()
 
     # Should still exist
     expect(todo_row).to_be_visible()
 
     # 2. Accept confirmation: dialog confirmed
-    page.once("dialog", lambda dialog: dialog.accept())
     del_btn.click()
+    expect(confirm_dialog).to_be_visible()
+    accept_btn = confirm_dialog.locator("[data-ui-confirm-accept]")
+    expect(accept_btn).to_have_text("永久删除")
+    accept_btn.click()
+    expect(confirm_dialog).not_to_be_visible()
 
     # Should be removed
     expect(page.locator(".todo-row", has_text="待确认删除任务")).not_to_be_visible()
+    assert native_dialogs == []
     page.close()
 
 
 def test_collapsible_groups_and_counts(live_app, browser, test_now):
-    """UI-05: Verify collapsible todo groups and group count badges."""
+    """UI-05: Verify in-place collapsible todo groups, aria-expanded, and group count badges."""
     page = browser.new_page(viewport={"width": 1280, "height": 800})
     register_user(page, live_app, "grp_collapse")
 
@@ -94,28 +107,41 @@ def test_collapsible_groups_and_counts(live_app, browser, test_now):
     page.fill("#new-todo-input", "今天待办测试")
     page.fill("#new-todo-due", test_now.date().isoformat())
     page.click("#btn-add-todo")
-    expect(page.locator(".todo-row", has_text="今天待办测试")).to_be_visible()
+    today_row = page.locator(".todo-row", has_text="今天待办测试")
+    expect(today_row).to_be_visible()
 
     # Test collapsible group
     today_group_head = page.locator('.todo-group[data-group-key="today"] .todo-group-heading')
     expect(today_group_head).to_be_visible()
+    expect(today_group_head).to_have_attribute("aria-expanded", "true")
     expect(today_group_head.locator('.ui-count-pill')).to_have_text("1")
+
+    # Row node remains mounted in place (no full list DOM wipe)
+    row_handle = page.evaluate_handle("document.querySelector('.todo-group[data-group-key=\"today\"] .todo-row')")
 
     # Click to collapse
     today_group_head.click()
     today_items = page.locator('.todo-group[data-group-key="today"] .todo-group-items')
+    expect(today_group_head).to_have_attribute("aria-expanded", "false")
     expect(today_items).not_to_be_visible()
 
     # Click to expand
     today_group_head.click()
+    expect(today_group_head).to_have_attribute("aria-expanded", "true")
     expect(today_items).to_be_visible()
+    assert page.evaluate("el => el.isConnected", row_handle) is True
     page.close()
 
 
 def test_search_action_dialog_entry_and_focus(live_app, browser):
-    """UI-06: Verify search buttons in overview and schedule, and focus return."""
+    """UI-06: Verify search buttons, Ctrl/Cmd+K shortcut, keyboard navigation, and focus return."""
     page = browser.new_page(viewport={"width": 1280, "height": 800})
     register_user(page, live_app, "srch_focus")
+
+    # Add searchable custom todo
+    page.fill("#new-todo-input", "快捷键搜索目标")
+    page.click("#btn-add-todo")
+    expect(page.locator(".todo-row", has_text="快捷键搜索目标")).to_be_visible()
 
     # 1. Search button in today schedule card
     search_btn = page.locator("#btn-search-actions")
@@ -145,6 +171,23 @@ def test_search_action_dialog_entry_and_focus(live_app, browser):
     page.keyboard.press("Escape")
     expect(dialog).not_to_be_visible()
     expect(schedule_search_btn).to_be_focused()
+
+    # 3. Global Ctrl+K shortcut and ArrowDown + Enter navigation
+    page.keyboard.press("Control+k")
+    expect(dialog).to_be_visible()
+    search_input = page.locator("#action-search-input")
+    expect(search_input).to_be_focused()
+    search_input.fill("快捷键搜索目标")
+    result_item = page.locator("#action-search-list .action-pool-item", has_text="快捷键搜索目标")
+    expect(result_item).to_be_visible()
+    expect(result_item).to_have_class(re.compile(r"\bis-active\b"))
+    search_input.press("ArrowDown")
+    search_input.press("Enter")
+    detail_dialog = page.locator("#action-detail-dialog")
+    expect(detail_dialog).to_be_visible()
+    expect(page.locator("#action-detail-title")).to_have_text("快捷键搜索目标")
+    page.keyboard.press("Escape")
+    expect(detail_dialog).not_to_be_visible()
     page.close()
 
 
@@ -207,4 +250,65 @@ def test_add_todo_protection_and_error_handling(live_app, browser):
     # Input value must NOT be cleared on failure!
     expect(input_loc).to_have_value("失败保留文本测试")
     expect(btn_loc).to_be_enabled()
+    page.close()
+
+
+def test_subtask_edit_guard_and_completion_undo_toast(live_app, browser):
+    """Verify subtask edit guard against double-PUT/re-render and Undo toast on completion."""
+    page = browser.new_page(viewport={"width": 1280, "height": 800})
+    register_user(page, live_app, "sub_undo")
+
+    page.fill("#new-todo-input", "子任务与撤销测试")
+    page.click("#btn-add-todo")
+    wrap = page.locator(".todo-row-wrap", has_text="子任务与撤销测试")
+    expect(wrap).to_be_visible()
+
+    # Desktop detail button opens #action-detail-dialog
+    wrap.locator(".item-desktop-actions .btn-detail").click()
+    detail_dialog = page.locator("#action-detail-dialog")
+    expect(detail_dialog).to_be_visible()
+    expect(page.locator("#action-detail-title")).to_have_text("子任务与撤销测试")
+    page.keyboard.press("Escape")
+    expect(detail_dialog).not_to_be_visible()
+
+    # Expand subtasks and add one
+    wrap.locator(".subtask-toggle").click()
+    wrap.locator(".subtask-add-input").fill("初始子步骤")
+    wrap.locator(".subtask-add-input").press("Enter")
+    sub_text = wrap.locator(".subtask-text", has_text="初始子步骤")
+    expect(sub_text).to_be_visible()
+
+    # Edit subtask and confirm renderUnifiedList() skips active .subtask-edit-input + only 1 PUT fires
+    put_count = 0
+
+    def count_puts(route):
+        nonlocal put_count
+        if route.request.method == "PUT":
+            put_count += 1
+        route.continue_()
+
+    page.route("**/api/custom/todos/*", count_puts)
+    sub_text.click()
+    edit_input = wrap.locator(".subtask-edit-input")
+    expect(edit_input).to_be_visible()
+    edit_input.fill("已改名子步骤")
+    page.evaluate("renderUnifiedList()")
+    expect(edit_input).to_be_focused()
+    expect(edit_input).to_have_value("已改名子步骤")
+    with page.expect_response(lambda r: "/api/custom/todos/" in r.url and r.request.method == "PUT"):
+        edit_input.press("Enter")
+    page.wait_for_timeout(100)
+    assert put_count == 1
+    expect(wrap.locator(".subtask-text", has_text="已改名子步骤")).to_be_visible()
+    page.unroute("**/api/custom/todos/*")
+
+    # Complete todo: completed group stays collapsed and Undo toast restores it
+    wrap.locator(".item-desktop-actions .btn-dismiss").click()
+    completed_group = page.locator('.todo-group[data-group-key="completed"]')
+    expect(completed_group).to_be_visible()
+    expect(completed_group.locator(".todo-group-heading")).to_have_attribute("aria-expanded", "false")
+    toast_region = page.locator("#ui-toast-region")
+    expect(toast_region).to_contain_text("已完成")
+    toast_region.get_by_role("button", name="撤销").click()
+    expect(page.locator('.todo-group[data-group-key="nodate"] .todo-row', has_text="子任务与撤销测试")).to_be_visible()
     page.close()

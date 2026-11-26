@@ -60,8 +60,14 @@ def test_frontend_new_todo_date_defaults_to_server_today(live_app, browser):
     page = browser.new_page()
     register_dashboard_user(page, live_app, "dateuser")
 
-    expect(page.locator("#new-todo-due")).to_have_value("2026-07-09")
-    expect(page.locator("#new-todo-due")).to_have_attribute("aria-label", "截止日期")
+    due_input = page.locator("#new-todo-due")
+    repeat_select = page.locator("#new-todo-repeat")
+    expect(due_input).to_have_value("")
+    expect(due_input).to_have_attribute("aria-label", "截止日期")
+    repeat_select.select_option("weekly")
+    expect(due_input).to_have_value("2026-07-09")
+    repeat_select.select_option("none")
+    expect(due_input).to_have_value("")
 
 
 def test_frontend_todo_heading_is_centered_in_header(live_app, browser):
@@ -366,9 +372,9 @@ def test_frontend_overview_rich_content_uses_internal_scroll_regions(live_app, b
     expect(page.locator("#today-schedule-content")).to_contain_text("今日日程 14")
 
     page.locator("#today-schedule-card").get_by_role("button", name="添加日程").click()
-    expect(page.locator("#dashboard-view-schedule")).to_be_visible()
+    expect(page.locator("#dashboard-view-overview")).to_be_visible()
     expect(page.locator("#schedule-item-modal")).to_be_visible()
-    page.evaluate("closeScheduleItemModal(); switchDashboardView('overview')")
+    page.evaluate("closeScheduleItemModal()")
     expect(page.locator("#dashboard-view-overview")).to_be_visible()
 
     todo_list = page.locator("#todo-list")
@@ -493,12 +499,21 @@ def test_frontend_v2_sidebar_greeting_and_calendar_subscription_page(live_app, b
     expect(page.locator("#calendar-subscription-panel")).to_have_count(0)
     expect(page.locator("#calendar-subscription-title")).to_have_text("日历订阅")
     expect(page.locator(".calendar-guide .calendar-step")).to_have_count(3)
-    expect(page.locator("#calendar-subscription-open")).to_be_disabled()
+    expect(page.locator("#calendar-subscription-url-wrap")).to_be_hidden()
+    expect(page.locator("#calendar-subscription-open")).to_be_hidden()
+    expect(page.locator("#calendar-subscription-revoke")).to_be_hidden()
     expect(page.locator("#calendar-subscription-create")).to_have_css("height", "36px")
     page.locator("#calendar-subscription-create").click()
     expect(page.locator("#calendar-subscription-url")).to_have_value(re.compile(r"/calendar/.+\.ics$"))
     expect(page.locator("#calendar-subscription-open")).to_be_enabled()
+    expect(page.locator("#calendar-subscription-revoke")).to_be_visible()
     page.locator("#calendar-subscription-revoke").click()
+    confirm_dialog = page.locator("#ui-confirm-dialog")
+    expect(confirm_dialog).to_be_visible()
+    accept_btn = confirm_dialog.locator("[data-ui-confirm-accept]")
+    expect(accept_btn).to_have_text("确认撤销")
+    accept_btn.click()
+    expect(confirm_dialog).not_to_be_visible()
     expect(page.locator("#calendar-subscription-status")).to_have_text("日历订阅已撤销")
 
 
@@ -653,18 +668,16 @@ def test_frontend_schedule_is_fixed_height_precise_and_editable(live_app, browse
     expect(page.locator("#schedule-management-open")).to_be_visible()
     expect(page.locator("#schedule-import-button")).to_be_hidden()
     expect(page.locator(".schedule-range-hint")).to_have_count(0)
-    expect(page.locator(".schedule-header-actions > button")).to_have_count(3)
+    expect(page.locator(".schedule-header-actions > button")).to_have_count(2)
     browser_env.wait_for_layout_settled(page)
     assert page.locator(".schedule-header-actions > button").evaluate_all(
         """buttons => {
           const boxes = buttons.map(button => button.getBoundingClientRect());
           // 按钮高度设计值 36px，±2px 只覆盖亚像素取整与边框渲染差异。
-          return buttons[0].id === 'schedule-header-clear-btn'
-            && buttons[1].id === 'schedule-management-open'
-            && buttons[2].id === 'btn-add-schedule-item'
+          return buttons[0].id === 'schedule-management-open'
+            && buttons[1].id === 'btn-add-schedule-item'
             && Math.abs(boxes[0].height - 36) <= 2
-            && Math.abs(boxes[1].height - 36) <= 2
-            && Math.abs(boxes[2].height - 36) <= 2;
+            && Math.abs(boxes[1].height - 36) <= 2;
         }"""
     )
     page.wait_for_selector(".period-cell")
@@ -675,6 +688,8 @@ def test_frontend_schedule_is_fixed_height_precise_and_editable(live_app, browse
     page.locator("#schedule-management-open").click()
     expect(page.locator("#schedule-management-modal")).to_be_visible()
     expect(page.locator("#schedule-refresh-button")).to_be_visible()
+    expect(page.locator("#schedule-header-clear-btn")).to_be_visible()
+    page.locator("#schedule-import-alt-disclosure > summary").click()
     expect(page.locator("#schedule-import-button")).to_be_visible()
     expect(page.locator(".schedule-download-link")).to_be_visible()
     page.locator("#schedule-management-modal .schedule-modal-close").click()
@@ -900,18 +915,16 @@ def test_frontend_project_main_card_groups_tasks_and_todo_jump(live_app, browser
     history = page.locator('#project-detail > .project-finished-groups')
     expect(history).to_contain_text('已完成')
     expect(history).not_to_have_attribute('open', '')
-    history.locator('summary').click()
-    expect(history.locator('.project-finished-task-row')).to_have_count(1)
+    history.locator('> summary').click()
+    expect(history.locator('.project-task-group .project-task-item')).to_have_count(1)
     expect(history).to_contain_text('完成 NumPy 数组练习')
     completed = page.locator('#project-detail .project-completed-tasks')
     if page.locator('.project-order-management > summary').count():
         page.locator('.project-order-management > summary').click()
-    if page.locator('.project-finished-groups > summary').count():
-        page.locator('.project-finished-groups > summary').first.click()
     if completed.count():
         expect(completed.first).to_contain_text('已完成 1 项')
         if completed.first.get_attribute('open') is None:
-            completed.first.locator('summary').click()
+            completed.first.locator('> summary').click()
         expect(completed.first).to_have_attribute('open', '')
         expect(completed.first.locator('.project-completed-clear-btn')).to_be_visible()
 
@@ -1133,7 +1146,7 @@ def test_frontend_connection_actions_stay_with_the_selected_platform(live_app, b
         expect(selected_detail).to_be_visible()
         expect(selected_actions).to_have_count(1)
         expect(selected_actions).to_be_visible()
-        expect(page.locator('.connection-data-actions:visible')).to_have_count(1)
+        expect(page.locator('.connection-data-actions:visible')).to_have_count(0)
         assert page.evaluate(
             "([detail, actions]) => detail.contains(actions)",
             [selected_detail.element_handle(), selected_actions.element_handle()],
@@ -1308,7 +1321,8 @@ def test_frontend_custom_todos_subtasks_platform_cards_without_ocr(live_app, bro
     page.evaluate("window.customToday = '2026-07-09'")
     custom_item.locator(".subtask-due-input").fill("2026-07-09")
     custom_item.locator(".subtask-toggle").click()
-    expect(custom_item.locator(".subtask-toggle")).to_have_text("\u25b8")
+    expect(custom_item.locator(".subtask-toggle")).to_contain_text("\u25b8")
+    expect(custom_item.locator(".subtask-toggle .subtask-count-pill")).to_have_text("0/1")
     expect(custom_item.locator(".subtask-upcoming-preview")).to_have_count(0)
 
     expect(page.locator(".ocr-trigger-arrow-btn")).to_have_count(0)
@@ -1325,7 +1339,10 @@ def test_frontend_v2_preserves_core_todo_actions(live_app, browser):
     expect(canvas_item).to_have_class(re.compile(r"\bmanual-flagged\b"))
     canvas_item.locator(".item-desktop-actions .btn-dismiss").click()
     expect(canvas_item).to_have_class(re.compile(r"\bdismissed\b"))
-    expect(page.locator("#stat-total")).to_have_text("0")
+    expect(page.locator("#stat-pending-count")).to_have_text("0")
+    completed_group = page.locator('.todo-group[data-group-key="completed"]')
+    if completed_group.locator(".todo-group-heading").get_attribute("aria-expanded") == "false":
+        completed_group.locator(".todo-group-heading").click()
     canvas_item.locator(".item-desktop-actions .btn-delete").click()
     expect(canvas_item).to_have_count(0)
 
@@ -1348,10 +1365,17 @@ def test_frontend_v2_preserves_core_todo_actions(live_app, browser):
 
     custom_item.locator(".item-desktop-actions .btn-dismiss").click()
     expect(custom_item.locator(".todo-row")).to_have_class(re.compile(r"\bdismissed\b"))
+    if completed_group.locator(".todo-group-heading").get_attribute("aria-expanded") == "false":
+        completed_group.locator(".todo-group-heading").click()
     custom_item.locator(".item-desktop-actions .btn-dismiss").click()
     expect(custom_item.locator(".todo-row")).not_to_have_class(re.compile(r"\bdismissed\b"))
-    page.once("dialog", lambda dialog: dialog.accept())
     custom_item.locator(".item-desktop-actions .btn-delete").click()
+    confirm_dialog = page.locator("#ui-confirm-dialog")
+    expect(confirm_dialog).to_be_visible()
+    accept_btn = confirm_dialog.locator("[data-ui-confirm-accept]")
+    expect(accept_btn).to_have_text("永久删除")
+    accept_btn.click()
+    expect(confirm_dialog).not_to_be_visible()
     expect(custom_item).to_have_count(0)
 
 
@@ -1390,7 +1414,8 @@ def test_frontend_external_platform_subtasks_lifecycle_and_badge(live_app, brows
     restored = page.locator(".todo-row-wrap").filter(has_text="Canvas seeded")
     expect(restored).to_be_visible()
     restored_toggle = restored.locator(".subtask-toggle")
-    expect(restored_toggle).to_have_text("\u25b8")
+    expect(restored_toggle).to_contain_text("\u25b8")
+    expect(restored_toggle.locator(".subtask-count-pill")).to_have_text("1/1")
     restored_toggle.click()
     expect(restored.locator(".subtask-text")).to_have_text("Canvas subtask step 1")
     expect(restored.locator(".todo-subtask-row input[type='checkbox']")).to_be_checked()
@@ -1452,25 +1477,36 @@ def test_frontend_agent_integration_page(live_app, browser):
     expect(page.locator("#agent-manager-card")).to_be_visible()
     expect(page.locator("#agent-manager-title")).to_have_text("Agent 接入 (MCP & Skill)")
 
-    # Check token creation
+    # Check token creation (plaintext box and revoke actions start hidden)
     token_input = page.locator("#agent-token-input")
+    expect(page.locator("#agent-token-plaintext-card")).to_be_hidden()
+    expect(token_input).to_be_hidden()
     expect(token_input).to_have_attribute("placeholder", "尚未生成 Agent Token")
-    expect(page.locator("#agent-token-copy")).to_be_disabled()
-    expect(page.locator("#agent-token-revoke")).to_be_disabled()
+    expect(page.locator("#agent-token-copy")).to_be_hidden()
+    expect(page.locator("#agent-token-revoke")).to_be_hidden()
 
     # Create token
     page.locator("#agent-token-create").click()
+    expect(page.locator("#agent-token-plaintext-card")).to_be_visible()
     expect(token_input).to_have_value(re.compile(r"^cda_.+"))
     expect(page.locator("#agent-token-copy")).to_be_enabled()
+    expect(page.locator("#agent-token-revoke")).to_be_visible()
     expect(page.locator("#agent-token-revoke")).to_be_enabled()
 
-    # Verify MCP code block has the token
+    # Switch to MCP tab and verify MCP code block has the token
+    page.locator("#agent-tab-btn-mcp").click()
     mcp_code = page.locator("#agent-mcp-config-code")
+    expect(mcp_code).to_be_visible()
     expect(mcp_code).to_contain_text("cda_")
 
-    # Revoke token (handle dialog)
-    page.on("dialog", lambda dialog: dialog.accept())
+    # Revoke token via #ui-confirm-dialog
     page.locator("#agent-token-revoke").click()
+    confirm_dialog = page.locator("#ui-confirm-dialog")
+    expect(confirm_dialog).to_be_visible()
+    accept_btn = confirm_dialog.locator("[data-ui-confirm-accept]")
+    expect(accept_btn).to_have_text("撤销全部")
+    accept_btn.click()
+    expect(confirm_dialog).not_to_be_visible()
     expect(page.locator("#agent-token-status")).to_contain_text("Token 已成功撤销")
 
 
@@ -1491,7 +1527,7 @@ def test_frontend_agent_multi_token_and_scopes(live_app, browser):
     # Check token list contains Writer Bot with write badge
     expect(page.locator("#agent-tokens-list")).to_be_visible()
     expect(page.locator("#agent-tokens-list")).to_contain_text("Writer Bot")
-    expect(page.locator("#agent-tokens-list")).to_contain_text("读写 (write)")
+    expect(page.locator("#agent-tokens-list")).to_contain_text("读写")
 
     # Create second token: "Reader Bot" with read scope
     page.fill("#agent-token-name-input", "Reader Bot")
@@ -1499,21 +1535,31 @@ def test_frontend_agent_multi_token_and_scopes(live_app, browser):
     page.click("#agent-token-create")
 
     expect(page.locator("#agent-tokens-list")).to_contain_text("Reader Bot")
-    expect(page.locator("#agent-tokens-list")).to_contain_text("只读 (read)")
+    expect(page.locator("#agent-tokens-list")).to_contain_text("只读")
     expect(page.locator("#agent-tokens-list .agent-token-item")).to_have_count(2)
 
-    # Revoke single token (Writer Bot)
-    page.on("dialog", lambda dialog: dialog.accept())
+    # Revoke single token (Writer Bot) via #ui-confirm-dialog
     writer_item = page.locator("#agent-tokens-list .agent-token-item").filter(has_text="Writer Bot")
     writer_item.locator("button").click()
+    confirm_dialog = page.locator("#ui-confirm-dialog")
+    expect(confirm_dialog).to_be_visible()
+    accept_btn = confirm_dialog.locator("[data-ui-confirm-accept]")
+    expect(accept_btn).to_have_text("确认撤销")
+    accept_btn.click()
+    expect(confirm_dialog).not_to_be_visible()
     expect(page.locator("#agent-token-status")).to_contain_text("指定 Token 已成功撤销")
     expect(page.locator("#agent-tokens-list .agent-token-item")).to_have_count(1)
     expect(page.locator("#agent-tokens-list")).to_contain_text("Reader Bot")
 
-    # Revoke all tokens
+    # Revoke all tokens via #ui-confirm-dialog
     page.locator("#agent-token-revoke").click()
+    expect(confirm_dialog).to_be_visible()
+    expect(accept_btn).to_have_text("撤销全部")
+    accept_btn.click()
+    expect(confirm_dialog).not_to_be_visible()
     expect(page.locator("#agent-token-status")).to_contain_text("Token 已成功撤销")
     expect(page.locator("#agent-tokens-list-container")).to_be_hidden()
+    expect(page.locator("#agent-token-plaintext-card")).to_be_hidden()
     expect(page.locator("#agent-token-input")).to_have_attribute("placeholder", "尚未生成 Agent Token")
 
 
@@ -1591,6 +1637,8 @@ def test_frontend_todo_completion_sinks_and_syncs_with_agenda(live_app, browser)
     completed_group = page.locator(".todo-group.is-completed")
     expect(completed_group).to_be_visible()
     expect(completed_group.locator(".ui-card__title")).to_have_text("已完成")
+    expect(completed_group).to_have_class(re.compile(r"\bis-collapsed\b"))
+    completed_group.locator(".todo-group-heading").click()
     expect(completed_group.locator(".todo-row").filter(has_text="今日必做测试")).to_be_visible()
     expect(page.locator(".todo-group-heading .ui-card__title").filter(has_text=re.compile(r"^今天$"))).to_have_count(0)
 
@@ -1772,7 +1820,7 @@ def test_desktop_refinement_keeps_colored_tags_and_readable_rows(live_app, brows
     browser_env.wait_for_layout_settled(page)
     expect(row.locator('.ui-source-tag--custom')).to_be_visible()
     expect(row.locator('.item-source-badge')).to_be_visible()
-    expect(page.locator('#stat-pending-diff')).to_contain_text('项待处理')
+    expect(page.locator('#stat-pending-diff')).to_contain_text('今日 0 项 · 已完成 0 项')
     assert row.locator('.item-title').evaluate('e => getComputedStyle(e).fontSize') == '13.5px'
     assert row.locator('.ui-source-tag--custom').evaluate('e => getComputedStyle(e).backgroundColor') != 'rgba(0, 0, 0, 0)'
     if width >= 1280:

@@ -5,6 +5,7 @@
 
     updateGreeting(new Date());
     if (!isDemoMode) {
+      if (typeof beginBootRenderCoalesce === 'function') beginBootRenderCoalesce(240);
       initClock();
       loadTodaySchedule();
     }
@@ -25,8 +26,6 @@
       refreshSessionActivity();
     } else {
       window.customToday = '2026-07-25';
-      const dueInput = document.getElementById('new-todo-due');
-      if (dueInput && !dueInput.value) dueInput.value = window.customToday;
       const updatedEl = document.getElementById('list-updated');
       if (updatedEl) updatedEl.textContent = '';
 

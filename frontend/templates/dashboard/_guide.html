@@ -94,7 +94,7 @@
         </dl>
 
         <div class="guide-start-cta">
-          <button type="button" class="ui-button ui-button--primary" data-open-view="overview">去添加第一件事</button>
+          <button type="button" class="ui-button ui-button--primary" data-open-view="overview" data-focus-target="new-todo-input">去添加第一件事</button>
           <p>在今日总览的输入框里写一句话就能开始，不连接任何平台也能用。</p>
         </div>
       </section>
@@ -106,7 +106,7 @@
           <h2 id="guide-overview-title" tabindex="-1">2 · 今日总览</h2>
           <p class="guide-block__lead">所有来源汇成一张清单，按截止时间排开，先看见最要紧的事。</p>
           <ul class="guide-points">
-            <li>所有来源汇成一份清单，固定按「已逾期 → 今天 → 本周内 → 无日期」分段，与事项来自哪个平台无关；清单里没有「明天」和「此前未完成」分段。</li>
+            <li>所有来源汇成一份清单，固定按「已逾期 → 今天 → 近三天 → 以后 → 无日期 → 已完成」分段，与事项来自哪个平台无关；已完成默认折叠在末尾。</li>
             <li><strong>看颜色就知道急不急</strong>：每个截止日期都是同一枚小胶囊，只换颜色——逾期和今天红色，三天内黄色，其余灰蓝；只有逾期那一行还带红底。</li>
             <li>勾选只记录你的进度，不会替你提交作业，也不会改写教学平台的数据。</li>
             <li>手机上打开就是这张清单；连接、设置和这份指南都在左上角菜单里。</li>
@@ -131,7 +131,7 @@
               <span class="guide-mock-name">形势与政策测验</span>
               <span class="guide-mock-meta guide-mock-meta--today">今天 23:59</span>
             </div>
-            <div class="guide-specimen__group">本周内 · 近三天黄标签</div>
+            <div class="guide-specimen__group">近三天 · 黄标签</div>
             <div class="guide-mock-row">
               <span class="ui-badge ui-badge--source ui-source--zhihuishu">智慧树</span>
               <span class="guide-mock-name">实验报告初稿</span>
@@ -189,7 +189,7 @@
           <p class="guide-block__lead">持续几周的目标放在这里：需要做的事、参考资料和现在推进到哪一步。</p>
           <ul class="guide-points">
             <li>建分组、加任务，标出下一步行动；这一步完成后自动顺延到其他未完成步骤，也可以手动切换。</li>
-            <li>选定下一步不等于今天就做：要它进今日清单，勾选“同时加入待办清单”，或把计划日期设在今天。</li>
+            <li>选定下一步不等于今天就做：把计划日期或截止日期设到今天（或当天有时间安排），该步骤会自动进入今日清单。</li>
             <li>远期方向和方法写进项目资料；项目和任务删除后没有回收站。</li>
           </ul>
           <button type="button" class="ui-button ui-button--secondary" data-open-view="projects">打开长期项目</button>

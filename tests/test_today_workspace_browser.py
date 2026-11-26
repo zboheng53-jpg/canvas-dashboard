@@ -138,7 +138,7 @@ def test_today_workspace_browser(live_app, browser):
         expect(groups.get_by_text("实验对比分析")).to_be_visible()
 
         # Completed tasks all in one collapsed section
-        history = page.locator(".project-finished-groups")
+        history = page.locator("#project-detail .project-task-group .project-completed-tasks")
         expect(history).to_be_visible()
         assert history.get_attribute("open") is None
 

@@ -35,31 +35,31 @@
 
     <!-- KPI 概览 -->
     <div class="kpis enter-kpis" id="dashboard-kpis">
-      <div class="kpi">
-        <div class="k-label">待完成</div>
-        <div class="k-value" id="stat-pending-count">0</div>
-        <div class="k-hint" id="stat-pending-diff">未有新变化</div>
-      </div>
-      <div class="kpi">
-        <div class="k-label">72 小时内截止</div>
-        <div class="k-value" id="stat-due-count">0</div>
-        <div class="k-hint warn" id="stat-due-overdue">含 0 项已逾期</div>
-      </div>
-      <div class="kpi">
-        <div class="k-label">今日课程</div>
-        <div class="k-value" id="stat-course-count">0</div>
-        <div class="k-hint" id="stat-course-next">无更多课程</div>
-      </div>
+      <button type="button" class="ui-button kpi" id="kpi-pending" onclick="handleKpiJump('pending')" aria-label="查看待完成待办">
+        <span class="k-label">待完成</span>
+        <span class="k-value" id="stat-pending-count">0</span>
+        <span class="k-hint" id="stat-pending-diff">全部清零</span>
+      </button>
+      <button type="button" class="ui-button kpi" id="kpi-due" onclick="handleKpiJump('due')" aria-label="跳转至即将截止待办">
+        <span class="k-label">72 小时内截止</span>
+        <span class="k-value" id="stat-due-count">0</span>
+        <span class="k-hint" id="stat-due-overdue">无逾期事项</span>
+      </button>
+      <button type="button" class="ui-button kpi" id="kpi-course" onclick="handleKpiJump('course')" aria-label="查看今日课程与日程">
+        <span class="k-label">今日课程</span>
+        <span class="k-value" id="stat-course-count">0</span>
+        <span class="k-hint" id="stat-course-next">无更多课程</span>
+      </button>
     </div>
 
     <!-- 移动端平台同步关注横幅 (Mobile Platform Attention Banner) -->
-    <div class="mobile-attention-banner hidden" id="mobile-attention-banner" onclick="switchDashboardView('connections')" role="button" tabindex="0">
-      <div class="mobile-attention-banner-left">
-        <span class="mobile-attention-badge">!</span>
+    <button type="button" class="ui-button mobile-attention-banner hidden" id="mobile-attention-banner" onclick="switchDashboardView('connections')">
+      <span class="mobile-attention-banner-left">
+        <span class="mobile-attention-badge" aria-hidden="true">!</span>
         <span id="mobile-attention-text">需要处理平台同步配置</span>
-      </div>
+      </span>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
-    </div>
+    </button>
 
     <!-- Main Content -->
     <main>
@@ -77,7 +77,7 @@
 
           <div class="todo-composer" id="todo-composer">
           <form class="add-row add-todo-form" id="add-todo-form">
-            <input type="text" id="new-todo-input" placeholder="添加新待办…" autocomplete="off" class="ui-control input todo-title-input">
+            <input type="text" id="new-todo-input" placeholder="添加新待办…（支持 #标签）" autocomplete="off" class="ui-control input todo-title-input">
             <input type="date" id="new-todo-due" class="ui-control input date date-input" aria-label="截止日期" title="截止日期">
             <select id="new-todo-repeat" class="ui-control select new-todo-repeat-select" aria-label="重复设置" title="重复设置" style="padding: 4px 8px; font-size: 13px; height: 32px; border-radius: 6px;">
               <option value="none">不重复</option>
@@ -89,7 +89,7 @@
           <p class="ui-feedback ui-feedback--danger add-todo-error" id="add-todo-error" role="alert" style="display: none; font-size: 13px; margin: 4px 0 8px 0;"></p>
           </div>
 
-          <select id="todo-source-select" class="ui-control todo-source-select" style="position: absolute; opacity: 0; pointer-events: auto; width: 1px; height: 1px; margin: -1px; overflow: hidden;" aria-label="按来源筛选待办">
+          <select id="todo-source-select" class="ui-control todo-source-select" tabindex="-1" aria-hidden="true" style="position: absolute; opacity: 0; pointer-events: auto; width: 1px; height: 1px; margin: -1px; overflow: hidden;" aria-label="按来源筛选待办">
             <option value="all">全部</option>
             <option value="canvas" hidden disabled>Canvas</option>
             <option value="haoke" hidden disabled>好课</option>
@@ -100,11 +100,6 @@
             <option value="project">项目</option>
             <option value="custom">自定义</option>
           </select>
-
-          <div class="stats-bar-under-add hidden" id="stats-bar" style="display:none;">
-            <span class="ui-count-pill stat-pill">待完成 <b class="stat-count" id="stat-total">0</b> 项</span>
-            <span class="ui-count-pill ui-count-pill--danger stat-pill urgent">即将到期 <b class="stat-count urgent" id="stat-urgent">0</b> 项</span>
-          </div>
 
           <!-- 来源筛选 Chips -->
           <div class="src-filters todo-source-filters" id="todo-source-filters" role="group" aria-label="按来源筛选待办">
