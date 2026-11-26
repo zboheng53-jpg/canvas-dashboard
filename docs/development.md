@@ -136,7 +136,7 @@ UI/交互修改先由执行者实际核验隔离预览，再给出地址、2–5
 
 好课的 `sync.refreshing` 反映实际后台任务，而非缓存是否过期。`cache_only=1` 只读取投影，不重启失败的同步；浏览器每 2 秒轮询至任务结束，`refresh=1` 可强制刷新现有缓存。
 
-Canvas、好课、智学盟、课堂派和同济 OJ 的冷缓存也立即返回 pending/refreshing，共用 `http_sync.py` 的有界执行器（`HTTP_SYNC_MAX_WORKERS=2`、`HTTP_SYNC_MAX_JOBS=32`；任务上限包括排队和运行）。按 `(username, platform, job_type)` 去重，平台内部按顺序抓取。发布缓存和错误状态前复核账户不可变身份及连接版本，断开后重连不会接收旧任务结果。浏览器隐藏时暂停缓存轮询和周期刷新，回前台按需恢复；轮询使用 `cache_only=1`，失败结束后不重新发起同步。
+Canvas、好课、智学盟、课堂派和同济 OJ 的冷缓存也立即返回 pending/refreshing，共用 `http_sync.py` 的有界执行器（`HTTP_SYNC_MAX_WORKERS=6`、`HTTP_SYNC_MAX_JOBS=96`；任务上限包括排队和运行）。按 `(username, platform, job_type)` 去重，平台内部按顺序抓取。发布缓存和错误状态前复核账户不可变身份及连接版本，断开后重连不会接收旧任务结果。浏览器隐藏时暂停缓存轮询和周期刷新，回前台按需恢复；轮询使用 `cache_only=1`，失败结束后不重新发起同步。
 
 第三方短信、验证码、登录及临时浏览器启动／读取通过同一预算提交后台操作，原接口返回 202 与 `status_url`，`GET /api/operations/<token>` 只供原账户身份读取。网页 `csrf.js` 等待任务结果，接口本身不占着 Waitress 线程等外网。队列满或同类任务已有返回带 Retry-After 的 429。天气也采用缓存优先；节假日只读本地缓存，普通页面不再通过 CDP 创建浏览器标签。旧 `POST /api/schedule/refresh` 返回 410，不接收密码或启动浏览器。
 
