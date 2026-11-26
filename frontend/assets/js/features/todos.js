@@ -38,6 +38,7 @@
     let tongjiojDeletedIds = [];
 
     const todoInFlightKeys = new Set();
+    const todoDesiredToggleState = new Map();
     let _bootCoalesceActive = false;
     let _bootCoalesceExpiresAt = 0;
     let _renderScheduledTimer = null;
@@ -180,6 +181,12 @@
         if (revision !== customDataRevision || requestId !== customFetchRequest) return;
         customItems = result.data || [];
         customItems.forEach(todo => {
+          const overrideKey = todo.is_recurring && todo.series_id != null && todo.original_due_date
+            ? `recurring:${todo.series_id}:${todo.original_due_date}`
+            : `custom:${todo.id}`;
+          if (todoDesiredToggleState.has(overrideKey)) {
+            todo.done = todoDesiredToggleState.get(overrideKey);
+          }
           if (todo.subtasks) {
             todo.subtasks.forEach((subtask, idx) => {
               if (subtask.id == null) {
@@ -1258,44 +1265,62 @@
 
     async function togglePlatformCompletion(platform, id, done) {
       const lockKey = `${platform}:${id}`;
-      if (todoInFlightKeys.has(lockKey)) return;
       const cfg = PLATFORM_COLLECTIONS[platform];
-      const item = (cfg?.getItems() || []).find((entry) => String(entry.id) === String(id));
-      const prevDone = Boolean(item?.done);
+      const getItem = () => (cfg?.getItems() || []).find((entry) => String(entry.id) === String(id));
+      const item = getItem();
+      const targetDone = !done;
       const wasOverdue = item ? todoDeadlineState(item).overdue : false;
       const shortTitle = shortTodoToastTitle(item?.title || '该待办');
 
-      todoInFlightKeys.add(lockKey);
-      if (item) item.done = !done;
+      todoDesiredToggleState.set(lockKey, targetDone);
+      if (item) item.done = targetDone;
       flipTodoList(() => renderUnifiedListNow());
 
+      if (todoInFlightKeys.has(lockKey)) return;
+      todoInFlightKeys.add(lockKey);
+      const initialDone = Boolean(item?.done === targetDone ? done : item?.done);
+
       try {
-        const response = await fetch(`/api/${platform}/state`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({action: done ? 'uncomplete' : 'complete', id}),
-        });
-        if (!response.ok) throw new Error('state update failed');
-        if (!done) {
-          if (cfg?.refresh) await cfg.refresh();
-          if (!wasOverdue) {
-            showUiToast(`已完成「${shortTitle}」`, {
-              tone: 'success',
-              actionLabel: '撤销',
-              onAction: () => togglePlatformCompletion(platform, id, true),
-            });
-          } else {
-            showUiToast(`已完成「${shortTitle}」（已过截止，自动清理）`, { tone: 'info' });
+        while (todoDesiredToggleState.has(lockKey)) {
+          const sendDone = todoDesiredToggleState.get(lockKey);
+          const response = await fetch(`/api/${platform}/state`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({action: sendDone ? 'complete' : 'uncomplete', id}),
+          });
+          if (!response.ok) throw new Error('state update failed');
+          if (todoDesiredToggleState.get(lockKey) !== sendDone) continue;
+          if (sendDone && cfg?.refresh) await cfg.refresh();
+          if (todoDesiredToggleState.get(lockKey) === sendDone) {
+            if (sendDone) {
+              if (!wasOverdue) {
+                showUiToast(`已完成「${shortTitle}」`, {
+                  tone: 'success',
+                  actionLabel: '撤销',
+                  onAction: () => togglePlatformCompletion(platform, id, true),
+                });
+              } else {
+                showUiToast(`已完成「${shortTitle}」（已过截止，自动清理）`, { tone: 'info' });
+              }
+            } else {
+              showUiToast(`已恢复「${shortTitle}」`, { tone: 'info' });
+            }
+            if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+            break;
           }
-        } else {
-          showUiToast(`已恢复「${shortTitle}」`, { tone: 'info' });
+          const latest = getItem();
+          if (latest) {
+            latest.done = todoDesiredToggleState.get(lockKey);
+            flipTodoList(() => renderUnifiedListNow());
+          }
         }
-        if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
       } catch (error) {
-        if (item) item.done = prevDone;
+        const latest = getItem();
+        if (latest) latest.done = initialDone;
         flipTodoList(() => renderUnifiedListNow());
         showUiToast('状态更新失败，已恢复原状', { tone: 'danger' });
       } finally {
+        todoDesiredToggleState.delete(lockKey);
         todoInFlightKeys.delete(lockKey);
       }
     }
@@ -2023,92 +2048,117 @@
         return;
       }
       const lockKey = `custom:${id}`;
-      if (todoInFlightKeys.has(lockKey)) return;
-      const item = Array.isArray(customItems) ? customItems.find(t => String(t.id) === String(id)) : null;
-      const prevDone = Boolean(item?.done);
+      const getItem = () => (Array.isArray(customItems) ? customItems.find(t => String(t.id) === String(id)) : null);
+      const item = getItem();
+      const targetDone = !done;
+      const prevDone = Boolean(done);
       const prevCompletedAt = item?.completed_at;
       const wasOverdue = Boolean(item?.due_date && item.due_date < getTodayDateString());
       const shortTitle = shortTodoToastTitle(item?.text || '该待办');
 
-      todoInFlightKeys.add(lockKey);
-      if (item) item.done = !done;
+      todoDesiredToggleState.set(lockKey, targetDone);
+      if (item) item.done = targetDone;
       flipTodoList(() => renderUnifiedListNow());
 
-      const payload = { done: !done };
-      if (item && item.updated_at) payload.expected_updated_at = item.updated_at;
+      if (todoInFlightKeys.has(lockKey)) return;
+      todoInFlightKeys.add(lockKey);
+
       try {
-        const resp = await fetch(`/api/custom/todos/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (!resp.ok) throw new Error('update failed');
-        await fetchCustomTodos();
-        if (!done) {
-          if (!wasOverdue) {
-            showUiToast(`已完成「${shortTitle}」`, {
-              tone: 'success',
-              actionLabel: '撤销',
-              onAction: () => toggleTodoCheck(id, true),
-            });
-          } else {
-            showUiToast(`已完成「${shortTitle}」（已过截止，自动清理）`, { tone: 'info' });
+        while (todoDesiredToggleState.has(lockKey)) {
+          const sendDone = todoDesiredToggleState.get(lockKey);
+          const currentItem = getItem();
+          const payload = { done: sendDone };
+          if (currentItem && currentItem.updated_at) payload.expected_updated_at = currentItem.updated_at;
+          const resp = await fetch(`/api/custom/todos/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (!resp.ok) throw new Error('update failed');
+          await fetchCustomTodos();
+          if (todoDesiredToggleState.get(lockKey) === sendDone) {
+            if (sendDone) {
+              if (!wasOverdue) {
+                showUiToast(`已完成「${shortTitle}」`, {
+                  tone: 'success',
+                  actionLabel: '撤销',
+                  onAction: () => toggleTodoCheck(id, true),
+                });
+              } else {
+                showUiToast(`已完成「${shortTitle}」（已过截止，自动清理）`, { tone: 'info' });
+              }
+            } else {
+              showUiToast(`已恢复「${shortTitle}」`, { tone: 'info' });
+            }
+            if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+            break;
           }
-        } else {
-          showUiToast(`已恢复「${shortTitle}」`, { tone: 'info' });
         }
-        if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
       } catch (error) {
-        if (item) {
-          item.done = prevDone;
-          item.completed_at = prevCompletedAt;
+        const latest = getItem();
+        if (latest) {
+          latest.done = prevDone;
+          latest.completed_at = prevCompletedAt;
         }
         flipTodoList(() => renderUnifiedListNow());
         showUiToast('状态更新失败，已恢复原状', { tone: 'danger' });
       } finally {
+        todoDesiredToggleState.delete(lockKey);
         todoInFlightKeys.delete(lockKey);
       }
     }
 
     async function toggleRecurringCheck(seriesId, origDate, done) {
       const lockKey = `recurring:${seriesId}:${origDate}`;
-      if (todoInFlightKeys.has(lockKey)) return;
-      const item = customItems.find((t) => Number(t.series_id) === Number(seriesId) && t.original_due_date === origDate);
-      const prevDone = Boolean(item?.done);
+      const getItem = () => customItems.find((t) => Number(t.series_id) === Number(seriesId) && t.original_due_date === origDate);
+      const item = getItem();
+      const targetDone = !done;
+      const prevDone = Boolean(done);
       const wasOverdue = Boolean(item?.due_date && item.due_date < getTodayDateString());
       const shortTitle = shortTodoToastTitle(item?.text || '重复待办');
 
-      todoInFlightKeys.add(lockKey);
-      if (item) item.done = !done;
+      todoDesiredToggleState.set(lockKey, targetDone);
+      if (item) item.done = targetDone;
       flipTodoList(() => renderUnifiedListNow());
 
+      if (todoInFlightKeys.has(lockKey)) return;
+      todoInFlightKeys.add(lockKey);
+
       try {
-        const resp = await fetch(`/api/recurring-todos/${seriesId}/occurrences/${origDate}/complete`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ done: !done }),
-        });
-        if (!resp.ok) throw new Error('recurring complete failed');
-        await fetchCustomTodos();
-        if (!done) {
-          if (!wasOverdue) {
-            showUiToast(`已完成「${shortTitle}」`, {
-              tone: 'success',
-              actionLabel: '撤销',
-              onAction: () => toggleRecurringCheck(seriesId, origDate, true),
-            });
-          } else {
-            showUiToast(`已完成「${shortTitle}」（已过截止，自动清理）`, { tone: 'info' });
+        while (todoDesiredToggleState.has(lockKey)) {
+          const sendDone = todoDesiredToggleState.get(lockKey);
+          const resp = await fetch(`/api/recurring-todos/${seriesId}/occurrences/${origDate}/complete`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ done: sendDone }),
+          });
+          if (!resp.ok) throw new Error('recurring complete failed');
+          await fetchCustomTodos();
+          if (todoDesiredToggleState.get(lockKey) === sendDone) {
+            if (sendDone) {
+              if (!wasOverdue) {
+                showUiToast(`已完成「${shortTitle}」`, {
+                  tone: 'success',
+                  actionLabel: '撤销',
+                  onAction: () => toggleRecurringCheck(seriesId, origDate, true),
+                });
+              } else {
+                showUiToast(`已完成「${shortTitle}」（已过截止，自动清理）`, { tone: 'info' });
+              }
+            } else {
+              showUiToast(`已恢复「${shortTitle}」`, { tone: 'info' });
+            }
+            if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+            break;
           }
-        } else {
-          showUiToast(`已恢复「${shortTitle}」`, { tone: 'info' });
         }
-        if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
       } catch (error) {
-        if (item) item.done = prevDone;
+        const latest = getItem();
+        if (latest) latest.done = prevDone;
         flipTodoList(() => renderUnifiedListNow());
         showUiToast('重复待办更新失败，已恢复原状', { tone: 'danger' });
       } finally {
+        todoDesiredToggleState.delete(lockKey);
         todoInFlightKeys.delete(lockKey);
       }
     }
