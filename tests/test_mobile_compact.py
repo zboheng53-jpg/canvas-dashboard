@@ -116,10 +116,10 @@ def test_mobile_project_tasks_keep_title_space_and_working_actions(live_app, bro
     assert page.locator('#project-task-modal .project-modal-card').bounding_box()['width'] <= width
     page.locator('#project-task-modal .project-modal-close').click()
     current.get_by_role('button', name='完成步骤', exact=True).click()
-    history = page.locator('#project-detail > .project-finished-groups')
+    history = page.locator('#project-detail .project-finished-groups')
     expect(history).to_contain_text('已完成')
     expect(history).not_to_have_attribute('open', '')
-    expect(history.locator('.project-finished-task-row')).to_have_count(1)
+    expect(history.locator('.project-task-item.is-done')).to_have_count(1)
     assert project_store.load_projects(username)[0]['tasks'][0]['done'] is True
     page.locator('[data-mobile-tab="schedule"]').click()
     expect(page.locator('.period-day')).to_have_count(7)
@@ -193,10 +193,13 @@ def test_subtask_draft_survives_refresh_and_failed_save(live_app, browser, test_
         route.fulfill(status=503, json={'error': '暂时无法保存'})
         if route.request.method == 'PUT' else route.continue_()
     ))
-    page.once('dialog', lambda dialog: dialog.dismiss())
+    native_dialogs = []
+    page.on('dialog', lambda dialog: (native_dialogs.append(dialog.message), dialog.dismiss()))
     with page.expect_response(lambda r: '/api/custom/todos/' in r.url and r.request.method == 'PUT') as failed:
         field.press('Enter')
     assert failed.value.status == 503
+    assert native_dialogs == []
+    expect(page.locator('#ui-toast-region')).to_contain_text('暂时无法保存')
     expect(field).to_have_value('正在记录的步骤')
     page.unroute('**/api/custom/todos/*')
     field.press('Enter')

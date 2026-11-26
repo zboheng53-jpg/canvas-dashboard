@@ -37,14 +37,98 @@
     let ketangpaiDeletedIds = [];
     let tongjiojDeletedIds = [];
 
+    const todoInFlightKeys = new Set();
+    let _bootCoalesceActive = false;
+    let _bootCoalesceExpiresAt = 0;
+    let _renderScheduledTimer = null;
+    let _renderScheduledRaf = null;
+    let _pendingPulseTodoKey = null;
+    let _pendingFocusSelector = null;
+
+    function beginBootRenderCoalesce(windowMs = 240) {
+      _bootCoalesceActive = true;
+      _bootCoalesceExpiresAt = Date.now() + windowMs;
+    }
+
+    function scheduleRenderUnifiedList() {
+      if (_renderScheduledTimer !== null || _renderScheduledRaf !== null) return;
+      _renderScheduledTimer = setTimeout(() => {
+        _renderScheduledTimer = null;
+        _renderScheduledRaf = requestAnimationFrame(() => {
+          _renderScheduledRaf = null;
+          _bootCoalesceActive = false;
+          renderUnifiedListNow();
+        });
+      }, 30);
+    }
+
+    function renderUnifiedList({ immediate = false } = {}) {
+      if (!immediate && _bootCoalesceActive) {
+        if (Date.now() < _bootCoalesceExpiresAt) {
+          scheduleRenderUnifiedList();
+          return;
+        }
+        _bootCoalesceActive = false;
+      }
+      if (_renderScheduledTimer !== null) {
+        clearTimeout(_renderScheduledTimer);
+        _renderScheduledTimer = null;
+      }
+      if (_renderScheduledRaf !== null) {
+        cancelAnimationFrame(_renderScheduledRaf);
+        _renderScheduledRaf = null;
+      }
+      renderUnifiedListNow();
+    }
+
+    function showUiToast(message, options = {}) {
+      if (window.uiToast?.show) {
+        return window.uiToast.show(message, options);
+      }
+      return { dismiss() {} };
+    }
+
+    async function confirmUiAction({ title, message, confirmLabel = '确认', cancelLabel = '取消', tone = 'danger' }) {
+      if (typeof window.uiConfirm === 'function') {
+        return await window.uiConfirm({ title, message, confirmLabel, cancelLabel, tone });
+      }
+      return false;
+    }
+
+    function shortTodoToastTitle(title, maxLen = 18) {
+      const text = String(title || '').trim();
+      return text.length > maxLen ? `${text.slice(0, maxLen)}…` : text;
+    }
+
+    function flipTodoList(mutateFn) {
+      const container = document.getElementById('todo-list');
+      if (container && window.uiMotion?.flipList) {
+        return window.uiMotion.flipList(container, '.todo-group-items > [data-flip-key]', mutateFn);
+      }
+      return mutateFn();
+    }
+
+    function flipSubtasks(source, todoId, mutateFn) {
+      const key = todoKey(source, todoId);
+      const wrap = document.querySelector(`#todo-list .todo-row-wrap[data-todo-key="${CSS.escape(key)}"]`);
+      const panel = wrap?.querySelector('.todo-subtask-panel');
+      if (panel && window.uiMotion?.flipList) {
+        return window.uiMotion.flipList(panel, '.todo-subtask-row[data-flip-key]', mutateFn);
+      }
+      return mutateFn();
+    }
 
     function getTodayDateString() {
+      if (typeof window.getShanghaiTodayISO === 'function') {
+        return window.getShanghaiTodayISO();
+      }
       if (window.customToday) return window.customToday;
-      const d = new Date();
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date());
     }
 
     function sortSubtasks(subtasks) {
@@ -54,14 +138,37 @@
       });
     }
 
-    function setNewTodoDueDefault(today) {
-      const dueInput = document.getElementById('new-todo-due');
-      if (dueInput && !dueInput.value) dueInput.value = today;
+    function closeMobileActions({ restoreFocus = false } = {}) {
+      if (!openMobileActionItemId) return;
+      const prevId = openMobileActionItemId;
+      openMobileActionItemId = null;
+      const container = document.getElementById('todo-list');
+      if (!container) return;
+      const prevRow = container.querySelector(`.todo-row[data-todo-id="${CSS.escape(String(prevId))}"]`);
+      if (prevRow) {
+        prevRow.querySelector('.item-mobile-actions')?.classList.remove('open');
+        const trigger = prevRow.querySelector('.mobile-action-trigger');
+        if (trigger) {
+          trigger.setAttribute('aria-expanded', 'false');
+          if (restoreFocus) trigger.focus({ preventScroll: true });
+        }
+      }
     }
 
     function toggleMobileActions(itemId) {
-      openMobileActionItemId = openMobileActionItemId === itemId ? null : itemId;
-      renderUnifiedList();
+      const container = document.getElementById('todo-list');
+      if (!container) return;
+      if (openMobileActionItemId === itemId) {
+        closeMobileActions();
+        return;
+      }
+      if (openMobileActionItemId) closeMobileActions();
+      openMobileActionItemId = itemId;
+      const row = container.querySelector(`.todo-row[data-todo-id="${CSS.escape(String(itemId))}"]`);
+      if (row) {
+        row.querySelector('.item-mobile-actions')?.classList.add('open');
+        row.querySelector('.mobile-action-trigger')?.setAttribute('aria-expanded', 'true');
+      }
     }
 
     async function fetchCustomTodos() {
@@ -82,19 +189,18 @@
             todo.subtasks = sortSubtasks(todo.subtasks);
           }
         });
-        window.customToday = result.today || new Date().toISOString().split('T')[0];
-        setNewTodoDueDefault(window.customToday);
+        window.customToday = result.today || getTodayDateString();
         renderUnifiedList();
       } catch (e) {
         console.error('Failed to fetch custom todos:', e);
-        window.customToday = window.customToday || new Date().toISOString().split('T')[0];
-        setNewTodoDueDefault(window.customToday);
+        window.customToday = window.customToday || getTodayDateString();
       }
     }
 
     const TODO_SOURCE_ORDER = ['canvas', 'haoke', 'zhixuemeng', 'zhihuishu', 'ketangpai', 'tongjioj', 'project', 'custom'];
     const TODO_PLATFORM_SOURCES = new Set(['canvas', 'haoke', 'zhixuemeng', 'zhihuishu', 'ketangpai', 'tongjioj']);
     let visibleTodoSources = new Set(TODO_SOURCE_ORDER);
+    let committedVisibleTodoSources = new Set(TODO_SOURCE_ORDER);
     let todoSourcePreferenceRevision = 0;
     let todoSourcePreferenceSaveTimer = null;
     let todoSourceFilter = 'all';
@@ -116,6 +222,7 @@
         visibleTodoSources = new Set(
           result.visible_todo_sources.filter((source) => TODO_SOURCE_ORDER.includes(source))
         );
+        committedVisibleTodoSources = new Set(visibleTodoSources);
         if (status) status.textContent = '设置会保存到你的账户；可选平台随连接状态自动更新。';
         renderUnifiedList();
         renderDashboardSyncStatus();
@@ -130,7 +237,7 @@
       if (visible) visibleTodoSources.add(source);
       else visibleTodoSources.delete(source);
       if (!visible && todoSourceFilter === source) todoSourceFilter = 'all';
-      renderUnifiedList();
+      renderUnifiedListNow();
       renderDashboardSyncStatus();
       updateAttentionStatus();
 
@@ -150,15 +257,32 @@
           if (!response.ok || !result.ok) throw new Error(result.error || '保存失败');
           if (revision !== todoSourcePreferenceRevision) return;
           visibleTodoSources = new Set(result.visible_todo_sources || requestedSources);
+          committedVisibleTodoSources = new Set(visibleTodoSources);
           if (status) status.textContent = '已保存；可选平台随连接状态自动更新。';
-          renderUnifiedList();
+          renderUnifiedListNow();
           renderDashboardSyncStatus();
           updateAttentionStatus();
         } catch (error) {
           if (revision !== todoSourcePreferenceRevision) return;
-          if (status) status.textContent = '保存失败，请稍后重试。';
+          visibleTodoSources = new Set(committedVisibleTodoSources);
+          if (todoSourceFilter !== 'all' && !visibleTodoSources.has(todoSourceFilter)) {
+            todoSourceFilter = 'all';
+          }
+          if (status) status.textContent = '保存失败，已恢复原标签设置。';
+          showUiToast('来源标签保存失败，已恢复原设置', { tone: 'danger' });
+          renderUnifiedListNow();
+          renderDashboardSyncStatus();
+          updateAttentionStatus();
         }
       }, 250);
+    }
+
+    function syncTodoFilterGlide() {
+      const filtersEl = document.getElementById('todo-source-filters');
+      const activeBtn = filtersEl?.querySelector('button[data-todo-source].is-active:not(.hidden)');
+      if (filtersEl && activeBtn && window.uiMotion?.glideIndicator) {
+        window.uiMotion.glideIndicator(filtersEl, activeBtn, { indicatorClass: 'ui-glide-pill' });
+      }
     }
 
     function setTodoSourceFilter(source) {
@@ -171,21 +295,39 @@
         const sourceVal = element.dataset.todoSource || element.value;
         const isActive = sourceVal === source;
         element.classList.toggle('is-active', isActive);
+        element.classList.toggle('is-on', isActive);
         if (element.tagName === 'BUTTON') {
           element.setAttribute('aria-pressed', String(isActive));
         }
       });
-      renderUnifiedList();
+      syncTodoFilterGlide();
+      flipTodoList(() => renderUnifiedListNow());
     }
 
     let collapsedTodoGroups = new Set(['completed']);
     function toggleTodoGroup(key) {
-      if (collapsedTodoGroups.has(key)) {
-        collapsedTodoGroups.delete(key);
-      } else {
+      const isCollapsed = !collapsedTodoGroups.has(key);
+      if (isCollapsed) {
         collapsedTodoGroups.add(key);
+      } else {
+        collapsedTodoGroups.delete(key);
       }
-      renderUnifiedList();
+      const groupEl = document.querySelector(`#todo-list .todo-group[data-group-key="${CSS.escape(key)}"]`);
+      if (!groupEl) return;
+      groupEl.classList.toggle('is-collapsed', isCollapsed);
+      const heading = groupEl.querySelector('.todo-group-heading');
+      if (heading) {
+        heading.setAttribute('aria-expanded', String(!isCollapsed));
+        heading.title = isCollapsed ? '点击展开' : '点击折叠';
+      }
+      const collapseEl = groupEl.querySelector('.ui-collapse');
+      if (collapseEl) {
+        collapseEl.classList.toggle('is-collapsed', isCollapsed);
+        if (getComputedStyle(collapseEl).display !== 'grid') {
+          const itemsEl = collapseEl.querySelector('.todo-group-items');
+          if (itemsEl) itemsEl.style.display = isCollapsed ? 'none' : '';
+        }
+      }
     }
 
     let deletingCustomIds = new Set();
@@ -252,6 +394,7 @@
           input.checked = visibleTodoSources.has(source);
         }
       });
+      syncTodoFilterGlide();
     }
 
     function todoDueDate(item) {
@@ -290,8 +433,7 @@
         completed: '已完成',
       };
       const groups = { overdue: [], today: [], next3: [], later: [], nodate: [], completed: [] };
-      const todayStr = window.customToday || new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'}).format(new Date());
-      const now = new Date();
+      const todayStr = getTodayDateString();
 
       const todayDate = new Date(`${todayStr}T00:00:00+08:00`);
       const tomorrowDate = new Date(todayDate.getTime() + 86400000);
@@ -396,11 +538,69 @@
       return `${hasDeadline ? '截止' : '计划'} ${day}${time ? ' ' + time : ''}`;
     }
 
-    function renderUnifiedList() {
+    function focusNewTodoComposer() {
+      const mobile = window.matchMedia('(max-width: 768px)');
+      const composer = document.getElementById('todo-composer');
+      const toggle = document.getElementById('mobile-add-toggle');
+      if (mobile.matches && composer?.classList.contains('is-collapsed')) {
+        toggle?.click();
+        return;
+      }
+      document.getElementById('new-todo-input')?.focus();
+    }
+
+    function handleKpiJump(kind) {
+      if (kind === 'course') {
+        const scheduleCard = document.getElementById('today-schedule-card');
+        if (scheduleCard) {
+          const behavior = window.uiMotion?.prefersReducedMotion?.() ? 'auto' : 'smooth';
+          scheduleCard.scrollIntoView({ behavior, block: 'nearest' });
+          window.uiMotion?.pulseArrival?.(scheduleCard);
+        }
+        return;
+      }
+      if (todoSourceFilter !== 'all') {
+        setTodoSourceFilter('all');
+      }
+      if (kind === 'due') {
+        for (const groupKey of ['overdue', 'today', 'next3']) {
+          if (collapsedTodoGroups.has(groupKey)) toggleTodoGroup(groupKey);
+        }
+        const targetGroup = document.querySelector('#todo-list .todo-group[data-group-key="overdue"], #todo-list .todo-group[data-group-key="today"], #todo-list .todo-group[data-group-key="next3"]');
+        if (targetGroup) {
+          const behavior = window.uiMotion?.prefersReducedMotion?.() ? 'auto' : 'smooth';
+          targetGroup.scrollIntoView({ behavior, block: 'start' });
+          window.uiMotion?.pulseArrival?.(targetGroup);
+          return;
+        }
+      }
+      const pendingCount = Number(document.getElementById('stat-pending-count')?.textContent || '0');
+      if (pendingCount === 0) {
+        focusNewTodoComposer();
+        return;
+      }
+      const listCard = document.getElementById('todo-workspace-card');
+      const todoList = document.getElementById('todo-list');
+      const behavior = window.uiMotion?.prefersReducedMotion?.() ? 'auto' : 'smooth';
+      listCard?.scrollIntoView({ behavior, block: 'start' });
+      todoList?.scrollTo({ top: 0, behavior });
+    }
+
+    function setAnimatedKpiNumber(el, nextValue) {
+      if (!el) return;
+      if (window.uiMotion?.animateNumber) {
+        window.uiMotion.animateNumber(el, nextValue);
+      } else {
+        el.textContent = String(nextValue);
+      }
+    }
+
+    function renderUnifiedListNow() {
       const container = document.getElementById('todo-list');
+      if (!container) return;
       // Keep the live editor (and its handlers) until the user commits or cancels.
       // Each editor renders again on exit, using the latest fetched data.
-      if (container.querySelector('.inline-edit-input, .inline-edit-date-input')) return;
+      if (container.querySelector('.inline-edit-input, .inline-edit-date-input, .subtask-edit-input')) return;
       const savedScrollTop = container.scrollTop;
       // Background refreshes must not erase a subtask the user is still typing.
       const subtaskDrafts = Array.from(container.querySelectorAll('.subtask-add-row input')).map(input => ({
@@ -412,7 +612,7 @@
       let unified = [];
 
       // LINK-05: collect today scheduled action references
-      const today = window.customToday || new Date().toISOString().split('T')[0];
+      const today = getTodayDateString();
       const todayScheduledRefs = new Set();
       if (workspaceTodayData?.days?.[0]?.timed) {
         for (const e of workspaceTodayData.days[0].timed) {
@@ -656,19 +856,19 @@
         else { overviewEl.textContent = ''; overviewEl.hidden = true; }
       }
 
-      const todayStr = window.customToday || new Date().toISOString().split('T')[0];
+      const todayStr = getTodayDateString();
 
       const filteredItems = todoSourceFilter === 'all'
         ? unified
         : unified.filter((item) => item.source === todoSourceFilter);
 
       if (filteredItems.length === 0) {
-        let emptyTitle = '没有待办事项';
-        let emptyDesc = '新的课程任务同步后会显示在这里。';
-        if (todoSourceFilter !== 'all') {
-          emptyTitle = '该来源暂无待办事项';
-          emptyDesc = '切换来源或清除筛选后可查看其他待办。';
-        }
+        const isFiltered = todoSourceFilter !== 'all';
+        const emptyTitle = isFiltered ? '该来源暂无待办事项' : '没有待办事项';
+        const emptyDesc = isFiltered ? '切换来源或查看全部待办。' : '写一句话就能记下新待办，连接平台后作业也会自动同步到这里。';
+        const emptyCtaHtml = isFiltered
+          ? '<button type="button" class="ui-button ui-button--secondary" onclick="setTodoSourceFilter(\'all\')">查看全部待办</button>'
+          : '<button type="button" class="ui-button ui-button--primary" onclick="focusNewTodoComposer()">添加第一条待办</button>';
         container.innerHTML = `
           <div class="ui-empty empty-state">
             <span class="ui-empty__art" aria-hidden="true">
@@ -684,6 +884,7 @@
             </span>
             <strong>${escapeHtml(emptyTitle)}</strong>
             <p>${escapeHtml(emptyDesc)}</p>
+            <div class="ui-empty__actions">${emptyCtaHtml}</div>
           </div>`;
         return;
       }
@@ -719,121 +920,111 @@
         if (todoDeadlineState(item).overdue) urgencyClass = 'urgent is-overdue';
         else if (item.missedPlan) urgencyClass = 'remote is-missed-plan';
         const flagIcon = manualFlag ? '&#x2691;' : '&#x2690;';
-        const flagTitle = manualFlag ? '\u53d6\u6d88\u6807\u7ea2' : '\u6807\u7ea2';
+        const flagTitle = manualFlag ? '取消标红' : '置顶标红';
         const flagClass = manualFlag ? 'btn-flag active' : 'btn-flag';
-        const dismissTitle = isDismissed ? '\u53d6\u6d88\u5b8c\u6210' : '\u5b8c\u6210';
+        const dismissTitle = isDismissed ? '取消完成' : '标记完成';
+        const dismissAriaLabel = isDismissed ? '取消完成' : '完成';
         // 只有逾期行保留红底与左侧强调线；今天与近三天只用截止标签的颜色区分，行底色保持正常。
         const uiListStateClass = urgencyClass.includes('is-overdue') ? ' ui-list-item--danger' : '';
         const uiListMutedClass = isDismissed ? ' ui-list-item--muted' : '';
 
-        let actionsHtml = '';
+        const detailRef = item.ref || (item.source === 'project'
+          ? (item.taskId === null ? `project_due:${item.projectId}` : `project:${item.projectId}:${item.taskId}`)
+          : `${item.source}:${item.rawId}`);
+        const escapedDetailRef = escapeHtml(detailRef);
+        const detailBtnHtml = `<button type="button" class="todo-action-button btn-detail" data-todo-detail="${escapedDetailRef}" title="查看详情与排程" aria-label="查看详情与排程">详情</button>`;
+
+        let flagBtnHtml = '';
+        let dismissBtnHtml = '';
+        let skipBtnHtml = '';
+        let deleteBtnHtml = '';
+
         if (item.source === 'canvas') {
-          actionsHtml = `
-            <button class="todo-action-button ${flagClass}" onclick="toggleHighlight('${item.id}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
-            <button class="btn-dismiss" onclick="togglePlatformCompletion('canvas', '${item.rawId}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
-            <button class="btn-delete" onclick="toggleCanvasDelete('${item.rawId}')" title="\u5220\u9664">&#x1f5d1;</button>
-          `;
+          flagBtnHtml = `<button type="button" class="todo-action-button ${flagClass}" onclick="toggleHighlight('${item.id}', ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>`;
+          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="togglePlatformCompletion('canvas', '${escapeHtml(String(item.rawId))}', ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${item.done ? '↺' : '✓'}</button>`;
+          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleCanvasDelete('${escapeHtml(String(item.rawId))}')" title="从清单隐藏" aria-label="从清单隐藏">&#x1f5d1;</button>`;
         } else if (item.source === 'haoke') {
-          actionsHtml = `
-            <button class="todo-action-button ${flagClass}" onclick="toggleHaokeHighlight('${item.id}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
-            <button class="btn-dismiss" onclick="togglePlatformCompletion('haoke', ${item.rawId}, ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
-            <button class="btn-delete" onclick="toggleHaokeDelete(${item.rawId})" title="\u5220\u9664">&#x1f5d1;</button>
-          `;
+          flagBtnHtml = `<button type="button" class="todo-action-button ${flagClass}" onclick="togglePlatformHighlight('haoke', ${JSON.stringify(item.rawId)}, ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>`;
+          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="togglePlatformCompletion('haoke', ${item.rawId}, ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${item.done ? '↺' : '✓'}</button>`;
+          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleHaokeDelete(${item.rawId})" title="从清单隐藏" aria-label="从清单隐藏">&#x1f5d1;</button>`;
         } else if (item.source === 'custom') {
           if (item.is_recurring) {
-            actionsHtml = `
-              <button class="btn-dismiss" onclick="toggleRecurringCheck(${item.series_id}, '${item.original_due_date}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
-              <button class="todo-action-button btn-action-skip" onclick="skipRecurringOccurrence(${item.series_id}, '${item.original_due_date}')" title="跳过本次" style="background:none; border:none; cursor:pointer; font-size:14px; color:var(--text-muted, #888); padding:0 4px;" aria-label="跳过本次">⏭</button>
-              <button class="btn-delete" onclick="deleteRecurringSeries(${item.series_id})" title="删除重复待办">&#x1f5d1;</button>
-            `;
+            dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="toggleRecurringCheck(${item.series_id}, '${escapeHtml(item.original_due_date)}', ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${item.done ? '↺' : '✓'}</button>`;
+            skipBtnHtml = `<button type="button" class="todo-action-button btn-action-skip" onclick="skipRecurringOccurrence(${item.series_id}, '${escapeHtml(item.original_due_date)}')" title="跳过本次" aria-label="跳过本次">⏭</button>`;
+            deleteBtnHtml = `<button type="button" class="btn-delete" onclick="deleteRecurringSeries(${item.series_id})" title="删除系列" aria-label="永久删除重复待办系列">&#x1f5d1;</button>`;
           } else {
             const isDeleting = deletingCustomIds.has(item.rawId);
-            actionsHtml = `
-              <button class="todo-action-button ${flagClass}" onclick="toggleCustomHighlight(${item.rawId}, ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
-              <button class="btn-dismiss" onclick="toggleTodoCheck(${item.rawId}, ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
-              <button class="btn-delete" onclick="toggleCustomDelete(${item.rawId})" ${isDeleting ? 'disabled aria-busy="true"' : ''} title="\u5220\u9664">&#x1f5d1;</button>
-            `;
+            flagBtnHtml = `<button type="button" class="todo-action-button ${flagClass}" onclick="toggleCustomHighlight(${item.rawId}, ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>`;
+            dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="toggleTodoCheck(${item.rawId}, ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${item.done ? '↺' : '✓'}</button>`;
+            deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleCustomDelete(${item.rawId})" ${isDeleting ? 'disabled aria-busy="true"' : ''} title="永久删除" aria-label="永久删除">&#x1f5d1;</button>`;
           }
         } else if (item.source === 'zhixuemeng') {
-          actionsHtml = `
-            <button class="todo-action-button ${flagClass}" onclick="toggleZhixuemengHighlight('${item.id.substring(1)}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
-            <button class="btn-dismiss" onclick="togglePlatformCompletion('zhixuemeng', '${item.id.substring(1)}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
-            <button class="btn-delete" onclick="toggleZhixuemengDelete('${item.id.substring(1)}')" title="\u5220\u9664">&#x1f5d1;</button>
-          `;
+          const zxmId = String(item.rawId);
+          flagBtnHtml = `<button type="button" class="todo-action-button ${flagClass}" onclick="togglePlatformHighlight('zhixuemeng', ${JSON.stringify(zxmId)}, ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>`;
+          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="togglePlatformCompletion('zhixuemeng', '${escapeHtml(zxmId)}', ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${item.done ? '↺' : '✓'}</button>`;
+          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleZhixuemengDelete('${escapeHtml(zxmId)}')" title="从清单隐藏" aria-label="从清单隐藏">&#x1f5d1;</button>`;
         } else if (item.source === 'zhihuishu') {
-          actionsHtml = `
-            <button class="todo-action-button ${flagClass}" onclick="toggleZhihuishuHighlight('${item.rawId}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
-            <button class="btn-dismiss" onclick="togglePlatformCompletion('zhihuishu', '${item.rawId}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
-            <button class="btn-delete" onclick="toggleZhihuishuDelete('${item.rawId}')" title="\u5220\u9664">&#x1f5d1;</button>
-          `;
+          flagBtnHtml = `<button type="button" class="todo-action-button ${flagClass}" onclick="togglePlatformHighlight('zhihuishu', ${JSON.stringify(item.rawId)}, ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>`;
+          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="togglePlatformCompletion('zhihuishu', '${escapeHtml(String(item.rawId))}', ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${item.done ? '↺' : '✓'}</button>`;
+          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleZhihuishuDelete('${escapeHtml(String(item.rawId))}')" title="从清单隐藏" aria-label="从清单隐藏">&#x1f5d1;</button>`;
         } else if (item.source === 'ketangpai') {
-          actionsHtml = `
-            <button class="todo-action-button ${flagClass}" onclick="toggleKetangpaiHighlight('${item.rawId}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
-            <button class="btn-dismiss" onclick="togglePlatformCompletion('ketangpai', '${item.rawId}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
-            <button class="btn-delete" onclick="toggleKetangpaiDelete('${item.rawId}')" title="\u5220\u9664">&#x1f5d1;</button>
-          `;
+          flagBtnHtml = `<button type="button" class="todo-action-button ${flagClass}" onclick="togglePlatformHighlight('ketangpai', ${JSON.stringify(item.rawId)}, ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>`;
+          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="togglePlatformCompletion('ketangpai', '${escapeHtml(String(item.rawId))}', ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${item.done ? '↺' : '✓'}</button>`;
+          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleKetangpaiDelete('${escapeHtml(String(item.rawId))}')" title="从清单隐藏" aria-label="从清单隐藏">&#x1f5d1;</button>`;
         } else if (item.source === 'tongjioj') {
-          actionsHtml = `
-            <button class="todo-action-button ${flagClass}" onclick="toggleTongjiojHighlight('${item.rawId}', ${manualFlag})" title="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
-            <button class="btn-dismiss" onclick="togglePlatformCompletion('tongjioj', '${item.rawId}', ${item.done})" title="${dismissTitle}">${item.done ? '↺' : '✓'}</button>
-            <button class="btn-delete" onclick="toggleTongjiojDelete('${item.rawId}')" title="\u5220\u9664">&#x1f5d1;</button>
-          `;
+          flagBtnHtml = `<button type="button" class="todo-action-button ${flagClass}" onclick="togglePlatformHighlight('tongjioj', ${JSON.stringify(item.rawId)}, ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>`;
+          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="togglePlatformCompletion('tongjioj', '${escapeHtml(String(item.rawId))}', ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${item.done ? '↺' : '✓'}</button>`;
+          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleTongjiojDelete('${escapeHtml(String(item.rawId))}')" title="从清单隐藏" aria-label="从清单隐藏">&#x1f5d1;</button>`;
         } else if (item.source === 'project') {
-          actionsHtml = `
-            <button class="todo-action-button ${flagClass}" onclick="toggleProjectTodoFlag(${item.projectId}, ${item.taskId === null ? 'null' : item.taskId}, '${item.projectKind}', ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>
-            <button class="btn-dismiss" onclick="completeProjectTodo(${item.projectId}, ${item.taskId === null ? 'null' : item.taskId}, '${item.projectKind}')" title="完成" aria-label="完成">✓</button>
-            <button class="btn-delete" onclick="deleteProjectTodo(${item.projectId}, ${item.taskId === null ? 'null' : item.taskId}, '${item.projectKind}')" title="\u5220\u9664" aria-label="\u5220\u9664">&#x1f5d1;</button>
-          `;
+          const taskArg = item.taskId === null ? 'null' : item.taskId;
+          flagBtnHtml = `<button type="button" class="todo-action-button ${flagClass}" onclick="toggleOverviewProjectFlag(${item.projectId}, ${taskArg}, '${item.projectKind}', ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>`;
+          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="completeOverviewProjectTodo(${item.projectId}, ${taskArg}, '${item.projectKind}')" title="标记完成" aria-label="完成">✓</button>`;
+          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="deleteProjectTodo(${item.projectId}, ${taskArg}, '${item.projectKind}')" title="${item.projectKind === 'project_due' ? '清除项目截止日期' : '永久删除'}" aria-label="${item.projectKind === 'project_due' ? '清除项目截止日期' : '删除'}">&#x1f5d1;</button>`;
         }
+
+        const desktopActionsHtml = `${dismissBtnHtml}${flagBtnHtml}${detailBtnHtml}${skipBtnHtml}${deleteBtnHtml}`;
+        const mobileActionsHtml = `${flagBtnHtml}${dismissBtnHtml}${deleteBtnHtml}${skipBtnHtml}<button type="button" class="ui-button ui-button--secondary" data-mobile-detail="${escapedDetailRef}">详情</button>`;
 
         const safeUrl = sanitizeExternalUrl(item.url);
         const titleHtml = item.is_recurring
-          ? `<button type="button" class="ui-button ui-button--text ui-list-item__title item-title action-title-button" onclick="openActionDetail('${item.ref}')">${escapeHtml(item.title)}</button>`
+          ? `<button type="button" class="ui-button ui-button--text ui-list-item__title item-title action-title-button" onclick="openActionDetail('${escapeHtml(item.ref)}')">${escapeHtml(item.title)}</button>`
           : (item.source === 'custom'
-            ? `<span class="ui-list-item__title item-title item-title-plain editable-title" data-id="${item.rawId}" data-field="text">${escapeHtml(item.title)}</span>`
+            ? `<span class="ui-list-item__title item-title item-title-plain editable-title" data-id="${item.rawId}" data-field="text" tabindex="0" role="button" aria-label="编辑待办标题：${escapeHtml(item.title)}" title="点击或按回车编辑标题">${escapeHtml(item.title)}</span>`
             : (item.source === 'project'
               ? `<button type="button" class="ui-button ui-button--text ui-list-item__title item-title action-title-button" onclick="openActionDetail('${item.taskId === null ? 'project_due:' + item.projectId : 'project:' + item.projectId + ':' + item.taskId}')">${escapeHtml(item.title)}</button>`
               : (safeUrl ? `<a class="ui-list-item__title item-title" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</a>` : `<span class="ui-list-item__title item-title item-title-plain">${escapeHtml(item.title)}</span>`)));
         const dueLabel = `<span class="todo-date-desktop">${escapeHtml(item.due_str || (item.source === 'project' ? item.plannedOn : '') || '')}</span><span class="todo-date-mobile">${escapeHtml(compactTodoDateLabel(item, todayStr))}</span>`;
         const dueHtml = (item.source === 'custom' && !item.is_recurring)
-          ? `<span class="ui-list-item__meta item-due editable-due" data-id="${item.rawId}" data-field="due_date" data-value="${escapeHtml(item.due_str || '')}">${dueLabel}</span>`
+          ? `<span class="ui-list-item__meta item-due editable-due" data-id="${item.rawId}" data-field="due_date" data-value="${escapeHtml(item.due_str || '')}" tabindex="0" role="button" aria-label="修改截止日期：${escapeHtml(item.due_str || '未设截止')}" title="点击或按回车修改截止日期">${dueLabel}</span>`
           : item.source === 'project'
-            ? `<button class="ui-button ui-button--text ui-list-item__meta item-due project-due-editable" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" data-date-field="${(item.missedPlan && !item.isGenuinelyOverdue) || (!item.due_str && item.isTodayAction) ? 'planned_on' : 'due_date'}" data-date-value="${item.missedPlan && !item.isGenuinelyOverdue ? item.plannedOn : (item.due_str || item.plannedOn)}" aria-label="${(item.missedPlan && !item.isGenuinelyOverdue) || (!item.due_str && item.isTodayAction) ? '修改计划日期' : '修改截止日期'}" title="${(item.missedPlan && !item.isGenuinelyOverdue) || (!item.due_str && item.isTodayAction) ? '计划推进：' + (item.plannedOn || '') + '（点击修改）' : '截止日期：' + (item.due_str || item.plannedOn || '') + '（点击修改）'}">${dueLabel}</button>`
+            ? `<button type="button" class="ui-button ui-button--text ui-list-item__meta item-due project-due-editable" data-project-id="${item.projectId}" data-task-id="${item.taskId === null ? '' : item.taskId}" data-project-kind="${item.projectKind}" data-date-field="${(item.missedPlan && !item.isGenuinelyOverdue) || (!item.due_str && item.isTodayAction) ? 'planned_on' : 'due_date'}" data-date-value="${item.missedPlan && !item.isGenuinelyOverdue ? item.plannedOn : (item.due_str || item.plannedOn)}" aria-label="${(item.missedPlan && !item.isGenuinelyOverdue) || (!item.due_str && item.isTodayAction) ? '修改计划日期' : '修改截止日期'}" title="${(item.missedPlan && !item.isGenuinelyOverdue) || (!item.due_str && item.isTodayAction) ? '计划推进：' + (item.plannedOn || '') + '（点击修改）' : '截止日期：' + (item.due_str || item.plannedOn || '') + '（点击修改）'}">${dueLabel}</button>`
             : `<span class="ui-list-item__meta item-due">${dueLabel}</span>`;
 
         const srcLabels = { canvas: 'Canvas', haoke: '好课', zhixuemeng: '智学盟', zhihuishu: '智慧树', ketangpai: '课堂派', tongjioj: '同济OJ', project: '项目', custom: '自定义' };
         const tagLabel = srcLabels[item.source] || item.type || '';
         const tagHtml = tagLabel ? `<span class="ui-source-tag ui-source-tag--${item.source}">${escapeHtml(tagLabel)}</span>` : '';
 
-        // courseHtml 改为整合进副标题，详见下方 rowHtml 重构
-        let courseHtml = '';
-        if (item.source === 'project') {
-          courseHtml = `<button class="ui-button ui-button--text ui-list-item__meta item-course project-todo-link" onclick="openProjectsView(${item.projectId})">${escapeHtml(item.course)} ↗</button>`;
-        } else if (item.course) {
-          courseHtml = `<span class="ui-list-item__meta item-course">${escapeHtml(item.course)}</span>`;
-        } else if (item.labels && item.labels.length > 0) {
-          courseHtml = `<span class="ui-tag item-course label-badge">${escapeHtml(item.labels[0])}</span>`;
-        } else {
-          courseHtml = `<span class="ui-list-item__meta item-course item-course-empty">—</span>`;
-        }
-        const labelsHtml = '';
-
         const subtasks = item.subtasks || [];
         const supportsSubtasks = ['custom', 'canvas', 'haoke', 'zhixuemeng', 'zhihuishu', 'ketangpai', 'tongjioj'].includes(item.source) && !item.is_recurring;
         const itemKey = todoKey(item.source, item.rawId);
         const isSubtaskExpanded = supportsSubtasks && (expandedTodoKeys.includes(itemKey) || (item.source === 'custom' && expandedCustomTodoIds.includes(item.rawId)));
-        const subtaskToggleLabel = isSubtaskExpanded ? '\u6536\u8d77\u5b50\u4efb\u52a1' : '\u5c55\u5f00\u5b50\u4efb\u52a1';
+        const doneSubtasks = subtasks.filter((s) => s.done).length;
+        const subtaskCountSuffix = subtasks.length ? `（${doneSubtasks}/${subtasks.length}）` : '';
+        const subtaskToggleLabel = (isSubtaskExpanded ? '收起子任务' : '展开子任务') + subtaskCountSuffix;
         const subtaskToggleIcon = isSubtaskExpanded ? '&#x25be;' : '&#x25b8;';
+        const subtaskCountPill = (!isSubtaskExpanded && subtasks.length > 0)
+          ? `<span class="subtask-count-pill" aria-hidden="true">${doneSubtasks}/${subtasks.length}</span>`
+          : '';
         const sourceArg = JSON.stringify(item.source);
         const rawIdArg = JSON.stringify(String(item.rawId));
         const subtaskToggleHtml = supportsSubtasks
-          ? `<button class="subtask-toggle" onclick='toggleSubtasks(${sourceArg}, ${rawIdArg})' title="${subtaskToggleLabel}" aria-label="${subtaskToggleLabel}">${subtaskToggleIcon}</button>`
+          ? `<button type="button" class="subtask-toggle" onclick='toggleSubtasks(${sourceArg}, ${rawIdArg})' title="${subtaskToggleLabel}" aria-label="${subtaskToggleLabel}" aria-expanded="${isSubtaskExpanded}">${subtaskToggleIcon}${subtaskCountPill}</button>`
           : '<span class="subtask-toggle subtask-toggle-placeholder" aria-hidden="true"></span>';
         const mobileActionsOpen = openMobileActionItemId === item.id;
 
 
         // 设计稿两行结构：body（上：标题+副标题）+ right（下：来源+截止胶囊+操作）
-        // 副标题：课程名 · 类型 · 截止时间（与原 .item-course 合并到副标题）
+        // 副标题：课程名 · 类型 · 截止时间
         const metaParts = [];
         if (item.is_recurring) {
           metaParts.push(`↻ 重复待办 · ${escapeHtml(item.repeat_label || '每周')}`);
@@ -851,24 +1042,26 @@
         const metaHtml = (tagHtml || metaText) ? `<div class="biz-todo__meta">${tagHtml}${metaText ? `<span class="biz-todo__meta-text">${metaText}</span>` : ''}</div>` : '';
 
         const projectMainClass = item.isMainProject ? ' is-project-main' : '';
+        const flipKey = escapeHtml(item.ref || `${item.source}:${item.rawId}`);
+        const rowFlipAttr = supportsSubtasks ? '' : ` data-flip-key="${flipKey}"`;
 
         const rowHtml = `
-          <div class="ui-list-item ui-list-item--interactive todo-row${uiListStateClass}${uiListMutedClass}${projectMainClass} ${urgencyClass} ${manualFlag ? 'manual-flagged' : ''} ${isDismissed ? 'dismissed' : ''}">
+          <div class="ui-list-item ui-list-item--interactive todo-row${uiListStateClass}${uiListMutedClass}${projectMainClass} ${urgencyClass} ${manualFlag ? 'manual-flagged' : ''} ${isDismissed ? 'dismissed' : ''}"${rowFlipAttr} data-todo-id="${escapeHtml(item.id)}" data-source="${escapeHtml(item.source)}">
             <div class="biz-todo__body">
               <div class="biz-todo__title">${titleHtml}</div>
               ${metaHtml}
             </div>
             <div class="biz-todo__right">
-              <span class="item-source-badge" title="${item.course ? escapeHtml(item.course) : item.type}">
+              <span class="item-source-badge" title="${item.course ? escapeHtml(item.course) : escapeHtml(item.type)}">
                 <span class="ui-badge ui-badge--source ui-source--${item.source} src-${item.source}">${escapeHtml(item.type)}</span>
                 ${item.disconnected ? '<span class="ui-status ui-status--warning">已断开</span>' : ''}
               </span>
               ${dueHtml}
               <span class="item-subtask-slot">${subtaskToggleHtml}</span>
-              <span class="item-desktop-actions">${actionsHtml}</span>
+              <span class="item-desktop-actions">${desktopActionsHtml}</span>
             </div>
-            <button class="ui-icon-button mobile-action-trigger" onclick="toggleMobileActions('${item.id}')" aria-label="更多操作" aria-expanded="${mobileActionsOpen}">•••</button>
-            <span class="item-mobile-actions ${mobileActionsOpen ? 'open' : ''}">${actionsHtml}<button type="button" class="ui-button ui-button--secondary" data-mobile-detail="${escapeHtml(item.ref || (item.source === 'project' ? (item.taskId === null ? 'project_due:' + item.projectId : 'project:' + item.projectId + ':' + item.taskId) : item.source + ':' + item.rawId))}">详情</button></span>
+            <button type="button" class="ui-icon-button mobile-action-trigger" onclick="toggleMobileActions('${escapeHtml(item.id)}')" aria-label="更多操作" aria-expanded="${mobileActionsOpen}">•••</button>
+            <span class="item-mobile-actions ${mobileActionsOpen ? 'open' : ''}">${mobileActionsHtml}</span>
           </div>
         `;
 
@@ -877,12 +1070,12 @@
         }
 
         const panelHtml = isSubtaskExpanded ? renderSubtaskPanel(item.source, item.rawId, subtasks) : '';
-        const previewHtml = '';
         return `
-          <div class="todo-row-wrap">
+          <div class="todo-row-wrap" data-flip-key="${flipKey}" data-todo-key="${escapeHtml(itemKey)}">
             ${rowHtml}
-            ${previewHtml}
-            ${panelHtml}
+            <div class="ui-collapse todo-subtask-collapse${isSubtaskExpanded ? '' : ' is-collapsed'}">
+              <div class="ui-collapse__inner">${panelHtml}</div>
+            </div>
           </div>
         `;
       };
@@ -891,7 +1084,7 @@
         const isCollapsed = collapsedTodoGroups.has(group.key);
         return `
         <section class="todo-group ${group.key === 'overdue' ? 'is-overdue' : ''} ${group.key === 'completed' ? 'is-completed' : ''} ${isCollapsed ? 'is-collapsed' : ''}" data-group-key="${group.key}">
-          <div class="todo-group-heading" onclick="toggleTodoGroup('${group.key}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTodoGroup('${group.key}');}" role="button" tabindex="0" aria-expanded="${!isCollapsed}" title="点击${isCollapsed ? '展开' : '折叠'}">
+          <div class="todo-group-heading" onclick="toggleTodoGroup('${group.key}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTodoGroup('${group.key}');}" role="button" tabindex="0" aria-expanded="${!isCollapsed}" title="${isCollapsed ? '点击展开' : '点击折叠'}">
             <div class="todo-group-heading-left">
               <span class="todo-group-chevron-wrap" aria-hidden="true">
                 <svg class="todo-group-chevron" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -903,10 +1096,20 @@
             </div>
             <div class="todo-group-divider-line" aria-hidden="true"></div>
           </div>
-          <div class="todo-group-items" style="${isCollapsed ? 'display: none;' : ''}">${isCollapsed ? '' : group.items.map(renderTodoItem).join('')}</div>
+          <div class="ui-collapse${isCollapsed ? ' is-collapsed' : ''}">
+            <div class="todo-group-items ui-collapse__inner">${group.items.map(renderTodoItem).join('')}</div>
+          </div>
         </section>
         `;
       }).join('');
+
+      // Pre-merge progressive fallback when motion.css (.ui-collapse grid rules) is not loaded yet
+      const firstCollapse = container.querySelector('.ui-collapse');
+      if (firstCollapse && getComputedStyle(firstCollapse).display !== 'grid') {
+        container.querySelectorAll('.ui-collapse.is-collapsed > .ui-collapse__inner').forEach((inner) => {
+          inner.style.display = 'none';
+        });
+      }
 
       container.scrollTop = savedScrollTop;
       for (const draft of subtaskDrafts) {
@@ -919,6 +1122,17 @@
         }
       }
 
+      if (_pendingPulseTodoKey) {
+        const pulseTarget = container.querySelector(`[data-flip-key="${CSS.escape(_pendingPulseTodoKey)}"]`);
+        _pendingPulseTodoKey = null;
+        const pulseRow = pulseTarget?.classList?.contains('todo-row') ? pulseTarget : pulseTarget?.querySelector('.todo-row');
+        if (pulseRow) window.uiMotion?.pulseArrival?.(pulseRow);
+      }
+      if (_pendingFocusSelector) {
+        const focusEl = container.querySelector(_pendingFocusSelector);
+        _pendingFocusSelector = null;
+        focusEl?.focus({ preventScroll: true });
+      }
 
       const projectsEl = document.querySelector('[data-nav-count="projects"]');
       const activeProjectsEl = document.getElementById('active-project-count');
@@ -933,30 +1147,32 @@
     function updateStatsBar(unified) {
       const activeItems = unified.filter(item => !item.done && !item.hidden && (!item.is_scheduled_action || item.isTodayAction));
       const pending = activeItems.length;
+      const completedCount = unified.filter(item => item.done && !item.hidden).length;
 
-      const todayStr = window.customToday || new Date().toISOString().slice(0, 10);
+      const todayStr = getTodayDateString();
       const now = Date.now();
 
       let due72h = 0;
       let overdue = 0;
+      let todayCount = 0;
       activeItems.forEach(item => {
-        if (item.due_ts) {
-          const dueStr = item.due_ts.slice(0, 10);
-          const dueTime = new Date(item.due_ts).getTime();
-          const hoursLeft = (dueTime - now) / 3600000;
-          if (dueStr < todayStr || hoursLeft < 0) {
-            overdue++;
-            due72h++;
-          } else if (hoursLeft <= 72) {
-            due72h++;
+        const deadline = todoDeadlineState(item);
+        const planDate = (item.plannedOn || item.planned_on || '').slice(0, 10);
+        const isMissedPlan = Boolean(item.missed_plan || item.missedPlan || (planDate && planDate < todayStr));
+        if (deadline.overdue) {
+          overdue++;
+          due72h++;
+        } else {
+          if (item.due_ts) {
+            const dueTime = new Date(item.due_ts).getTime();
+            const hoursLeft = (dueTime - now) / 3600000;
+            if (hoursLeft <= 72) due72h++;
+          }
+          if (isMissedPlan || deadline.day === todayStr || planDate === todayStr || item.isTodayAction || item.is_today) {
+            todayCount++;
           }
         }
       });
-
-      const totalEl = document.getElementById('stat-total');
-      const urgentEl = document.getElementById('stat-urgent');
-      if (totalEl) totalEl.textContent = pending;
-      if (urgentEl) urgentEl.textContent = due72h;
 
       // Update Top KPI Cards
       const pendingCountEl = document.getElementById('stat-pending-count');
@@ -964,31 +1180,124 @@
       const dueCountEl = document.getElementById('stat-due-count');
       const dueOverdueEl = document.getElementById('stat-due-overdue');
 
-      if (pendingCountEl) pendingCountEl.textContent = pending;
-      if (pendingDiffEl) pendingDiffEl.textContent = pending > 0 ? `${pending} 项待处理` : '待办已清空';
-      if (dueCountEl) dueCountEl.textContent = due72h;
+      setAnimatedKpiNumber(pendingCountEl, pending);
+      if (pendingDiffEl) {
+        pendingDiffEl.textContent = pending > 0
+          ? `今日 ${todayCount} 项 · 已完成 ${completedCount} 项`
+          : (completedCount > 0 ? `全部清零 · 已完成 ${completedCount} 项` : '全部清零');
+      }
+      setAnimatedKpiNumber(dueCountEl, due72h);
       if (dueOverdueEl) {
         dueOverdueEl.textContent = overdue > 0 ? `含 ${overdue} 项已逾期` : '无逾期事项';
         dueOverdueEl.classList.toggle('warn', overdue > 0);
       }
     }
 
+    const PLATFORM_COLLECTIONS = {
+      canvas: {
+        getItems: () => canvasItems,
+        getDeleted: () => canvasDeletedIds,
+        setDeleted: (v) => { canvasDeletedIds = v; },
+        getHidden: () => hiddenIds,
+        setHidden: (v) => { hiddenIds = v; },
+        getHighlighted: () => highlightedIds,
+        setHighlighted: (v) => { highlightedIds = v; },
+        refresh: () => fetchCanvasTodos(),
+      },
+      haoke: {
+        getItems: () => haokeItems,
+        getDeleted: () => haokeDeletedIds,
+        setDeleted: (v) => { haokeDeletedIds = v; },
+        getHidden: () => haokeHiddenIds,
+        setHidden: (v) => { haokeHiddenIds = v; },
+        getHighlighted: () => haokeHighlightedIds,
+        setHighlighted: (v) => { haokeHighlightedIds = v; },
+        refresh: () => fetchHaokeTodos(),
+      },
+      zhixuemeng: {
+        getItems: () => zhixuemengItems,
+        getDeleted: () => zhixuemengDeletedIds,
+        setDeleted: (v) => { zhixuemengDeletedIds = v; },
+        getHidden: () => zhixuemengHiddenIds,
+        setHidden: (v) => { zhixuemengHiddenIds = v; },
+        getHighlighted: () => zhixuemengHighlightedIds,
+        setHighlighted: (v) => { zhixuemengHighlightedIds = v; },
+        refresh: () => fetchZhixuemengTodos(),
+      },
+      zhihuishu: {
+        getItems: () => zhihuishuItems,
+        getDeleted: () => zhihuishuDeletedIds,
+        setDeleted: (v) => { zhihuishuDeletedIds = v; },
+        getHidden: () => zhihuishuHiddenIds,
+        setHidden: (v) => { zhihuishuHiddenIds = v; },
+        getHighlighted: () => zhihuishuHighlightedIds,
+        setHighlighted: (v) => { zhihuishuHighlightedIds = v; },
+        refresh: () => fetchZhihuishuTodos(),
+      },
+      ketangpai: {
+        getItems: () => ketangpaiItems,
+        getDeleted: () => ketangpaiDeletedIds,
+        setDeleted: (v) => { ketangpaiDeletedIds = v; },
+        getHidden: () => ketangpaiHiddenIds,
+        setHidden: (v) => { ketangpaiHiddenIds = v; },
+        getHighlighted: () => ketangpaiHighlightedIds,
+        setHighlighted: (v) => { ketangpaiHighlightedIds = v; },
+        refresh: () => fetchKetangpaiTodos(),
+      },
+      tongjioj: {
+        getItems: () => tongjiojItems,
+        getDeleted: () => tongjiojDeletedIds,
+        setDeleted: (v) => { tongjiojDeletedIds = v; },
+        getHidden: () => tongjiojHiddenIds,
+        setHidden: (v) => { tongjiojHiddenIds = v; },
+        getHighlighted: () => tongjiojHighlightedIds,
+        setHighlighted: (v) => { tongjiojHighlightedIds = v; },
+        refresh: () => fetchTongjiojTodos(),
+      },
+    };
+
     async function togglePlatformCompletion(platform, id, done) {
-      const endpoint = `/api/${platform}/state`;
-      const response = await fetch(endpoint, {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({action: done ? 'uncomplete' : 'complete', id}),
-      });
-      if (!response.ok) return;
-      const collections = {canvas: canvasItems, haoke: haokeItems, zhixuemeng: zhixuemengItems, zhihuishu: zhihuishuItems, ketangpai: ketangpaiItems, tongjioj: tongjiojItems};
-      const item = (collections[platform] || []).find((entry) => String(entry.id) === String(id));
+      const lockKey = `${platform}:${id}`;
+      if (todoInFlightKeys.has(lockKey)) return;
+      const cfg = PLATFORM_COLLECTIONS[platform];
+      const item = (cfg?.getItems() || []).find((entry) => String(entry.id) === String(id));
+      const prevDone = Boolean(item?.done);
+      const wasOverdue = item ? todoDeadlineState(item).overdue : false;
+      const shortTitle = shortTodoToastTitle(item?.title || '该待办');
+
+      todoInFlightKeys.add(lockKey);
       if (item) item.done = !done;
-      if (!done) collapsedTodoGroups.delete("completed");
-      renderUnifiedList();
-      const refreshers = {canvas: fetchCanvasTodos, haoke: fetchHaokeTodos, zhixuemeng: fetchZhixuemengTodos,
-        zhihuishu: fetchZhihuishuTodos, ketangpai: fetchKetangpaiTodos, tongjioj: fetchTongjiojTodos};
-      if (!done) await refreshers[platform]();
-      if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+      flipTodoList(() => renderUnifiedListNow());
+
+      try {
+        const response = await fetch(`/api/${platform}/state`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({action: done ? 'uncomplete' : 'complete', id}),
+        });
+        if (!response.ok) throw new Error('state update failed');
+        if (!done) {
+          if (cfg?.refresh) await cfg.refresh();
+          if (!wasOverdue) {
+            showUiToast(`已完成「${shortTitle}」`, {
+              tone: 'success',
+              actionLabel: '撤销',
+              onAction: () => togglePlatformCompletion(platform, id, true),
+            });
+          } else {
+            showUiToast(`已完成「${shortTitle}」（已过截止，自动清理）`, { tone: 'info' });
+          }
+        } else {
+          showUiToast(`已恢复「${shortTitle}」`, { tone: 'info' });
+        }
+        if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+      } catch (error) {
+        if (item) item.done = prevDone;
+        flipTodoList(() => renderUnifiedListNow());
+        showUiToast('状态更新失败，已恢复原状', { tone: 'danger' });
+      } finally {
+        todoInFlightKeys.delete(lockKey);
+      }
     }
 
     function renderSubtaskPanel(source, todoId, subtasks) {
@@ -997,18 +1306,18 @@
         todoId = source;
         source = 'custom';
       }
-      const todayStr = getTodayDateString();
       const sourceArg = JSON.stringify(source);
       const todoIdArg = JSON.stringify(String(todoId));
       const rowsHtml = (subtasks || []).map((subtask, idx) => {
         const sid = subtask.id != null ? subtask.id : idx;
-        const dueDateVal = subtask.due_date || todayStr;
+        const dueDateVal = subtask.due_date || '';
+        const subFlipKey = `sub:${source}:${todoId}:${sid}`;
         return `
-        <div class="ui-list-item todo-subtask-row">
-          <input type="checkbox" ${subtask.done ? 'checked' : ''} onchange='toggleSubtaskDone(${sourceArg}, ${todoIdArg}, ${sid})' class="ui-checkbox">
-          <span class="ui-list-item__title subtask-text ${subtask.done ? 'done' : ''}" title="${escapeHtml(subtask.text)}" onclick='startSubtaskEdit(${sourceArg}, ${todoIdArg}, ${sid}, this)'>${escapeHtml(subtask.text)}</span>
-          <input type="date" class="ui-control subtask-due-input" value="${dueDateVal}" onchange='handleSubtaskDueChange(${sourceArg}, ${todoIdArg}, ${sid}, this.value)' title="截止日期">
-          <button class="ui-icon-button subtask-delete" onclick='deleteSubtask(${sourceArg}, ${todoIdArg}, ${sid})' title="删除子任务" aria-label="删除子任务">✕</button>
+        <div class="ui-list-item todo-subtask-row" data-flip-key="${escapeHtml(subFlipKey)}">
+          <input type="checkbox" ${subtask.done ? 'checked' : ''} onchange='toggleSubtaskDone(${sourceArg}, ${todoIdArg}, ${sid})' class="ui-checkbox" aria-label="完成子任务：${escapeHtml(subtask.text)}">
+          <span class="ui-list-item__title subtask-text ${subtask.done ? 'done' : ''}" title="${escapeHtml(subtask.text)}" tabindex="0" role="button" aria-label="编辑子任务：${escapeHtml(subtask.text)}" onclick='startSubtaskEdit(${sourceArg}, ${todoIdArg}, ${sid}, this)' onkeydown='if(event.key==="Enter"||event.key===" "){event.preventDefault();startSubtaskEdit(${sourceArg}, ${todoIdArg}, ${sid}, this);}'>${escapeHtml(subtask.text)}</span>
+          <input type="date" class="ui-control subtask-due-input" value="${escapeHtml(dueDateVal)}" onchange='handleSubtaskDueChange(${sourceArg}, ${todoIdArg}, ${sid}, this.value)' title="截止日期" aria-label="子任务截止日期">
+          <button type="button" class="ui-icon-button subtask-delete" onclick='deleteSubtask(${sourceArg}, ${todoIdArg}, ${sid})' title="删除子任务" aria-label="删除子任务">✕</button>
         </div>
       `;
       }).join('');
@@ -1017,44 +1326,212 @@
         <div class="ui-card ui-card--subtle todo-subtask-panel">
           ${rowsHtml}
           <form class="subtask-add-row subtask-add-form" onsubmit="event.preventDefault(); submitSubtaskAdd(${sourceArg}, ${todoIdArg});">
-            <input type="text" class="ui-control subtask-add-input" id="subtask-add-text-${source}-${todoId}" name="subtask_title" placeholder="添加子步骤，按 Enter 快速添加..." autocomplete="off" data-lpignore="true" onkeydown='handleSubtaskAddKey(event, ${sourceArg}, ${todoIdArg})'>
-            <input type="date" class="ui-control subtask-add-due-input" id="subtask-add-due-${source}-${todoId}" name="subtask_due" value="${todayStr}" autocomplete="off" onkeydown='handleSubtaskAddKey(event, ${sourceArg}, ${todoIdArg})' title="截止日期">
+            <input type="text" class="ui-control subtask-add-input" id="subtask-add-text-${escapeHtml(String(source))}-${escapeHtml(String(todoId))}" name="subtask_title" placeholder="添加子步骤，按 Enter 快速添加..." autocomplete="off" data-lpignore="true" onkeydown='handleSubtaskAddKey(event, ${sourceArg}, ${todoIdArg})'>
+            <input type="date" class="ui-control subtask-add-due-input" id="subtask-add-due-${escapeHtml(String(source))}-${escapeHtml(String(todoId))}" name="subtask_due" value="" autocomplete="off" onkeydown='handleSubtaskAddKey(event, ${sourceArg}, ${todoIdArg})' title="截止日期（选填）" aria-label="子任务截止日期">
             <button type="button" class="ui-button ui-button--primary subtask-add-btn" onclick='submitSubtaskAdd(${sourceArg}, ${todoIdArg})' title="添加子任务">添加</button>
           </form>
         </div>
       `;
     }
 
-    async function toggleHighlight(itemId, current) {
-      const rawId = itemId.startsWith('c') ? itemId.substring(1) : itemId;
-      const action = current ? 'unhighlight' : 'highlight';
-      await fetch('/api/canvas/state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, id: rawId }),
-      });
-      if (current) {
-        highlightedIds = highlightedIds.filter(id => String(id) !== String(rawId));
-      } else {
-        highlightedIds.push(rawId);
+    function renderSubtaskPanelInPlace(source, todoId) {
+      const key = todoKey(source, todoId);
+      const wrap = document.querySelector(`#todo-list .todo-row-wrap[data-todo-key="${CSS.escape(key)}"]`);
+      const todo = findTodo(source, todoId);
+      if (!wrap || !todo) {
+        renderUnifiedListNow();
+        return;
       }
-      renderUnifiedList();
+      const subtasks = todo.subtasks || [];
+      const doneCount = subtasks.filter((s) => s.done).length;
+      const isExpanded = expandedTodoKeys.includes(key);
+      const toggleBtn = wrap.querySelector('.subtask-toggle');
+      if (toggleBtn) {
+        const countSuffix = subtasks.length ? `（${doneCount}/${subtasks.length}）` : '';
+        const label = (isExpanded ? '收起子任务' : '展开子任务') + countSuffix;
+        toggleBtn.title = label;
+        toggleBtn.setAttribute('aria-label', label);
+        toggleBtn.setAttribute('aria-expanded', String(isExpanded));
+        toggleBtn.innerHTML = (isExpanded ? '&#x25be;' : '&#x25b8;')
+          + (!isExpanded && subtasks.length > 0 ? `<span class="subtask-count-pill" aria-hidden="true">${doneCount}/${subtasks.length}</span>` : '');
+      }
+      const inner = wrap.querySelector('.todo-subtask-collapse .ui-collapse__inner');
+      if (!inner) return;
+      const draftInputs = Array.from(inner.querySelectorAll('.subtask-add-row input')).map((input) => ({
+        id: input.id,
+        value: input.value,
+        focused: input === document.activeElement,
+        start: input.selectionStart,
+        end: input.selectionEnd,
+      }));
+      inner.innerHTML = renderSubtaskPanel(source, todoId, subtasks);
+      for (const draft of draftInputs) {
+        const input = document.getElementById(draft.id);
+        if (!input) continue;
+        input.value = draft.value;
+        if (draft.focused) {
+          input.focus({ preventScroll: true });
+          if (input.type !== 'date' && draft.start !== null) input.setSelectionRange(draft.start, draft.end);
+        }
+      }
+    }
+
+    async function togglePlatformHighlight(platform, rawId, current) {
+      const cfg = PLATFORM_COLLECTIONS[platform];
+      if (!cfg) return;
+      const lockKey = `${platform}:flag:${rawId}`;
+      if (todoInFlightKeys.has(lockKey)) return;
+      todoInFlightKeys.add(lockKey);
+
+      const prevHighlighted = [...cfg.getHighlighted()];
+      const nextHighlighted = current
+        ? prevHighlighted.filter((id) => String(id) !== String(rawId))
+        : (prevHighlighted.some((id) => String(id) === String(rawId)) ? prevHighlighted : [...prevHighlighted, rawId]);
+
+      cfg.setHighlighted(nextHighlighted);
+      flipTodoList(() => renderUnifiedListNow());
+
+      try {
+        const response = await fetch(`/api/${platform}/state`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: current ? 'unhighlight' : 'highlight', id: rawId }),
+        });
+        if (!response.ok) throw new Error('flag update failed');
+      } catch (error) {
+        cfg.setHighlighted(prevHighlighted);
+        flipTodoList(() => renderUnifiedListNow());
+        showUiToast('标红状态更新失败，已恢复原状', { tone: 'danger' });
+      } finally {
+        todoInFlightKeys.delete(lockKey);
+      }
+    }
+
+    async function toggleHighlight(itemId, current) {
+      const rawId = String(itemId).startsWith('c') ? String(itemId).substring(1) : itemId;
+      await togglePlatformHighlight('canvas', rawId, current);
     }
 
     async function toggleHide(itemId, current) {
-      const rawId = itemId.startsWith('c') ? itemId.substring(1) : itemId;
-      const action = current ? 'unhide' : 'hide';
-      await fetch('/api/canvas/state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, id: rawId }),
-      });
-      if (current) {
-        hiddenIds = hiddenIds.filter(id => String(id) !== String(rawId));
-      } else {
-        hiddenIds.push(rawId);
+      const rawId = String(itemId).startsWith('c') ? String(itemId).substring(1) : itemId;
+      const lockKey = `canvas:hide:${rawId}`;
+      if (todoInFlightKeys.has(lockKey)) return;
+      todoInFlightKeys.add(lockKey);
+
+      const item = canvasItems.find((entry) => String(entry.id) === String(rawId));
+      const shortTitle = shortTodoToastTitle(item?.title || '该事项');
+      const prevHidden = [...hiddenIds];
+      hiddenIds = current
+        ? prevHidden.filter((id) => String(id) !== String(rawId))
+        : (prevHidden.some((id) => String(id) === String(rawId)) ? prevHidden : [...prevHidden, rawId]);
+      flipTodoList(() => renderUnifiedListNow());
+
+      try {
+        const resp = await fetch('/api/canvas/state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: current ? 'unhide' : 'hide', id: rawId }),
+        });
+        if (!resp.ok) throw new Error('hide update failed');
+        if (!current) {
+          showUiToast(`已隐藏「${shortTitle}」`, {
+            tone: 'neutral',
+            actionLabel: '撤销',
+            onAction: () => toggleHide(itemId, true),
+          });
+        }
+      } catch (error) {
+        hiddenIds = prevHidden;
+        flipTodoList(() => renderUnifiedListNow());
+        showUiToast('隐藏操作失败，已恢复原状', { tone: 'danger' });
+      } finally {
+        todoInFlightKeys.delete(lockKey);
       }
-      renderUnifiedList();
+    }
+
+    async function toggleOverviewProjectFlag(projectId, taskId, kind, current) {
+      const lockKey = `project:flag:${projectId}:${taskId}`;
+      if (todoInFlightKeys.has(lockKey)) return;
+      todoInFlightKeys.add(lockKey);
+
+      const matched = projectItems.filter((it) =>
+        Number(it.project_id) === Number(projectId) &&
+        (kind === 'project_due' ? it.kind === 'project_due' : Number(it.task_id) === Number(taskId))
+      );
+      const prevFlagged = matched.map((it) => Boolean(it.flagged));
+      matched.forEach((it) => { it.flagged = !current; });
+      flipTodoList(() => renderUnifiedListNow());
+
+      const url = kind === 'project_due' ? `/api/projects/${projectId}` : `/api/projects/${projectId}/tasks/${taskId}`;
+      const payload = kind === 'project_due' ? { due_highlighted: !current } : { highlighted: !current };
+      try {
+        const resp = await fetch(url, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || data.ok === false) throw new Error(data.error || '标红同步失败');
+        if (typeof refreshProjectSurfaces === 'function') await refreshProjectSurfaces();
+      } catch (error) {
+        matched.forEach((it, idx) => { it.flagged = prevFlagged[idx]; });
+        flipTodoList(() => renderUnifiedListNow());
+        showUiToast('标红状态同步失败，已恢复原状', { tone: 'danger' });
+      } finally {
+        todoInFlightKeys.delete(lockKey);
+      }
+    }
+
+    async function completeOverviewProjectTodo(projectId, taskId, kind) {
+      if (kind === 'project_due') {
+        if (typeof completeProjectTodo === 'function') return completeProjectTodo(projectId, taskId, kind);
+        return;
+      }
+      const lockKey = `project:${projectId}:${taskId}`;
+      if (todoInFlightKeys.has(lockKey)) return;
+      todoInFlightKeys.add(lockKey);
+
+      const prevItems = [...projectItems];
+      const target = projectItems.find((it) => Number(it.project_id) === Number(projectId) && Number(it.task_id) === Number(taskId));
+      const shortTitle = shortTodoToastTitle(target?.title || '项目步骤');
+      projectItems = projectItems.filter((it) => !(Number(it.project_id) === Number(projectId) && Number(it.task_id) === Number(taskId)));
+      flipTodoList(() => renderUnifiedListNow());
+
+      try {
+        const resp = await fetch(`/api/projects/${projectId}/tasks/${taskId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ done: true }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || data.ok === false) throw new Error(data.error || '完成同步失败');
+        if (typeof refreshProjectSurfaces === 'function') await refreshProjectSurfaces();
+        else if (typeof fetchProjectTodos === 'function') await fetchProjectTodos();
+        showUiToast(`已完成「${shortTitle}」`, {
+          tone: 'success',
+          actionLabel: '撤销',
+          onAction: async () => {
+            try {
+              const undoResp = await fetch(`/api/projects/${projectId}/tasks/${taskId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ done: false }),
+              });
+              if (!undoResp.ok) throw new Error('undo failed');
+              if (typeof refreshProjectSurfaces === 'function') await refreshProjectSurfaces();
+              else if (typeof fetchProjectTodos === 'function') await fetchProjectTodos();
+            } catch (_) {
+              showUiToast('撤销失败，请到项目页操作', { tone: 'danger' });
+            }
+          },
+        });
+      } catch (error) {
+        projectItems = prevItems;
+        flipTodoList(() => renderUnifiedListNow());
+        showUiToast('任务完成状态同步失败，已恢复', { tone: 'danger' });
+      } finally {
+        todoInFlightKeys.delete(lockKey);
+      }
     }
 
     // ---- Unified Todos Subtasks & CRUD ----
@@ -1092,13 +1569,49 @@
         source = 'custom';
       }
       const key = todoKey(source, todoId);
-      if (expandedTodoKeys.includes(key)) {
-        expandedTodoKeys = expandedTodoKeys.filter(k => k !== key);
-      } else {
+      const isExpanding = !expandedTodoKeys.includes(key);
+      if (isExpanding) {
         expandedTodoKeys.push(key);
+      } else {
+        expandedTodoKeys = expandedTodoKeys.filter(k => k !== key);
       }
       expandedCustomTodoIds = expandedTodoKeys;
-      renderUnifiedList();
+
+      const wrap = document.querySelector(`#todo-list .todo-row-wrap[data-todo-key="${CSS.escape(key)}"]`);
+      if (!wrap) return;
+      const todo = findTodo(source, todoId);
+      const subtasks = todo?.subtasks || [];
+      const doneCount = subtasks.filter((s) => s.done).length;
+      const countSuffix = subtasks.length ? `（${doneCount}/${subtasks.length}）` : '';
+      const toggleBtn = wrap.querySelector('.subtask-toggle');
+      if (toggleBtn) {
+        const label = (isExpanding ? '收起子任务' : '展开子任务') + countSuffix;
+        toggleBtn.title = label;
+        toggleBtn.setAttribute('aria-label', label);
+        toggleBtn.setAttribute('aria-expanded', String(isExpanding));
+        toggleBtn.innerHTML = (isExpanding ? '&#x25be;' : '&#x25b8;')
+          + (!isExpanding && subtasks.length > 0 ? `<span class="subtask-count-pill" aria-hidden="true">${doneCount}/${subtasks.length}</span>` : '');
+      }
+      const collapse = wrap.querySelector('.todo-subtask-collapse');
+      const inner = collapse?.querySelector('.ui-collapse__inner');
+      if (collapse && inner) {
+        if (isExpanding) {
+          if (!inner.querySelector('.todo-subtask-panel')) {
+            inner.innerHTML = renderSubtaskPanel(source, todoId, subtasks);
+          }
+          if (getComputedStyle(collapse).display === 'grid') {
+            void collapse.offsetHeight;
+          } else {
+            inner.style.display = '';
+          }
+          collapse.classList.remove('is-collapsed');
+        } else {
+          collapse.classList.add('is-collapsed');
+          if (getComputedStyle(collapse).display !== 'grid') {
+            inner.style.display = 'none';
+          }
+        }
+      }
     }
 
     function handleSubtaskAddKey(event, source, todoId) {
@@ -1128,7 +1641,7 @@
       if (!textInput) return;
       if (textInput.dataset.submitting === 'true') return;
       const text = textInput.value.trim();
-      const dueDate = dueInput ? dueInput.value : getTodayDateString();
+      const dueDate = dueInput ? dueInput.value : '';
       if (!text) return;
       textInput.dataset.submitting = 'true';
       try {
@@ -1137,22 +1650,27 @@
           const currentInput = document.getElementById(textInput.id);
           const currentDue = dueInput && document.getElementById(dueInput.id);
           if (currentInput?.value.trim() === text) currentInput.value = '';
-          if (currentDue?.value === dueDate) currentDue.value = getTodayDateString();
+          if (currentDue?.value === dueDate) currentDue.value = '';
         }
       } finally {
         if (textInput) delete textInput.dataset.submitting;
       }
     }
 
-    async function saveSubtasks(source, todoId, subtasks) {
+    async function saveSubtasks(source, todoId, subtasks, { prevSubtasks = null, optimistic = false } = {}) {
       if (subtasks === undefined) {
         subtasks = todoId;
         todoId = source;
         source = 'custom';
       }
+      const todo = findTodo(source, todoId);
+      const rollbackSubtasks = prevSubtasks || (todo?.subtasks ? todo.subtasks.map((s) => ({ ...s })) : []);
       if (source === 'custom') customDataRevision++;
+      if (optimistic && todo) {
+        todo.subtasks = subtasks;
+        flipSubtasks(source, todoId, () => renderSubtaskPanelInPlace(source, todoId));
+      }
       try {
-        const todo = findTodo(source, todoId);
         if (source === 'custom') {
           const payload = { subtasks };
           if (todo && todo.updated_at) payload.updated_at = todo.updated_at;
@@ -1161,7 +1679,10 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
           });
-          if (!resp.ok) throw new Error('save failed');
+          if (!resp.ok) {
+            const errData = await resp.json().catch(() => ({}));
+            throw new Error(errData.error || '');
+          }
           const data = await resp.json();
           customDataRevision++;
           const current = findTodo(source, todoId);
@@ -1175,22 +1696,29 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ source, item_id: String(todoId), subtasks }),
           });
-          if (!resp.ok) throw new Error('save failed');
+          if (!resp.ok) {
+            const errData = await resp.json().catch(() => ({}));
+            throw new Error(errData.error || '');
+          }
           const data = await resp.json();
           const current = findTodo(source, todoId);
           if (current) current.subtasks = data.subtasks || subtasks;
         }
-        renderUnifiedList();
+        if (!optimistic) {
+          flipSubtasks(source, todoId, () => renderSubtaskPanelInPlace(source, todoId));
+        } else {
+          renderSubtaskPanelInPlace(source, todoId);
+        }
         return true;
       } catch (e) {
-        alert('保存失败');
+        if (optimistic && todo) {
+          todo.subtasks = rollbackSubtasks;
+          renderSubtaskPanelInPlace(source, todoId);
+        }
+        showUiToast(e?.message ? `子任务保存失败：${e.message}` : '子任务保存失败，已恢复原状态', { tone: 'danger' });
+        const cfg = PLATFORM_COLLECTIONS[source];
         if (source === 'custom') fetchCustomTodos();
-        else if (source === 'canvas') fetchCanvasTodos();
-        else if (source === 'haoke') fetchHaokeTodos();
-        else if (source === 'zhixuemeng') fetchZhixuemengTodos();
-        else if (source === 'zhihuishu') fetchZhihuishuTodos();
-        else if (source === 'ketangpai') fetchKetangpaiTodos();
-        else if (source === 'tongjioj') fetchTongjiojTodos();
+        else if (cfg?.refresh) cfg.refresh();
         return false;
       }
     }
@@ -1207,19 +1735,19 @@
         source = 'custom';
       }
       const trimmed = text.trim();
-      if (!trimmed) return;
+      if (!trimmed) return false;
 
       const todo = findTodo(source, todoId);
-      if (!todo) return;
+      if (!todo) return false;
 
-      const currentSubtasks = todo.subtasks || [];
-      const newId = Math.max(0, ...currentSubtasks.map(subtask => subtask.id || 0)) + 1;
-      const finalDueDate = (dueDate !== undefined && dueDate !== null && dueDate !== '') ? dueDate : getTodayDateString();
+      const prevSubtasks = (todo.subtasks || []).map((s) => ({ ...s }));
+      const newId = Math.max(0, ...prevSubtasks.map(subtask => subtask.id || 0)) + 1;
+      const finalDueDate = (dueDate && String(dueDate).trim()) ? String(dueDate).trim() : null;
       const subtasks = [
-        ...currentSubtasks,
+        ...prevSubtasks,
         { id: newId, text: trimmed, done: false, due_date: finalDueDate },
       ];
-      return await saveSubtasks(source, todoId, sortSubtasks(subtasks));
+      return await saveSubtasks(source, todoId, sortSubtasks(subtasks), { prevSubtasks });
     }
 
     async function toggleSubtaskDone(source, todoId, subtaskId) {
@@ -1231,8 +1759,9 @@
       const todo = findTodo(source, todoId);
       if (!todo) return;
 
+      const prevSubtasks = (todo.subtasks || []).map((s) => ({ ...s }));
       const sid = Number(subtaskId);
-      const subtasks = (todo.subtasks || []).map((subtask, idx) => {
+      const subtasks = prevSubtasks.map((subtask, idx) => {
         const id = subtask.id != null ? subtask.id : idx;
         if (id === sid) {
           const newSubtask = { ...subtask, done: !subtask.done };
@@ -1247,7 +1776,7 @@
         return subtask;
       });
 
-      await saveSubtasks(source, todoId, sortSubtasks(subtasks));
+      await saveSubtasks(source, todoId, sortSubtasks(subtasks), { prevSubtasks, optimistic: true });
     }
 
     async function deleteSubtask(source, todoId, subtaskId) {
@@ -1259,12 +1788,21 @@
       const todo = findTodo(source, todoId);
       if (!todo) return;
 
+      const prevSubtasks = (todo.subtasks || []).map((s) => ({ ...s }));
       const sid = Number(subtaskId);
-      const subtasks = (todo.subtasks || []).filter((subtask, idx) => {
+      const removed = prevSubtasks.find((subtask, idx) => (subtask.id != null ? subtask.id : idx) === sid);
+      const subtasks = prevSubtasks.filter((subtask, idx) => {
         const id = subtask.id != null ? subtask.id : idx;
         return id !== sid;
       });
-      await saveSubtasks(source, todoId, sortSubtasks(subtasks));
+      const ok = await saveSubtasks(source, todoId, sortSubtasks(subtasks), { prevSubtasks, optimistic: true });
+      if (ok && removed) {
+        showUiToast(`已删除子任务「${shortTodoToastTitle(removed.text)}」`, {
+          tone: 'neutral',
+          actionLabel: '撤销',
+          onAction: () => saveSubtasks(source, todoId, sortSubtasks(prevSubtasks)),
+        });
+      }
     }
 
     async function handleSubtaskDueChange(source, todoId, subtaskId, dueDate) {
@@ -1277,12 +1815,13 @@
       const todo = findTodo(source, todoId);
       if (!todo) return;
 
+      const prevSubtasks = (todo.subtasks || []).map((s) => ({ ...s }));
       const sid = Number(subtaskId);
-      const subtasks = (todo.subtasks || []).map((subtask, idx) => {
+      const subtasks = prevSubtasks.map((subtask, idx) => {
         const id = subtask.id != null ? subtask.id : idx;
         return id === sid ? { ...subtask, due_date: dueDate || null } : subtask;
       });
-      await saveSubtasks(source, todoId, sortSubtasks(subtasks));
+      await saveSubtasks(source, todoId, sortSubtasks(subtasks), { prevSubtasks });
     }
 
     function startSubtaskEdit(source, todoId, subtaskId, spanEl) {
@@ -1311,23 +1850,30 @@
       input.focus();
       input.select();
 
+      let finished = false;
+      let restoreFocus = false;
+
       async function finish(save) {
+        if (finished) return;
+        finished = true;
         const nextText = input.value.trim();
+        input.replaceWith(spanEl);
         if (!save || !nextText || nextText === originalText) {
-          renderUnifiedList();
+          if (restoreFocus) spanEl.focus({ preventScroll: true });
           return;
         }
 
-        const subtasks = (todo.subtasks || []).map((item, idx) => {
+        const prevSubtasks = (todo.subtasks || []).map((s) => ({ ...s }));
+        const subtasks = prevSubtasks.map((item, idx) => {
           const id = item.id != null ? item.id : idx;
           return id === sid ? { ...item, text: nextText } : item;
         });
-        await saveSubtasks(source, todoId, sortSubtasks(subtasks));
+        await saveSubtasks(source, todoId, sortSubtasks(subtasks), { prevSubtasks });
       }
 
       input.addEventListener('keydown', event => {
-        if (event.key === 'Enter') finish(true);
-        if (event.key === 'Escape') finish(false);
+        if (event.key === 'Enter') { event.preventDefault(); restoreFocus = true; finish(true); }
+        if (event.key === 'Escape') { event.preventDefault(); restoreFocus = true; finish(false); }
       });
       input.addEventListener('blur', () => finish(true));
     }
@@ -1394,7 +1940,7 @@
             headers,
             body: JSON.stringify({
               title: taskText,
-              first_due_date: dueInput.value || (window.customToday || new Date().toISOString().split('T')[0]),
+              first_due_date: dueInput.value || getTodayDateString(),
               interval_weeks: repeatVal === 'weekly' ? 1 : 2,
               details: labels.length ? ('标签: ' + labels.join(', ')) : '',
               request_id: currentTodoRequestId,
@@ -1414,13 +1960,30 @@
         }
 
         if (resp.ok) {
+          const created = await resp.json().catch(() => ({}));
+          if (created?.todo?.ref) {
+            _pendingPulseTodoKey = created.todo.ref;
+          } else if (created?.todo?.id != null) {
+            _pendingPulseTodoKey = `custom:${created.todo.id}`;
+          } else if (created?.series?.id != null) {
+            _pendingPulseTodoKey = `recurring:${created.series.id}:${dueInput.value || getTodayDateString()}`;
+          }
           input.value = '';
           dueInput.value = '';
+          delete dueInput.dataset.autoRepeatDefault;
           if (repeatSelect) repeatSelect.value = 'none';
           currentTodoRequestId = null;
-          setNewTodoDueDefault(window.customToday || new Date().toISOString().split('T')[0]);
+
+          if (todoSourceFilter !== 'all' && todoSourceFilter !== 'custom') {
+            setTodoSourceFilter('all');
+            showUiToast('已添加到「自定义」，已切换至全部待办', { tone: 'info' });
+          }
+
           document.getElementById('add-todo-form').dispatchEvent(new Event('todo:created'));
           await fetchCustomTodos();
+          if (!window.matchMedia('(max-width: 768px)').matches) {
+            input.focus({ preventScroll: true });
+          }
           if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
         } else {
           const err = await resp.json().catch(() => ({}));
@@ -1428,16 +1991,18 @@
           if (errEl) {
             errEl.textContent = '添加失败：' + errMsg;
             errEl.style.display = 'block';
+            window.uiMotion?.nudgeError?.(errEl);
           } else {
-            alert('添加失败：' + errMsg);
+            showUiToast('添加失败：' + errMsg, { tone: 'danger' });
           }
         }
       } catch (networkErr) {
         if (errEl) {
           errEl.textContent = '网络连接失败，请检查网络后重试。';
           errEl.style.display = 'block';
+          window.uiMotion?.nudgeError?.(errEl);
         } else {
-          alert('网络连接失败，请检查网络后重试。');
+          showUiToast('网络连接失败，请检查网络后重试。', { tone: 'danger' });
         }
       } finally {
         isSubmittingTodo = false;
@@ -1450,7 +2015,6 @@
     }
 
     async function toggleTodoCheck(id, done) {
-      if (!done) collapsedTodoGroups.delete("completed");
       if (typeof id === 'string' && id.startsWith('recurring_')) {
         const parts = id.split('_');
         const seriesId = parts[1];
@@ -1458,151 +2022,291 @@
         await toggleRecurringCheck(seriesId, origDate, done);
         return;
       }
+      const lockKey = `custom:${id}`;
+      if (todoInFlightKeys.has(lockKey)) return;
       const item = Array.isArray(customItems) ? customItems.find(t => String(t.id) === String(id)) : null;
+      const prevDone = Boolean(item?.done);
+      const prevCompletedAt = item?.completed_at;
+      const wasOverdue = Boolean(item?.due_date && item.due_date < getTodayDateString());
+      const shortTitle = shortTodoToastTitle(item?.text || '该待办');
+
+      todoInFlightKeys.add(lockKey);
+      if (item) item.done = !done;
+      flipTodoList(() => renderUnifiedListNow());
+
       const payload = { done: !done };
       if (item && item.updated_at) payload.expected_updated_at = item.updated_at;
-      const resp = await fetch(`/api/custom/todos/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      await fetchCustomTodos();
-      if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+      try {
+        const resp = await fetch(`/api/custom/todos/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!resp.ok) throw new Error('update failed');
+        await fetchCustomTodos();
+        if (!done) {
+          if (!wasOverdue) {
+            showUiToast(`已完成「${shortTitle}」`, {
+              tone: 'success',
+              actionLabel: '撤销',
+              onAction: () => toggleTodoCheck(id, true),
+            });
+          } else {
+            showUiToast(`已完成「${shortTitle}」（已过截止，自动清理）`, { tone: 'info' });
+          }
+        } else {
+          showUiToast(`已恢复「${shortTitle}」`, { tone: 'info' });
+        }
+        if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+      } catch (error) {
+        if (item) {
+          item.done = prevDone;
+          item.completed_at = prevCompletedAt;
+        }
+        flipTodoList(() => renderUnifiedListNow());
+        showUiToast('状态更新失败，已恢复原状', { tone: 'danger' });
+      } finally {
+        todoInFlightKeys.delete(lockKey);
+      }
     }
 
     async function toggleRecurringCheck(seriesId, origDate, done) {
-      await fetch(`/api/recurring-todos/${seriesId}/occurrences/${origDate}/complete`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ done: !done }),
-      });
-      await fetchCustomTodos();
-      if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+      const lockKey = `recurring:${seriesId}:${origDate}`;
+      if (todoInFlightKeys.has(lockKey)) return;
+      const item = customItems.find((t) => Number(t.series_id) === Number(seriesId) && t.original_due_date === origDate);
+      const prevDone = Boolean(item?.done);
+      const wasOverdue = Boolean(item?.due_date && item.due_date < getTodayDateString());
+      const shortTitle = shortTodoToastTitle(item?.text || '重复待办');
+
+      todoInFlightKeys.add(lockKey);
+      if (item) item.done = !done;
+      flipTodoList(() => renderUnifiedListNow());
+
+      try {
+        const resp = await fetch(`/api/recurring-todos/${seriesId}/occurrences/${origDate}/complete`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ done: !done }),
+        });
+        if (!resp.ok) throw new Error('recurring complete failed');
+        await fetchCustomTodos();
+        if (!done) {
+          if (!wasOverdue) {
+            showUiToast(`已完成「${shortTitle}」`, {
+              tone: 'success',
+              actionLabel: '撤销',
+              onAction: () => toggleRecurringCheck(seriesId, origDate, true),
+            });
+          } else {
+            showUiToast(`已完成「${shortTitle}」（已过截止，自动清理）`, { tone: 'info' });
+          }
+        } else {
+          showUiToast(`已恢复「${shortTitle}」`, { tone: 'info' });
+        }
+        if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+      } catch (error) {
+        if (item) item.done = prevDone;
+        flipTodoList(() => renderUnifiedListNow());
+        showUiToast('重复待办更新失败，已恢复原状', { tone: 'danger' });
+      } finally {
+        todoInFlightKeys.delete(lockKey);
+      }
     }
 
     async function skipRecurringOccurrence(seriesId, origDate) {
-      await fetch(`/api/recurring-todos/${seriesId}/occurrences/${origDate}/skip`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ skipped: true }),
-      });
-      await fetchCustomTodos();
-      if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+      const lockKey = `recurring:${seriesId}:${origDate}`;
+      if (todoInFlightKeys.has(lockKey)) return;
+      const item = customItems.find((t) => Number(t.series_id) === Number(seriesId) && t.original_due_date === origDate);
+      const shortTitle = shortTodoToastTitle(item?.text || '重复待办');
+      const prevItems = [...customItems];
+
+      todoInFlightKeys.add(lockKey);
+      customItems = customItems.filter((t) => !(Number(t.series_id) === Number(seriesId) && t.original_due_date === origDate));
+      flipTodoList(() => renderUnifiedListNow());
+
+      try {
+        const resp = await fetch(`/api/recurring-todos/${seriesId}/occurrences/${origDate}/skip`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ skipped: true }),
+        });
+        if (!resp.ok) throw new Error('skip failed');
+        await fetchCustomTodos();
+        showUiToast(`已跳过本次「${shortTitle}」`, {
+          tone: 'neutral',
+          actionLabel: '撤销',
+          onAction: async () => {
+            try {
+              const undoResp = await fetch(`/api/recurring-todos/${seriesId}/occurrences/${origDate}/skip`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ skipped: false }),
+              });
+              if (!undoResp.ok) throw new Error('unskip failed');
+              await fetchCustomTodos();
+              if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+            } catch (_) {
+              showUiToast('撤销跳过失败，请重试', { tone: 'danger' });
+            }
+          },
+        });
+        if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+      } catch (error) {
+        customItems = prevItems;
+        flipTodoList(() => renderUnifiedListNow());
+        showUiToast('跳过本次失败，已恢复原状', { tone: 'danger' });
+      } finally {
+        todoInFlightKeys.delete(lockKey);
+      }
     }
 
     async function deleteRecurringSeries(seriesId) {
-      if (!confirm('确定要删除此重复待办系列吗？')) return;
-      await fetch(`/api/recurring-todos/${seriesId}`, {
-        method: 'DELETE',
+      const item = customItems.find((t) => Number(t.series_id) === Number(seriesId));
+      const title = item ? item.text : '此重复待办';
+      const confirmed = await confirmUiAction({
+        title: '删除重复待办系列',
+        message: `确定永久删除「${title}」整个重复系列吗？删除后后续周期将不再生成，此操作不可撤销。`,
+        confirmLabel: '永久删除',
+        tone: 'danger',
       });
-      await fetchCustomTodos();
-      if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+      if (!confirmed) return;
+
+      const lockKey = `recurring-series:${seriesId}`;
+      if (todoInFlightKeys.has(lockKey)) return;
+      todoInFlightKeys.add(lockKey);
+      try {
+        const resp = await fetch(`/api/recurring-todos/${seriesId}`, {
+          method: 'DELETE',
+        });
+        if (!resp.ok) throw new Error('delete failed');
+        await fetchCustomTodos();
+        if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
+        showUiToast(`已删除重复待办「${shortTodoToastTitle(title)}」`, { tone: 'info' });
+      } catch (error) {
+        showUiToast('删除重复待办失败，请重试', { tone: 'danger' });
+      } finally {
+        todoInFlightKeys.delete(lockKey);
+      }
     }
 
     async function toggleCustomHighlight(id, current) {
+      const lockKey = `custom:flag:${id}`;
+      if (todoInFlightKeys.has(lockKey)) return;
       const item = Array.isArray(customItems) ? customItems.find(t => String(t.id) === String(id)) : null;
+      const prevFlag = Boolean(item?.highlighted);
+
+      todoInFlightKeys.add(lockKey);
+      if (item) item.highlighted = !current;
+      flipTodoList(() => renderUnifiedListNow());
+
       const payload = { highlighted: !current };
       if (item && item.updated_at) payload.expected_updated_at = item.updated_at;
-      await fetch(`/api/custom/todos/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      fetchCustomTodos();
+      try {
+        const resp = await fetch(`/api/custom/todos/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!resp.ok) throw new Error('highlight failed');
+        fetchCustomTodos();
+      } catch (error) {
+        if (item) item.highlighted = prevFlag;
+        flipTodoList(() => renderUnifiedListNow());
+        showUiToast('标红状态更新失败，已恢复原状', { tone: 'danger' });
+      } finally {
+        todoInFlightKeys.delete(lockKey);
+      }
     }
 
+    async function performPlatformDelete(platform, id) {
+      const cfg = PLATFORM_COLLECTIONS[platform];
+      if (!cfg) return;
+      const lockKey = `${platform}:delete:${id}`;
+      if (todoInFlightKeys.has(lockKey)) return;
+      todoInFlightKeys.add(lockKey);
 
-    async function toggleCanvasDelete(id) {
-      await fetch('/api/canvas/state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete', id }),
-      });
-      canvasDeletedIds.push(id);
-      renderUnifiedList();
+      const item = (cfg.getItems() || []).find((entry) => String(entry.id) === String(id));
+      const shortTitle = shortTodoToastTitle(item?.title || '该事项');
+      const prevDeleted = [...cfg.getDeleted()];
+      if (!prevDeleted.some((x) => String(x) === String(id))) {
+        cfg.setDeleted([...prevDeleted, id]);
+      }
+      flipTodoList(() => renderUnifiedListNow());
+
+      try {
+        const resp = await fetch(`/api/${platform}/state`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ action: 'delete', id }),
+        });
+        if (!resp.ok) throw new Error('delete failed');
+        showUiToast(`已从清单隐藏「${shortTitle}」`, {
+          tone: 'neutral',
+          actionLabel: '撤销',
+          onAction: async () => {
+            try {
+              const undoResp = await fetch(`/api/${platform}/state`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ action: 'undelete', id }),
+              });
+              if (!undoResp.ok) throw new Error('undelete failed');
+              cfg.setDeleted(cfg.getDeleted().filter((x) => String(x) !== String(id)));
+              flipTodoList(() => renderUnifiedListNow());
+            } catch (_) {
+              showUiToast('撤销隐藏失败，可在连接与同步页恢复', { tone: 'danger' });
+            }
+          },
+        });
+      } catch (error) {
+        cfg.setDeleted(prevDeleted);
+        flipTodoList(() => renderUnifiedListNow());
+        showUiToast('从清单隐藏失败，已恢复显示', { tone: 'danger' });
+      } finally {
+        todoInFlightKeys.delete(lockKey);
+      }
     }
 
-    async function toggleHaokeDelete(id) {
-      await fetch('/api/haoke/state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete', id }),
-      });
-      haokeDeletedIds.push(id);
-      renderUnifiedList();
-    }
-
-    async function toggleZhixuemengDelete(id) {
-      await fetch('/api/zhixuemeng/state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete', id }),
-      });
-      zhixuemengDeletedIds.push(id);
-      renderUnifiedList();
-    }
-
-    async function toggleZhihuishuDelete(id) {
-      const resp = await fetch('/api/zhihuishu/state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete', id }),
-      });
-      if (!resp.ok) return;
-      zhihuishuDeletedIds.push(id);
-      renderUnifiedList();
-    }
-
-    async function toggleKetangpaiDelete(id) {
-      const resp = await fetch('/api/ketangpai/state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete', id }),
-      });
-      if (!resp.ok) return;
-      ketangpaiDeletedIds.push(id);
-      renderUnifiedList();
-    }
-
-    async function toggleTongjiojDelete(id) {
-      const resp = await fetch('/api/tongjioj/state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete', id }),
-      });
-      if (!resp.ok) return;
-      tongjiojDeletedIds.push(id);
-      renderUnifiedList();
-    }
+    function toggleCanvasDelete(id) { return performPlatformDelete('canvas', id); }
+    function toggleHaokeDelete(id) { return performPlatformDelete('haoke', id); }
+    function toggleZhixuemengDelete(id) { return performPlatformDelete('zhixuemeng', id); }
+    function toggleZhihuishuDelete(id) { return performPlatformDelete('zhihuishu', id); }
+    function toggleKetangpaiDelete(id) { return performPlatformDelete('ketangpai', id); }
+    function toggleTongjiojDelete(id) { return performPlatformDelete('tongjioj', id); }
 
     async function toggleCustomDelete(id) {
       if (deletingCustomIds.has(id)) return;
       const item = customItems.find(t => t.id === id);
       const title = item ? item.text : '此待办';
       const subtaskCount = item && Array.isArray(item.subtasks) ? item.subtasks.length : 0;
-      const subtaskWarning = subtaskCount > 0 ? `\n将同时删除其包含的 ${subtaskCount} 个子任务。` : '';
-      if (!window.confirm(`确定永久删除待办「${title}」吗？${subtaskWarning}\n此操作不可撤销。`)) {
-        return;
-      }
+      const subtaskWarning = subtaskCount > 0 ? ` 将同时删除其包含的 ${subtaskCount} 个子任务。` : '';
+      const confirmed = await confirmUiAction({
+        title: '永久删除待办',
+        message: `确定永久删除待办「${title}」吗？${subtaskWarning}此操作不可撤销。`,
+        confirmLabel: '永久删除',
+        tone: 'danger',
+      });
+      if (!confirmed) return;
 
       deletingCustomIds.add(id);
-      renderUnifiedList();
+      renderUnifiedListNow();
       try {
         const resp = await fetch(`/api/custom/todos/${id}`, { method: 'DELETE' });
         if (resp.ok) {
           await fetchCustomTodos();
           if (typeof loadTodaySchedule === 'function') loadTodaySchedule();
           if (typeof loadForwardAgenda === 'function') loadForwardAgenda();
+          showUiToast(`已删除「${shortTodoToastTitle(title)}」`, { tone: 'info' });
         } else {
           const err = await resp.json().catch(() => ({}));
           const errMsg = err.error || err.message || ('服务端状态 ' + resp.status);
-          alert('删除待办失败：' + errMsg);
+          showUiToast('删除待办失败：' + errMsg, { tone: 'danger' });
         }
       } catch (err) {
-        alert('删除待办失败，网络连接异常，请重试。');
+        showUiToast('删除待办失败，网络连接异常，请重试。', { tone: 'danger' });
       } finally {
         deletingCustomIds.delete(id);
-        renderUnifiedList();
+        renderUnifiedListNow();
       }
     }
 
@@ -1625,7 +2329,7 @@
           item.labels = value;
         }
       }
-      renderUnifiedList();
+      flipTodoList(() => renderUnifiedListNow());
 
       const payload = {};
       if (item && item.updated_at) {
@@ -1666,29 +2370,25 @@
           item.due_date = prevDue;
           item.labels = prevLabels;
         }
-        renderUnifiedList();
-        alert('修改未保存：' + (err.message || '网络或服务异常'));
+        flipTodoList(() => renderUnifiedListNow());
+        showUiToast('修改未保存：' + (err.message || '网络或服务异常'), { tone: 'danger' });
       }
     }
 
     function startInlineEdit(spanEl, field) {
-      const id = parseInt(spanEl.dataset.id);
+      const id = parseInt(spanEl.dataset.id, 10);
       const originalValue = field === 'due_date' ? (spanEl.dataset.value ?? spanEl.textContent.trim()) : spanEl.textContent.trim();
 
       const input = document.createElement('input');
       input.type = field === 'due_date' ? 'date' : 'text';
       input.className = field === 'due_date' ? 'inline-edit-date-input' : 'inline-edit-input';
-
-      if (field === 'due_date' && originalValue) {
-        input.value = originalValue;
-      } else {
-        input.value = originalValue;
-      }
+      input.value = originalValue || '';
 
       spanEl.replaceWith(input);
       input.focus();
       if (input.type === 'text') input.select();
       let finished = false;
+      let viaKeyboard = false;
 
       function commit() {
         if (finished) return;
@@ -1696,7 +2396,9 @@
         const newValue = input.value.trim();
         input.replaceWith(spanEl);
         if (newValue !== originalValue) {
-          // 濡傛灉鏄紪杈戜换鍔℃爣棰橈紝妫€鏌ユ槸鍚︽湁鏍囩
+          if (viaKeyboard) {
+            _pendingFocusSelector = `[data-id="${id}"][data-field="${field}"]`;
+          }
           if (field === 'text') {
             const parts = newValue.split(/\s+(#[^#\s]+)/);
             let taskText = parts[0];
@@ -1705,14 +2407,12 @@
               taskText = parts[0].trim();
               labels = parts.slice(1).map(tag => tag.substring(1)).filter(tag => tag);
             }
-
-            // 鍚堝苟涓轰竴娆¤姹傦紝閬垮厤绔炴€佹潯浠?
             saveInlineEdit(id, 'multi', { text: taskText, labels });
           } else {
             saveInlineEdit(id, field, newValue);
           }
-        } else {
-          renderUnifiedList();
+        } else if (viaKeyboard) {
+          spanEl.focus({ preventScroll: true });
         }
       }
 
@@ -1720,13 +2420,13 @@
         if (finished) return;
         finished = true;
         input.replaceWith(spanEl);
-        renderUnifiedList();
+        if (viaKeyboard) spanEl.focus({ preventScroll: true });
       }
 
       input.addEventListener('blur', commit);
       input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
-        if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+        if (e.key === 'Enter') { e.preventDefault(); viaKeyboard = true; input.blur(); }
+        if (e.key === 'Escape') { e.preventDefault(); viaKeyboard = true; cancel(); }
       });
     }
 
@@ -1734,8 +2434,10 @@
 (function initializeTodoFeature() {
   const byId = (id) => document.getElementById(id);
   byId('todo-list')?.addEventListener('click', (event) => {
-    const detail = event.target.closest('[data-mobile-detail]');
-    if (detail) openActionDetail(detail.dataset.mobileDetail);
+    const mobileDetail = event.target.closest('[data-mobile-detail]');
+    if (mobileDetail) { openActionDetail(mobileDetail.dataset.mobileDetail); return; }
+    const desktopDetail = event.target.closest('[data-todo-detail]');
+    if (desktopDetail) { openActionDetail(desktopDetail.dataset.todoDetail); return; }
   });
 
   const composer = byId('todo-composer');
@@ -1770,31 +2472,67 @@
 
   byId('add-todo-form')?.addEventListener('submit', addTodo);
   byId('new-todo-input')?.addEventListener('input', () => { if (typeof resetTodoRequestId === 'function') resetTodoRequestId(); });
-  byId('new-todo-due')?.addEventListener('change', () => { if (typeof resetTodoRequestId === 'function') resetTodoRequestId(); });
-  byId('new-todo-repeat')?.addEventListener('change', () => { if (typeof resetTodoRequestId === 'function') resetTodoRequestId(); });
+  byId('new-todo-due')?.addEventListener('change', () => {
+    const dueEl = byId('new-todo-due');
+    if (dueEl) delete dueEl.dataset.autoRepeatDefault;
+    if (typeof resetTodoRequestId === 'function') resetTodoRequestId();
+  });
+  byId('new-todo-repeat')?.addEventListener('change', () => {
+    const repeatEl = byId('new-todo-repeat');
+    const dueEl = byId('new-todo-due');
+    if (repeatEl && dueEl) {
+      if (repeatEl.value !== 'none') {
+        if (!dueEl.value) {
+          dueEl.value = getTodayDateString();
+          dueEl.dataset.autoRepeatDefault = 'true';
+        }
+      } else if (dueEl.dataset.autoRepeatDefault === 'true') {
+        dueEl.value = '';
+        delete dueEl.dataset.autoRepeatDefault;
+      }
+    }
+    if (typeof resetTodoRequestId === 'function') resetTodoRequestId();
+  });
+
   byId('btn-refresh')?.addEventListener('click', async () => {
     if (workspaceRefreshing) return;
     workspaceRefreshing = true;
     workspaceRefreshFailed = false;
     renderDashboardSyncStatus();
+
+    const platformFetches = [];
+    const canFetchPlatform = (name) => typeof isPlatformConfigured !== 'function' || isPlatformConfigured(name);
+    if (typeof fetchCanvasTodos === 'function' && canFetchPlatform('canvas')) platformFetches.push(fetchCanvasTodos(true));
+    if (typeof fetchHaokeTodos === 'function' && canFetchPlatform('haoke')) platformFetches.push(fetchHaokeTodos(true));
+    if (typeof fetchZhixuemengTodos === 'function' && canFetchPlatform('zhixuemeng')) platformFetches.push(fetchZhixuemengTodos());
+    if (typeof fetchZhihuishuTodos === 'function' && canFetchPlatform('zhihuishu')) platformFetches.push(fetchZhihuishuTodos());
+    if (typeof fetchKetangpaiTodos === 'function' && canFetchPlatform('ketangpai')) platformFetches.push(fetchKetangpaiTodos());
+    if (typeof fetchTongjiojTodos === 'function' && canFetchPlatform('tongjioj')) platformFetches.push(fetchTongjiojTodos('', true));
+
     try {
-      if (typeof fetchCanvasTodos === 'function') fetchCanvasTodos(true);
-      if (typeof fetchHaokeTodos === 'function') fetchHaokeTodos(true);
-      if (typeof fetchZhixuemengTodos === 'function') fetchZhixuemengTodos();
-      if (typeof fetchZhihuishuTodos === 'function') fetchZhihuishuTodos();
-      if (typeof fetchKetangpaiTodos === 'function') fetchKetangpaiTodos();
-      if (typeof fetchTongjiojTodos === 'function') fetchTongjiojTodos('', true);
       if (typeof refreshWorkspaceSurfaces === 'function') {
         await refreshWorkspaceSurfaces();
       } else {
-        if (typeof fetchProjectTodos === 'function') await fetchProjectTodos();
-        if (typeof fetchCustomTodos === 'function') await fetchCustomTodos();
-        if (typeof loadTodaySchedule === 'function') await loadTodaySchedule();
+        const localResults = await Promise.allSettled([
+          typeof fetchProjectTodos === 'function' ? fetchProjectTodos() : Promise.resolve(),
+          typeof fetchCustomTodos === 'function' ? fetchCustomTodos() : Promise.resolve(),
+          typeof loadTodaySchedule === 'function' ? loadTodaySchedule() : Promise.resolve(),
+        ]);
+        const rejected = localResults.find((r) => r.status === 'rejected');
+        if (rejected) throw rejected.reason;
       }
     } catch (_) {
       workspaceRefreshFailed = true;
     } finally {
       workspaceRefreshing = false;
+      renderDashboardSyncStatus();
+    }
+
+    if (platformFetches.length) {
+      const results = await Promise.allSettled(platformFetches);
+      if (results.some((r) => r.status === 'rejected')) {
+        workspaceRefreshFailed = true;
+      }
       renderDashboardSyncStatus();
     }
   });
@@ -1811,9 +2549,18 @@
   document.addEventListener('click', (event) => {
     const manager = byId('todo-source-manager');
     if (manager?.open && !manager.contains(event.target)) manager.removeAttribute('open');
+    if (openMobileActionItemId && !event.target.closest('.todo-row .item-mobile-actions, .todo-row .mobile-action-trigger, dialog')) {
+      closeMobileActions();
+    }
   });
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') byId('todo-source-manager')?.removeAttribute('open');
+    if (event.key === 'Escape') {
+      byId('todo-source-manager')?.removeAttribute('open');
+      if (openMobileActionItemId && !document.querySelector('dialog[open]') && !event.target?.closest?.('dialog')) {
+        const insideActions = Boolean(document.activeElement?.closest('.item-mobile-actions'));
+        closeMobileActions({ restoreFocus: insideActions });
+      }
+    }
   });
   byId('todo-list')?.addEventListener('click', (event) => {
     const projectDueEl = event.target.closest('.project-due-editable');
@@ -1822,5 +2569,12 @@
     if (titleEl) { startInlineEdit(titleEl, 'text'); return; }
     const dueEl = event.target.closest('.editable-due');
     if (dueEl) startInlineEdit(dueEl, 'due_date');
+  });
+  byId('todo-list')?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const titleEl = event.target.closest('.editable-title');
+    if (titleEl) { event.preventDefault(); startInlineEdit(titleEl, 'text'); return; }
+    const dueEl = event.target.closest('.editable-due');
+    if (dueEl) { event.preventDefault(); startInlineEdit(dueEl, 'due_date'); }
   });
 })();

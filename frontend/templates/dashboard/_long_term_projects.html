@@ -3,7 +3,7 @@
     <h2 id="long-term-projects-title" style="font-size: 20px;">长期项目</h2>
     <span class="muted" id="long-term-projects-sub">进行中</span>
     <div class="right">
-      <button type="button" class="icon-btn" title="新建项目" onclick="openProjectsView()"><svg viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"></path></svg></button>
+      <button type="button" class="ui-icon-button icon-btn" title="新建项目" aria-label="新建项目" onclick="openProjectsView().then(() => openProjectModal())"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14m-7-7h14"></path></svg></button>
     </div>
   </div>
   <div class="proj-list project-overview-content" id="project-overview-content" aria-live="polite" aria-busy="true">
