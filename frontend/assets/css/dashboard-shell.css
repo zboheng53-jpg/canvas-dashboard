@@ -1678,7 +1678,7 @@
 }
 
 .connections-list-panel {
-  background: #fcfbf9;
+  background: var(--color-surface-subtle);
 }
 
 .connections-panel-title {

@@ -232,22 +232,30 @@ function switchDashboardView(viewName, { scrollToTop = true, updateHash = true, 
 
 function focusTargetElement(selector) {
   if (!selector) return;
-  let target = document.querySelector(selector);
+  const trimmed = String(selector).trim();
+  if (!trimmed) return;
+  let target = document.getElementById(trimmed.startsWith('#') ? trimmed.slice(1) : trimmed);
+  if (!target) {
+    try {
+      target = document.querySelector(trimmed);
+    } catch (_) {
+      target = null;
+    }
+  }
   if (!target) return;
 
-  // If the target sits inside the collapsed mobile composer drawer, expand it first.
-  const mobileAddDrawer = target.closest('#mobile-add-drawer');
+  // If the target sits inside the collapsed mobile composer (#add-todo-form), expand it first.
+  const addForm = target.closest('#add-todo-form');
   const mobileAddToggle = document.getElementById('mobile-add-toggle');
-  if (mobileAddDrawer && mobileAddToggle && !mobileAddDrawer.classList.contains('is-open')) {
-    const isHidden = window.getComputedStyle(mobileAddDrawer).display === 'none'
-      || mobileAddDrawer.classList.contains('hidden');
+  if (addForm && mobileAddToggle) {
+    const isHidden = addForm.classList.contains('hidden')
+      || window.getComputedStyle(addForm).display === 'none';
     if (isHidden) {
       mobileAddToggle.click();
     }
   }
 
-  target = document.querySelector(selector);
-  if (!target || typeof target.focus !== 'function') return;
+  if (typeof target.focus !== 'function') return;
   try {
     target.scrollIntoView({ block: 'center', behavior: 'instant' });
   } catch (_) {}

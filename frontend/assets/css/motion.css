@@ -81,6 +81,8 @@ html.is-theme-switching .auth-card {
   border: var(--border-width) solid var(--color-action-border);
   pointer-events: none;
   transform-origin: top left;
+  will-change: transform;
+  transition: opacity var(--duration-fast) var(--ease-standard);
 }
 
 .project-tabs .ui-glide-pill,
@@ -425,6 +427,7 @@ dialog.action-dialog[open] {
   color: var(--color-text-secondary);
   font-size: var(--font-size-control);
   line-height: 1.6;
+  white-space: pre-line;
 }
 
 .ui-confirm-actions {
@@ -454,6 +457,7 @@ dialog.action-dialog[open] {
   .ui-collapse.is-collapsed,
   .todo-group.is-collapsed > .ui-collapse,
   .ui-progress-fill,
+  .ui-glide-pill,
   .ui-toast {
     transition-duration: 0.01ms;
     transition-delay: 0s;

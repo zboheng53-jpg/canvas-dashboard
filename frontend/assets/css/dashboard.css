@@ -13,4 +13,4 @@
 @import url("./mobile-dock.css") layer(design-system);
 @import url("./appearance.css") layer(design-system);
 @import url("./guide.css") layer(design-system);
-@import url("./motion.css") layer(utilities);
+@import url("./motion.css") layer(design-system);

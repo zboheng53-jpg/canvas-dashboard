@@ -111,7 +111,9 @@
     savedSidebarCollapsed = localStorage.getItem(sidebarCollapsedKey);
   } catch (_) { /* Storage may be disabled. */ }
 
-  if (savedSidebarCollapsed === '1') {
+  const isMobileViewport = typeof window.matchMedia === 'function'
+    && window.matchMedia('(max-width: 960px)').matches;
+  if (savedSidebarCollapsed === '1' && !isMobileViewport) {
     root.dataset.sidebarCollapsed = '1';
   } else {
     root.dataset.sidebarCollapsed = '0';

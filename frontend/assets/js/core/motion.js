@@ -18,10 +18,18 @@
     return null;
   }
 
-  function positionGlidePill(containerEl, activeEl, indicatorClass) {
+  function cancelGlideAnimation(state) {
+    if (state && state.anim) {
+      try { state.anim.cancel(); } catch (_) {}
+      state.anim = null;
+    }
+  }
+
+  function positionGlidePill(containerEl, activeEl, indicatorClass, state, { animate = true } = {}) {
     if (!containerEl) return;
     let pill = findDirectChild(containerEl, indicatorClass);
     if (!activeEl || !containerEl.contains(activeEl)) {
+      cancelGlideAnimation(state);
       if (pill) pill.style.opacity = '0';
       return;
     }
@@ -33,6 +41,23 @@
       return;
     }
 
+    const reduced = prefersReducedMotion();
+    const hadInitialized = Boolean(pill && pill.dataset.initialized === '1');
+    let prevBox = null;
+    if (hadInitialized && animate && !reduced && typeof pill.animate === 'function') {
+      const pRect = pill.getBoundingClientRect();
+      if (pRect.width > 0 && pRect.height > 0) {
+        prevBox = {
+          left: (pRect.left - cRect.left) - containerEl.clientLeft + containerEl.scrollLeft,
+          top: (pRect.top - cRect.top) - containerEl.clientTop + containerEl.scrollTop,
+          width: pRect.width,
+          height: pRect.height,
+        };
+      }
+    }
+
+    cancelGlideAnimation(state);
+
     if (!pill) {
       pill = document.createElement('span');
       pill.className = indicatorClass;
@@ -40,20 +65,14 @@
       containerEl.prepend(pill);
     }
 
-    const left = (aRect.left - cRect.left) - containerEl.clientLeft + containerEl.scrollLeft;
-    const top = (aRect.top - cRect.top) - containerEl.clientTop + containerEl.scrollTop;
-    const reduced = prefersReducedMotion();
-    const isInitial = pill.dataset.initialized !== '1';
+    const nextLeft = Math.round(((aRect.left - cRect.left) - containerEl.clientLeft + containerEl.scrollLeft) * 100) / 100;
+    const nextTop = Math.round(((aRect.top - cRect.top) - containerEl.clientTop + containerEl.scrollTop) * 100) / 100;
+    const nextWidth = Math.round(aRect.width * 100) / 100;
+    const nextHeight = Math.round(aRect.height * 100) / 100;
 
-    if (isInitial || reduced) {
-      pill.style.transition = 'none';
-    } else {
-      pill.style.transition = '';
-    }
-
-    pill.style.width = `${Math.round(aRect.width * 100) / 100}px`;
-    pill.style.height = `${Math.round(aRect.height * 100) / 100}px`;
-    pill.style.transform = `translate3d(${Math.round(left * 100) / 100}px, ${Math.round(top * 100) / 100}px, 0)`;
+    pill.style.width = `${nextWidth}px`;
+    pill.style.height = `${nextHeight}px`;
+    pill.style.transform = `translate3d(${nextLeft}px, ${nextTop}px, 0)`;
     pill.style.opacity = '1';
 
     const activeRadius = global.getComputedStyle(activeEl).borderRadius;
@@ -61,12 +80,44 @@
       pill.style.borderRadius = activeRadius;
     }
 
-    if (isInitial) {
+    if (!hadInitialized) {
       void pill.offsetWidth;
       pill.dataset.initialized = '1';
-      if (!reduced) {
-        pill.style.transition = '';
-      }
+      return;
+    }
+
+    if (
+      prevBox
+      && state
+      && nextWidth > 0
+      && nextHeight > 0
+      && (
+        Math.abs(prevBox.left - nextLeft) > 0.5
+        || Math.abs(prevBox.top - nextTop) > 0.5
+        || Math.abs(prevBox.width - nextWidth) > 0.5
+        || Math.abs(prevBox.height - nextHeight) > 0.5
+      )
+    ) {
+      const scaleX = prevBox.width / nextWidth;
+      const scaleY = prevBox.height / nextHeight;
+      const anim = pill.animate(
+        [
+          { transform: `translate3d(${prevBox.left}px, ${prevBox.top}px, 0) scale(${scaleX}, ${scaleY})` },
+          { transform: `translate3d(${nextLeft}px, ${nextTop}px, 0) scale(1, 1)` },
+        ],
+        {
+          duration: 220,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+        },
+      );
+      state.anim = anim;
+      const clearAnim = () => {
+        if (state.anim === anim) {
+          state.anim = null;
+        }
+      };
+      anim.onfinish = clearAnim;
+      anim.oncancel = clearAnim;
     }
   }
 
@@ -74,20 +125,21 @@
     if (!containerEl) return;
     let state = glideStateMap.get(containerEl);
     if (!state) {
-      state = { activeEl: null, indicatorClass, observer: null };
+      state = { activeEl: null, indicatorClass, observer: null, anim: null };
       if (typeof ResizeObserver === 'function') {
         state.observer = new ResizeObserver(() => {
           if (state.activeEl && document.contains(state.activeEl)) {
-            positionGlidePill(containerEl, state.activeEl, state.indicatorClass);
+            positionGlidePill(containerEl, state.activeEl, state.indicatorClass, state, { animate: false });
           }
         });
         state.observer.observe(containerEl);
       }
       glideStateMap.set(containerEl, state);
     }
+    const targetChanged = state.activeEl !== (activeEl || null);
     state.activeEl = activeEl || null;
     state.indicatorClass = indicatorClass;
-    positionGlidePill(containerEl, state.activeEl, indicatorClass);
+    positionGlidePill(containerEl, state.activeEl, indicatorClass, state, { animate: targetChanged });
   }
 
   function cancelRunningFlip(el) {
@@ -323,7 +375,7 @@
       el.classList.remove('ui-arrival-pulse');
     };
     el.addEventListener('animationend', cleanup, { once: true });
-    global.setTimeout(cleanup, 650);
+    global.setTimeout(cleanup, 850);
   }
 
   function nudgeError(el) {

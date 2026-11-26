@@ -112,8 +112,6 @@ async function deleteCurrentAccount() {
       return { keepDisabled: false };
     }
   });
-
-  syncDeleteAccountForm();
 }
 
 (function initializeSettingsFeature() {

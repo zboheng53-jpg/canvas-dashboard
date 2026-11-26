@@ -85,5 +85,5 @@ Badge、Tag、Status Dot、Count Pill、Success、Warning、Danger、Info、Aler
 
 ## 动效系统与共享反馈原语
 
-- `@layer utilities` 中的 [motion.css](file:///frontend/assets/css/motion.css) 与 [core/motion.js](file:///frontend/assets/js/core/motion.js)（`window.uiMotion`）统一负责 GPU 合成动画：手风琴 `.ui-collapse`、可打断 FLIP 列表重排 `flipList()`、分段滑块 `glideIndicator()`、数字滚动 `animateNumber()`、`<details>` 高度过渡 `enhanceDisclosure()`、`pulseArrival()` 与 `nudgeError()`。禁止新增 `transition: all` 或对布局属性做动画；所有循环动画必须在 `prefers-reduced-motion: reduce` 下于单次极短周期停止。
+- `@layer design-system` 末位的 [motion.css](file:///frontend/assets/css/motion.css) 与 [core/motion.js](file:///frontend/assets/js/core/motion.js)（`window.uiMotion`）统一负责 GPU 合成动画：手风琴 `.ui-collapse`、可打断 FLIP 列表重排 `flipList()`、分段滑块 `glideIndicator()`、数字滚动 `animateNumber()`、`<details>` 高度过渡 `enhanceDisclosure()`、`pulseArrival()` 与 `nudgeError()`。禁止新增 `transition: all` 或对布局属性做动画；所有循环动画必须在 `prefers-reduced-motion: reduce` 下于单次极短周期停止。
 - [core/ui-feedback.js](file:///frontend/assets/js/core/ui-feedback.js) 提供共享反馈与无障碍对话框原语：`uiToast.show()`（`#ui-toast-region`，最多叠加 2 条，悬停/聚焦暂停计时）、`uiConfirm()`（`<dialog id="ui-confirm-dialog">`）、`withButtonBusy()`、`copyWithFeedback()` 与 `uiDialog`（Escape / 遮罩点击 / 脏表单保护 / 焦点环绕与触发按钮焦点恢复）。

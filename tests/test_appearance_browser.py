@@ -117,6 +117,8 @@ def test_entry_fade_finishes_and_respects_reduced_motion(live_app, browser):
     page.locator('[data-dashboard-view="guide"]').click()
     page.locator('[data-open-view="overview"]').first.click()
     assert page.evaluate("document.getAnimations().filter(a => a.animationName === 'workspace-arrive').length") == 0
+    page.locator('.weather-campus-option[data-campus="jiading"]').click()
+    assert page.evaluate("document.querySelector('.weather-campus-switch .ui-glide-pill')?.getAnimations().length >= 1")
     page.emulate_media(reduced_motion='reduce')
     expect(workspace).to_have_css('animation-name', 'none')
 
@@ -169,8 +171,20 @@ def test_sidebar_collapse_hash_routing_and_shared_feedback_primitives(live_app, 
     expect(page).to_have_url(re.compile(r"#settings$"))
     page.locator("#settings-session-disclosure > summary").click()
     expect(page.locator("#revoke-sessions-password")).to_be_visible()
+
+    page.route("**/api/account", lambda route: route.fulfill(status=403, json={"ok": False, "error": "当前密码不正确"}))
+    page.locator("#settings-danger-disclosure > summary").click()
+    page.fill("#account-delete-password", "wrong-pass")
+    page.fill("#account-delete-confirmation", "永久删除")
+    page.locator(".settings-danger-button").click()
+    page.locator("#ui-confirm-dialog [data-ui-confirm-accept]").click()
+    expect(page.locator("#account-delete-status")).to_contain_text("当前密码不正确")
+    page.unroute("**/api/account")
+
     page.go_back()
     expect(page.locator("#dashboard-view-overview")).to_be_visible()
+    page.evaluate("focusTargetElement('new-todo-input')")
+    expect(page.locator("#new-todo-input")).to_be_focused()
 
     confirmed = page.evaluate("""async () => {
         window.uiToast.show('已保存更改', { tone: 'success' });

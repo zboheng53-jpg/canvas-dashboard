@@ -74,8 +74,8 @@ def test_cascade_layers_isolate_legacy_and_fix_source_order():
     assert '@import url("./foundation.css") layer(foundation);' in dashboard_entry
     assert '@import url("./components.css") layer(components);' in dashboard_entry
     assert '@import url("./patterns.css") layer(patterns);' in dashboard_entry
-    assert '@import url("./motion.css") layer(utilities);' in app_entry
-    assert '@import url("./motion.css") layer(utilities);' in dashboard_entry
+    assert '@import url("./motion.css") layer(design-system);' in app_entry
+    assert '@import url("./motion.css") layer(design-system);' in dashboard_entry
 
 
 def test_global_tokens_have_one_source_and_no_duplicate_names():
