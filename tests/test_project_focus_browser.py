@@ -44,7 +44,8 @@ def test_focus_select_today_complete_and_finished_group(live_app, browser, width
             actions = row.locator('.item-mobile-actions')
         else:
             actions = row.locator('.item-desktop-actions')
-        actions.get_by_role('button', name='完成', exact=True).click()
+        with page.expect_response(lambda r: "/api/projects/" in r.url and r.request.method in ("PUT", "POST") and r.ok):
+            actions.get_by_role('button', name='完成', exact=True).click()
         expect(row).to_have_count(0)
         assert next(t for t in project_store.load_projects(username)[0]['tasks'] if t['id'] == a['id'])['done']
         page.evaluate("switchDashboardView('overview')")
@@ -80,7 +81,8 @@ def test_project_recycle_restore_and_materials(live_app, browser):
         expect(page.locator('#project-detail h2')).to_have_text('可恢复项目')
         page.locator('.project-more-menu summary').click()
         page.get_by_role('button', name='删除项目', exact=True).click()
-        page.locator('#project-confirm-modal').get_by_role('button', name='永久删除', exact=True).click()
+        with page.expect_response(lambda r: "/api/projects/" in r.url and r.request.method == "DELETE" and r.ok):
+            page.locator('#project-confirm-modal').get_by_role('button', name='永久删除', exact=True).click()
         expect(page.locator('#project-manager-list').get_by_role('button')).to_have_count(0)
         assert len(project_store.load_projects(username)) == 0
     finally:
@@ -99,7 +101,8 @@ def test_todo_delete_and_date_edit_for_project_task(live_app, browser):
         row_a = page.locator('#todo-list .todo-row').filter(has=page.get_by_role('button', name='今天的原任务', exact=True))
         expect(row_a).to_be_visible()
         row_a.locator('.item-desktop-actions').get_by_role('button', name='删除', exact=True).click()
-        page.locator('#project-confirm-modal').get_by_role('button', name='永久删除', exact=True).click()
+        with page.expect_response(lambda r: "/api/projects/" in r.url and r.request.method == "DELETE" and r.ok):
+            page.locator('#project-confirm-modal').get_by_role('button', name='永久删除', exact=True).click()
         expect(row_a).to_have_count(0)
         tasks = project_store.load_projects(username)[0]['tasks']
         assert not any(t['id'] == a['id'] for t in tasks)
@@ -112,7 +115,8 @@ def test_todo_delete_and_date_edit_for_project_task(live_app, browser):
         date_input.fill(next_day)
         page.evaluate('renderUnifiedList()')
         expect(date_input).to_have_value(next_day)
-        date_input.press('Enter')
+        with page.expect_response(lambda r: "/api/projects/" in r.url and r.request.method == "PUT" and r.ok):
+            date_input.press('Enter')
         expect(row_b).to_have_count(0)
         changed = next(t for t in project_store.load_projects(username)[0]['tasks'] if t['id'] == b['id'])
         assert changed['planned_on'] == next_day and changed['due_date'] is None
