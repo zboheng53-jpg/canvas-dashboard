@@ -35,9 +35,11 @@
 
       <div class="login-body" id="form-body">
         <form class="add-todo-form" id="haoke-setup-form">
-          <input type="text" id="haoke-username" placeholder="学号" autocomplete="off" class="ui-control">
-          <input type="password" id="haoke-password" placeholder="密码" autocomplete="off" class="ui-control">
-          <button type="submit" class="ui-button ui-button--primary ui-button--block btn-wide">保存并登录</button>
+          <label class="ui-label connection-field-label" for="haoke-username">好课学号</label>
+          <input type="text" id="haoke-username" placeholder="学号" autocomplete="username" class="ui-control">
+          <label class="ui-label connection-field-label" for="haoke-password">好课密码</label>
+          <input type="password" id="haoke-password" placeholder="密码" autocomplete="current-password" class="ui-control">
+          <button type="submit" id="haoke-save-btn" class="ui-button ui-button--primary ui-button--block btn-wide">保存并登录</button>
         </form>
         <p class="ui-help setup-hint">
           使用同济大学统一身份认证的学号和密码登录（智图 AI 好课平台）
@@ -49,12 +51,19 @@
   </div>
 
   <script>
+    function showHaokeError(message) {
+      const el = document.getElementById('haoke-error');
+      if (!el) return;
+      el.textContent = message || '';
+      el.classList.toggle('hidden', !message);
+    }
+
     async function loadStatus() {
       const statusLine = document.getElementById('status-line');
       try {
         const resp = await fetch('/api/haoke/config');
         const result = await resp.json();
-        statusLine.textContent = result.has_credentials ? '当前状态：已连接' : '当前状态：未配置';
+        statusLine.textContent = result.has_credentials ? '当前状态：已连接' : '当前状态：未连接';
         statusLine.className = `ui-feedback ${result.has_credentials ? 'ui-feedback--success' : 'ui-feedback--neutral'} setup-hint`;
       } catch (e) {
         statusLine.textContent = '状态获取失败';
@@ -64,13 +73,22 @@
 
     async function saveHaokeCredentials(e) {
       e.preventDefault();
-      const username = document.getElementById('haoke-username').value.trim();
-      const password = document.getElementById('haoke-password').value.trim();
-      if (!username || !password) return;
+      const usernameInput = document.getElementById('haoke-username');
+      const passwordInput = document.getElementById('haoke-password');
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value.trim();
+      if (!username || !password) {
+        showHaokeError('请输入学号和密码');
+        (!username ? usernameInput : passwordInput).focus();
+        return;
+      }
+      showHaokeError('');
 
-      const btn = document.querySelector('#haoke-setup-form button');
-      btn.textContent = '...';
+      const btn = document.getElementById('haoke-save-btn');
+      const origText = btn.textContent;
+      btn.textContent = '登录中…';
       btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
 
       try {
         const resp = await fetch('/api/haoke/config', {
@@ -82,18 +100,19 @@
         if (result.ok) {
           window.location.href = '/';
         } else {
-          document.getElementById('haoke-error').textContent = result.error || '保存失败';
-          document.getElementById('haoke-error').classList.remove('hidden');
+          showHaokeError(result.error || '保存失败');
         }
       } catch (e) {
-        document.getElementById('haoke-error').textContent = '网络错误';
-        document.getElementById('haoke-error').classList.remove('hidden');
+        showHaokeError('网络错误，请稍后重试');
       } finally {
-        btn.textContent = '保存并登录';
+        btn.textContent = origText;
         btn.disabled = false;
+        btn.setAttribute('aria-busy', 'false');
       }
     }
 
+    document.getElementById('haoke-username').addEventListener('input', () => showHaokeError(''));
+    document.getElementById('haoke-password').addEventListener('input', () => showHaokeError(''));
     document.getElementById('haoke-setup-form').addEventListener('submit', saveHaokeCredentials);
     loadStatus();
   </script>

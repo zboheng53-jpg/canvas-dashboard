@@ -35,8 +35,9 @@
 
       <div class="login-body" id="form-body">
         <form class="add-todo-form" id="setup-form">
-          <input type="url" id="feed-url-input" placeholder="粘贴日历馈送 URL（.ics）..." autocomplete="off" class="ui-control">
-          <button type="submit" class="ui-button ui-button--primary ui-button--block btn-wide">保存</button>
+          <label class="ui-label connection-field-label" for="feed-url-input">Canvas 日历馈送 URL</label>
+          <input type="url" id="feed-url-input" placeholder="粘贴日历馈送 URL（.ics）..." autocomplete="url" class="ui-control">
+          <button type="submit" id="canvas-save-btn" class="ui-button ui-button--primary ui-button--block btn-wide">保存配置</button>
         </form>
         <p class="ui-help setup-hint">
           请从 Canvas 获取日历馈送源 URL：<br>
@@ -49,12 +50,19 @@
   </div>
 
   <script>
+    function showCanvasError(message) {
+      const el = document.getElementById('canvas-error');
+      if (!el) return;
+      el.textContent = message || '';
+      el.classList.toggle('hidden', !message);
+    }
+
     async function loadStatus() {
       const statusLine = document.getElementById('status-line');
       try {
         const resp = await fetch('/api/config');
         const result = await resp.json();
-        statusLine.textContent = result.has_feed ? '当前状态：已连接' : '当前状态：未配置';
+        statusLine.textContent = result.has_feed ? '当前状态：已连接' : '当前状态：未连接';
         statusLine.className = `ui-feedback ${result.has_feed ? 'ui-feedback--success' : 'ui-feedback--neutral'} setup-hint`;
       } catch (e) {
         statusLine.textContent = '状态获取失败';
@@ -66,11 +74,18 @@
       e.preventDefault();
       const input = document.getElementById('feed-url-input');
       const url = input.value.trim();
-      if (!url) return;
+      if (!url) {
+        showCanvasError('请输入 Canvas 日历馈送 URL');
+        input.focus();
+        return;
+      }
+      showCanvasError('');
 
-      const btn = input.nextElementSibling;
-      btn.textContent = '...';
+      const btn = document.getElementById('canvas-save-btn');
+      const origText = btn.textContent;
+      btn.textContent = '保存中…';
       btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
 
       try {
         const resp = await fetch('/api/config', {
@@ -82,18 +97,18 @@
         if (result.ok) {
           window.location.href = '/';
         } else {
-          document.getElementById('canvas-error').textContent = result.error || '保存失败';
-          document.getElementById('canvas-error').classList.remove('hidden');
+          showCanvasError(result.error || '保存失败');
         }
       } catch (e) {
-        document.getElementById('canvas-error').textContent = '网络错误';
-        document.getElementById('canvas-error').classList.remove('hidden');
+        showCanvasError('网络错误，请稍后重试');
       } finally {
-        btn.textContent = '保存';
+        btn.textContent = origText;
         btn.disabled = false;
+        btn.setAttribute('aria-busy', 'false');
       }
     }
 
+    document.getElementById('feed-url-input').addEventListener('input', () => showCanvasError(''));
     document.getElementById('setup-form').addEventListener('submit', saveFeedUrl);
     loadStatus();
   </script>

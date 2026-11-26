@@ -8,7 +8,6 @@
         </div>
       </div>
       <div class="schedule-header-actions">
-        <button type="button" class="ui-button ui-button--danger btn-schedule-action" id="schedule-header-clear-btn" onclick="clearAllCourses()">清空课表</button>
         <button type="button" class="ui-button ui-button--secondary btn-schedule-action btn-schedule-secondary" id="schedule-management-open" onclick="openScheduleManagementModal()">课表管理</button>
         <button type="button" class="ui-button ui-button--primary btn-schedule-action btn-schedule-primary" id="btn-add-schedule-item" onclick="openScheduleItemModal('one-off')">＋ 添加事项</button>
       </div>
@@ -18,15 +17,17 @@
     <div class="schedule-toolbar">
       <div class="schedule-week-nav">
         <button type="button" class="ui-button ui-button--secondary schedule-nav-btn" onclick="navigateScheduleWeek(-1)" title="上一周">‹ 上一周</button>
-        <button type="button" class="ui-button ui-button--choice schedule-nav-btn is-current" onclick="navigateScheduleWeek(0)" title="回到本周">本周</button>
+        <button type="button" class="ui-button ui-button--choice schedule-nav-btn is-current" id="schedule-nav-today-btn" onclick="navigateScheduleWeek(0)" title="当前本周" disabled>本周</button>
         <button type="button" class="ui-button ui-button--secondary schedule-nav-btn" onclick="navigateScheduleWeek(1)" title="下一周">下一周 ›</button>
         <span class="schedule-week-label" id="schedule-week-label"></span>
       </div>
       <div class="schedule-legend">
         <button type="button" class="ui-button ui-button--secondary schedule-nav-btn" id="schedule-header-search-btn" onclick="openActionSearch()" title="查找事项">🔍 查找事项</button>
         <span class="legend-item legend-course"><i class="legend-dot"></i>课表</span>
+        <span class="legend-item legend-one-off legend-weekly"><i class="legend-dot"></i>日程</span>
         <span class="legend-item legend-recurring"><i class="legend-dot"></i>每周重复</span>
-        <span class="legend-item legend-weekly"><i class="legend-dot"></i>单次事项</span>
+        <span class="legend-item legend-deadline"><i class="legend-dot"></i>任务截止</span>
+        <span class="legend-item legend-planned"><i class="legend-dot"></i>计划推进</span>
       </div>
     </div>
 
@@ -43,7 +44,7 @@
 </section>
 
 <!-- Modal for adding/editing schedule items -->
-<div class="schedule-modal-backdrop hidden" id="schedule-item-modal" onclick="if(event.target===this)closeScheduleItemModal()">
+<div class="schedule-modal-backdrop hidden" id="schedule-item-modal">
   <div class="schedule-modal-card" role="dialog" aria-modal="true" aria-labelledby="schedule-modal-title">
     <div class="schedule-modal-header">
       <h3 id="schedule-modal-title">添加排程事项</h3>
@@ -71,7 +72,26 @@
         <input name="title" id="schedule-form-title" required maxlength="40" placeholder="例如：蓝桥杯讨论" class="ui-control">
       </div>
 <label class="ui-field ui-label">详细说明<textarea name="details" id="schedule-form-details" maxlength="12000" rows="4" class="ui-control" placeholder="安排的具体内容、地点说明或材料"></textarea></label>
-      <div class="form-row" id="field-recurring-weekday">
+      <div class="form-group" id="field-schedule-kind">
+        <label class="ui-label">事项类型</label>
+        <div class="schedule-kind-selector">
+          <label class="kind-option">
+            <input type="radio" name="kind" value="one-off" checked>
+            <span>单次日程</span>
+          </label>
+          <label class="kind-option">
+            <input type="radio" name="kind" value="recurring">
+            <span>每周重复</span>
+          </label>
+        </div>
+      </div>
+      <div class="form-row" id="field-one-off-date">
+        <div class="form-group flex-1">
+          <label for="schedule-form-date" class="ui-label">日期</label>
+          <input name="date" type="date" id="schedule-form-date" class="ui-control">
+        </div>
+      </div>
+      <div class="form-row hidden" id="field-recurring-weekday">
         <div class="form-group flex-1">
           <label for="schedule-form-weekday" class="ui-label">重复星期</label>
           <select name="weekday" id="schedule-form-weekday" class="ui-control">
@@ -93,12 +113,6 @@
           <input name="end_date" type="date" id="schedule-form-repeat-end" class="ui-control">
         </div>
       </div>
-      <div class="form-row hidden" id="field-one-off-date">
-        <div class="form-group flex-1">
-          <label for="schedule-form-date" class="ui-label">日期</label>
-          <input name="date" type="date" id="schedule-form-date" class="ui-control">
-        </div>
-      </div>
       <div class="form-row">
         <div class="form-group flex-1">
           <label for="schedule-form-start" class="ui-label">开始时间</label>
@@ -112,19 +126,6 @@
       <div class="form-group">
         <label for="schedule-form-location" class="ui-label">地点（可选）</label>
         <input name="location" id="schedule-form-location" maxlength="120" placeholder="例如：四平路校区 · 北229" class="ui-control">
-      </div>
-      <div class="form-group">
-        <label>事项类型</label>
-        <div class="schedule-kind-selector">
-          <label class="kind-option">
-            <input type="radio" name="kind" value="one-off" checked>
-            <span>单次事项</span>
-          </label>
-          <label class="kind-option">
-            <input type="radio" name="kind" value="recurring">
-            <span>每周重复</span>
-          </label>
-        </div>
       </div>
       <fieldset class="schedule-edit-scope hidden" id="schedule-edit-scope">
         <legend>应用到</legend>
@@ -142,7 +143,7 @@
 </div>
 
 <!-- Modal for viewing course details and deleting course -->
-<div class="schedule-modal-backdrop hidden" id="schedule-course-modal" onclick="if(event.target===this)closeScheduleCourseModal()">
+<div class="schedule-modal-backdrop hidden" id="schedule-course-modal">
   <div class="schedule-modal-card schedule-course-modal-card" role="dialog" aria-modal="true" aria-labelledby="schedule-course-title">
     <div class="schedule-modal-header">
       <div>
@@ -177,7 +178,7 @@
   </div>
 </div>
 
-<div class="schedule-modal-backdrop hidden" id="schedule-management-modal" onclick="if(event.target===this)closeScheduleManagementModal()">
+<div class="schedule-modal-backdrop hidden" id="schedule-management-modal">
   <div class="schedule-modal-card schedule-management-modal-card" role="dialog" aria-modal="true" aria-labelledby="schedule-management-title">
     <div class="schedule-modal-header">
       <div>
@@ -186,12 +187,30 @@
       <button type="button" class="ui-icon-button schedule-modal-close" onclick="closeScheduleManagementModal()" aria-label="关闭">×</button>
     </div>
     <p class="schedule-management-summary" id="schedule-management-summary">尚未导入课程</p>
-    <div class="schedule-management-actions">
-      <button type="button" class="ui-button ui-button--secondary schedule-refresh-button" id="schedule-refresh-button" onclick="openTongjiLoginSession()">统一身份认证登录</button>
-      <input class="schedule-file-input" id="schedule-file-input" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-      <button type="button" class="ui-button ui-button--secondary schedule-refresh-button schedule-import-button" id="schedule-import-button" onclick="document.getElementById('schedule-file-input').click()">从插件导入</button>
-      <a class="ui-button ui-button--secondary schedule-refresh-button schedule-download-link" id="schedule-download-link" href="/static/downloads/tongji-timetable-exporter-v1.2.zip" download>下载插件</a>
+    <p class="ui-feedback ui-feedback--neutral hidden" id="schedule-management-status" role="status" aria-live="polite"></p>
+    <div class="schedule-import-banner hidden" id="schedule-import-banner" role="status" aria-live="polite">
+      <span id="schedule-import-banner-text">课表已更新</span>
+      <button type="button" class="ui-button ui-button--primary ui-button--sm" id="schedule-import-view-btn" onclick="viewImportedSchedule()">查看课表</button>
     </div>
+    <div class="schedule-import-primary">
+      <div class="schedule-import-option-head">
+        <strong>方式一（推荐）：统一身份认证</strong>
+      </div>
+      <div class="schedule-management-actions">
+        <button type="button" class="ui-button ui-button--primary schedule-refresh-button" id="schedule-refresh-button" onclick="openTongjiLoginSession()">统一身份认证登录</button>
+      </div>
+    </div>
+    <details class="settings-disclosure schedule-import-fallback" id="schedule-import-alt-disclosure">
+      <summary><span><b>方式二：浏览器插件导入 (.xlsx)</b><small>导出课表表格后本地上传</small></span><i aria-hidden="true">⌄</i></summary>
+      <div class="schedule-import-fallback-body">
+        <p class="muted">若当前网络或环境不便直接弹出认证窗口，可先使用浏览器插件导出课表表格，再导入 .xlsx 文件。</p>
+        <div class="schedule-management-actions">
+          <input class="schedule-file-input" id="schedule-file-input" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+          <button type="button" class="ui-button ui-button--secondary schedule-refresh-button schedule-import-button" id="schedule-import-button" onclick="document.getElementById('schedule-file-input').click()">从插件导入</button>
+          <a class="ui-button ui-button--secondary schedule-refresh-button schedule-download-link" id="schedule-download-link" href="/static/downloads/tongji-timetable-exporter-v1.2.zip" download>下载插件</a>
+        </div>
+      </div>
+    </details>
     <div class="schedule-courses-section hidden" id="schedule-courses-section">
       <div class="schedule-courses-section-header">
         <h4>已导入课程</h4>
@@ -200,6 +219,9 @@
       <div class="schedule-courses-list" id="schedule-courses-list">
         <!-- Rendered by JS -->
       </div>
+    </div>
+    <div class="schedule-management-danger-zone hidden" id="schedule-management-clear-wrap">
+      <button type="button" class="ui-button ui-button--danger btn-schedule-action" id="schedule-clear-courses-btn" onclick="clearAllCourses()">清空课表</button>
     </div>
     <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note connection-trust-card schedule-login-note">
       <div class="connection-trust-card__head">

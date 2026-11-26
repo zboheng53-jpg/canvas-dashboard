@@ -35,39 +35,50 @@
 
       <div class="login-body" id="form-body">
         <div id="ketangpai-logged-in" class="hidden logged-in-row">
-          <span class="logged-in-label">已登录</span>
+          <span class="logged-in-label">已连接</span>
+          <label class="ui-label connection-field-label" for="ktp-course-select">课程筛选</label>
           <select id="ktp-course-select" class="ui-control logged-in-select"></select>
-          <a href="#" onclick="logoutKetangpai();return false;" class="logged-in-link">登出</a>
+          <button type="button" onclick="logoutKetangpai()" class="ui-button ui-button--danger ui-button--sm">断开连接</button>
         </div>
 
         <div id="ketangpai-setup" class="hidden">
-          <p class="ui-help setup-hint">请输入课堂派绑定的手机号和验证码登录：</p>
-          <div class="add-todo-form mb-s">
-            <input type="tel" id="ktp-phone" placeholder="手机号" autocomplete="off" class="ui-control">
-            <button type="button" id="ktp-send-sms-btn" onclick="sendKetangpaiSms()" class="ui-button ui-button--secondary ui-button--block btn-wide">发送验证码</button>
+          <div class="ktp-auth-tabs" role="tablist" aria-label="课堂派登录方式切换">
+            <button type="button" class="ui-button ui-button--choice ktp-auth-tab is-active" id="ktp-tab-btn-sms" role="tab" aria-selected="true" onclick="switchKtpPageTab('sms')">短信验证码登录</button>
+            <button type="button" class="ui-button ui-button--choice ktp-auth-tab" id="ktp-tab-btn-pwd" role="tab" aria-selected="false" onclick="switchKtpPageTab('pwd')">账号密码登录</button>
           </div>
-          <div id="ktp-figure-group" class="hidden mb-s">
-            <div class="ktp-figure-preview-wrap">
-              <img id="ktp-figure-img-page" src="" alt="计算验证码" class="ktp-figure-img" onclick="refreshKetangpaiFigureCodePage()" title="看不清？点击刷新验证码">
-              <button type="button" class="ui-button ui-button--secondary ui-button--sm btn-sm" onclick="refreshKetangpaiFigureCodePage()">换一张</button>
-            </div>
+
+          <div id="ktp-sms-login-panel">
+            <p class="ui-help setup-hint">请输入课堂派绑定的手机号和验证码登录：</p>
+            <label class="ui-label connection-field-label" for="ktp-phone">手机号</label>
             <div class="add-todo-form mb-s">
-              <input type="text" id="ktp-figure-input-page" placeholder="请输入计算结果" autocomplete="off" class="ui-control">
-              <button type="button" id="ktp-figure-confirm-btn" onclick="submitKetangpaiSmsPage()" class="ui-button ui-button--primary btn-wide">确认发送</button>
+              <input type="tel" id="ktp-phone" placeholder="手机号" autocomplete="tel" class="ui-control">
+              <button type="button" id="ktp-send-sms-btn" onclick="sendKetangpaiSms()" class="ui-button ui-button--secondary ui-button--block btn-wide">发送验证码</button>
+            </div>
+            <div id="ktp-figure-group" class="hidden mb-s">
+              <div class="ktp-figure-preview-wrap">
+                <img id="ktp-figure-img-page" src="" alt="计算验证码" class="ktp-figure-img" onclick="refreshKetangpaiFigureCodePage()" title="看不清？点击刷新验证码">
+                <button type="button" class="ui-button ui-button--secondary ui-button--sm btn-sm" onclick="refreshKetangpaiFigureCodePage()">换一张</button>
+              </div>
+              <label class="ui-label connection-field-label" for="ktp-figure-input-page">计算结果</label>
+              <div class="add-todo-form mb-s">
+                <input type="text" id="ktp-figure-input-page" placeholder="请输入计算结果" autocomplete="off" class="ui-control">
+                <button type="button" id="ktp-figure-confirm-btn" onclick="submitKetangpaiSmsPage()" class="ui-button ui-button--primary btn-wide">确认发送</button>
+              </div>
+            </div>
+            <label class="ui-label connection-field-label" for="ktp-captcha">短信验证码</label>
+            <div class="add-todo-form mb-s">
+              <input type="text" id="ktp-captcha" placeholder="验证码" autocomplete="one-time-code" class="ui-control">
+              <button type="button" id="ktp-sms-login-btn" onclick="doKetangpaiLogin()" class="ui-button ui-button--primary ui-button--block btn-wide btn-accent">登录</button>
             </div>
           </div>
-          <div class="add-todo-form mb-s">
-            <input type="text" id="ktp-captcha" placeholder="验证码" autocomplete="off" class="ui-control">
-            <button type="button" onclick="doKetangpaiLogin()" class="ui-button ui-button--primary ui-button--block btn-wide btn-accent">登录</button>
-          </div>
-          <div class="ui-help form-note">
-            <a href="#" onclick="showKtpPasswordLogin();return false;">使用密码登录</a>
-          </div>
+
           <div id="ktp-password-login" class="hidden mt-s">
-            <form class="add-todo-form" id="ktp-pwd-form" onsubmit="doKetangpaiPasswordLogin(event); return false;">
+            <form class="add-todo-form" id="ktp-pwd-form">
+              <label class="ui-label connection-field-label" for="ktp-username">课堂派账号 / 手机号 / 邮箱</label>
               <input type="text" id="ktp-username" placeholder="手机号 / 邮箱 / 账号" autocomplete="username" class="ui-control">
+              <label class="ui-label connection-field-label" for="ktp-password">课堂派密码</label>
               <input type="password" id="ktp-password" placeholder="密码" autocomplete="current-password" class="ui-control">
-              <button type="submit" class="ui-button ui-button--primary ui-button--block btn-wide">登录</button>
+              <button type="submit" id="ktp-pwd-login-btn" class="ui-button ui-button--primary ui-button--block btn-wide">登录</button>
             </form>
           </div>
         </div>
@@ -96,8 +107,23 @@
 
     function showKetangpaiError(message) {
       const error = document.getElementById('ketangpai-error');
-      error.textContent = message;
-      error.classList.remove('hidden');
+      error.textContent = message || '';
+      error.classList.toggle('hidden', !message);
+    }
+
+    function switchKtpPageTab(tab) {
+      const smsPanel = document.getElementById('ktp-sms-login-panel');
+      const pwdPanel = document.getElementById('ktp-password-login');
+      const smsTab = document.getElementById('ktp-tab-btn-sms');
+      const pwdTab = document.getElementById('ktp-tab-btn-pwd');
+      showKetangpaiError('');
+      const isPwd = tab === 'pwd';
+      smsPanel?.classList.toggle('hidden', isPwd);
+      pwdPanel?.classList.toggle('hidden', !isPwd);
+      smsTab?.classList.toggle('is-active', !isPwd);
+      smsTab?.setAttribute('aria-selected', String(!isPwd));
+      pwdTab?.classList.toggle('is-active', isPwd);
+      pwdTab?.setAttribute('aria-selected', String(isPwd));
     }
 
     async function checkKetangpaiConfig() {
@@ -105,7 +131,7 @@
         const resp = await fetch('/api/ketangpai/config');
         const result = await resp.json();
         if (result.ok && result.has_token) {
-          setKetangpaiPageStatus('当前状态：已登录', 'success');
+          setKetangpaiPageStatus('当前状态：已连接', 'success');
           document.getElementById('ketangpai-setup').classList.add('hidden');
           document.getElementById('ketangpai-logged-in').classList.remove('hidden');
           if (result.courses) {
@@ -113,7 +139,7 @@
             populateKetangpaiCourseSelect(select, result.courses);
           }
         } else {
-          setKetangpaiPageStatus('当前状态：未登录', 'neutral');
+          setKetangpaiPageStatus('当前状态：未连接', 'neutral');
           document.getElementById('ketangpai-setup').classList.remove('hidden');
           document.getElementById('ketangpai-logged-in').classList.add('hidden');
         }
@@ -129,8 +155,10 @@
 
     async function sendKetangpaiSms() {
       if (ktpSmsCountdown > 0) return;
-      const phone = document.getElementById('ktp-phone').value.trim();
-      if (!phone) { showKetangpaiError('请输入手机号'); return; }
+      const phoneInput = document.getElementById('ktp-phone');
+      const phone = phoneInput.value.trim();
+      if (!phone) { showKetangpaiError('请输入手机号'); phoneInput.focus(); return; }
+      showKetangpaiError('');
       const figGroup = document.getElementById('ktp-figure-group');
       if (figGroup) figGroup.classList.remove('hidden');
       await refreshKetangpaiFigureCodePage();
@@ -155,11 +183,19 @@
 
     async function submitKetangpaiSmsPage() {
       const phone = document.getElementById('ktp-phone').value.trim();
-      const verify = (document.getElementById('ktp-figure-input-page')?.value || '').trim();
-      if (!verify) { showKetangpaiError('请输入计算结果'); return; }
+      const figInput = document.getElementById('ktp-figure-input-page');
+      const verify = (figInput?.value || '').trim();
+      if (!verify) { showKetangpaiError('请输入计算结果'); figInput?.focus(); return; }
+      showKetangpaiError('');
+
       const btn = document.getElementById('ktp-send-sms-btn');
       const confirmBtn = document.getElementById('ktp-figure-confirm-btn');
-      if (confirmBtn) confirmBtn.disabled = true;
+      const origConfirm = confirmBtn ? confirmBtn.textContent : '确认发送';
+      if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.setAttribute('aria-busy', 'true');
+        confirmBtn.textContent = '发送中…';
+      }
 
       try {
         const resp = await fetch('/api/ketangpai/send-sms', {
@@ -170,6 +206,7 @@
         const result = await resp.json();
         if (result.ok) {
           document.getElementById('ktp-figure-group').classList.add('hidden');
+          if (figInput) figInput.value = '';
           ktpSmsCountdown = 60;
           if (ktpSmsTimer) clearInterval(ktpSmsTimer);
           ktpSmsTimer = setInterval(() => {
@@ -180,10 +217,10 @@
               btn.textContent = '发送验证码';
               btn.disabled = false;
             } else {
-              btn.textContent = `${ktpSmsCountdown}秒后发送`;
+              btn.textContent = `${ktpSmsCountdown}s 后重发`;
             }
           }, 1000);
-          btn.textContent = `${ktpSmsCountdown}秒后发送`;
+          btn.textContent = `${ktpSmsCountdown}s 后重发`;
           btn.disabled = true;
           document.getElementById('ktp-captcha')?.focus();
         } else {
@@ -191,16 +228,33 @@
           await refreshKetangpaiFigureCodePage();
         }
       } catch (e) {
-        showKetangpaiError('网络错误');
+        showKetangpaiError('网络错误，请稍后重试');
       } finally {
-        if (confirmBtn) confirmBtn.disabled = false;
+        if (confirmBtn) {
+          confirmBtn.textContent = origConfirm;
+          confirmBtn.disabled = false;
+          confirmBtn.setAttribute('aria-busy', 'false');
+        }
       }
     }
 
     async function doKetangpaiLogin() {
-      const phone = document.getElementById('ktp-phone').value.trim();
-      const code = document.getElementById('ktp-captcha').value.trim();
-      if (!phone || !code) { showKetangpaiError('请输入手机号和验证码'); return; }
+      const phoneInput = document.getElementById('ktp-phone');
+      const captchaInput = document.getElementById('ktp-captcha');
+      const phone = phoneInput.value.trim();
+      const code = captchaInput.value.trim();
+      if (!phone || !code) {
+        showKetangpaiError('请输入手机号和验证码');
+        (!phone ? phoneInput : captchaInput).focus();
+        return;
+      }
+      showKetangpaiError('');
+
+      const btn = document.getElementById('ktp-sms-login-btn');
+      const origText = btn.textContent;
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+      btn.textContent = '登录中…';
 
       try {
         const resp = await fetch('/api/ketangpai/login', {
@@ -210,28 +264,46 @@
         });
         const result = await resp.json();
         if (result.ok) {
-          document.getElementById('ktp-captcha').value = '';
+          captchaInput.value = '';
           if (ktpSmsTimer) { clearInterval(ktpSmsTimer); ktpSmsTimer = null; ktpSmsCountdown = 0; }
-          document.getElementById('ktp-send-sms-btn').textContent = '发送验证码';
-          document.getElementById('ktp-send-sms-btn').disabled = false;
+          const smsBtn = document.getElementById('ktp-send-sms-btn');
+          smsBtn.textContent = '发送验证码';
+          smsBtn.disabled = false;
           checkKetangpaiConfig();
         } else {
           showKetangpaiError(result.error || '登录失败');
         }
       } catch (e) {
-        showKetangpaiError('网络错误');
+        showKetangpaiError('网络错误，请稍后重试');
+      } finally {
+        btn.textContent = origText;
+        btn.disabled = false;
+        btn.setAttribute('aria-busy', 'false');
       }
     }
 
     function showKtpPasswordLogin() {
-      document.getElementById('ktp-password-login').classList.toggle('hidden');
+      switchKtpPageTab('pwd');
     }
 
     async function doKetangpaiPasswordLogin(e) {
       if (e) e.preventDefault();
-      const account = document.getElementById('ktp-username').value.trim();
-      const password = document.getElementById('ktp-password').value.trim();
-      if (!account || !password) return;
+      const userInput = document.getElementById('ktp-username');
+      const passInput = document.getElementById('ktp-password');
+      const account = userInput.value.trim();
+      const password = passInput.value.trim();
+      if (!account || !password) {
+        showKetangpaiError('请输入账号和密码');
+        (!account ? userInput : passInput).focus();
+        return;
+      }
+      showKetangpaiError('');
+
+      const btn = document.getElementById('ktp-pwd-login-btn');
+      const origText = btn.textContent;
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+      btn.textContent = '登录中…';
 
       try {
         const resp = await fetch('/api/ketangpai/login-password', {
@@ -246,7 +318,33 @@
           showKetangpaiError(result.error || '登录失败');
         }
       } catch (e) {
-        showKetangpaiError('网络错误');
+        showKetangpaiError('网络错误，请稍后重试');
+      } finally {
+        btn.textContent = origText;
+        btn.disabled = false;
+        btn.setAttribute('aria-busy', 'false');
+      }
+    }
+
+    async function changeKetangpaiCourse() {
+      const select = document.getElementById('ktp-course-select');
+      const courseId = select ? select.value : '';
+      try {
+        const url = courseId
+          ? `/api/ketangpai/todos?course_id=${encodeURIComponent(courseId)}`
+          : '/api/ketangpai/todos';
+        const resp = await fetch(url);
+        const result = await resp.json();
+        if (!resp.ok || !result.ok) {
+          showKetangpaiError(result.error || '筛选课程失败');
+          return;
+        }
+        showKetangpaiError('');
+        const label = select?.selectedOptions?.[0]?.textContent || '已选课程';
+        const count = Array.isArray(result.data) ? result.data.length : 0;
+        setKetangpaiPageStatus(`当前状态：已连接（${label} · ${count} 项作业）`, 'success');
+      } catch (e) {
+        showKetangpaiError('筛选课程失败，请稍后重试');
       }
     }
 
@@ -254,12 +352,18 @@
       try {
         await fetch('/api/ketangpai/logout', { method: 'POST' });
       } catch (e) { /* ignore */ }
-      setKetangpaiPageStatus('当前状态：未登录', 'neutral');
+      setKetangpaiPageStatus('当前状态：未连接', 'neutral');
       document.getElementById('ketangpai-setup').classList.remove('hidden');
       document.getElementById('ketangpai-logged-in').classList.add('hidden');
-      document.getElementById('ketangpai-error').classList.add('hidden');
-      document.getElementById('ktp-password-login').classList.add('hidden');
+      showKetangpaiError('');
+      switchKtpPageTab('sms');
     }
+
+    document.getElementById('ktp-course-select')?.addEventListener('change', changeKetangpaiCourse);
+    document.getElementById('ktp-pwd-form')?.addEventListener('submit', doKetangpaiPasswordLogin);
+    ['ktp-phone', 'ktp-figure-input-page', 'ktp-captcha', 'ktp-username', 'ktp-password'].forEach((id) => {
+      document.getElementById(id)?.addEventListener('input', () => showKetangpaiError(''));
+    });
 
     checkKetangpaiConfig();
   </script>

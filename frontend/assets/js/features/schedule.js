@@ -20,6 +20,97 @@
       applyFeedbackSemantic(status, semantic);
     }
 
+    function setScheduleManagementStatus(message, isError = false) {
+      const status = document.getElementById('schedule-management-status');
+      if (!status) return;
+      status.textContent = message || '';
+      status.classList.toggle('hidden', !message);
+      const semantic = isError
+        ? 'danger'
+        : !message
+          ? 'neutral'
+          : message.startsWith('正在') || message.startsWith('请在')
+            ? 'info'
+            : 'success';
+      applyFeedbackSemantic(status, semantic);
+    }
+
+    function showScheduleImportBanner(message) {
+      const banner = document.getElementById('schedule-import-banner');
+      const textEl = document.getElementById('schedule-import-banner-text');
+      if (!banner) return;
+      if (textEl) textEl.textContent = message || '课表已导入';
+      banner.classList.remove('hidden');
+      window.uiMotion?.pulseArrival?.(banner);
+    }
+
+    function hideScheduleImportBanner() {
+      document.getElementById('schedule-import-banner')?.classList.add('hidden');
+    }
+
+    function viewImportedSchedule() {
+      hideScheduleImportBanner();
+      closeScheduleManagementModal();
+      document.getElementById('schedule-timetable-grid')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function scheduleTodayISO() {
+      return typeof getShanghaiTodayISO === 'function' ? getShanghaiTodayISO() : formatDateISO(new Date());
+    }
+
+    async function confirmScheduleAction(options) {
+      if (window.uiConfirm) {
+        return Boolean(await window.uiConfirm(options));
+      }
+      return false;
+    }
+
+    function openScheduleModalBackdrop(modalId, focusSelector) {
+      const modal = document.getElementById(modalId);
+      if (!modal) return;
+      if (window.uiDialog?.open) {
+        window.uiDialog.open(modal, focusSelector);
+        return;
+      }
+      modal.classList.remove('hidden');
+      if (focusSelector) requestAnimationFrame(() => modal.querySelector(focusSelector)?.focus());
+    }
+
+    function closeScheduleModalBackdrop(modalId) {
+      const modal = document.getElementById(modalId);
+      if (!modal) return;
+      if (window.uiDialog?.close) {
+        window.uiDialog.close(modal, { force: true });
+        return;
+      }
+      modal.classList.add('hidden');
+    }
+
+    function showScheduleFormError(message) {
+      const errorEl = document.getElementById('schedule-form-error');
+      if (!errorEl) {
+        if (message) window.uiToast?.show?.(message, { tone: 'danger' });
+        return;
+      }
+      errorEl.textContent = message || '';
+      errorEl.classList.toggle('hidden', !message);
+      if (message) window.uiMotion?.nudgeError?.(errorEl);
+    }
+
+    function pulseScheduleEventArrival(title, startTime = '') {
+      const grid = document.getElementById('schedule-timetable-grid');
+      if (!grid || !title || !window.uiMotion?.pulseArrival) return;
+      const candidates = Array.from(grid.querySelectorAll('.period-event'));
+      const matched = candidates.filter((el) => {
+        const titleEl = el.querySelector('.period-event-title');
+        if (!titleEl || titleEl.textContent !== title) return false;
+        if (!startTime) return true;
+        const timeEl = el.querySelector('.period-event-time');
+        return Boolean(timeEl && timeEl.textContent.includes(startTime));
+      });
+      matched.forEach((el) => window.uiMotion.pulseArrival(el));
+    }
+
     function scheduleElement(tag, className, text) {
       const element = document.createElement(tag);
       if (className) element.className = className;
@@ -105,9 +196,15 @@
       return `第${ranges.join(',')}周`;
     }
 
+    let scheduleResizeBound = false;
+    let scheduleFormDurationMinutes = 60;
+
     function navigateScheduleWeek(offsetDelta) {
       currentScheduleWeekOffset = offsetDelta === 0 ? 0 : currentScheduleWeekOffset + offsetDelta;
-      loadScheduleManager();
+      if (scheduleData) {
+        return renderScheduleManager(scheduleData);
+      }
+      return loadScheduleManager();
     }
 
     function scheduleEventGroups(events) {
@@ -268,6 +365,17 @@
       return Math.max(0, scheduleDefaultStartMinutes / 60 * scheduleHourHeight - 6);
     }
 
+    function updateScheduleHourHeight() {
+      const viewport = document.getElementById('schedule-scroll-viewport');
+      const grid = document.getElementById('schedule-timetable-grid');
+      const header = document.getElementById('schedule-grid-header');
+      if (!viewport || !grid || !header) return;
+      const defaultVisibleHours = (scheduleDefaultEndMinutes - scheduleDefaultStartMinutes) / 60;
+      scheduleHourHeight = Math.max(52, Math.min(90, (viewport.clientHeight - 12) / defaultVisibleHours || 52));
+      grid.style.setProperty('--schedule-hour-height', `${scheduleHourHeight}px`);
+      header.style.setProperty('--schedule-hour-height', `${scheduleHourHeight}px`);
+    }
+
     function renderScheduleManager(data) {
       scheduleData = data;
       const courses = data.courses || {};
@@ -275,11 +383,7 @@
       const grid = document.getElementById('schedule-timetable-grid');
       const header = document.getElementById('schedule-grid-header');
       if (!viewport || !grid || !header) return;
-      const preservedScrollMinute = scheduleHasRendered ? viewport.scrollTop / scheduleHourHeight * 60 : null;
-      const defaultVisibleHours = (scheduleDefaultEndMinutes - scheduleDefaultStartMinutes) / 60;
-      scheduleHourHeight = Math.max(52, Math.min(90, (viewport.clientHeight - 12) / defaultVisibleHours || 52));
-      grid.style.setProperty('--schedule-hour-height', `${scheduleHourHeight}px`);
-      header.style.setProperty('--schedule-hour-height', `${scheduleHourHeight}px`);
+      updateScheduleHourHeight();
 
       const meta = document.getElementById('schedule-term-meta');
       const summary = document.getElementById('schedule-management-summary');
@@ -290,14 +394,16 @@
       if (summary) summary.textContent = `${metaText} · 已导入 ${(courses.courses || []).length} 门课程`;
 
       const courseList = courses.courses || [];
-      const headerClearBtn = document.getElementById('schedule-header-clear-btn');
+      const clearWrap = document.getElementById('schedule-management-clear-wrap');
+      const clearBtn = document.getElementById('schedule-clear-courses-btn');
       const coursesSection = document.getElementById('schedule-courses-section');
       const coursesListEl = document.getElementById('schedule-courses-list');
       const coursesCountEl = document.getElementById('schedule-courses-count');
 
-      if (headerClearBtn) {
-        headerClearBtn.disabled = courseList.length === 0;
-        headerClearBtn.title = courseList.length === 0 ? '当前暂无已导入课程' : '清空本学期已导入课程';
+      if (clearWrap) clearWrap.classList.toggle('hidden', courseList.length === 0);
+      if (clearBtn) {
+        clearBtn.disabled = courseList.length === 0;
+        clearBtn.title = courseList.length === 0 ? '当前暂无已导入课程' : '清空本学期已导入课程';
       }
 
       if (coursesSection && coursesListEl) {
@@ -325,7 +431,14 @@
             delBtn.addEventListener('click', async (e) => {
               e.stopPropagation();
               const cName = course.name || '此课程';
-              if (!confirm(`确定从课表中移除「${cName}」吗？\n移除后可通过重新导入课表恢复。`)) return;
+              const confirmed = await confirmScheduleAction({
+                title: '移除课程',
+                message: `确定从课表中移除「${cName}」吗？\n移除后可通过重新导入课表恢复。`,
+                confirmLabel: '移除',
+                cancelLabel: '取消',
+                tone: 'danger',
+              });
+              if (!confirmed) return;
               const cId = course.id || course.code || course.name;
               await deleteCourseById(cId, cName);
             });
@@ -339,8 +452,16 @@
         }
       }
 
+      const todayNavBtn = document.getElementById('schedule-nav-today-btn');
+      if (todayNavBtn) {
+        const isCurrentWeek = currentScheduleWeekOffset === 0;
+        todayNavBtn.classList.toggle('is-current', isCurrentWeek);
+        todayNavBtn.disabled = isCurrentWeek;
+        todayNavBtn.textContent = isCurrentWeek ? '本周' : '回到本周';
+        todayNavBtn.title = isCurrentWeek ? '当前本周' : '回到本周';
+      }
+
       const weekDates = getWeekDates(currentScheduleWeekOffset);
-      const todayISO = formatDateISO(new Date());
       const semesterStart = courses.semester_start || '';
       const monday = weekDates[0];
       const sunday = weekDates[6];
@@ -358,12 +479,6 @@
       line.style.top = `${(now.getHours() * 60 + now.getMinutes()) / 60 * scheduleHourHeight}px`;
       line.dataset.time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     }
-
-    window.addEventListener('resize', () => {
-      if (!scheduleData || document.getElementById('dashboard-view-schedule')?.classList.contains('hidden')) return;
-      cancelAnimationFrame(scheduleResizeFrame);
-      scheduleResizeFrame = requestAnimationFrame(() => renderScheduleManager(scheduleData));
-    });
 
     let currentViewingCourse = null;
     let currentViewingCourseEvent = null;
@@ -404,11 +519,11 @@
       } else if (weeksRow) {
         weeksRow.classList.add('hidden');
       }
-      modal.classList.remove('hidden');
+      openScheduleModalBackdrop('schedule-course-modal', '.schedule-modal-close');
     }
 
     function closeScheduleCourseModal() {
-      document.getElementById('schedule-course-modal')?.classList.add('hidden');
+      closeScheduleModalBackdrop('schedule-course-modal');
       currentViewingCourse = null;
       currentViewingCourseEvent = null;
     }
@@ -417,7 +532,14 @@
       if (!currentViewingCourse) return;
       const courseName = currentViewingCourse.name || '此课程';
       const courseId = currentViewingCourse.id || currentViewingCourse.code || currentViewingCourse.name;
-      if (!confirm(`确定从课表中移除「${courseName}」吗？\n移除后可通过重新导入课表恢复。`)) return;
+      const confirmed = await confirmScheduleAction({
+        title: '移除课程',
+        message: `确定从课表中移除「${courseName}」吗？\n移除后可通过重新导入课表恢复。`,
+        confirmLabel: '移除',
+        cancelLabel: '取消',
+        tone: 'danger',
+      });
+      if (!confirmed) return;
       closeScheduleCourseModal();
       await deleteCourseById(courseId, courseName);
     }
@@ -492,19 +614,24 @@
       const form = document.getElementById('schedule-modal-form');
       if (!modal || !form) return;
       form.reset();
-      const errEl = document.getElementById('schedule-form-error');
-      if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
+      showScheduleFormError('');
       scheduleEditingKind = item ? (defaultKind === 'recurring' || item.kind === 'recurring' ? 'recurring' : 'one-off') : null;
       scheduleEditingItem = item;
-      scheduleEditingOccurrenceDate = presets.date || item?.date || formatDateISO(new Date());
+      const todayISO = scheduleTodayISO();
+      scheduleEditingOccurrenceDate = presets.date || item?.date || todayISO;
       const kind = scheduleEditingKind || defaultKind || 'one-off';
       document.getElementById('schedule-form-id').value = item?.id || '';
       document.getElementById('schedule-modal-title').textContent = item ? '编辑排程事项' : '添加排程事项';
+      document.getElementById('field-schedule-kind')?.classList.toggle('hidden', Boolean(item));
       for (const radio of form.elements.kind) {
         radio.checked = radio.value === kind;
         radio.disabled = Boolean(item) && radio.value !== kind;
       }
       const startTime = item?.start_time || presets.start_time || defaultScheduleStartTime();
+      const endTime = item?.end_time || presets.end_time || minutesToTime(timeToMinutes(startTime) + 60);
+      const startMin = timeToMinutes(startTime);
+      const endMin = timeToMinutes(endTime);
+      scheduleFormDurationMinutes = endMin > startMin ? endMin - startMin : 60;
       const hasActionRef = Boolean(item?.action_ref || presets.action_ref);
       document.getElementById('schedule-form-title').value = item?.title || presets.title || '';
       document.getElementById('schedule-form-action-ref').value = item?.action_ref || presets.action_ref || '';
@@ -531,12 +658,12 @@
       }
 
       document.getElementById('schedule-form-start').value = startTime;
-      document.getElementById('schedule-form-end').value = item?.end_time || presets.end_time || minutesToTime(timeToMinutes(startTime) + 60);
+      document.getElementById('schedule-form-end').value = endTime;
       document.getElementById('schedule-form-location').value = item?.location || '';
-      document.getElementById('schedule-form-date').value = item?.date || presets.date || formatDateISO(new Date());
+      document.getElementById('schedule-form-date').value = item?.date || presets.date || todayISO;
       const currentWeekday = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
       document.getElementById('schedule-form-weekday').value = item?.weekday ?? presets.weekday ?? currentWeekday;
-      document.getElementById('schedule-form-repeat-start').value = item?.start_date || presets.date || formatDateISO(new Date());
+      document.getElementById('schedule-form-repeat-start').value = item?.start_date || presets.date || todayISO;
       document.getElementById('schedule-form-repeat-end').value = item?.end_date || '';
       document.getElementById('schedule-edit-scope').classList.toggle('hidden', !(item && kind === 'recurring'));
       const hasOccurrence = Boolean(presets.date);
@@ -545,12 +672,12 @@
       document.querySelector('#schedule-edit-scope legend').textContent = hasOccurrence ? `修改范围 · ${presets.date}` : '修改范围（从周排程选择某一天可仅调整本次）';
       document.getElementById('schedule-item-delete').classList.toggle('hidden', !item);
       toggleScheduleKindFields();
-      modal.classList.remove('hidden');
-      document.getElementById(item?.action_ref || presets.action_ref ? 'schedule-form-start' : 'schedule-form-title').focus();
+      const focusSelector = item?.action_ref || presets.action_ref ? '#schedule-form-start' : '#schedule-form-title';
+      openScheduleModalBackdrop('schedule-item-modal', focusSelector);
     }
 
     function closeScheduleItemModal() {
-      document.getElementById('schedule-item-modal')?.classList.add('hidden');
+      closeScheduleModalBackdrop('schedule-item-modal');
     }
 
     function toggleScheduleKindFields() {
@@ -569,11 +696,7 @@
     async function handleScheduleFormSubmit(event) {
       event.preventDefault();
       const form = event.currentTarget;
-      const errorEl = document.getElementById('schedule-form-error');
-      if (errorEl) {
-        errorEl.textContent = '';
-        errorEl.style.display = 'none';
-      }
+      showScheduleFormError('');
 
       const formData = new FormData(form);
       const kind = formData.get('kind');
@@ -581,12 +704,7 @@
       const endTime = formData.get('end_time');
 
       if (startTime && endTime && startTime >= endTime) {
-        if (errorEl) {
-          errorEl.textContent = '结束时间必须晚于开始时间';
-          errorEl.style.display = 'block';
-        } else {
-          alert('结束时间必须晚于开始时间');
-        }
+        showScheduleFormError('结束时间必须晚于开始时间');
         return;
       }
 
@@ -610,14 +728,7 @@
       }
 
       const submitBtn = form.querySelector('button[type="submit"]');
-      const origBtnText = submitBtn ? submitBtn.textContent : '保存事项';
-      if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.setAttribute('aria-busy', 'true');
-        submitBtn.textContent = '正在保存…';
-      }
-
-      try {
+      const runSave = async () => {
         if (!payload.action_ref && formData.get('create_todo')) {
           const todoResp = await fetch('/api/custom/todos', {
             method: 'POST',
@@ -656,35 +767,61 @@
             throw new Error(data.error || '单次排程修改失败');
           }
           setScheduleStatus(data.overlap ? '已保存；该事项与其他日程时间重叠' : '已保存');
-          await loadScheduleManager();
+          await loadScheduleManager({ silentStatus: true });
           await loadTodaySchedule();
+          pulseScheduleEventArrival(payload.title, payload.start_time);
         } else {
           await saveScheduleItem(kind, scheduleEditingItem?.id || null, payload);
         }
         if (typeof notifyCrossTabChange === 'function') notifyCrossTabChange('schedule');
         closeScheduleItemModal();
-      } catch (err) {
-        if (errorEl) {
-          errorEl.textContent = err.message || '保存失败，请检查输入后重试';
-          errorEl.style.display = 'block';
+      };
+
+      try {
+        if (window.withButtonBusy && submitBtn) {
+          await window.withButtonBusy(submitBtn, '正在保存…', runSave);
         } else {
-          alert('保存失败：' + (err.message || '网络异常'));
+          await runSave();
         }
-      } finally {
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.removeAttribute('aria-busy');
-          submitBtn.textContent = origBtnText;
-        }
+      } catch (err) {
+        showScheduleFormError(err.message || '保存失败，请检查输入后重试');
       }
     }
 
     async function deleteScheduleItemFromModal() {
-      if (!scheduleEditingItem || !confirm(`确定删除「${scheduleEditingItem.title}」吗？`)) return;
+      if (!scheduleEditingItem) return;
       const form = document.getElementById('schedule-modal-form');
-      const scope = new FormData(form).get('scope');
-      try {
-        if (scheduleEditingKind === 'recurring' && scope === 'occurrence') {
+      const scope = form ? new FormData(form).get('scope') : 'series';
+      const isOccurrence = scheduleEditingKind === 'recurring' && scope === 'occurrence';
+      const confirmOptions = scheduleEditingKind === 'recurring'
+        ? (isOccurrence
+          ? {
+              title: '取消本次安排',
+              message: `仅取消 ${scheduleEditingOccurrenceDate} 这一次「${scheduleEditingItem.title}」的安排？其他周次将保留。`,
+              confirmLabel: '仅取消本次',
+              cancelLabel: '保留',
+              tone: 'danger',
+            }
+          : {
+              title: '删除每周重复事项',
+              message: `永久删除整个每周重复事项「${scheduleEditingItem.title}」？后续所有重复安排都将移除。`,
+              confirmLabel: '永久删除',
+              cancelLabel: '取消',
+              tone: 'danger',
+            })
+        : {
+            title: '删除日程',
+            message: `确定删除日程「${scheduleEditingItem.title}」吗？`,
+            confirmLabel: '删除',
+            cancelLabel: '取消',
+            tone: 'danger',
+          };
+      const confirmed = await confirmScheduleAction(confirmOptions);
+      if (!confirmed) return;
+
+      const deleteBtn = document.getElementById('schedule-item-delete');
+      const runDelete = async () => {
+        if (isOccurrence) {
           const exceptionUrl = `/api/schedule/recurring/${scheduleEditingItem.id}/exception`;
           const response = await fetch(exceptionUrl, {
             method: 'POST',
@@ -697,34 +834,45 @@
           });
           const data = await response.json();
           if (!response.ok || !data.ok) throw new Error(data.error || '删除本次安排失败');
-          await loadScheduleManager();
+          setScheduleStatus(`已取消 ${scheduleEditingOccurrenceDate} 这一次安排`);
+          await loadScheduleManager({ silentStatus: true });
           await loadTodaySchedule();
         } else {
           await deleteScheduleItem(scheduleEditingKind, scheduleEditingItem.id);
         }
         if (typeof notifyCrossTabChange === 'function') notifyCrossTabChange('schedule');
         closeScheduleItemModal();
+      };
+
+      try {
+        if (window.withButtonBusy && deleteBtn) {
+          await window.withButtonBusy(deleteBtn, '删除中…', runDelete);
+        } else {
+          await runDelete();
+        }
       } catch (err) {
-        alert('删除失败：' + err.message);
+        showScheduleFormError('删除失败：' + (err.message || '请稍后重试'));
       }
     }
 
     function openScheduleManagementModal() {
-      document.getElementById('schedule-management-modal')?.classList.remove('hidden');
+      hideScheduleImportBanner();
+      if (!tongjiLoginSessionToken) setScheduleManagementStatus('');
+      openScheduleModalBackdrop('schedule-management-modal', '.schedule-modal-close');
     }
 
     function closeScheduleManagementModal() {
-      document.getElementById('schedule-management-modal')?.classList.add('hidden');
+      closeScheduleModalBackdrop('schedule-management-modal');
     }
 
-    async function loadScheduleManager() {
-      setScheduleStatus('正在加载日程…');
+    async function loadScheduleManager({ silentStatus = false } = {}) {
+      if (!silentStatus) setScheduleStatus('正在加载日程…');
       try {
         const response = await fetch('/api/schedule');
         const data = await response.json();
         if (!response.ok || !data.ok) throw new Error(data.error || 'load failed');
         renderScheduleManager(data);
-        setScheduleStatus('');
+        if (!silentStatus) setScheduleStatus('');
       } catch (error) {
         setScheduleStatus('日程加载失败，请稍后重试', true);
       }
@@ -736,13 +884,17 @@
       const button = document.getElementById('schedule-refresh-button');
       const popup = window.open('', 'tongji-enhanced-auth', 'popup,width=1280,height=900');
       if (!popup) {
-        setScheduleStatus('浏览器拦截了认证窗口，请允许弹窗后重试', true);
+        const msg = '浏览器拦截了认证窗口，请允许弹窗后重试，或使用下方的浏览器插件导入。';
+        setScheduleStatus(msg, true);
+        setScheduleManagementStatus(msg, true);
         return;
       }
       popup.document.title = '正在打开同济认证窗口';
       popup.document.body.innerHTML = '<p style="font:16px sans-serif;padding:32px">正在打开同济统一身份认证窗口…</p>';
       button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
       setScheduleStatus('正在打开统一身份认证窗口…');
+      setScheduleManagementStatus('正在打开统一身份认证窗口…');
       try {
         const response = await fetch('/api/schedule/login-session', {method: 'POST'});
         const data = await response.json();
@@ -751,15 +903,19 @@
         popup.location.href = data.url;
         button.textContent = '我已完成认证，导入课表';
         button.onclick = completeTongjiLoginSession;
-        setScheduleStatus('请在新窗口中完成微信扫码或短信验证码认证，再返回此处导入；系统会等待个人课表加载完成。');
+        const waitMsg = '请在新窗口中完成微信扫码或短信验证码认证，再返回此处导入；系统会等待个人课表加载完成。';
+        setScheduleStatus(waitMsg);
+        setScheduleManagementStatus(waitMsg);
       } catch (error) {
         const message = error.message || '认证窗口启动失败';
         popup.document.title = '无法打开同济认证窗口';
-        popup.document.body.innerHTML = '<main style="max-width:640px;margin:64px auto;padding:0 24px;font:16px/1.6 sans-serif;color:#1f2937"><h1 style="font-size:24px">认证窗口未能启动</h1><p id="tongji-login-error"></p><p style="color:#64748b">本机调试需要 Docker Desktop 正在运行，并已构建受限浏览器镜像。</p></main>';
+        popup.document.body.innerHTML = '<main style="max-width:640px;margin:64px auto;padding:0 24px;font:16px/1.6 sans-serif;color:#1f2937"><h1 style="font-size:24px">认证窗口未能启动</h1><p id="tongji-login-error"></p><p style="color:#64748b">暂时无法打开统一身份认证窗口。请稍后重试，或关闭此窗口后在课表管理中展开“方式二：浏览器插件导入 (.xlsx)”。</p></main>';
         popup.document.getElementById('tongji-login-error').textContent = message;
         setScheduleStatus(message, true);
+        setScheduleManagementStatus(message, true);
       } finally {
         button.disabled = false;
+        button.removeAttribute('aria-busy');
       }
     }
 
@@ -767,7 +923,9 @@
       if (!tongjiLoginSessionToken) return;
       const button = document.getElementById('schedule-refresh-button');
       button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
       setScheduleStatus('正在读取已认证会话中的课表…');
+      setScheduleManagementStatus('正在读取已认证会话中的课表…');
       try {
         const response = await fetch(`/api/schedule/login-session/${tongjiLoginSessionToken}/complete`, {method: 'POST'});
         const data = await response.json();
@@ -775,12 +933,20 @@
         tongjiLoginSessionToken = null;
         button.textContent = '统一身份认证登录';
         button.onclick = openTongjiLoginSession;
-        setScheduleStatus(`已更新 ${data.courses.courses.length} 门课程`);
-        renderScheduleManager({courses: data.courses, items: scheduleData?.items || {recurring: [], one_off: []}});
+        const count = data.courses.courses.length;
+        const successMsg = `已更新 ${count} 门课程`;
+        setScheduleStatus(successMsg);
+        setScheduleManagementStatus('');
+        showScheduleImportBanner(`导入成功，共更新 ${count} 门课程`);
+        await renderScheduleManager({courses: data.courses, items: scheduleData?.items || {recurring: [], one_off: []}});
         await loadTodaySchedule();
       } catch (error) {
-        setScheduleStatus(error.message || '课表导入失败，请在认证窗口完成验证后重试', true);
+        const msg = error.message || '课表导入失败，请在认证窗口完成验证后重试';
+        setScheduleStatus(msg, true);
+        setScheduleManagementStatus(msg, true);
+      } finally {
         button.disabled = false;
+        button.removeAttribute('aria-busy');
       }
     }
 
@@ -789,21 +955,31 @@
       input.value = '';
       if (!file) return;
       const button = document.getElementById('schedule-import-button');
-      button.disabled = true;
-      setScheduleStatus('正在导入课表文件…');
-      try {
-        const body = new FormData();
-        body.append('course_file', file);
-        const response = await fetch('/api/schedule/import', {method: 'POST', body});
-        const data = await response.json();
-        if (!response.ok || !data.ok) throw new Error(data.error || 'import failed');
-        setScheduleStatus(`已导入 ${data.courses.courses.length} 门课程`);
-        renderScheduleManager({courses: data.courses, items: scheduleData?.items || {recurring: [], one_off: []}});
-        await loadTodaySchedule();
-      } catch (error) {
-        setScheduleStatus(error.message || '课表导入失败，请确认文件来自课表插件', true);
-      } finally {
-        button.disabled = false;
+      const runImport = async () => {
+        setScheduleStatus('正在导入课表文件…');
+        setScheduleManagementStatus('正在导入课表文件…');
+        try {
+          const body = new FormData();
+          body.append('course_file', file);
+          const response = await fetch('/api/schedule/import', {method: 'POST', body});
+          const data = await response.json();
+          if (!response.ok || !data.ok) throw new Error(data.error || 'import failed');
+          const count = data.courses.courses.length;
+          setScheduleStatus(`已导入 ${count} 门课程`);
+          setScheduleManagementStatus('');
+          showScheduleImportBanner(`导入成功，共导入 ${count} 门课程`);
+          await renderScheduleManager({courses: data.courses, items: scheduleData?.items || {recurring: [], one_off: []}});
+          await loadTodaySchedule();
+        } catch (error) {
+          const msg = error.message || '课表导入失败，请确认文件来自课表插件';
+          setScheduleStatus(msg, true);
+          setScheduleManagementStatus(msg, true);
+        }
+      };
+      if (window.withButtonBusy && button) {
+        await window.withButtonBusy(button, '正在导入…', runImport);
+      } else {
+        await runImport();
       }
     }
 
@@ -816,49 +992,84 @@
         throw new Error(data.error || '保存失败');
       }
       setScheduleStatus(data.overlap ? '已保存；该事项与其他日程时间重叠' : '已保存');
-      await loadScheduleManager(); await loadTodaySchedule();
+      await loadScheduleManager({ silentStatus: true });
+      await loadTodaySchedule();
+      pulseScheduleEventArrival(payload.title, payload.start_time);
       return data;
     }
 
     async function deleteScheduleItem(kind, itemId) {
       const response = await fetch(`/api/schedule/${kind === 'recurring' ? 'recurring' : 'one-off'}/${itemId}`, {method: 'DELETE'});
       const data = await response.json();
-      if (!response.ok || !data.ok) { setScheduleStatus('删除失败', true); return; }
-      await loadScheduleManager(); await loadTodaySchedule();
+      if (!response.ok || !data.ok) {
+        const msg = data.error || '删除失败';
+        setScheduleStatus(msg, true);
+        throw new Error(msg);
+      }
+      setScheduleStatus('已删除安排');
+      await loadScheduleManager({ silentStatus: true });
+      await loadTodaySchedule();
     }
 
     async function deleteCourseById(courseId, courseName = '') {
       setScheduleStatus('正在删除课程…');
+      setScheduleManagementStatus('正在删除课程…');
       try {
         const response = await fetch(`/api/schedule/courses/${encodeURIComponent(courseId)}`, {method: 'DELETE'});
         const data = await response.json();
         if (!response.ok || !data.ok) throw new Error(data.error || '删除失败');
-        setScheduleStatus(courseName ? `已从课表中移除「${courseName}」` : '已从课表中移除该课程');
-        await loadScheduleManager();
+        const msg = courseName ? `已从课表中移除「${courseName}」` : '已从课表中移除该课程';
+        setScheduleStatus(msg);
+        setScheduleManagementStatus(msg);
+        await loadScheduleManager({ silentStatus: true });
         await loadTodaySchedule();
       } catch (error) {
-        setScheduleStatus(error.message || '删除课程失败，请重试', true);
+        const msg = error.message || '删除课程失败，请重试';
+        setScheduleStatus(msg, true);
+        setScheduleManagementStatus(msg, true);
       }
     }
 
     async function clearAllCourses() {
       const courseList = scheduleData?.courses?.courses || [];
       if (courseList.length === 0) {
-        alert('当前尚未导入课表，无需清空。');
+        const emptyMsg = '当前尚未导入课表，无需清空。';
+        window.uiToast?.show?.(emptyMsg, { tone: 'info' });
+        setScheduleManagementStatus(emptyMsg);
         return;
       }
-      if (!confirm('确定清空本学期已导入的所有课程吗？\n清空后课表将被重置，需通过统一身份认证或插件重新导入。')) return;
-      setScheduleStatus('正在清空课表…');
-      try {
-        const response = await fetch('/api/schedule/courses', {method: 'DELETE'});
-        const data = await response.json();
-        if (!response.ok || !data.ok) throw new Error(data.error || '清空失败');
-        setScheduleStatus('已清空本学期全部课程');
-        closeScheduleManagementModal();
-        await loadScheduleManager();
-        await loadTodaySchedule();
-      } catch (error) {
-        setScheduleStatus(error.message || '清空课表失败，请重试', true);
+      const confirmed = await confirmScheduleAction({
+        title: '清空课表',
+        message: '确定清空本学期已导入的所有课程吗？\n清空后课表将被重置，需通过统一身份认证或插件重新导入。',
+        confirmLabel: '清空课表',
+        cancelLabel: '取消',
+        tone: 'danger',
+      });
+      if (!confirmed) return;
+      const clearBtn = document.getElementById('schedule-clear-courses-btn');
+      const runClear = async () => {
+        setScheduleStatus('正在清空课表…');
+        setScheduleManagementStatus('正在清空课表…');
+        try {
+          const response = await fetch('/api/schedule/courses', {method: 'DELETE'});
+          const data = await response.json();
+          if (!response.ok || !data.ok) throw new Error(data.error || '清空失败');
+          setScheduleStatus('已清空本学期全部课程');
+          setScheduleManagementStatus('');
+          hideScheduleImportBanner();
+          closeScheduleManagementModal();
+          await loadScheduleManager({ silentStatus: true });
+          await loadTodaySchedule();
+        } catch (error) {
+          const msg = error.message || '清空课表失败，请重试';
+          setScheduleStatus(msg, true);
+          setScheduleManagementStatus(msg, true);
+        }
+      };
+      if (window.withButtonBusy && clearBtn) {
+        await window.withButtonBusy(clearBtn, '清空中…', runClear);
+      } else {
+        await runClear();
       }
     }
 
@@ -904,7 +1115,77 @@
   const form = document.getElementById('schedule-modal-form');
   form?.addEventListener('submit', handleScheduleFormSubmit);
   form?.querySelectorAll('input[name="kind"]').forEach((input) => {
-    input.addEventListener('change', toggleScheduleKindFields);
+    input.addEventListener('change', () => {
+      showScheduleFormError('');
+      toggleScheduleKindFields();
+    });
   });
+
+  const startInput = document.getElementById('schedule-form-start');
+  const endInput = document.getElementById('schedule-form-end');
+  startInput?.addEventListener('change', () => {
+    showScheduleFormError('');
+    if (!/^\d{2}:\d{2}$/.test(startInput.value || '')) return;
+    const startMin = timeToMinutes(startInput.value);
+    const nextEnd = Math.min(1439, startMin + (scheduleFormDurationMinutes > 0 ? scheduleFormDurationMinutes : 60));
+    if (endInput) endInput.value = minutesToTime(nextEnd);
+  });
+  endInput?.addEventListener('change', () => {
+    showScheduleFormError('');
+    if (!/^\d{2}:\d{2}$/.test(startInput?.value || '') || !/^\d{2}:\d{2}$/.test(endInput.value || '')) return;
+    const diff = timeToMinutes(endInput.value) - timeToMinutes(startInput.value);
+    if (diff > 0) scheduleFormDurationMinutes = diff;
+  });
+
   document.getElementById('schedule-file-input')?.addEventListener('change', (event) => importCourseSchedule(event.target));
+
+  const altDisclosure = document.getElementById('schedule-import-alt-disclosure');
+  if (altDisclosure) window.uiMotion?.enhanceDisclosure?.(altDisclosure);
+
+  [
+    {
+      id: 'schedule-item-modal',
+      close: closeScheduleItemModal,
+      resetState: () => {
+        scheduleEditingKind = null;
+        scheduleEditingItem = null;
+        scheduleEditingOccurrenceDate = null;
+      },
+    },
+    {
+      id: 'schedule-course-modal',
+      close: closeScheduleCourseModal,
+      resetState: () => {
+        currentViewingCourse = null;
+        currentViewingCourseEvent = null;
+      },
+    },
+    {
+      id: 'schedule-management-modal',
+      close: closeScheduleManagementModal,
+      resetState: () => {},
+    },
+  ].forEach(({ id, close, resetState }) => {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    if (window.uiDialog?.bindDialog) {
+      window.uiDialog.bindDialog(modal, { onClose: resetState });
+    } else {
+      modal.addEventListener('click', (event) => {
+        if (event.target === modal) close();
+      });
+    }
+  });
+
+  if (!scheduleResizeBound) {
+    scheduleResizeBound = true;
+    window.addEventListener('resize', () => {
+      if (!scheduleData || document.getElementById('dashboard-view-schedule')?.classList.contains('hidden')) return;
+      cancelAnimationFrame(scheduleResizeFrame);
+      scheduleResizeFrame = requestAnimationFrame(() => {
+        updateScheduleHourHeight();
+        if (typeof fitPeriodCells === 'function') fitPeriodCells();
+      });
+    });
+  }
 })();

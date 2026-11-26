@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>智慧树登录</title>
+  <title>智慧树接入 · Canvas Dashboard</title>
   {% include "_favicon.html" %}
   {% include "_font_assets.html" %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
@@ -12,11 +12,11 @@
 </head>
 <body>
   <div class="dashboard">
-    <a class="login-page-back" href="/">返回看板</a>
-    <div class="card">
+    <a class="login-page-back" href="/">&#x2190; 返回看板</a>
+    <div class="card enter-main-card">
       <div class="section-header">
         <h2>智慧树</h2>
-        <button class="ui-icon-button btn-refresh" type="button" onclick="loadStatus()" title="刷新" aria-label="刷新状态">&#x21bb;</button>
+        <button class="ui-icon-button btn-refresh" type="button" onclick="loadStatus()" title="刷新状态" aria-label="刷新智慧树连接状态">&#x21bb;</button>
       </div>
 
       <div class="ui-card ui-card--subtle ui-help detail-content-box connection-data-note connection-trust-card">
@@ -33,12 +33,12 @@
       </div>
 
       <dl class="status-grid">
-        <dt>登录状态</dt><dd id="session">--</dd>
-        <dt>Worker</dt><dd id="worker">--</dd>
-        <dt>最近保活</dt><dd id="last-keepalive">--</dd>
+        <dt>连接状态</dt><dd id="session">--</dd>
+        <dt>后台同步服务</dt><dd id="worker">--</dd>
+        <dt>上次检查登录</dt><dd id="last-keepalive">--</dd>
         <dt>最近抓取</dt><dd id="last-fetch">--</dd>
         <dt>最近成功</dt><dd id="last-success">--</dd>
-        <dt>错误</dt><dd id="last-error">--</dd>
+        <dt id="last-error-label" class="hidden">异常说明</dt><dd id="last-error" class="hidden"></dd>
       </dl>
 
       <div class="zhihuishu-login-actions">
@@ -55,11 +55,22 @@
     let currentLoginToken = null;
     let currentLoginWindow = null;
     let hasActiveLoginSession = false;
+    let zhsPollTimer = null;
 
     function fmt(value) {
       if (!value) return '--';
       if (typeof value === 'number') return new Date(value * 1000).toLocaleString();
       return value;
+    }
+
+    function translateZhsSession(value) {
+      const map = { active: '已连接', ok: '已连接', need_relogin: '需重新登录', disconnected: '未连接', not_logged_in: '未连接', checking: '同步中…' };
+      return map[value] || '未连接';
+    }
+
+    function translateZhsWorker(value) {
+      const map = { running: '运行中', ok: '正常', idle: '空闲等待中', stopped: '未运行', error: '异常', dry_run: '演练模式', unknown: '等待首次同步' };
+      return map[value] || '等待首次同步';
     }
 
     function setMessage(text, cls) {
@@ -80,74 +91,134 @@
       el.setAttribute('role', semantic === 'danger' ? 'alert' : 'status');
     }
 
-    function setSessionButtons(active) {
-      document.getElementById('btn-open-login').disabled = active;
-      document.getElementById('btn-complete-login').disabled = !active;
-      document.getElementById('btn-cancel-login').disabled = !active && !hasActiveLoginSession;
+    function setSessionButtons(sessionOpen) {
+      document.getElementById('btn-open-login').disabled = sessionOpen;
+      document.getElementById('btn-complete-login').disabled = !sessionOpen;
+      document.getElementById('btn-cancel-login').disabled = !sessionOpen;
+    }
+
+    function syncZhsPoll() {
+      if (zhsPollTimer) { clearInterval(zhsPollTimer); zhsPollTimer = null; }
+      if (!hasActiveLoginSession && !currentLoginToken) return;
+      zhsPollTimer = setInterval(() => {
+        if (document.visibilityState !== 'hidden') loadStatus();
+      }, 4000);
     }
 
     async function loadStatus() {
-      const resp = await fetch('/api/zhihuishu/config');
-      const data = await resp.json();
-      const status = data.status || {};
-      const loginSession = data.login_session || {};
-      hasActiveLoginSession = Boolean(loginSession.active);
-      document.getElementById('session').textContent = status.session || '--';
-      document.getElementById('worker').textContent = status.worker || '--';
-      document.getElementById('last-keepalive').textContent = fmt(status.last_keepalive_at);
-      document.getElementById('last-fetch').textContent = fmt(status.last_fetch_at);
-      document.getElementById('last-success').textContent = fmt(status.last_success_at);
-      document.getElementById('last-error').textContent = status.last_error || '--';
-      setSessionButtons(Boolean(currentLoginToken));
-      if (hasActiveLoginSession && !currentLoginToken) {
-        setMessage(`已有一个登录会话正在进行，将于 ${fmt(loginSession.expires_at)} 过期。可以取消后重新打开。`, 'attention');
+      try {
+        const resp = await fetch('/api/zhihuishu/config');
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) throw new Error(data.error || '状态获取失败');
+        const status = data.status || {};
+        const loginSession = data.login_session || {};
+        hasActiveLoginSession = Boolean(loginSession.active);
+        document.getElementById('session').textContent = translateZhsSession(status.session);
+        document.getElementById('worker').textContent = translateZhsWorker(status.worker);
+        document.getElementById('last-keepalive').textContent = fmt(status.last_keepalive_at);
+        document.getElementById('last-fetch').textContent = fmt(status.last_fetch_at);
+        document.getElementById('last-success').textContent = fmt(status.last_success_at);
+        const errText = status.last_error || '';
+        document.getElementById('last-error').textContent = errText;
+        document.getElementById('last-error-label')?.classList.toggle('hidden', !errText);
+        document.getElementById('last-error')?.classList.toggle('hidden', !errText);
+
+        const sessionOpen = Boolean(currentLoginToken || hasActiveLoginSession);
+        setSessionButtons(sessionOpen);
+        if (!hasActiveLoginSession && currentLoginToken) currentLoginToken = null;
+        if (hasActiveLoginSession && !currentLoginToken) {
+          setMessage(`登录窗口正在进行中（将于 ${fmt(loginSession.expires_at)} 过期）。完成登录后请点击“我已完成登录”，或取消后重新打开。`, 'attention');
+        }
+        syncZhsPoll();
+      } catch (e) {
+        setMessage(e.message || '获取智慧树状态失败，请稍后重试', 'danger');
       }
     }
 
     async function openLoginSession() {
+      const btn = document.getElementById('btn-open-login');
+      const origText = btn.textContent;
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+      btn.textContent = '正在启动…';
       setMessage('正在打开登录窗口...');
       try {
         const resp = await fetch('/api/zhihuishu/login-session', { method: 'POST' });
         const data = await resp.json();
         if (!resp.ok || !data.ok) throw new Error(data.error || '启动失败');
         currentLoginToken = data.token;
+        hasActiveLoginSession = true;
         currentLoginWindow = window.open(data.url, '_blank', 'noopener,noreferrer,width=1280,height=900');
         setSessionButtons(true);
+        syncZhsPoll();
         setMessage('登录窗口已打开。完成智慧树登录后回到这里确认。', 'connected');
       } catch (e) {
         setMessage(e.message || '登录窗口启动失败', 'danger');
+        setSessionButtons(Boolean(currentLoginToken || hasActiveLoginSession));
+      } finally {
+        btn.textContent = origText;
+        btn.setAttribute('aria-busy', 'false');
+        if (!currentLoginToken && !hasActiveLoginSession) btn.disabled = false;
       }
     }
 
     async function completeLoginSession() {
-      if (!currentLoginToken) return;
+      if (!currentLoginToken && !hasActiveLoginSession) return;
+      const btn = document.getElementById('btn-complete-login');
+      const origText = btn.textContent;
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+      btn.textContent = '检查中…';
       setMessage('正在检查登录状态...');
       try {
-        const resp = await fetch(`/api/zhihuishu/login-session/${currentLoginToken}/complete`, { method: 'POST' });
+        const endpoint = currentLoginToken
+          ? `/api/zhihuishu/login-session/${currentLoginToken}/complete`
+          : '/api/zhihuishu/login-session/complete';
+        const resp = await fetch(endpoint, { method: 'POST' });
         const data = await resp.json();
         if (!resp.ok || !data.ok) throw new Error(data.error || '还没有检测到登录状态');
-        setSessionButtons(false);
         currentLoginToken = null;
+        hasActiveLoginSession = false;
+        setSessionButtons(false);
+        syncZhsPoll();
         if (currentLoginWindow) currentLoginWindow.close();
         setMessage('登录成功，智慧树待办将在后台同步。', 'connected');
         await loadStatus();
       } catch (e) {
         setMessage(e.message || '登录检查失败', 'danger');
+        setSessionButtons(Boolean(currentLoginToken || hasActiveLoginSession));
+      } finally {
+        btn.textContent = origText;
+        btn.setAttribute('aria-busy', 'false');
       }
     }
 
     async function cancelLoginSession() {
-      if (currentLoginToken) {
-        await fetch(`/api/zhihuishu/login-session/${currentLoginToken}`, { method: 'DELETE' });
-      } else {
-        await fetch('/api/zhihuishu/login-session', { method: 'DELETE' });
+      const btn = document.getElementById('btn-cancel-login');
+      const origText = btn.textContent;
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+      btn.textContent = '取消中…';
+      try {
+        if (currentLoginToken) {
+          await fetch(`/api/zhihuishu/login-session/${currentLoginToken}`, { method: 'DELETE' });
+        } else {
+          await fetch('/api/zhihuishu/login-session', { method: 'DELETE' });
+        }
+        if (currentLoginWindow) currentLoginWindow.close();
+        currentLoginToken = null;
+        hasActiveLoginSession = false;
+        setSessionButtons(false);
+        syncZhsPoll();
+        setMessage('当前登录会话已取消。');
+        await loadStatus();
+      } catch (e) {
+        setMessage(e.message || '取消失败，请稍后重试', 'danger');
+        setSessionButtons(Boolean(currentLoginToken || hasActiveLoginSession));
+      } finally {
+        btn.textContent = origText;
+        btn.setAttribute('aria-busy', 'false');
       }
-      if (currentLoginWindow) currentLoginWindow.close();
-      currentLoginToken = null;
-      hasActiveLoginSession = false;
-      setSessionButtons(false);
-      setMessage('当前登录会话已取消。');
-      await loadStatus();
     }
 
     loadStatus();

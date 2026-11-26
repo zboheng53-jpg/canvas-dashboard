@@ -35,29 +35,37 @@
 
       <div class="login-body" id="form-body">
         <div id="zhixuemeng-logged-in" class="hidden logged-in-row">
-          <span class="logged-in-label">已登录</span>
-          <select id="zxm-course-select" onchange="changeZhixuemengCourse()" class="ui-control logged-in-select"></select>
-          <a href="#" onclick="logoutZhixuemeng();return false;" class="logged-in-link">登出</a>
+          <span class="logged-in-label">已连接</span>
+          <label class="ui-label connection-field-label" for="zxm-course-select">选择课程</label>
+          <select id="zxm-course-select" class="ui-control logged-in-select"></select>
+          <button type="button" onclick="logoutZhixuemeng()" class="ui-button ui-button--danger ui-button--sm">断开连接</button>
         </div>
 
         <div id="zhixuemeng-setup" class="hidden">
-          <p class="ui-help setup-hint">请输入智学盟平台的手机号和验证码登录：</p>
-          <div class="add-todo-form mb-s">
-            <input type="tel" id="zxm-phone" placeholder="手机号" autocomplete="off" class="ui-control">
-            <button type="button" id="zxm-send-sms-btn" onclick="sendZhixuemengSms()" class="ui-button ui-button--secondary ui-button--block btn-wide">发送验证码</button>
+          <div class="ktp-auth-tabs" role="tablist" aria-label="智学盟登录方式切换">
+            <button type="button" class="ui-button ui-button--choice ktp-auth-tab is-active" id="zxm-tab-btn-sms" role="tab" aria-selected="true" onclick="switchZxmPageTab('sms')">短信验证码登录</button>
+            <button type="button" class="ui-button ui-button--choice ktp-auth-tab" id="zxm-tab-btn-pwd" role="tab" aria-selected="false" onclick="switchZxmPageTab('pwd')">账号密码登录</button>
           </div>
-          <div class="add-todo-form mb-s">
-            <input type="text" id="zxm-captcha" placeholder="验证码" autocomplete="off" class="ui-control">
-            <button type="button" onclick="doZhixuemengLogin()" class="ui-button ui-button--primary ui-button--block btn-wide btn-accent">登录</button>
-          </div>
-          <div class="ui-help form-note">
-            <a href="#" onclick="showZxmPasswordLogin();return false;">使用密码登录</a>
+          <div id="zxm-sms-login-panel">
+            <p class="ui-help setup-hint">请输入智学盟平台的手机号和验证码登录：</p>
+            <label class="ui-label connection-field-label" for="zxm-phone">智学盟手机号</label>
+            <div class="add-todo-form mb-s">
+              <input type="tel" id="zxm-phone" placeholder="手机号" autocomplete="tel" class="ui-control">
+              <button type="button" id="zxm-send-sms-btn" onclick="sendZhixuemengSms()" class="ui-button ui-button--secondary ui-button--block btn-wide">发送验证码</button>
+            </div>
+            <label class="ui-label connection-field-label" for="zxm-captcha">短信验证码</label>
+            <div class="add-todo-form mb-s">
+              <input type="text" id="zxm-captcha" placeholder="验证码" autocomplete="one-time-code" class="ui-control">
+              <button type="button" id="zxm-sms-login-btn" onclick="doZhixuemengLogin()" class="ui-button ui-button--primary ui-button--block btn-wide btn-accent">登录</button>
+            </div>
           </div>
           <div id="zxm-password-login" class="hidden mt-s">
             <form class="add-todo-form" id="zxm-pwd-form">
-              <input type="text" id="zxm-username" placeholder="用户名" autocomplete="off" class="ui-control">
-              <input type="password" id="zxm-password" placeholder="密码" autocomplete="off" class="ui-control">
-              <button type="submit" class="ui-button ui-button--primary ui-button--block btn-wide">登录</button>
+              <label class="ui-label connection-field-label" for="zxm-username">智学盟用户名</label>
+              <input type="text" id="zxm-username" placeholder="用户名" autocomplete="username" class="ui-control">
+              <label class="ui-label connection-field-label" for="zxm-password">智学盟密码</label>
+              <input type="password" id="zxm-password" placeholder="密码" autocomplete="current-password" class="ui-control">
+              <button type="submit" id="zxm-pwd-login-btn" class="ui-button ui-button--primary ui-button--block btn-wide">登录</button>
             </form>
           </div>
         </div>
@@ -87,8 +95,23 @@
 
     function showZhixuemengError(message) {
       const error = document.getElementById('zhixuemeng-error');
-      error.textContent = message;
-      error.classList.remove('hidden');
+      error.textContent = message || '';
+      error.classList.toggle('hidden', !message);
+    }
+
+    function switchZxmPageTab(tab) {
+      const smsPanel = document.getElementById('zxm-sms-login-panel');
+      const pwdPanel = document.getElementById('zxm-password-login');
+      const smsTab = document.getElementById('zxm-tab-btn-sms');
+      const pwdTab = document.getElementById('zxm-tab-btn-pwd');
+      showZhixuemengError('');
+      const isPwd = tab === 'pwd';
+      smsPanel?.classList.toggle('hidden', isPwd);
+      pwdPanel?.classList.toggle('hidden', !isPwd);
+      smsTab?.classList.toggle('is-active', !isPwd);
+      smsTab?.setAttribute('aria-selected', String(!isPwd));
+      pwdTab?.classList.toggle('is-active', isPwd);
+      pwdTab?.setAttribute('aria-selected', String(isPwd));
     }
 
     async function checkZhixuemengConfig() {
@@ -96,7 +119,7 @@
         const resp = await fetch('/api/zhixuemeng/config');
         const result = await resp.json();
         if (result.ok && result.has_token) {
-          setZhixuemengPageStatus('当前状态：已登录', 'success');
+          setZhixuemengPageStatus('当前状态：已连接', 'success');
           document.getElementById('zhixuemeng-setup').classList.add('hidden');
           document.getElementById('zhixuemeng-logged-in').classList.remove('hidden');
           if (result.courses) {
@@ -104,7 +127,7 @@
             populateZhixuemengCourseSelect(select, result.courses, result.selected_course);
           }
         } else {
-          setZhixuemengPageStatus('当前状态：未登录', 'neutral');
+          setZhixuemengPageStatus('当前状态：未连接', 'neutral');
           document.getElementById('zhixuemeng-setup').classList.remove('hidden');
           document.getElementById('zhixuemeng-logged-in').classList.add('hidden');
         }
@@ -119,11 +142,15 @@
 
     async function sendZhixuemengSms() {
       if (zxmSmsCountdown > 0) return;
-      const phone = document.getElementById('zxm-phone').value.trim();
-      if (!phone) { showZhixuemengError('请输入手机号'); return; }
+      const phoneInput = document.getElementById('zxm-phone');
+      const phone = phoneInput.value.trim();
+      if (!phone) { showZhixuemengError('请输入手机号'); phoneInput.focus(); return; }
+      showZhixuemengError('');
 
       const btn = document.getElementById('zxm-send-sms-btn');
       btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+      btn.textContent = '发送中…';
 
       try {
         const resp = await fetch('/api/zhixuemeng/send-sms', {
@@ -135,6 +162,7 @@
         if (result.ok) {
           zxmSmsCountdown = 60;
           if (zxmSmsTimer) clearInterval(zxmSmsTimer);
+          btn.setAttribute('aria-busy', 'false');
           zxmSmsTimer = setInterval(() => {
             zxmSmsCountdown--;
             if (zxmSmsCountdown <= 0) {
@@ -143,24 +171,42 @@
               btn.textContent = '发送验证码';
               btn.disabled = false;
             } else {
-              btn.textContent = `${zxmSmsCountdown}秒后发送`;
+              btn.textContent = `${zxmSmsCountdown}s 后重发`;
             }
           }, 1000);
-          btn.textContent = `${zxmSmsCountdown}秒后发送`;
+          btn.textContent = `${zxmSmsCountdown}s 后重发`;
+          document.getElementById('zxm-captcha')?.focus();
         } else {
           showZhixuemengError(result.error || '发送失败');
+          btn.textContent = '发送验证码';
           btn.disabled = false;
+          btn.setAttribute('aria-busy', 'false');
         }
       } catch (e) {
-        showZhixuemengError('网络错误');
+        showZhixuemengError('网络错误，请稍后重试');
+        btn.textContent = '发送验证码';
         btn.disabled = false;
+        btn.setAttribute('aria-busy', 'false');
       }
     }
 
     async function doZhixuemengLogin() {
-      const phone = document.getElementById('zxm-phone').value.trim();
-      const captcha = document.getElementById('zxm-captcha').value.trim();
-      if (!phone || !captcha) { showZhixuemengError('请输入手机号和验证码'); return; }
+      const phoneInput = document.getElementById('zxm-phone');
+      const captchaInput = document.getElementById('zxm-captcha');
+      const phone = phoneInput.value.trim();
+      const captcha = captchaInput.value.trim();
+      if (!phone || !captcha) {
+        showZhixuemengError('请输入手机号和验证码');
+        (!phone ? phoneInput : captchaInput).focus();
+        return;
+      }
+      showZhixuemengError('');
+
+      const btn = document.getElementById('zxm-sms-login-btn');
+      const origText = btn.textContent;
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+      btn.textContent = '登录中…';
 
       try {
         const resp = await fetch('/api/zhixuemeng/login', {
@@ -170,28 +216,46 @@
         });
         const result = await resp.json();
         if (result.ok) {
-          document.getElementById('zxm-captcha').value = '';
+          captchaInput.value = '';
           if (zxmSmsTimer) { clearInterval(zxmSmsTimer); zxmSmsTimer = null; zxmSmsCountdown = 0; }
-          document.getElementById('zxm-send-sms-btn').textContent = '发送验证码';
-          document.getElementById('zxm-send-sms-btn').disabled = false;
+          const smsBtn = document.getElementById('zxm-send-sms-btn');
+          smsBtn.textContent = '发送验证码';
+          smsBtn.disabled = false;
           checkZhixuemengConfig();
         } else {
           showZhixuemengError(result.error || '登录失败');
         }
       } catch (e) {
-        showZhixuemengError('网络错误');
+        showZhixuemengError('网络错误，请稍后重试');
+      } finally {
+        btn.textContent = origText;
+        btn.disabled = false;
+        btn.setAttribute('aria-busy', 'false');
       }
     }
 
     function showZxmPasswordLogin() {
-      document.getElementById('zxm-password-login').classList.toggle('hidden');
+      switchZxmPageTab('pwd');
     }
 
     async function doZhixuemengPasswordLogin(e) {
       e.preventDefault();
-      const username = document.getElementById('zxm-username').value.trim();
-      const password = document.getElementById('zxm-password').value.trim();
-      if (!username || !password) return;
+      const userInput = document.getElementById('zxm-username');
+      const passInput = document.getElementById('zxm-password');
+      const username = userInput.value.trim();
+      const password = passInput.value.trim();
+      if (!username || !password) {
+        showZhixuemengError('请输入用户名和密码');
+        (!username ? userInput : passInput).focus();
+        return;
+      }
+      showZhixuemengError('');
+
+      const btn = document.getElementById('zxm-pwd-login-btn');
+      const origText = btn.textContent;
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+      btn.textContent = '登录中…';
 
       try {
         const resp = await fetch('/api/zhixuemeng/login-password', {
@@ -206,7 +270,11 @@
           showZhixuemengError(result.error || '登录失败');
         }
       } catch (e) {
-        showZhixuemengError('网络错误');
+        showZhixuemengError('网络错误，请稍后重试');
+      } finally {
+        btn.textContent = origText;
+        btn.disabled = false;
+        btn.setAttribute('aria-busy', 'false');
       }
     }
 
@@ -214,27 +282,39 @@
       const select = document.getElementById('zxm-course-select');
       const courseCode = select.value;
       try {
-        await fetch('/api/zhixuemeng/course', {
+        const resp = await fetch('/api/zhixuemeng/course', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ course_code: courseCode }),
         });
-      } catch (e) { /* ignore */ }
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data.ok) {
+          showZhixuemengError(data.error || '保存课程筛选失败');
+        } else {
+          showZhixuemengError('');
+          setZhixuemengPageStatus('当前状态：已连接（课程筛选已保存）', 'success');
+        }
+      } catch (e) {
+        showZhixuemengError('保存课程筛选失败，请稍后重试');
+      }
     }
 
     async function logoutZhixuemeng() {
       try {
         await fetch('/api/zhixuemeng/logout', { method: 'POST' });
       } catch (e) { /* ignore */ }
-      setZhixuemengPageStatus('当前状态：未登录', 'neutral');
+      setZhixuemengPageStatus('当前状态：未连接', 'neutral');
       document.getElementById('zhixuemeng-setup').classList.remove('hidden');
       document.getElementById('zhixuemeng-logged-in').classList.add('hidden');
-      document.getElementById('zhixuemeng-error').classList.add('hidden');
-      document.getElementById('zxm-password-login').classList.add('hidden');
+      showZhixuemengError('');
+      switchZxmPageTab('sms');
     }
 
-    const zxmPwdFormEl = document.getElementById('zxm-pwd-form');
-    if (zxmPwdFormEl) zxmPwdFormEl.addEventListener('submit', doZhixuemengPasswordLogin);
+    document.getElementById('zxm-course-select')?.addEventListener('change', changeZhixuemengCourse);
+    document.getElementById('zxm-pwd-form')?.addEventListener('submit', doZhixuemengPasswordLogin);
+    ['zxm-phone', 'zxm-captcha', 'zxm-username', 'zxm-password'].forEach((id) => {
+      document.getElementById(id)?.addEventListener('input', () => showZhixuemengError(''));
+    });
 
     checkZhixuemengConfig();
   </script>

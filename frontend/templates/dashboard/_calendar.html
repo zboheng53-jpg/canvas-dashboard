@@ -4,7 +4,7 @@
     <div class="console-manager-heading business-manager-heading">
       <div>
         <h1 id="calendar-subscription-title">日历订阅</h1>
-        <p>通过通用 iCalendar（.ics）链接，将带日期的未完成任务和日程只读订阅到 Apple、Google 等支持链接订阅的日历。</p>
+        <p>使用 Apple Calendar 订阅，或导入 Google 等支持通用 iCalendar（.ics）网址订阅的日历应用，只读查看带日期的未完成任务和日程。</p>
       </div>
       <span class="ui-tag calendar-privacy-badge">私密链接</span>
     </div>
@@ -21,40 +21,54 @@
           </li>
           <li class="ui-list-item calendar-step">
             <span class="ui-count-pill calendar-step-index">2</span>
-            <div><strong>添加到你的日历</strong><p>Apple 日历可直接打开；Google 日历请在电脑网页版通过“其他日历 → ＋ → 通过网址”添加复制的链接。安卓其他日历需支持通过网址订阅。</p></div>
+            <div><strong>添加到你的日历</strong><p>Apple 日历可直接打开；Google 日历请在电脑网页版通过“其他日历 → ＋ → 通过网址”添加复制的链接。</p></div>
           </li>
           <li class="ui-list-item calendar-step">
             <span class="ui-count-pill calendar-step-index">3</span>
             <div><strong>按需撤销访问</strong><p>重新生成或撤销后，旧链接不再可用。</p></div>
           </li>
         </ol>
-        <p class="ui-card__copy">作业截止显示为最后一分钟，零点截止归在前一天；详情保留完整截止时间。精确截止已设置提前一小时提醒，请在日历应用中开启此订阅的“事件提醒”。只有日期的待办仍为全天，课表与日程保留实际时段。</p>
-        <h3 class="ui-card__title">网页有作业，手机还没更新？</h3>
-        <p class="ui-card__copy">先在 iPhone「日历 → 日历列表」中向下拉动刷新，再查看截止日期。自动更新可在「设置 → App → 日历 → 日历账户 → 抓取新数据」中检查抓取频率；选择“自动”时，更新可能要等到充电并连接 Wi-Fi。其他日历应用也有自己的刷新周期。</p>
-        <p class="ui-card__copy">重新生成链接不能加快刷新，还会让手机中的旧订阅失效；如已重新生成，需要在日历应用中替换订阅地址。</p>
+        <details class="settings-disclosure calendar-details">
+          <summary><span><b>截止时间与提醒显示规则</b><small>全天、精确截止与零点归属说明</small></span><i aria-hidden="true">⌄</i></summary>
+          <div class="settings-disclosure-content">
+            <p class="ui-card__copy">作业截止显示为最后一分钟，零点截止归在前一天；详情保留完整截止时间。精确截止已设置提前一小时提醒，请在日历应用中开启此订阅的“事件提醒”。只有日期的待办仍为全天，课表与日程保留实际时段。</p>
+          </div>
+        </details>
+        <details class="settings-disclosure calendar-details">
+          <summary><span><b>网页有作业，手机还没更新？</b><small>检查 iPhone 日历手动刷新与自动抓取周期</small></span><i aria-hidden="true">⌄</i></summary>
+          <div class="settings-disclosure-content">
+            <p class="ui-card__copy">先在 iPhone「日历 → 日历列表」中向下拉动刷新，再查看截止日期。自动更新可在「设置 → App → 日历 → 日历账户 → 抓取新数据」中检查抓取频率；选择“自动”时，更新可能要等到充电并连接 Wi-Fi。其他日历应用也有自己的刷新周期。</p>
+            <p class="ui-card__copy">重新生成链接不能加快刷新，还会让手机中的旧订阅失效；如已重新生成，需要在日历应用中替换订阅地址。</p>
+          </div>
+        </details>
       </section>
 
       <section class="ui-card calendar-subscription-workspace" aria-labelledby="calendar-subscription-link-heading">
         <div class="calendar-subscription-copy">
           <span class="ui-section-label manager-section-index">订阅管理</span>
           <h2 class="ui-card__title" id="calendar-subscription-link-heading">私密订阅与分类日历</h2>
-          <p class="ui-card__copy">分别订阅各分类，可在日历应用中单独开关和设置颜色；颜色显示取决于应用支持。</p>
+          <p class="ui-card__copy">可一次订阅全部日程，也可按分类分别订阅并在日历应用中单独开关和设置颜色。</p>
         </div>
+
+        <div class="calendar-active-summary hidden" id="calendar-active-summary" role="status" aria-live="polite"></div>
+
         <div class="calendar-subscription-actions">
-          <button type="button" class="ui-button ui-button--primary calendar-panel-primary console-stateful-button" id="calendar-subscription-create" aria-busy="false" onclick="createCalendarSubscription()">生成订阅链接</button>
-          <button type="button" id="calendar-subscription-open" onclick="openCalendarSubscription()" disabled class="ui-button ui-button--secondary">在日历中打开综合订阅</button>
-          <button type="button" class="ui-button ui-button--secondary console-stateful-button" id="calendar-subscription-copy" aria-busy="false" onclick="copyCalendarSubscription()" disabled>复制综合链接</button>
-          <button type="button" class="ui-button ui-button--danger calendar-panel-revoke console-stateful-button" id="calendar-subscription-revoke" aria-busy="false" onclick="revokeCalendarSubscription()" disabled>撤销所有链接</button>
+          <button type="button" class="ui-button ui-button--primary calendar-panel-primary console-stateful-button" id="calendar-subscription-create" aria-busy="false" onclick="createCalendarSubscription()">生成日历订阅链接</button>
+          <button type="button" class="ui-button ui-button--danger calendar-panel-revoke console-stateful-button hidden" id="calendar-subscription-revoke" aria-busy="false" onclick="revokeCalendarSubscription()" disabled>撤销所有链接</button>
         </div>
-        <p class="ui-feedback ui-feedback--info calendar-subscription-status" id="calendar-subscription-status" role="status" aria-live="polite">生成后复制链接到日历应用订阅；“在日历中打开”需要设备支持 webcal。</p>
+        <p class="ui-feedback ui-feedback--info calendar-subscription-status" id="calendar-subscription-status" role="status" aria-live="polite">生成链接后可直接在 Apple 日历中打开，或复制到 Google 等日历订阅。</p>
+
+        <div class="calendar-subscription-url hidden" id="calendar-subscription-url-wrap">
+          <label class="ui-label settings-field-label" for="calendar-subscription-url">综合订阅地址（包含全部日程）</label>
+          <input type="text" id="calendar-subscription-url" readonly aria-describedby="calendar-subscription-status" placeholder="尚未生成订阅链接" class="ui-control">
+          <div class="calendar-subscription-actions">
+            <button type="button" id="calendar-subscription-open" onclick="openCalendarSubscription()" disabled class="ui-button ui-button--secondary">在日历中打开</button>
+            <button type="button" class="ui-button ui-button--secondary console-stateful-button" id="calendar-subscription-copy" aria-busy="false" onclick="copyCalendarSubscription()" disabled>复制链接</button>
+          </div>
+        </div>
 
         <div id="calendar-feeds-container" class="calendar-feeds-container hidden">
           <!-- 动态分类日历列表 -->
-        </div>
-
-        <div class="calendar-subscription-url" id="calendar-subscription-url-wrap">
-          <label class="ui-label settings-field-label" for="calendar-subscription-url">全能综合订阅地址（包含全部日程）</label>
-          <input type="text" id="calendar-subscription-url" readonly aria-describedby="calendar-subscription-status" placeholder="尚未生成订阅链接" class="ui-control">
         </div>
       </section>
     </div>
