@@ -27,7 +27,16 @@
       }
     }
 
-    const timer = timeoutMs > 0 ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    let timer = timeoutMs > 0 ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    const cancelMap = (global.__cdaCancelTimeoutMap = global.__cdaCancelTimeoutMap || new WeakMap());
+    if (timer !== null) {
+      cancelMap.set(controller.signal, () => {
+        if (timer !== null) {
+          clearTimeout(timer);
+          timer = null;
+        }
+      });
+    }
     const fetchOptions = Object.assign({}, options, { signal: controller.signal });
     delete fetchOptions.timeout;
 
@@ -54,7 +63,11 @@
       }
       throw new DashboardRequestError('网络连接失败，请检查网络设置后重试。', { cause, code: 'network_error' });
     } finally {
-      if (timer) clearTimeout(timer);
+      if (timer !== null) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      cancelMap.delete(controller.signal);
       if (abortListener && externalSignal) externalSignal.removeEventListener('abort', abortListener);
     }
 

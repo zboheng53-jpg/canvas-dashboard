@@ -112,7 +112,7 @@
 .ui-button--danger:hover:not(:disabled):not([aria-disabled="true"]) {
   color: var(--color-danger);
   background: var(--button-danger-bg-hover);
-  border-color: color-mix(in srgb, var(--color-danger) 36%, var(--color-on-strong));
+  border-color: color-mix(in srgb, var(--color-danger) 42%, var(--color-surface));
 }
 
 .ui-button--text {
@@ -803,17 +803,26 @@ input[type="time"].ui-control {
 }
 
 .ui-skeleton {
+  position: relative;
+  overflow: hidden;
   color: transparent;
-  background:
-    linear-gradient(
-      90deg,
-      var(--color-surface-subtle) 20%,
-      var(--color-surface) 50%,
-      var(--color-surface-subtle) 80%
-    );
-  background-size: 240% 100%;
+  background: var(--color-surface-subtle);
   border-radius: var(--radius-xs);
+}
+
+.ui-skeleton::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--color-surface) 70%, transparent) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
   animation: ui-skeleton-shimmer 1.4s ease-in-out infinite;
+  content: "";
+  pointer-events: none;
 }
 
 .ui-empty {
@@ -1149,7 +1158,7 @@ input[type="time"].ui-control {
 
 @keyframes ui-skeleton-shimmer {
   to {
-    background-position: -240% 0;
+    transform: translateX(100%);
   }
 }
 
@@ -1178,13 +1187,20 @@ input[type="time"].ui-control {
   .ui-button,
   .ui-icon-button,
   .ui-control,
-  .ui-checkbox {
+  .ui-checkbox,
+  .ui-list-item,
+  .ui-nav-item {
     transition-duration: 0.01ms;
   }
 
   .ui-spinner,
   .ui-loading::before,
-  .ui-skeleton {
+  .ui-skeleton::after,
+  .ui-button[aria-busy="true"]::before,
+  .ui-icon-button[aria-busy="true"]::before,
+  .ui-input-shell.is-loading::after,
+  #btn-refresh.is-refreshing svg {
     animation-duration: 0.01ms;
+    animation-iteration-count: 1;
   }
 }

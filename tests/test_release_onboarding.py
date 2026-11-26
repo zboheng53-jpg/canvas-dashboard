@@ -214,3 +214,47 @@ def test_contextual_guide_links_and_connection_disclosures(live_app, browser, wi
     artifacts = os.environ.get('CANVAS_TEST_ARTIFACTS')
     if artifacts:
         page.screenshot(path=str(Path(artifacts) / f'contextual-guide-{width}.png'))
+
+
+def test_reset_password_layout_auth_toggles_and_redirect(live_app, browser):
+    page = browser.new_page(viewport={'width': 1440, 'height': 950}, reduced_motion='reduce')
+
+    page.goto(f'{live_app}/login')
+    expect(page.locator('#login-form button')).to_have_count(1)
+    expect(page.locator('#login-username')).to_be_focused()
+    pw_toggle = page.locator('#login-form [data-pw-toggle="login-password"]')
+    pw_toggle.click()
+    expect(page.locator('#login-password')).to_have_attribute('type', 'text')
+    pw_toggle.press('Space')
+    expect(page.locator('#login-password')).to_have_attribute('type', 'password')
+
+    page.locator('[data-color-mode-toggle]').click()
+    expect(page.locator('html')).to_have_attribute('data-resolved-scheme', 'dark')
+
+    page.goto(f'{live_app}/reset-password')
+    expect(page.locator('.auth-landing-layout')).to_be_visible()
+    expect(page.locator('.auth-landing-intro')).to_be_visible()
+    expect(page.locator('html')).to_have_attribute('data-resolved-scheme', 'dark')
+    body_text = page.locator('body').inner_text()
+    assert '账号找回' in body_text
+    assert '维护者' in body_text
+    assert '重置凭据' in body_text
+    assert 'ACCOUNT RECOVERY' not in body_text
+    assert '管理员' not in body_text
+
+    captured = {}
+
+    def intercept_reset(route):
+        captured['payload'] = route.request.post_data_json
+        route.fulfill(status=200, json={'ok': True})
+
+    page.route('**/api/auth/reset-password', intercept_reset)
+    page.fill('#reset-username', '  alice  ')
+    page.fill('#reset-token', '  tok-123  ')
+    page.fill('#reset-password', 'secret123')
+    page.click('#reset-form button[type="submit"]')
+
+    expect(page).to_have_url(f'{live_app}/login?reset=1')
+    expect(page.locator('#login-reset-banner')).to_be_visible()
+    assert captured['payload'] == {'username': 'alice', 'token': 'tok-123', 'password': 'secret123'}
+

@@ -14,6 +14,7 @@
 </head>
 <body>
   <div class="dashboard dashboard-shell" id="dashboard-shell">
+    <script>if (document.documentElement.dataset.sidebarCollapsed === '1') document.getElementById('dashboard-shell')?.classList.add('sidebar-collapsed');</script>
     <header class="mobile-shell-bar">
       <button
         type="button"
@@ -68,11 +69,12 @@
         </div>
         <span class="mobile-nav-label">今日</span>
       </button>
-      <button type="button" class="mobile-nav-item" data-mobile-tab="todos" onclick="switchDashboardView('todos')">
+      <button type="button" class="mobile-nav-item" data-mobile-tab="connections" onclick="switchDashboardView('connections')">
         <div class="mobile-nav-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 11 3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17a4 4 0 1 1 .6-7.97A5.5 5.5 0 0 1 18.3 11 3.5 3.5 0 0 1 17.5 17H7Z"/></svg>
+          <span class="mobile-nav-badge hidden" id="mobile-connections-attention" aria-label="连接需要处理"></span>
         </div>
-        <span class="mobile-nav-label">待办</span>
+        <span class="mobile-nav-label">连接</span>
       </button>
       <button type="button" class="mobile-nav-item" data-mobile-tab="projects" onclick="switchDashboardView('projects')">
         <div class="mobile-nav-icon">
@@ -90,8 +92,22 @@
   </div>
 
   {% include "dashboard/_action_details.html" %}
+  <div id="ui-toast-region" class="ui-toast-region" role="region" aria-live="polite" aria-label="系统提示"></div>
+  <dialog id="ui-confirm-dialog" class="action-dialog ui-confirm-dialog" aria-modal="true" aria-labelledby="ui-confirm-title" aria-describedby="ui-confirm-message">
+    <div class="ui-confirm-header">
+      <h3 id="ui-confirm-title" class="ui-confirm-title">确认操作</h3>
+      <button type="button" class="ui-icon-button" data-ui-confirm-cancel aria-label="关闭确认框">×</button>
+    </div>
+    <p id="ui-confirm-message" class="ui-confirm-message"></p>
+    <div class="ui-confirm-actions">
+      <button type="button" class="ui-button ui-button--secondary" data-ui-confirm-cancel>取消</button>
+      <button type="button" class="ui-button ui-button--danger" data-ui-confirm-accept>确认</button>
+    </div>
+  </dialog>
   <script src="{{ url_for('static', filename='js/features/workspace.js') }}"></script>
   <script src="{{ url_for('static', filename='js/core/utils.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/core/ui-feedback.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/core/motion.js') }}"></script>
   <script src="{{ url_for('static', filename='js/core/shell.js') }}"></script>
   <script src="{{ url_for('static', filename='js/core/context.js') }}"></script>
   <script src="{{ url_for('static', filename='js/features/calendar.js') }}"></script>

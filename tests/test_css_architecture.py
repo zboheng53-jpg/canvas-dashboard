@@ -7,7 +7,7 @@ CSS_ROOT = PROJECT_ROOT / "frontend" / "assets" / "css"
 TEMPLATE_ROOT = PROJECT_ROOT / "frontend" / "templates"
 
 ENTRY_FILES = ("app.css", "dashboard.css", "component-lab.css")
-NEW_FOUNDATION_FILES = ("tokens.css", "foundation.css", "components.css", "patterns.css", *ENTRY_FILES)
+NEW_FOUNDATION_FILES = ("tokens.css", "foundation.css", "components.css", "patterns.css", "motion.css", *ENTRY_FILES)
 LEGACY_FILES = ("style.css", "dashboard-shell.css", "dashboard-v103.css")
 FORBIDDEN_FONT_NAMES = (
     "anthropicSerif",
@@ -74,6 +74,8 @@ def test_cascade_layers_isolate_legacy_and_fix_source_order():
     assert '@import url("./foundation.css") layer(foundation);' in dashboard_entry
     assert '@import url("./components.css") layer(components);' in dashboard_entry
     assert '@import url("./patterns.css") layer(patterns);' in dashboard_entry
+    assert '@import url("./motion.css") layer(design-system);' in app_entry
+    assert '@import url("./motion.css") layer(design-system);' in dashboard_entry
 
 
 def test_global_tokens_have_one_source_and_no_duplicate_names():
@@ -84,13 +86,23 @@ def test_global_tokens_have_one_source_and_no_duplicate_names():
     assert root_sources == ["tokens.css"]
 
     token_source = _read(CSS_ROOT / "tokens.css")
-    default_tokens, theme_tokens = token_source.split(':root[data-theme="moss"]', 1)
-    names = re.findall(r"(?m)^\s*(--[\w-]+)\s*:", default_tokens)
+    blocks = re.findall(r"(?m)^\s*:root([^\n{]*)\{([^}]*)\}", token_source)
+    assert blocks, "tokens.css must define :root blocks"
+    base_selector, base_body = blocks[0]
+    assert base_selector.strip() == ""
+    names = re.findall(r"(?m)^\s*(--[\w-]+)\s*:", base_body)
     duplicates = {name for name in names if names.count(name) > 1}
     assert duplicates == set()
-    overrides = re.findall(r"(?m)^\s*(--[\w-]+)\s*:", theme_tokens)
-    assert len(overrides) == len(set(overrides))
-    assert set(overrides) <= set(names), "Theme overrides must use existing tokens"
+
+    override_selectors = [sel.strip() for sel, _ in blocks[1:]]
+    assert '[data-theme="moss"]' in override_selectors
+    assert '[data-resolved-scheme="dark"]' in override_selectors
+    assert '[data-theme="moss"][data-resolved-scheme="dark"]' in override_selectors
+
+    for sel, body in blocks[1:]:
+        overrides = re.findall(r"(?m)^\s*(--[\w-]+)\s*:", body)
+        assert len(overrides) == len(set(overrides)), f"Duplicate override in :root{sel}"
+        assert set(overrides) <= set(names), f"Theme overrides in :root{sel} must use existing tokens"
 
     for filename in LEGACY_FILES:
         source = _read(CSS_ROOT / filename)
@@ -102,6 +114,9 @@ def test_new_foundation_has_no_important_or_unloaded_font_names():
     for filename in NEW_FOUNDATION_FILES:
         source = _read(CSS_ROOT / filename)
         assert "!important" not in source
+
+    for path in CSS_ROOT.glob("*.css"):
+        assert not re.search(r"\btransition\s*:\s*all\b", _read(path)), f"Found transition: all in {path.name}"
 
     css_source = "\n".join(
         line

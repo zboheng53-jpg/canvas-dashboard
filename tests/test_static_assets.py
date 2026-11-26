@@ -30,7 +30,7 @@ def test_current_css_bundle_contains_all_sources_without_import_waterfall(tmp_pa
     manifest = build_assets(tmp_path)
     bundle = (tmp_path / manifest['css/dashboard.css']).read_text(encoding='utf-8')
     assert '@import' not in bundle
-    for name in ('tokens.css', 'business.css', 'guide.css', 'appearance.css'):
+    for name in ('tokens.css', 'business.css', 'guide.css', 'appearance.css', 'motion.css'):
         original = (source / 'css' / name).read_text(encoding='utf-8')
         assert all(line.rstrip() in bundle for line in original.splitlines() if line.strip())
     for logical, physical in manifest.items():
