@@ -1146,8 +1146,14 @@ def test_frontend_connection_actions_stay_with_the_selected_platform(live_app, b
 
         expect(selected_detail).to_be_visible()
         expect(selected_actions).to_have_count(1)
-        expect(selected_actions).to_be_hidden()
-        expect(page.locator('.connection-data-actions:visible')).to_have_count(0)
+        # conftest stubs canvas/haoke/zhixuemeng(cache)/zhihuishu(session=ok) as configured/cached;
+        # unconfigured platforms (ketangpai/tongjioj) hide data actions.
+        if platform in ("canvas", "haoke", "zhixuemeng", "zhihuishu"):
+            expect(selected_actions).to_be_visible()
+            expect(page.locator('.connection-data-actions:visible')).to_have_count(1)
+        else:
+            expect(selected_actions).to_be_hidden()
+            expect(page.locator('.connection-data-actions:visible')).to_have_count(0)
         assert page.evaluate(
             "([detail, actions]) => detail.contains(actions)",
             [selected_detail.element_handle(), selected_actions.element_handle()],

@@ -57,11 +57,11 @@ def test_dense_week_fits_and_overflow_opens_same_action(live_app, browser, width
         expect(dialog).not_to_be_visible()
         expect(detail).to_contain_text("完整的执行说明保持可读")
         detail.get_by_role("button", name="编辑事项", exact=True).click()
-        detail.get_by_role("checkbox", name="同时加入待办清单", exact=True).check()
+        detail.locator('input[name="due_date"]').fill(day)
         detail.get_by_role("button", name="保存事项", exact=True).click()
         expect(detail.get_by_role("button", name="编辑事项", exact=True)).to_be_visible()
         tasks = project_store.load_projects(username)[0]['tasks']
-        assert next(task for task in tasks if task['name'].endswith(' 12'))['commitment'] == 'obligation'
+        assert next(task for task in tasks if task['name'].endswith(' 12'))['due_date'] == day
         assert len(project_store.todo_items(username, today=dashboard.datetime.now(web_common.CST).date())) == 12
     finally:
         page.close()

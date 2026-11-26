@@ -1329,6 +1329,12 @@ button.mobile-attention-banner:focus-visible {
 }
 
 @media (max-width: 768px) {
+  .todo-row .subtask-toggle:not(.subtask-toggle-placeholder) {
+    min-width: var(--control-height-md);
+    min-height: var(--control-height-md);
+    justify-content: center;
+  }
+
   .ui-segmented,
   .agent-tabs {
     display: flex;

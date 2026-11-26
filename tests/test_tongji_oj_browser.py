@@ -68,7 +68,7 @@ def test_oj_manual_completion_and_undo_survive_cache_upgrade_and_refresh(live_ap
                 heading.click()
         expect(row).to_be_visible()
         action = row.locator(".item-desktop-actions .btn-dismiss")
-        expect(action).to_have_attribute("title", "取消完成" if expected else "完成")
+        expect(action).to_have_attribute("aria-label", "取消完成" if expected else "完成")
     page.reload()
     expect(page.locator("#btn-refresh")).not_to_have_attribute("aria-busy", "true", timeout=5000)
     expect_completion(completed)

@@ -156,7 +156,12 @@
         : state === 'needs_reauth';
       const hasCache = overrides.hasCache !== undefined
         ? Boolean(overrides.hasCache)
-        : Boolean(sync.has_cache || sync.last_success_at || (sync.data_state && sync.data_state !== 'none') || platformHasCachedItems(platform));
+        : Boolean(
+            sync.has_cache
+            || sync.last_success_at
+            || (sync.data_state && sync.data_state !== 'none' && sync.data_state !== 'unavailable')
+            || platformHasCachedItems(platform)
+          );
 
       const showDisconnect = connected || needsReauth;
       const showClear = connected || needsReauth || hasCache;
@@ -173,8 +178,8 @@
         return;
       }
       const sync = {...result.sync};
-      if (platform === 'tongjioj') sync.has_cache = !!result.has_cache;
-      if (result.stale) sync.data_state = 'stale';
+      if (result.has_cache !== undefined) sync.has_cache = Boolean(result.has_cache);
+      if (result.stale && sync.data_state !== 'unavailable' && result.has_cache !== false) sync.data_state = 'stale';
       else if (result.cached && sync.data_state === 'fresh') sync.data_state = 'cached';
       platformSyncs[platform] = sync;
       updateConnectionDataActions(platform);
