@@ -165,15 +165,15 @@
   --color-source-custom: #697586;
 
   /* Schedule series identify content type, never result or severity. */
-  --color-series-course: #4078b5;
-  --color-series-course-soft: #edf4fb;
-  --color-series-course-border: #b9d0e8;
-  --color-series-recurring: #3f815f;
-  --color-series-recurring-soft: #edf7f1;
-  --color-series-recurring-border: #bdddc9;
-  --color-series-one-off: #986036;
-  --color-series-one-off-soft: #fcf3e9;
-  --color-series-one-off-border: #e8c8aa;
+  --color-series-course: var(--series-course);
+  --color-series-course-soft: var(--series-course-soft);
+  --color-series-course-border: var(--series-course-border);
+  --color-series-recurring: var(--series-recurring);
+  --color-series-recurring-soft: var(--series-recurring-soft);
+  --color-series-recurring-border: var(--series-recurring-border);
+  --color-series-one-off: var(--series-oneoff);
+  --color-series-one-off-soft: var(--series-oneoff-soft);
+  --color-series-one-off-border: var(--series-oneoff-border);
 
   /* Confirmed control direction A: quiet outline */
   --control-bg: #ffffff;

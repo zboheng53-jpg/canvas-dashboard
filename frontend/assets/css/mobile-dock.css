@@ -625,9 +625,10 @@
   }
 
   .period-day[aria-pressed="true"] {
-    background: var(--ink) !important;
-    color: var(--surface) !important;
-    border-color: var(--ink) !important;
+    background: var(--color-action-soft) !important;
+    color: var(--color-action) !important;
+    border-color: var(--color-action-border) !important;
+    font-weight: 600 !important;
   }
 
   /* Timetable grid cells on mobile: show selected day's stream */
