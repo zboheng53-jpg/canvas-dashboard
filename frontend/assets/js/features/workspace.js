@@ -631,7 +631,7 @@ async function openActionSearch(options = {}) {
   if (titleEl) titleEl.textContent = isSelectMode ? '选择要安排的事项' : '查找事项';
   if (subtitleEl) {
     subtitleEl.textContent = isSelectMode
-      ? '选择一项未完成待办或项目步骤关联到此日程'
+      ? '选择一项未完成待办或项目任务关联到此日程'
       : '可检索未完成待办、项目行动与已排程日程';
   }
   if (input) {
@@ -731,7 +731,7 @@ async function openActionSearch(options = {}) {
           b.setAttribute('aria-selected', 'false');
           const titleLine = wNode('strong', '', s.title);
           const badge = wNode('span', 'ui-badge', s.kind === 'recurring' ? '每周日程' : '独立日程');
-          badge.style.cssText = 'font-size: 11px; margin-left: 6px; font-weight: normal; color: var(--accent); background: var(--accent-subtle, rgba(0,100,250,0.08));';
+          badge.style.cssText = 'font-size: 11px; margin-left: 6px; font-weight: normal; color: var(--accent); background: var(--color-action-soft);';
           titleLine.append(badge);
           const metaText = s.kind === 'recurring'
             ? `每周重复 · ${s.start_time || ''}-${s.end_time || ''}`

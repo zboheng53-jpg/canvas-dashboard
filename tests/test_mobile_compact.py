@@ -116,7 +116,7 @@ def test_mobile_project_tasks_keep_title_space_and_working_actions(live_app, bro
     assert page.locator('#project-task-modal .project-modal-card').bounding_box()['width'] <= width
     page.locator('#project-task-modal .project-modal-close').click()
     current.get_by_role('button', name='完成步骤', exact=True).click()
-    history = page.locator('#project-detail > .project-finished-groups')
+    history = page.locator('#project-detail .project-finished-groups')
     expect(history).to_contain_text('已完成')
     expect(history).not_to_have_attribute('open', '')
     expect(history.locator('.project-task-item.is-done')).to_have_count(1)

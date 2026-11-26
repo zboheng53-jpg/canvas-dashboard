@@ -922,8 +922,8 @@
         const flagIcon = manualFlag ? '&#x2691;' : '&#x2690;';
         const flagTitle = manualFlag ? '取消标红' : '置顶标红';
         const flagClass = manualFlag ? 'btn-flag active' : 'btn-flag';
-        const dismissTitle = isDismissed ? '取消完成' : '完成';
-        const dismissAriaLabel = isDismissed ? '取消完成' : '标记完成';
+        const dismissTitle = isDismissed ? '取消完成' : '标记完成';
+        const dismissAriaLabel = isDismissed ? '取消完成' : '完成';
         // 只有逾期行保留红底与左侧强调线；今天与近三天只用截止标签的颜色区分，行底色保持正常。
         const uiListStateClass = urgencyClass.includes('is-overdue') ? ' ui-list-item--danger' : '';
         const uiListMutedClass = isDismissed ? ' ui-list-item--muted' : '';
@@ -978,8 +978,8 @@
         } else if (item.source === 'project') {
           const taskArg = item.taskId === null ? 'null' : item.taskId;
           flagBtnHtml = `<button type="button" class="todo-action-button ${flagClass}" onclick="toggleOverviewProjectFlag(${item.projectId}, ${taskArg}, '${item.projectKind}', ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>`;
-          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="completeOverviewProjectTodo(${item.projectId}, ${taskArg}, '${item.projectKind}')" title="完成" aria-label="标记完成">✓</button>`;
-          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="deleteProjectTodo(${item.projectId}, ${taskArg}, '${item.projectKind}')" title="${item.projectKind === 'project_due' ? '清除截止' : '永久删除'}" aria-label="${item.projectKind === 'project_due' ? '清除项目截止日期' : '永久删除'}">&#x1f5d1;</button>`;
+          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="completeOverviewProjectTodo(${item.projectId}, ${taskArg}, '${item.projectKind}')" title="标记完成" aria-label="完成">✓</button>`;
+          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="deleteProjectTodo(${item.projectId}, ${taskArg}, '${item.projectKind}')" title="${item.projectKind === 'project_due' ? '清除项目截止日期' : '永久删除'}" aria-label="${item.projectKind === 'project_due' ? '清除项目截止日期' : '删除'}">&#x1f5d1;</button>`;
         }
 
         const desktopActionsHtml = `${dismissBtnHtml}${flagBtnHtml}${detailBtnHtml}${skipBtnHtml}${deleteBtnHtml}`;
@@ -1679,7 +1679,10 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
           });
-          if (!resp.ok) throw new Error('save failed');
+          if (!resp.ok) {
+            const errData = await resp.json().catch(() => ({}));
+            throw new Error(errData.error || '');
+          }
           const data = await resp.json();
           customDataRevision++;
           const current = findTodo(source, todoId);
@@ -1693,7 +1696,10 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ source, item_id: String(todoId), subtasks }),
           });
-          if (!resp.ok) throw new Error('save failed');
+          if (!resp.ok) {
+            const errData = await resp.json().catch(() => ({}));
+            throw new Error(errData.error || '');
+          }
           const data = await resp.json();
           const current = findTodo(source, todoId);
           if (current) current.subtasks = data.subtasks || subtasks;
@@ -1709,7 +1715,7 @@
           todo.subtasks = rollbackSubtasks;
           renderSubtaskPanelInPlace(source, todoId);
         }
-        showUiToast('子任务保存失败，已恢复原状态', { tone: 'danger' });
+        showUiToast(e?.message ? `子任务保存失败：${e.message}` : '子任务保存失败，已恢复原状态', { tone: 'danger' });
         const cfg = PLATFORM_COLLECTIONS[source];
         if (source === 'custom') fetchCustomTodos();
         else if (cfg?.refresh) cfg.refresh();

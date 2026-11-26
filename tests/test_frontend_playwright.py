@@ -688,7 +688,8 @@ def test_frontend_schedule_is_fixed_height_precise_and_editable(live_app, browse
     page.locator("#schedule-management-open").click()
     expect(page.locator("#schedule-management-modal")).to_be_visible()
     expect(page.locator("#schedule-refresh-button")).to_be_visible()
-    expect(page.locator("#schedule-header-clear-btn")).to_be_visible()
+    expect(page.locator("#schedule-header-clear-btn")).to_have_count(0)
+    expect(page.locator("#schedule-management-clear-wrap")).to_be_hidden()
     page.locator("#schedule-import-alt-disclosure > summary").click()
     expect(page.locator("#schedule-import-button")).to_be_visible()
     expect(page.locator(".schedule-download-link")).to_be_visible()
@@ -912,7 +913,7 @@ def test_frontend_project_main_card_groups_tasks_and_todo_jump(live_app, browser
     expect(page.locator("#project-detail")).to_contain_text("数据处理")
 
     page.locator('.project-current-step-card').get_by_role('button', name='完成步骤', exact=True).click()
-    history = page.locator('#project-detail > .project-finished-groups')
+    history = page.locator('#project-detail .project-finished-groups')
     expect(history).to_contain_text('已完成')
     expect(history).not_to_have_attribute('open', '')
     history.locator('> summary').click()
@@ -1145,7 +1146,7 @@ def test_frontend_connection_actions_stay_with_the_selected_platform(live_app, b
 
         expect(selected_detail).to_be_visible()
         expect(selected_actions).to_have_count(1)
-        expect(selected_actions).to_be_visible()
+        expect(selected_actions).to_be_hidden()
         expect(page.locator('.connection-data-actions:visible')).to_have_count(0)
         assert page.evaluate(
             "([detail, actions]) => detail.contains(actions)",
