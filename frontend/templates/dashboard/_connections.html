@@ -72,6 +72,10 @@
         </details>
         <div class="ui-section-label detail-section-title">连接配置</div>
         <div class="ui-card detail-content-box">
+          <div id="canvas-connected-summary" class="hidden connection-session-row">
+            <span class="ui-status ui-status--success connection-state-connected">已连接</span>
+            <span class="muted">已保存日历订阅链接，粘贴新链接即可覆盖更新。</span>
+          </div>
           <form class="connection-form connection-form-inline" id="canvas-setup-form-inline">
             <label class="ui-label connection-field-label" for="feed-url-input-inline">Canvas 日历馈送 URL</label>
             <input type="url" id="feed-url-input-inline" placeholder="粘贴日历馈送 URL（.ics）..." autocomplete="off" class="ui-control">
@@ -84,7 +88,7 @@
             <a href="#guide-connections" data-open-view="guide" class="connection-trust-card__link">查看上手指南：如何获取链接 →</a>
           </p>
         </div>
-        <div class="connection-data-actions" data-platform-actions="canvas"><button type="button" class="ui-button ui-button--secondary btn-secondary" onclick="disconnectPlatform('canvas')">断开连接</button><button type="button" class="ui-button ui-button--danger btn-secondary connection-clear-button" onclick="showClearPlatformData('canvas')">清除平台数据</button></div>
+        <div class="connection-data-actions hidden" data-platform-actions="canvas"><button type="button" class="ui-button ui-button--secondary btn-secondary connection-disconnect-button hidden" onclick="disconnectPlatform('canvas')">断开连接</button><button type="button" class="ui-button ui-button--danger btn-secondary connection-clear-button hidden" onclick="showClearPlatformData('canvas')">清除平台数据</button></div>
       </div>
       <!-- 好课 Details -->
       <div class="connection-detail-section hidden" id="detail-haoke">
@@ -115,6 +119,10 @@
         </details>
         <div class="ui-section-label detail-section-title">连接配置</div>
         <div class="ui-card detail-content-box">
+          <div id="haoke-connected-summary" class="hidden connection-session-row">
+            <span class="ui-status ui-status--success connection-state-connected">已连接</span>
+            <span class="muted" id="haoke-connected-account">已保存登录凭据，重新输入学号和密码即可更新。</span>
+          </div>
           <form class="connection-form" id="haoke-setup-form-inline">
             <label class="ui-label connection-field-label" for="haoke-username-inline">好课学号</label>
             <input type="text" id="haoke-username-inline" placeholder="学号" autocomplete="username" class="ui-control">
@@ -127,7 +135,7 @@
             使用同济大学统一身份认证的学号和密码登录（智图 AI 好课平台）
           </p>
         </div>
-        <div class="connection-data-actions" data-platform-actions="haoke"><button type="button" class="ui-button ui-button--secondary btn-secondary" onclick="disconnectPlatform('haoke')">断开连接</button><button type="button" class="ui-button ui-button--danger btn-secondary connection-clear-button" onclick="showClearPlatformData('haoke')">清除平台数据</button></div>
+        <div class="connection-data-actions hidden" data-platform-actions="haoke"><button type="button" class="ui-button ui-button--secondary btn-secondary connection-disconnect-button hidden" onclick="disconnectPlatform('haoke')">断开连接</button><button type="button" class="ui-button ui-button--danger btn-secondary connection-clear-button hidden" onclick="showClearPlatformData('haoke')">清除平台数据</button></div>
       </div>
       <!-- 智学盟 Details -->
       <div class="connection-detail-section hidden" id="detail-zhixuemeng">
@@ -161,44 +169,61 @@
           <!-- Logged in state -->
           <div id="zxm-logged-in-inline" class="hidden connection-stack">
             <div class="connection-session-row">
-              <span class="ui-status ui-status--success connection-state-connected">已登录</span>
-              <button type="button" onclick="logoutZhixuemengInline()" class="ui-button ui-button--danger ui-button--block ui-button--sm btn-sm btn-wide connection-danger-quiet action-button" data-od-id="zhixuemeng-logout">登出</button>
+              <span class="ui-status ui-status--success connection-state-connected">已连接</span>
             </div>
             <div class="form-group">
               <label for="zxm-course-select-inline" class="ui-label connection-field-label">选择课程</label>
-              <select id="zxm-course-select-inline" onchange="changeZhixuemengCourseInline()" class="ui-control logged-in-select"></select>
+              <select id="zxm-course-select-inline" class="ui-control logged-in-select"></select>
             </div>
           </div>
 
           <!-- Setup state -->
           <div id="zxm-setup-inline" class="hidden connection-stack">
-            <p class="ui-help setup-hint connection-setup-hint">请输入智学盟平台的手机号和验证码登录：</p>
-            <div class="connection-form connection-form-inline">
-              <label class="ui-label connection-field-label" for="zxm-phone-inline">智学盟手机号</label>
-              <input type="tel" id="zxm-phone-inline" placeholder="手机号" autocomplete="tel" class="ui-control">
-              <button type="button" id="zxm-send-sms-btn-inline" data-od-id="zhixuemeng-send-code" onclick="sendZhixuemengSmsInline()" class="ui-button ui-button--secondary btn-auth-secondary action-button">发送验证码</button>
+            <div class="ktp-auth-tabs" id="zxm-auth-tabs-inline" role="tablist" aria-label="智学盟登录方式切换">
+              <button type="button" class="ui-button ui-button--choice ktp-auth-tab is-active" id="zxm-tab-btn-sms" data-od-id="zhixuemeng-tab-sms" role="tab" aria-selected="true" onclick="switchZxmAuthTab('sms')">
+                短信验证码登录
+              </button>
+              <button type="button" class="ui-button ui-button--choice ktp-auth-tab" id="zxm-tab-btn-pwd" data-od-id="zhixuemeng-password-toggle" role="tab" aria-selected="false" onclick="switchZxmAuthTab('pwd')">
+                账号密码登录
+              </button>
             </div>
-            <div class="connection-form connection-form-inline">
-              <label class="ui-label connection-field-label" for="zxm-captcha-inline">短信验证码</label>
-              <input type="text" id="zxm-captcha-inline" placeholder="验证码" autocomplete="one-time-code" class="ui-control">
-              <button type="button" data-od-id="zhixuemeng-code-login" onclick="doZhixuemengLoginInline()" class="ui-button ui-button--primary connection-primary-action action-button">登录</button>
+
+            <div id="zxm-sms-login-panel">
+              <div class="ktp-field-group">
+                <label class="ui-label connection-field-label" for="zxm-phone-inline">手机号</label>
+                <div class="ktp-input-with-button">
+                  <input type="tel" id="zxm-phone-inline" placeholder="请输入智学盟绑定的手机号" autocomplete="tel" class="ui-control">
+                  <button type="button" id="zxm-send-sms-btn-inline" data-od-id="zhixuemeng-send-code" onclick="sendZhixuemengSmsInline()" class="ui-button ui-button--secondary ktp-action-btn action-button">发送验证码</button>
+                </div>
+              </div>
+              <div class="ktp-field-group">
+                <label class="ui-label connection-field-label" for="zxm-captcha-inline">短信验证码</label>
+                <input type="text" id="zxm-captcha-inline" placeholder="请输入短信验证码" autocomplete="one-time-code" class="ui-control">
+              </div>
+              <div class="ktp-submit-wrap">
+                <button type="button" id="zxm-sms-login-btn-inline" data-od-id="zhixuemeng-code-login" onclick="doZhixuemengLoginInline()" class="ui-button ui-button--primary ui-button--block ktp-submit-btn connection-primary-action action-button">登录智学盟</button>
+              </div>
             </div>
-            <div class="ui-help form-note connection-form-note">
-              <button type="button" class="ui-button ui-button--text connection-text-button" data-od-id="zhixuemeng-password-toggle" onclick="showZxmPasswordLoginInline()">使用密码登录</button>
-            </div>
-            <div id="zxm-password-login-inline" class="hidden connection-password-panel">
-              <form id="zxm-pwd-form-inline" class="connection-form">
-                <label class="ui-label connection-field-label" for="zxm-username-inline">智学盟用户名</label>
-                <input type="text" id="zxm-username-inline" placeholder="用户名" autocomplete="username" class="ui-control">
-                <label class="ui-label connection-field-label" for="zxm-password-inline">智学盟密码</label>
-                <input type="password" id="zxm-password-inline" placeholder="密码" autocomplete="current-password" class="ui-control">
-                <button type="submit" class="ui-button ui-button--primary ui-button--block btn-primary btn-wide action-button" data-od-id="zhixuemeng-password-login">登录</button>
+
+            <div id="zxm-password-login-inline" class="hidden">
+              <form id="zxm-pwd-form-inline">
+                <div class="ktp-field-group">
+                  <label class="ui-label connection-field-label" for="zxm-username-inline">智学盟用户名</label>
+                  <input type="text" id="zxm-username-inline" placeholder="请输入智学盟账号或手机号" autocomplete="username" class="ui-control">
+                </div>
+                <div class="ktp-field-group">
+                  <label class="ui-label connection-field-label" for="zxm-password-inline">智学盟密码</label>
+                  <input type="password" id="zxm-password-inline" placeholder="请输入密码" autocomplete="current-password" class="ui-control">
+                </div>
+                <div class="ktp-submit-wrap">
+                  <button type="submit" id="zxm-pwd-login-btn-inline" class="ui-button ui-button--primary ui-button--block ktp-submit-btn action-button" data-od-id="zhixuemeng-password-login">登录智学盟</button>
+                </div>
               </form>
             </div>
           </div>
           <div class="ui-alert ui-alert--danger ui-alert--compact error-banner connection-error hidden" id="zhixuemeng-error-inline" role="alert"></div>
         </div>
-        <div class="connection-data-actions" data-platform-actions="zhixuemeng"><button type="button" class="ui-button ui-button--secondary btn-secondary" onclick="disconnectPlatform('zhixuemeng')">断开连接</button><button type="button" class="ui-button ui-button--danger btn-secondary connection-clear-button" onclick="showClearPlatformData('zhixuemeng')">清除平台数据</button></div>
+        <div class="connection-data-actions hidden" data-platform-actions="zhixuemeng"><button type="button" class="ui-button ui-button--secondary btn-secondary connection-disconnect-button hidden" onclick="disconnectPlatform('zhixuemeng')">断开连接</button><button type="button" class="ui-button ui-button--danger btn-secondary connection-clear-button hidden" onclick="showClearPlatformData('zhixuemeng')">清除平台数据</button></div>
       </div>
       <!-- 智慧树 Details -->
       <div class="connection-detail-section hidden" id="detail-zhihuishu">
@@ -232,11 +257,11 @@
         <div class="ui-card detail-content-box">
           <dl class="status-grid">
             <dt>登录状态</dt><dd id="zhs-session-inline">--</dd>
-            <dt>Worker</dt><dd id="zhs-worker-inline">--</dd>
-            <dt>最近保活</dt><dd id="zhs-last-keepalive-inline">--</dd>
+            <dt>后台同步服务</dt><dd id="zhs-worker-inline">--</dd>
+            <dt>上次检查登录</dt><dd id="zhs-last-keepalive-inline">--</dd>
             <dt>最近抓取</dt><dd id="zhs-last-fetch-inline">--</dd>
             <dt>最近成功</dt><dd id="zhs-last-success-inline">--</dd>
-            <dt>错误</dt><dd id="zhs-last-error-inline">--</dd>
+            <dt id="zhs-last-error-label-inline" class="hidden">错误</dt><dd id="zhs-last-error-inline" class="hidden">--</dd>
           </dl>
         </div>
 
@@ -249,7 +274,7 @@
           </div>
           <div class="ui-feedback ui-feedback--info login-session-message" id="zhs-login-session-message-inline" role="status" aria-live="polite"></div>
         </div>
-        <div class="connection-data-actions" data-platform-actions="zhihuishu"><button type="button" class="ui-button ui-button--secondary btn-secondary" onclick="disconnectPlatform('zhihuishu')">断开连接</button><button type="button" class="ui-button ui-button--danger btn-secondary connection-clear-button" onclick="showClearPlatformData('zhihuishu')">清除平台数据</button></div>
+        <div class="connection-data-actions hidden" data-platform-actions="zhihuishu"><button type="button" class="ui-button ui-button--secondary btn-secondary connection-disconnect-button hidden" onclick="disconnectPlatform('zhihuishu')">断开连接</button><button type="button" class="ui-button ui-button--danger btn-secondary connection-clear-button hidden" onclick="showClearPlatformData('zhihuishu')">清除平台数据</button></div>
       </div>
       <!-- 课堂派 Details -->
       <div class="connection-detail-section hidden" id="detail-ketangpai">
@@ -283,19 +308,18 @@
           <!-- Logged in state -->
           <div id="ktp-logged-in-inline" class="hidden connection-stack">
             <div class="connection-session-row">
-              <span class="ui-status ui-status--success connection-state-connected">已登录</span>
-              <button type="button" onclick="logoutKetangpaiInline()" class="ui-button ui-button--danger ui-button--block ui-button--sm btn-sm btn-wide connection-danger-quiet action-button" data-od-id="ketangpai-logout">登出</button>
+              <span class="ui-status ui-status--success connection-state-connected">已连接</span>
             </div>
             <div class="form-group">
               <label for="ktp-course-select-inline" class="ui-label connection-field-label">课程列表</label>
-              <select id="ktp-course-select-inline" onchange="changeKetangpaiCourseInline()" class="ui-control logged-in-select"></select>
+              <select id="ktp-course-select-inline" class="ui-control logged-in-select"></select>
             </div>
           </div>
 
           <!-- Setup state -->
           <div id="ktp-setup-inline" class="connection-stack">
             <!-- 统一顶部登录方式分段选项卡 -->
-            <div class="ktp-auth-tabs" role="tablist" aria-label="登录方式切换">
+            <div class="ktp-auth-tabs" id="ktp-auth-tabs-inline" role="tablist" aria-label="登录方式切换">
               <button type="button" class="ui-button ui-button--choice ktp-auth-tab is-active" id="ktp-tab-btn-sms" data-od-id="ketangpai-tab-sms" role="tab" aria-selected="true" onclick="switchKtpAuthTab('sms')">
                 短信验证码登录
               </button>
@@ -318,13 +342,13 @@
                 <input type="text" id="ktp-captcha-inline" placeholder="请输入短信验证码" autocomplete="one-time-code" class="ui-control">
               </div>
               <div class="ktp-submit-wrap">
-                <button type="button" data-od-id="ketangpai-code-login" onclick="doKetangpaiLoginInline()" class="ui-button ui-button--primary ui-button--block ktp-submit-btn connection-primary-action action-button">登录课堂派</button>
+                <button type="button" id="ktp-sms-login-btn-inline" data-od-id="ketangpai-code-login" onclick="doKetangpaiLoginInline()" class="ui-button ui-button--primary ui-button--block ktp-submit-btn connection-primary-action action-button">登录课堂派</button>
               </div>
             </div>
 
             <!-- 账号密码登录面板 -->
             <div id="ktp-password-login-inline" class="hidden">
-              <form id="ktp-pwd-form-inline" onsubmit="doKetangpaiPasswordLoginInline(event); return false;">
+              <form id="ktp-pwd-form-inline">
                 <div class="ktp-field-group">
                   <label class="ui-label connection-field-label" for="ktp-username-inline">课堂派账号 / 手机号 / 邮箱</label>
                   <input type="text" id="ktp-username-inline" placeholder="请输入账号、手机号或邮箱" autocomplete="username" class="ui-control">
@@ -334,14 +358,14 @@
                   <input type="password" id="ktp-password-inline" placeholder="请输入密码" autocomplete="current-password" class="ui-control">
                 </div>
                 <div class="ktp-submit-wrap">
-                  <button type="submit" class="ui-button ui-button--primary ui-button--block ktp-submit-btn action-button" data-od-id="ketangpai-password-login">登录课堂派</button>
+                  <button type="submit" id="ktp-pwd-login-btn-inline" class="ui-button ui-button--primary ui-button--block ktp-submit-btn action-button" data-od-id="ketangpai-password-login">登录课堂派</button>
                 </div>
               </form>
             </div>
           </div>
           <div class="ui-alert ui-alert--danger ui-alert--compact error-banner connection-error hidden" id="ketangpai-error-inline" role="alert"></div>
         </div>
-        <div class="connection-data-actions" data-platform-actions="ketangpai"><button type="button" class="ui-button ui-button--secondary btn-secondary" onclick="disconnectPlatform('ketangpai')">断开连接</button><button type="button" class="ui-button ui-button--danger btn-secondary connection-clear-button" onclick="showClearPlatformData('ketangpai')">清除平台数据</button></div>
+        <div class="connection-data-actions hidden" data-platform-actions="ketangpai"><button type="button" class="ui-button ui-button--secondary btn-secondary connection-disconnect-button hidden" onclick="disconnectPlatform('ketangpai')">断开连接</button><button type="button" class="ui-button ui-button--danger btn-secondary connection-clear-button hidden" onclick="showClearPlatformData('ketangpai')">清除平台数据</button></div>
       </div>
       <!-- 同济OJ Details -->
       <div class="connection-detail-section hidden" id="detail-tongjioj">
@@ -375,18 +399,17 @@
           <!-- Logged in state -->
           <div id="tjoj-logged-in-inline" class="hidden connection-stack">
             <div class="connection-session-row">
-              <span class="ui-status ui-status--success connection-state-connected">已登录</span>
-              <button type="button" onclick="logoutTongjiojInline()" class="ui-button ui-button--danger ui-button--block ui-button--sm btn-sm btn-wide connection-danger-quiet action-button" data-od-id="tongjioj-logout">登出</button>
+              <span class="ui-status ui-status--success connection-state-connected">已连接</span>
             </div>
             <div class="form-group">
               <label for="tjoj-course-select-inline" class="ui-label connection-field-label">课程筛选</label>
-              <select id="tjoj-course-select-inline" onchange="changeTongjiojCourseInline()" class="ui-control logged-in-select"></select>
+              <select id="tjoj-course-select-inline" class="ui-control logged-in-select"></select>
             </div>
           </div>
 
           <!-- Setup state -->
           <div id="tjoj-setup-inline" class="connection-stack">
-            <div class="ktp-auth-tabs" role="tablist" aria-label="同济OJ登录方式切换">
+            <div class="ktp-auth-tabs" id="tjoj-auth-tabs-inline" role="tablist" aria-label="同济OJ登录方式切换">
               <button type="button" class="ui-button ui-button--choice ktp-auth-tab is-active" id="tjoj-tab-btn-iam" data-od-id="tongjioj-tab-iam" role="tab" aria-selected="true" onclick="switchTjojAuthTab('iam')">
                 统一身份认证登录
               </button>
@@ -423,7 +446,7 @@
                   </div>
                 </div>
                 <div class="ktp-submit-wrap">
-                  <button type="button" data-od-id="tongjioj-iam-verify-code" onclick="verifyTongjiojSecondAuthCodeInline()" class="ui-button ui-button--primary ui-button--block ktp-submit-btn action-button">完成加强认证并登录</button>
+                  <button type="button" id="tjoj-verify-code-btn-inline" data-od-id="tongjioj-iam-verify-code" onclick="verifyTongjiojSecondAuthCodeInline()" class="ui-button ui-button--primary ui-button--block ktp-submit-btn action-button">完成加强认证并登录</button>
                 </div>
               </div>
             </div>
@@ -440,17 +463,51 @@
                   <input type="password" id="tjoj-local-password-inline" placeholder="请输入 OJ 密码" autocomplete="current-password" class="ui-control">
                 </div>
                 <div class="ktp-submit-wrap">
-                  <button type="submit" class="ui-button ui-button--primary ui-button--block ktp-submit-btn action-button" data-od-id="tongjioj-local-login">登录同济OJ</button>
+                  <button type="submit" id="tjoj-local-login-btn-inline" class="ui-button ui-button--primary ui-button--block ktp-submit-btn action-button" data-od-id="tongjioj-local-login">登录同济OJ</button>
                 </div>
               </form>
             </div>
           </div>
           <div class="ui-alert ui-alert--danger ui-alert--compact error-banner connection-error hidden" id="tongjioj-error-inline" role="alert"></div>
         </div>
-        <div class="connection-data-actions" data-platform-actions="tongjioj"><button type="button" class="ui-button ui-button--secondary btn-secondary" onclick="disconnectPlatform('tongjioj')">断开连接</button><button type="button" class="ui-button ui-button--danger btn-secondary connection-clear-button" onclick="showClearPlatformData('tongjioj')">清除平台数据</button></div>
+        <div class="connection-data-actions hidden" data-platform-actions="tongjioj"><button type="button" class="ui-button ui-button--secondary btn-secondary connection-disconnect-button hidden" onclick="disconnectPlatform('tongjioj')">断开连接</button><button type="button" class="ui-button ui-button--danger btn-secondary connection-clear-button hidden" onclick="showClearPlatformData('tongjioj')">清除平台数据</button></div>
       </div>
     </div>
   </div>
 </section>
-</section>
+
+<div class="project-modal-backdrop hidden" id="platform-data-confirm-modal">
+  <div class="project-modal-card project-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="platform-data-confirm-title">
+    <div class="project-modal-header"><div><h2 id="platform-data-confirm-title">清除平台数据</h2></div><button type="button" class="ui-icon-button project-modal-close" onclick="closePlatformDataConfirm()" aria-label="关闭">×</button></div>
+    <p class="project-confirm-copy" id="platform-data-confirm-copy"></p>
+    <div class="project-modal-actions"><button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="closePlatformDataConfirm()">取消</button><button type="button" class="ui-button ui-button--danger project-button-danger" id="platform-data-confirm-submit-btn" onclick="confirmClearPlatformData()">确认清除</button></div>
+  </div>
+</div>
+
+<div class="project-modal-backdrop hidden" id="ktp-figure-modal">
+  <div class="project-modal-card project-modal-card-small" role="dialog" aria-modal="true" aria-labelledby="ktp-figure-modal-title">
+    <div class="project-modal-header">
+      <div>
+        <h2 id="ktp-figure-modal-title">安全验证</h2>
+      </div>
+      <button type="button" class="ui-icon-button project-modal-close" onclick="closeKetangpaiFigureModal()" aria-label="关闭">×</button>
+    </div>
+    <form class="project-modal-form" id="ktp-figure-form">
+      <p class="ui-help ktp-figure-prompt">请输入计算结果以发送短信验证码：</p>
+      <div class="ktp-figure-preview-wrap">
+        <img id="ktp-figure-img" src="" alt="计算验证码" class="ktp-figure-img" onclick="refreshKetangpaiFigureCode()" title="看不清？点击刷新验证码">
+        <button type="button" class="ui-button ui-button--secondary ui-button--sm btn-sm" onclick="refreshKetangpaiFigureCode()">换一张</button>
+      </div>
+      <div class="ktp-field-group">
+        <label class="ui-label connection-field-label" for="ktp-figure-input">计算结果</label>
+        <input type="text" id="ktp-figure-input" placeholder="请输入图片中的计算结果" autocomplete="off" class="ui-control">
+      </div>
+      <div class="ui-alert ui-alert--danger ui-alert--compact error-banner hidden" id="ktp-figure-error" role="alert"></div>
+      <div class="project-modal-actions">
+        <button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="closeKetangpaiFigureModal()">取消</button>
+        <button type="submit" id="ktp-figure-submit-btn" class="ui-button ui-button--primary project-button-primary">确认发送</button>
+      </div>
+    </form>
+  </div>
+</div>
 

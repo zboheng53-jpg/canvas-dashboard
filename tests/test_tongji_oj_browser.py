@@ -272,7 +272,9 @@ def test_refresh_burst_keeps_local_requests_responsive(live_app, browser, monkey
 
 
 @pytest.mark.parametrize("reauth,count", [(False, 2), (True, 3)])
-def test_refresh_waits_for_last_platform_then_shows_confirmed_failure_summary(live_app, browser, reauth, count):
+def test_refresh_waits_for_last_platform_then_shows_confirmed_failure_summary(live_app, browser, monkeypatch, reauth, count):
+    if count == 3:
+        monkeypatch.setattr(dashboard_app, "has_zxm_token", lambda username: True)
     page = browser.new_page()
     page.goto(f"{live_app}/register")
     page.fill("#register-username", "summary")

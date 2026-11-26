@@ -53,7 +53,7 @@ def test_focus_select_today_complete_and_finished_group(live_app, browser, width
         page.locator('.project-next-action-card').get_by_role('button', name='更换下一步', exact=True).click()
         page.locator('#project-choice-modal').get_by_role('button', name='未来的计划').click()
         expect(page.locator('.project-next-action-card .project-next-action-text')).to_have_text('未来的计划')
-        history = page.locator('#project-detail > .project-finished-groups')
+        history = page.locator('#project-detail .project-finished-groups')
         expect(history).to_be_visible()
         assert history.get_attribute('open') is None
         expect(page.get_by_text('暂无未完成任务', exact=True)).to_have_count(0)
