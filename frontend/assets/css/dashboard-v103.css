@@ -17,13 +17,6 @@
 
 @media (max-width: 768px) {
   .schedule-manager-heading { align-items: stretch; flex-direction: column; }
-  .manager-section-heading { align-items: flex-start; flex-direction: column; gap: 7px; }
-  .manager-section-heading p { max-width: none; text-align: left; }
-  .schedule-item-form { grid-template-columns: 1fr 1fr; }
-  .schedule-item-form input[name="title"] { grid-column: 1 / -1; }
-  .schedule-item-form button { grid-column: 1 / -1; }
-  .schedule-course-row, .schedule-item-row { align-items: flex-start; flex-direction: column; }
-  .schedule-item-actions { justify-content: flex-start; }
   .project-manager-heading { align-items: stretch; flex-direction: column; }
   .project-manager-layout { grid-template-columns: 1fr; }
   .project-browser { display: grid; gap: 10px; }
@@ -32,14 +25,12 @@
   .project-detail-actions, .project-task-toolbar > div:last-child { flex-wrap: wrap; }
   .project-group-heading { align-items: flex-start; }
   .project-group-actions { flex: 0 0 auto; }
-  .project-task-row { grid-template-columns: 16px minmax(0, 1fr) auto 30px; }
   .project-task-toolbar p { max-width: 500px; }
   .project-modal-backdrop { padding: 12px; }
   .project-modal-card { max-height: calc(100vh - 24px); padding: 16px; }
   .console-manager-heading { align-items: stretch; flex-direction: column; }
   .console-secondary-button { align-self: flex-start; }
   .settings-summary-grid { grid-template-columns: 1fr; }
-  .connection-platform-grid .login-card { min-height: 124px; }
   .calendar-subscription-workspace { padding: 18px; }
   .calendar-subscription-actions { display: grid; grid-template-columns: 1fr; }
   .calendar-subscription-actions button { width: 100%; }
@@ -91,39 +82,6 @@
       font-weight: 600 !important;
     }
 
-
-
-    /* 2. 重新设计的控制台风格顶部身份区 (Console Greeting Area) */
-    .sidebar-heading {
-      display: flex !important;
-      align-items: center !important;
-      justify-content: space-between !important;
-      padding: 22px 16px 20px 20px !important;
-      background: var(--color-glass) !important;
-      backdrop-filter: blur(10px) !important;
-      -webkit-backdrop-filter: blur(10px) !important;
-      border-bottom: 1px solid var(--color-row-divider) !important;
-      border-radius: var(--radius-card) var(--radius-card) 0 0 !important;
-      gap: 12px !important;
-      transition: background-color var(--duration-normal) var(--ease-standard), border-color var(--duration-normal) var(--ease-standard);
-    }
-
-    .sidebar-brand {
-      display: flex !important;
-      align-items: center !important;
-      gap: 12px !important;
-      min-width: 0 !important;
-      flex: 1 !important;
-    }
-
-    /* 精致圆形头像容器 */
-    .sidebar-avatar-container {
-      position: relative !important;
-      width: 38px !important;
-      height: 38px !important;
-      flex-shrink: 0 !important;
-    }
-
     .sidebar-avatar-circle {
       width: 100% !important;
       height: 100% !important;
@@ -171,14 +129,6 @@
       border-color: var(--color-border) !important;
     }
 
-    .sidebar-brand-copy {
-      display: flex !important;
-      flex-direction: column !important;
-      justify-content: center !important;
-      min-width: 0 !important;
-      flex: 1 !important;
-    }
-
     #sidebar-greeting-title,
     .sidebar-greeting-title {
       font-family: var(--font-title) !important;
@@ -221,12 +171,6 @@
 
 
       flex-shrink: 0;
-    }
-
-    .sidebar-collapse-svg {
-      width: 14px !important;
-      height: 14px !important;
-      transition: transform var(--motion-duration-panel) var(--ease-standard);
     }
 
     /* 折叠状态下的特别处理，支持垂直布局防拥挤 */
@@ -328,42 +272,9 @@
       transform: scale(0.98) !important;
     }
 
-    /* Typography Polish: All-Caps & Numeric Formatting */
-    .kicker, .eyebrow {
-      letter-spacing: 0.06em !important;
-      font-variant-numeric: tabular-nums !important;
-    }
-
-    /* 6. 待办/优先事项 List-Row System (静音化列表，彻底消除粗重粉绿背景卡片) */
-    .unified-item, .todo-item {
-      position: relative !important;
-      overflow: hidden !important;
-      transition: background-color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
-      border-radius: 0 !important;
-      padding: 9px 8px !important;
-      margin-bottom: 0 !important;
-      display: flex !important;
-      align-items: center !important;
-      gap: 12px !important;
-      border: none !important;
-      border-bottom: 1px solid var(--color-row-divider) !important;
-      background: transparent !important;
-      box-shadow: none !important;
-    }
-
     .unified-item-wrap:last-child .unified-item,
     .todo-group-items > .unified-item-wrap:last-child .unified-item {
       border-bottom: none !important;
-    }
-
-    .unified-item:hover, .todo-item:hover {
-      background: var(--color-row-hover) !important;
-    }
-
-    /* 彻底清除笨重左侧色条伪元素::before */
-    .unified-item::before, .todo-item::before {
-      display: none !important;
-      content: none !important;
     }
 
     /* 紧急/高优先 与 次高/普通优先 (不使用全行彩色背景，仅适度点缀截止日期与极小标识) */
@@ -496,23 +407,6 @@
       color: var(--color-text-primary) !important;
       font-size: 14px !important;
       line-height: 1.4 !important;
-    }
-
-    /* 课程与项目 (收敛为普通中性灰文本，杜绝亮蓝醒目胶囊包围) */
-    .unified-item .item-course:not(button), .todo-item .item-course:not(button) {
-      color: var(--color-text-muted);
-      background: transparent;
-      border: none;
-      font-size: 12.5px;
-      font-weight: 400;
-      padding: 0;
-      border-radius: 0;
-      margin-left: auto;
-      margin-right: 8px;
-      white-space: nowrap;
-      height: auto;
-      line-height: 1.4;
-      max-width: 140px;
     }
 
     /* 操作按钮组：常驻 100% 不透明，清晰无透光 */
@@ -1391,73 +1285,6 @@
       flex: 0 0 auto;
     }
 
-    /* v103 overview content and project task cards */
-    .project-overview-main {
-      gap: 9px !important;
-      padding: 14px !important;
-      background: var(--color-surface-subtle) !important;
-      border: 1px solid var(--color-border) !important;
-      border-radius: 10px !important;
-      box-shadow: var(--color-shadow-card) !important;
-      transition: border-color var(--duration-normal) var(--ease-standard), background-color var(--duration-normal) var(--ease-standard), box-shadow var(--duration-normal) var(--ease-standard), transform var(--duration-normal) var(--ease-standard);
-    }
-
-    .project-overview-main:hover {
-      background: var(--color-surface) !important;
-      border-color: var(--color-action-border) !important;
-      box-shadow: var(--shadow-hover) !important;
-      transform: translateY(-1px) !important;
-    }
-
-    .project-overview-title {
-      align-items: center !important;
-      justify-content: space-between !important;
-      gap: 10px !important;
-    }
-
-    .project-overview-title span {
-      padding: 2px 7px !important;
-      border: 0 !important;
-      border-radius: 5px !important;
-      background: var(--color-pill-muted-bg) !important;
-      color: var(--color-text-secondary) !important;
-      font-family: var(--font-number) !important;
-      font-size: 10.5px !important;
-      font-weight: 500 !important;
-      letter-spacing: 0.01em !important;
-    }
-
-    .project-overview-objective {
-      color: var(--color-text-secondary) !important;
-      font-family: var(--font-body) !important;
-      font-size: 12px !important;
-      line-height: 1.55 !important;
-      letter-spacing: 0.01em !important;
-    }
-
-    .project-overview-stats,
-    .project-overview-due {
-      color: var(--color-text-secondary) !important;
-      font-family: var(--font-number) !important;
-      font-size: 11px !important;
-      line-height: 1.45 !important;
-      letter-spacing: 0.01em !important;
-    }
-
-    .project-overview-section {
-      gap: 7px !important;
-      padding-top: 10px !important;
-      border-top: 1px dashed var(--color-border) !important;
-    }
-
-    .project-overview-section-heading {
-      color: var(--color-text-muted) !important;
-      font-family: var(--font-kicker) !important;
-      font-size: 10px !important;
-      font-weight: 500 !important;
-      letter-spacing: 0.05em !important;
-    }
-
     .project-overview-task {
       grid-template-columns: 14px minmax(0, 1fr) !important;
       gap: 8px !important;
@@ -1476,55 +1303,6 @@
     .project-overview-task small {
       color: var(--color-text-secondary) !important;
       font-family: var(--font-number) !important;
-      font-size: 11px !important;
-      line-height: 1.4 !important;
-      letter-spacing: 0.01em !important;
-    }
-
-    .today-schedule-list {
-      margin-top: 8px !important;
-      gap: 8px !important;
-    }
-
-    .today-schedule-row {
-      grid-template-columns: 82px minmax(0, 1fr) !important;
-      gap: 10px !important;
-      padding: 9px 12px !important;
-      background: var(--color-surface-subtle) !important;
-      border: 1px solid var(--color-border) !important;
-      border-radius: 8px !important;
-      transition: background-color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
-    }
-
-    .today-schedule-row:hover {
-      background: var(--color-surface) !important;
-      border-color: var(--color-border-strong) !important;
-      box-shadow: var(--color-shadow-card) !important;
-    }
-
-    .today-schedule-row time {
-      color: var(--color-text-primary) !important;
-      font-family: var(--font-number) !important;
-      font-size: 11.5px !important;
-      font-weight: 500 !important;
-      line-height: 1.45 !important;
-      letter-spacing: 0.01em !important;
-      font-variant-numeric: tabular-nums !important;
-    }
-
-    .today-schedule-row strong {
-      color: var(--color-text-primary) !important;
-      font-family: var(--font-body) !important;
-      font-size: 12.5px !important;
-      font-weight: 600 !important;
-      line-height: 1.45 !important;
-      letter-spacing: 0.005em !important;
-    }
-
-    .today-schedule-row small {
-      margin-top: 3px !important;
-      color: var(--color-text-secondary) !important;
-      font-family: var(--font-body) !important;
       font-size: 11px !important;
       line-height: 1.4 !important;
       letter-spacing: 0.01em !important;
