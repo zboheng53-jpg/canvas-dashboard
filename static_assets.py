@@ -30,8 +30,20 @@ def build_assets(asset_root: Path) -> dict[str, str]:
             target.write_bytes(data)
             manifest[relative.as_posix()] = built.as_posix()
     output.mkdir(parents=True, exist_ok=True)
-    (output / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, sort_keys=True), encoding='utf-8')
+    manifest_path = output / 'manifest.json'
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, sort_keys=True), encoding='utf-8')
+    _prune_unreferenced(asset_root, set(manifest.values()), manifest_path)
     return manifest
+
+
+def _prune_unreferenced(asset_root: Path, referenced: set[str], manifest_path: Path) -> None:
+    """Delete hashed files that no current source maps to; they accumulate on every build."""
+    for path in sorted(manifest_path.parent.rglob('*')):
+        if not path.is_file() or path == manifest_path:
+            continue
+        relative = path.relative_to(asset_root).as_posix()
+        if relative not in referenced:
+            path.unlink()
 
 
 def load_manifest(asset_root: Path) -> dict[str, str]:

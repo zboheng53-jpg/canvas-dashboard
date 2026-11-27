@@ -141,7 +141,6 @@ function openProjectModal(projectId = null) {
   form.project_id.value = project?.id || "";
   form.name.value = project?.name || "";
   form.objective.value = project?.objective || "";
-  if (form.materials) form.materials.value = project?.materials || "";
   form.due_date.value = project?.due_date || "";
   document.getElementById("project-editor-title").textContent = project ? "编辑项目" : "新建项目";
   document.getElementById("project-editor-error").textContent = "";
@@ -859,7 +858,6 @@ async function saveProjectEditor(event) {
   const payload = {
     name: form.name.value.trim(),
     objective: form.objective.value.trim(),
-    ...(form.materials ? {materials: form.materials.value.trim()} : {}),
     due_date: form.due_date.value || null,
   };
   submit.disabled = true;

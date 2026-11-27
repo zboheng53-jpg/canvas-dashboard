@@ -43,6 +43,7 @@ Thumbs.db
 
 # Local agent/tool state.
 .claude/
+.agy-staff/
 .superpowers/
 .worktrees/
 .recovery/

@@ -17,7 +17,6 @@ TOKEN_PREFIX = "cda_"
 LAST_USED_THROTTLE_SECONDS = 300  # Only update last_used_at once per 5 minutes per token
 VALID_SCOPES = frozenset({"read", "write", "delete"})
 DEFAULT_NEW_TOKEN_SCOPES = ["read"]
-DEFAULT_LEGACY_SCOPES = ["read", "write", "delete"]
 
 
 def _token_file(username: str) -> Path:

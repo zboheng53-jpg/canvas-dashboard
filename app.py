@@ -81,7 +81,7 @@ from ketangpai_client import (
 )
 from login_capacity import LoginCapacityError
 from pathlib import Path
-from platform_state import build_platform_todos_response
+from platform_state import VALID_STATE_ACTIONS, build_platform_todos_response
 from routes.agent import bp as agent_bp
 from routes.planning import bp as planning_bp
 from services.academic import _check_today_holiday, get_term_info
@@ -107,7 +107,6 @@ from user_paths import DATA_DIR, user_dir
 from web_common import (
     CST,
     _get_external_base_url,
-    _with_default_error_code,
     api_error,
     invalid_request_response,
     read_json_request,
@@ -1176,7 +1175,7 @@ def api_canvas_state():
             return invalid_request_response()
         action = data.get("action", "")
         item_id = data.get("id")
-        if action not in ("hide", "unhide", "highlight", "unhighlight", "delete", "undelete", "complete", "uncomplete") or item_id is None:
+        if action not in VALID_STATE_ACTIONS or item_id is None:
             return jsonify({"ok": False, "error": "无效操作"}), 400
         state = update_state(username, action, item_id)
         return jsonify({"ok": True, "state": state})
@@ -1247,7 +1246,8 @@ def api_haoke_todos():
     # polling flag must be re-read afterwards; otherwise a stale cache answers
     # "not refreshing" and the browser stops polling before the result lands.
     result["refreshing"] = is_haoke_refreshing(username)
-    result = _with_default_error_code(result, _haoke_default_error_code(result))
+    if result.get("ok") is False and "code" not in result:
+        result["code"] = _haoke_default_error_code(result)
     state = load_haoke_state(username)
     result = build_platform_todos_response(
         result,
@@ -1270,7 +1270,7 @@ def api_haoke_state():
             return invalid_request_response()
         action = data.get("action", "")
         item_id = data.get("id")
-        if action not in ("hide", "unhide", "highlight", "unhighlight", "delete", "undelete", "complete", "uncomplete") or item_id is None:
+        if action not in VALID_STATE_ACTIONS or item_id is None:
             return jsonify({"ok": False, "error": "无效操作"}), 400
         state = update_haoke_state(username, action, item_id)
         return jsonify({"ok": True, "state": state})
@@ -1397,7 +1397,7 @@ def api_zxm_state():
             return invalid_request_response()
         action = data.get("action", "")
         item_id = data.get("id")
-        if action not in ("hide", "unhide", "highlight", "unhighlight", "delete", "undelete", "complete", "uncomplete") or item_id is None:
+        if action not in VALID_STATE_ACTIONS or item_id is None:
             return jsonify({"ok": False, "error": "无效操作"}), 400
         state = update_zxm_state(username, action, item_id)
         return jsonify({"ok": True, "state": state})
@@ -1521,7 +1521,7 @@ def api_ktp_state():
             return invalid_request_response()
         action = data.get("action", "")
         item_id = data.get("id")
-        if action not in ("hide", "unhide", "highlight", "unhighlight", "delete", "undelete", "complete", "uncomplete") or item_id is None:
+        if action not in VALID_STATE_ACTIONS or item_id is None:
             return invalid_request_response()
         state = update_ktp_state(username, action, item_id)
         return jsonify({"ok": True, "state": state})
@@ -1668,7 +1668,7 @@ def api_tjoj_state():
             return invalid_request_response()
         action = data.get("action", "")
         item_id = data.get("id")
-        if action not in ("hide", "unhide", "highlight", "unhighlight", "delete", "undelete", "complete", "uncomplete") or item_id is None:
+        if action not in VALID_STATE_ACTIONS or item_id is None:
             return invalid_request_response()
         state = update_tjoj_state(username, action, item_id)
         return jsonify({"ok": True, "state": state})
@@ -1811,7 +1811,7 @@ def api_zhihuishu_state():
             return jsonify({"ok": False, "error": "无效请求"}), 400
         action = data.get("action", "")
         item_id = data.get("id")
-        if action not in ("hide", "unhide", "highlight", "unhighlight", "delete", "undelete", "complete", "uncomplete") or item_id is None:
+        if action not in VALID_STATE_ACTIONS or item_id is None:
             return jsonify({"ok": False, "error": "无效操作"}), 400
         state = zhihuishu_store.update_state(username, action, item_id)
         return jsonify({"ok": True, "state": state})

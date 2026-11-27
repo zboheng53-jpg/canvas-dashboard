@@ -22,6 +22,19 @@ def test_bundle_retains_layer_order_and_changes_when_import_changes(tmp_path):
     assert build_assets(tmp_path) == second
 
 
+def test_build_prunes_stale_hashed_outputs(tmp_path):
+    css = tmp_path / 'css'
+    css.mkdir()
+    (tmp_path / 'js').mkdir()
+    (css / 'entry.css').write_text('body { color: blue; }', encoding='utf-8')
+    build_assets(tmp_path)
+    orphan = tmp_path / 'built' / 'css' / 'entry.00000000000000000000.css'
+    orphan.write_text('stale', encoding='utf-8')
+    manifest = build_assets(tmp_path)
+    assert not orphan.exists()
+    assert all((tmp_path / target).is_file() for target in manifest.values())
+
+
 def test_current_css_bundle_contains_all_sources_without_import_waterfall(tmp_path):
     import shutil
     source = Path(__file__).parents[1] / 'frontend/assets'

@@ -526,28 +526,6 @@ def parse_exported_timetable_xlsx(content):
     return courses
 
 
-def fetch_selected_courses():
-    """Read the authenticated timetable page through CDP without persisting browser secrets."""
-    target_id = None
-    try:
-        opened = requests.get(f"{settings.CDP_PROXY_BASE_URL}/new", params={"url": TIMETABLE_URL}, timeout=15)
-        target_id = opened.json()["targetId"]
-        time.sleep(2)
-        script = "document.documentElement.innerHTML"
-        response = requests.post(f"{settings.CDP_PROXY_BASE_URL}/eval", params={"target": target_id}, data=script, timeout=15)
-        markup = response.json().get("value", "")
-        courses = parse_selected_courses_html(markup)
-        return courses if courses else None
-    except (requests.RequestException, KeyError, ValueError, json.JSONDecodeError):
-        return None
-    finally:
-        if target_id:
-            try:
-                requests.get(f"{settings.CDP_PROXY_BASE_URL}/close", params={"target": target_id}, timeout=5)
-            except requests.RequestException:
-                pass
-
-
 def _playwright():
     try:
         from playwright.sync_api import sync_playwright

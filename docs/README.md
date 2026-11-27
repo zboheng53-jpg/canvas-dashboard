@@ -17,7 +17,7 @@
 
 ## Historical
 
-`superpowers/plans/` and `superpowers/specs/` preserve dated design and implementation context. They are not task trackers or current runbooks. Unchecked boxes record the drafting state, not the current completion state. Each plan with superseded operational assumptions has a status note at the top.
+`archive/reviews/` keeps review records whose branches were superseded by later integration commits; `superpowers/plans/` and `superpowers/specs/` preserve dated design and implementation context. They are not task trackers or current runbooks. Unchecked boxes record the drafting state, not the current completion state. Each plan with superseded operational assumptions has a status note at the top.
 
 External-platform subtasks are implemented for all six platforms; historical plans do not describe current completion status. See `architecture.md` and `external_subtasks.py`.
 

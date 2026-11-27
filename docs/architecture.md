@@ -58,6 +58,11 @@ The 智慧树 todo request path reads caches; interactive authentication explici
 | `frontend/templates/dashboard/*.html`, `frontend/assets/css/dashboard-shell.css` | Separate overview, projects, schedule, connections, calendar, Agent, settings and guide views; shared sidebar and right rail |
 | `frontend/assets/js/core/`, `features/`, `projects.js`, `bootstrap.js` | Shell/context utilities, domain interactions, and startup; classic scripts retain shared globals during this incremental split |
 | `frontend/assets/js/features/agent.js` | Agent management frontend module (token generation, revocation, MCP configuration preview, and clipboard copying) |
+| `platform_state.py`, `platform_sync.py` | Per-item local overlay state (hidden/completed/overrides) and non-sensitive connection/sync metadata; kept separate on purpose |
+| `http_sync.py`, `remote_operations.py` | Shared bounded executor for cache refreshes and the 202 task table used by slow login/refresh operations |
+| `action_contract.py`, `workspace_agenda.py` | Shared action validation/idempotency and the date-range agenda projection over all action sources |
+| `static_assets.py`, `runtime_metrics.py`, `system_monitor.py` | Content-hashed asset build, bounded latency samples, and host resource counters |
+| `dashboard_preferences.py`, `maintenance.py`, `capacity_guard.py` | Per-user dashboard preferences, the cross-process maintenance lock, and the registration admission guard |
 
 ## Accounts And Data Isolation
 
@@ -176,4 +181,4 @@ Each release links to shared `data/`, creates its own `.venv/`, and records inst
 
 Operational commands and rollback procedure are in `docs/operations.md`.
 
-Project and task deletion is permanent within the same locked project store, with no recycle bin. Moving a task into materials appends its original content and removes the task atomically. Agenda and calendar projections suppress inactive/deleted project references without deleting schedule history.
+Project and task deletion is permanent within the same locked project store, with no recycle bin. The historical `materials` / `material_entries` fields are read-only compatibility data: they are preserved for restored projects but no longer written or shown by the UI. Agenda and calendar projections suppress inactive/deleted project references without deleting schedule history.

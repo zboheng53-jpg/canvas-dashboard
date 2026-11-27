@@ -30,7 +30,6 @@ SECRET_KEY_FILE = DATA_DIR / ".flask_secret_key"
 # into a restore before activation, so an old archive cannot revive an account.
 DELETION_LEDGER_FILE = DATA_DIR / ".account_deletion_ledger.json"
 ADMIN_AUDIT_FILE = DATA_DIR / "account_admin_audit.json"
-QUARANTINE_DIR = DATA_DIR / ".quarantine"
 
 logger = logging.getLogger(__name__)
 
@@ -75,17 +74,6 @@ def _clean_quarantine_path(path: Path | None) -> bool:
     except Exception as e:
         logger.warning(f"Could not purge quarantine directory {path}: {e}")
         return False
-
-
-def _isolate_and_remove_user_dir(
-    username: str, data_dir: Path | None = None, account_id: str | None = None
-) -> tuple[bool, str | None]:
-    ok, err, staged = _isolate_user_dir(username, account_id=account_id, data_dir=data_dir)
-    if not ok:
-        return False, err
-    if staged:
-        _clean_quarantine_path(staged)
-    return True, None
 
 
 def purge_quarantine(data_dir: Path | None = None) -> dict[str, list[str]]:
@@ -440,10 +428,6 @@ def change_password(username: str, old_password: str, new_password: str) -> tupl
         _append_audit(username, "change_password", "user_requested", "ok", changed["account_id"])
         return True, None
     return False, "原密码不正确"
-
-
-def _ledger() -> dict:
-    return read_json_file(DELETION_LEDGER_FILE, {"version": 1, "deleted_accounts": {}})
 
 
 def _record_deletion(account_id: str, reason: str) -> None:

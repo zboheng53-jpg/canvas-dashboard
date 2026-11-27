@@ -1,11 +1,9 @@
 """Academic term and holiday data."""
 import json
 import logging
-import requests
 import settings
-import threading
 from datetime import date, datetime, timedelta
-from storage import read_json_file, write_json_file
+from storage import read_json_file
 from user_paths import DATA_DIR
 from web_common import CST
 
@@ -113,102 +111,6 @@ def get_term_info(now=None):
 
 
 _HOLIDAY_CACHE_FILE = DATA_DIR / "holiday_cache.json"
-
-
-_HOLIDAY_CACHE_TTL = settings.HOLIDAY_CACHE_TTL_SECONDS
-
-
-_HOLIDAY_FETCH_RETRY_INTERVAL = settings.HOLIDAY_FETCH_RETRY_INTERVAL_SECONDS
-
-
-_holiday_fetch_lock = threading.Lock()
-
-
-_holiday_fetch_failed_at = None
-
-
-def _load_holiday_cache():
-    """Load holiday data from disk cache. Returns list of holiday dicts or None."""
-    if _HOLIDAY_CACHE_FILE.exists():
-        try:
-            data = json.loads(_HOLIDAY_CACHE_FILE.read_text(encoding="utf-8"))
-            fetched_at = datetime.fromisoformat(data["fetched_at"])
-            age = (datetime.now(CST) - fetched_at).total_seconds()
-            if age < _HOLIDAY_CACHE_TTL:
-                return data.get("holidays")
-        except Exception:
-            pass
-    return None
-
-
-def _save_holiday_cache(holidays):
-    """Save holiday data to disk cache."""
-    _HOLIDAY_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    write_json_file(_HOLIDAY_CACHE_FILE, {
-        "holidays": holidays,
-        "fetched_at": datetime.now(CST).isoformat(),
-    })
-
-
-def _fetch_holidays():
-    """Fetch holiday data for current year from 1.tongji.edu.cn workbench API via CDP proxy.
-    Returns list of dicts with keys: name, begin_day, end_day (as datetime.date).
-    """
-    try:
-        year = datetime.now(CST).year
-        # Open a tab on workbench to get authenticated session
-        r = requests.get(
-            f"{settings.CDP_PROXY_BASE_URL}/new",
-            params={"url": "https://1.tongji.edu.cn/workbench"},
-            timeout=15,
-        )
-        target_id = r.json()["targetId"]
-
-        import time
-        time.sleep(2)
-
-        # Call the holiday API endpoint via the browser (uses auth cookies)
-        r = requests.post(
-            f"{settings.CDP_PROXY_BASE_URL}/eval",
-            params={"target": target_id},
-            data=(
-                "new Promise(function(resolve){"
-                "var x=new XMLHttpRequest();"
-                "x.open('GET','/api/baseresservice/holiday/queryHolidayByYear?year=" + str(year) + "');"
-                "x.onload=function(){resolve(x.responseText)};"
-                "x.onerror=function(){resolve('XHR error')};"
-                "x.send()"
-                "})"
-            ),
-            timeout=15,
-        )
-        resp_text = r.json()["value"]
-        api_resp = json.loads(resp_text)
-
-        # Close tab
-        requests.get(
-            f"{settings.CDP_PROXY_BASE_URL}/close",
-            params={"target": target_id},
-            timeout=5,
-        )
-
-        if api_resp.get("code") != 200:
-            logger.warning(f"Holiday API returned error: {api_resp}")
-            return None
-
-        holidays = []
-        for h in api_resp.get("data", []):
-            begin_dt = datetime.fromtimestamp(h["beginDay"] / 1000, tz=CST)
-            end_dt = datetime.fromtimestamp(h["endDay"] / 1000, tz=CST)
-            holidays.append({
-                "name": h.get("remark", h.get("holidayName", "")),
-                "begin_day": begin_dt.date().isoformat(),
-                "end_day": end_dt.date().isoformat(),
-            })
-        return holidays
-    except Exception as e:
-        logger.warning(f"Holiday fetch via CDP failed: {e}")
-    return None
 
 
 def _get_holidays():

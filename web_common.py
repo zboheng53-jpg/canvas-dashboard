@@ -36,13 +36,6 @@ def api_error(code, message, status=400, **extra):
     return jsonify(payload), status
 
 
-def _with_default_error_code(result, code):
-    if result.get("ok") is False and "code" not in result:
-        result = dict(result)
-        result["code"] = code
-    return result
-
-
 def require_agent_auth(scope_or_func=None):
     """Enforce Bearer authentication and optional scope permissions (read, write, delete)."""
     def make_decorator(required_scope=None):

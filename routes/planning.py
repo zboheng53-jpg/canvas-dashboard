@@ -398,8 +398,7 @@ def api_project_set_main(project_id):
 
 
 @bp.route("/api/projects/unset-main", methods=["POST"])
-@bp.route("/api/projects/<int:project_id>/unset-main", methods=["POST"])
-def api_project_unset_main(project_id=None):
+def api_project_unset_main():
     project_store.unset_main_project(session["username"])
     return jsonify({"ok": True, "main_project_id": None})
 

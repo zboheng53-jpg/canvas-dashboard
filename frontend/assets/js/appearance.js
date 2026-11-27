@@ -189,8 +189,4 @@
     }
   });
 
-  window.cdaAppearance = {
-    apply,
-    syncControls,
-  };
 })();

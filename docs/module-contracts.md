@@ -40,7 +40,7 @@ canvas-dashboard/
 ├── tests/                         # Pytest 单元测试与 Playwright 回归测试
 ├── deploy/                        # Nginx 与 systemd 部署参考配置
 ├── data/                          # 本地运行时数据 (不可随意篡改)
-└── AGENTS.md                      # 规范指引 (本文件)
+└── AGENTS.md                      # 规范指引（规则正文）
 ```
 
 ## 架构与平台核心机制

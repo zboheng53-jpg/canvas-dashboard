@@ -17,9 +17,6 @@ STATUS_DEFAULT = {
     "last_error": "",
 }
 
-STATE_DEFAULT = {"hidden": [], "highlighted": [], "deleted": []}
-
-
 def _user_dir(username: str) -> Path:
     import auth
     if auth.DATA_DIR.resolve() == DATA_DIR.resolve() and auth.account_deletion_in_progress(username):

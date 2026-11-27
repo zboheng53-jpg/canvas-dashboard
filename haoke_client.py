@@ -453,11 +453,6 @@ def _normalize_task(raw: dict, course_name: str) -> dict:
     }
 
 
-def _parse_haoke_response(data: dict, endpoint: str) -> list[dict]:
-    """Parse haoke API response (deprecated — kept for potential fallback)."""
-    return []
-
-
 def _parse_date(raw) -> datetime | None:
     """Parse a date/time value from the API into a CST datetime."""
     if raw is None:

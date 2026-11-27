@@ -4,7 +4,6 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import settings
 from storage import locked_json_update, read_json_file
 from user_paths import user_dir
 
@@ -161,9 +160,3 @@ def is_calendar_eligible(username: str, platform: str, *, legacy_default: bool =
     if not _path(username).exists():
         return legacy_default
     return bool(get(username, platform)["calendar_eligible"])
-
-
-def warning_seconds(platform: str) -> int:
-    if platform == "zhihuishu":
-        return settings.ZHIHUISHU_SYNC_WARNING_SECONDS
-    return settings.PLATFORM_SYNC_WARNING_SECONDS
