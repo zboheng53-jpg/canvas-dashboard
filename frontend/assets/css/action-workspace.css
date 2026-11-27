@@ -41,43 +41,6 @@ details[open] > summary .project-disclosure-chevron {
   transform: rotate(90deg);
   color: var(--ds-ink-2, #475569);
 }
-
-.project-materials { margin: 12px 0 16px; border-top: 1px solid var(--ds-line-soft, #eef0f3); padding-top: 10px; }
-.project-materials > summary::-webkit-details-marker { display: none !important; }
-.project-materials > summary {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-  padding: 4px 8px !important;
-  margin-left: -8px;
-  border-radius: 6px;
-  font-size: 13px !important;
-  font-weight: 500 !important;
-  color: var(--ds-ink-2, #475569) !important;
-  cursor: pointer !important;
-  list-style: none !important;
-  user-select: none;
-  transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
-}
-.project-materials > summary:hover {
-  color: var(--ds-ink, #1c2330) !important;
-  background-color: var(--ds-surface-subtle, #f1f5f9) !important;
-}
-.project-materials > summary:hover .project-disclosure-chevron {
-  color: var(--ds-ink, #1c2330);
-}
-.project-materials p {
-  margin: 8px 0 0;
-  padding: 10px 14px;
-  background: var(--ds-surface-subtle, #f8fafc);
-  border: 1px solid var(--ds-line-soft, #eef0f3);
-  border-radius: 8px;
-  color: var(--ds-ink-2, #334155);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  line-height: 1.7;
-  font-size: 13px;
-}
 .action-dialog { box-sizing: border-box; width: min(620px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow-y: auto; padding: 24px; border: 1px solid var(--ds-line); border-radius: 16px; background: var(--ds-surface, var(--color-surface)); color: var(--ds-ink); box-shadow: var(--shadow-dialog); }
 .action-dialog::backdrop { background: var(--color-backdrop); backdrop-filter: blur(2px); }
 .action-dialog { margin: auto; }
@@ -94,8 +57,6 @@ details[open] > summary .project-disclosure-chevron {
 .action-linked-section h3 { font-size: 14px; margin: 0 0 12px; }
 .action-linked-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 8px 0; font-size: 12px; }
 .action-date-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.action-todo-choice { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-.action-todo-choice input { width: 16px; height: 16px; accent-color: var(--ds-accent); }
 .action-legacy-hint { padding: 10px 12px; background: var(--ds-page); border-radius: 8px; font-size: 12px; line-height: 1.6; }
 .action-original { margin-top: 16px; font-size: 12px; color: var(--ds-ink-3); }
 .action-original > summary::-webkit-details-marker { display: none !important; }
@@ -174,11 +135,7 @@ details[open] > summary .project-disclosure-chevron {
 .forward-day .period-event-time { grid-column: 1; grid-row: 1 / span 2; white-space: normal; }
 .forward-day .period-event-title, .forward-day .period-event small { grid-column: 2; }
 .forward-day p { font-size: 12px; line-height: 1.7; }
-.forward-footer { display: flex; flex-wrap: wrap; gap: 4px 10px; border-top: 1px solid var(--ds-line); padding-top: 12px; }
-.forward-footer button { font-size: 12px; padding: 2px 0; }
 @media (min-width: 961px) {
-  #today-deadlines-card { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-  #today-deadlines-list { flex: 1; max-height: none; min-height: 0; }
   .todo-row { padding-top: 8px !important; padding-bottom: 8px !important; }
   .todo-row .action-title-button { min-height: 0; height: auto; line-height: 1.4; }
   .todo-group-heading { padding-top: 4px !important; padding-bottom: 6px !important; }
@@ -267,9 +224,6 @@ details[open] > summary .project-disclosure-chevron {
 /* Recoverable project history. */
 .project-finished-groups { margin-top: 16px; }
 .project-finished-groups > summary { padding: 12px 0; color: var(--color-text-muted); }
-.project-trash-row { padding: 16px 0; border-bottom: 1px solid var(--color-border); }
-.project-trash-row > button { margin-left: 12px; }
-.project-trash-content { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* UX Enhancements: Collapsible Groups & Filters */
 .todo-group-heading {
@@ -325,13 +279,10 @@ details[open] > summary .project-disclosure-chevron {
 }
 
 .today-timeline-card { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 260px; }
-.today-deadlines-list { max-height: 240px; overflow-y: auto; }
 #today-schedule-content.timeline { display: block; width: 100%; padding: var(--space-3); }
 #long-term-projects-card { flex: 0 1 auto !important; height: auto !important; max-height: 100%; }
 .project-current-step-card { display: block; box-shadow: none; }
 .project-current-step-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.project-detail-progress { width: 100%; height: 8px; margin: var(--space-3) 0 var(--space-5); accent-color: var(--color-action); }
-.project-roadmap-list { gap: 0 !important; }
 .project-roadmap-row { border-left: 2px solid var(--ds-line); margin-left: var(--space-2); padding-left: var(--space-3); }
 .project-roadmap-row > summary { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) 0; cursor: pointer; }
 .project-roadmap-row > summary::before { content: '›'; color: var(--color-text-muted); }
@@ -340,17 +291,11 @@ details[open] > summary .project-disclosure-chevron {
 .project-roadmap-meta { color: var(--color-text-secondary); font-size: var(--font-size-control-sm); }
 .project-roadmap-body { padding: 0 0 var(--space-4) var(--space-4); }
 .project-step-details, .project-current-step-details { white-space: pre-wrap; overflow-wrap: anywhere; margin-bottom: var(--space-3); }
-.project-order-management { margin-top: var(--space-5); }
-.project-order-management > summary { cursor: pointer; padding: var(--space-3) 0; color: var(--color-text-secondary); }
 @media (min-width: 961px) {
   #dashboard-view-overview { overflow-y: auto; }
   #dashboard-view-overview main { min-height: 380px !important; }
 }
 @media (max-width: 768px) {
-  .today-deadline-row { align-items: flex-start !important; flex-wrap: wrap; }
-  .today-deadline-row > div { min-width: 0; }
-  .today-deadline-row button { white-space: normal !important; height: auto; min-height: 32px; }
-  .today-deadline-row > div:last-child { margin-left: auto; }
   .project-roadmap-row > summary { flex-wrap: wrap; gap: var(--space-2); }
   .roadmap-task-title { flex-basis: 85%; }
   .project-roadmap-meta { padding-left: var(--space-3); }
@@ -361,9 +306,5 @@ details[open] > summary .project-disclosure-chevron {
 .today-context-bar h1 { margin: 0; font-size: 24px; }
 .today-context-bar p { margin: var(--space-2) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-control-sm); }
 .today-context-weather { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); font-size: var(--font-size-control-sm); }
-.proj-summary-copy strong { font-size: var(--font-size-control); }
-.proj-summary-copy .proj-summary-next, .proj-summary-copy small { font-size: var(--font-size-control-sm); color: var(--color-text-secondary); }
-.proj-summary-progress { flex: none; font-variant-numeric: tabular-nums; font-size: var(--font-size-control-sm); }
-.proj-summary-row:focus-visible { outline: 2px solid var(--color-action); outline-offset: -2px; }
 
 @media (min-width: 961px) { #long-term-projects-card { max-height: 45%; } }

@@ -1248,32 +1248,6 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   margin-top: 3px;
   line-height: 1.35;
 }
-#today-schedule-card .today-deadlines {
-  margin: 16px 20px 0 !important;
-  padding: 14px 0 0 !important;
-  gap: 10px !important;
-}
-#today-schedule-card .today-deadline-item {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) !important;
-  align-items: start !important;
-  gap: 5px !important;
-  padding: 0 !important;
-}
-#today-schedule-card .today-deadlines strong {
-  width: 100% !important;
-  min-width: 0 !important;
-  line-height: 1.55 !important;
-  overflow-wrap: anywhere !important;
-  -webkit-line-clamp: 3 !important;
-}
-#today-schedule-card .today-deadline-course {
-  justify-self: start !important;
-  margin-top: 0 !important;
-  padding: 3px 8px !important;
-  font-size: 10.5px !important;
-  line-height: 1.35 !important;
-}
 
 /* 侧栏 nav-count 数字徽章（设计稿"今日总览 7"） */
 .sidebar-nav-item .nav-count {

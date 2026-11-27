@@ -995,45 +995,6 @@
         margin-top: 2px !important;
       }
 
-      .today-deadlines {
-        margin-top: 10px !important;
-        padding-top: 10px !important;
-        border-top: 1px solid var(--color-border) !important;
-        gap: 6px !important;
-      }
-
-      .today-deadlines > span {
-        font-family: var(--font-kicker) !important;
-        font-size: 10px !important;
-        font-weight: 500 !important;
-        color: var(--color-text-muted) !important;
-        letter-spacing: 0.05em !important;
-        text-transform: uppercase !important;
-      }
-
-      .today-deadline-item {
-        flex-direction: row !important;
-        align-items: center !important;
-        justify-content: space-between !important;
-        padding: 3px 0 !important;
-      }
-
-      .today-deadlines strong {
-        font-size: 12px !important;
-        font-weight: 500 !important;
-        color: var(--color-text-primary) !important;
-      }
-
-      .today-deadline-course {
-        margin-top: 0 !important;
-        font-size: 11px !important;
-        color: var(--color-primary) !important;
-        background: var(--color-primary-soft) !important;
-        padding: 1px 6px !important;
-        border-radius: 4px !important;
-        white-space: nowrap !important;
-      }
-
 
 
 
@@ -1567,48 +1528,6 @@
       font-size: 11px !important;
       line-height: 1.4 !important;
       letter-spacing: 0.01em !important;
-    }
-
-    .today-deadlines {
-      margin-top: 10px !important;
-      padding-top: 10px !important;
-      border-top: 1px solid var(--color-border) !important;
-      gap: 7px !important;
-    }
-
-    .today-deadlines > span {
-      color: var(--color-text-muted) !important;
-      font-family: var(--font-kicker) !important;
-      font-size: 10px !important;
-      font-weight: 500 !important;
-      letter-spacing: 0.05em !important;
-    }
-
-    .today-deadline-item {
-      align-items: center !important;
-      flex-direction: row !important;
-      justify-content: space-between !important;
-      gap: 10px !important;
-      padding: 3px 0 !important;
-    }
-
-    .today-deadlines strong {
-      color: var(--color-text-primary) !important;
-      font-family: var(--font-body) !important;
-      font-size: 12px !important;
-      font-weight: 500 !important;
-      letter-spacing: 0.005em !important;
-    }
-
-    .today-deadline-course {
-      margin-top: 0 !important;
-      padding: 1px 6px !important;
-      border-radius: 4px !important;
-      background: var(--color-primary-soft) !important;
-      color: var(--color-primary) !important;
-      font-family: var(--font-body) !important;
-      font-size: 11px !important;
-      white-space: nowrap !important;
     }
 
 

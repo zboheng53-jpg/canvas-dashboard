@@ -1174,15 +1174,6 @@
   }
 }
 
-/* Today overview: compact deadline list and timeline */
-.today-deadlines-card {
-  margin-bottom: var(--space-4);
-}
-
-.today-deadlines-list {
-  min-height: 48px;
-}
-
 .today-timeline-card {
   margin-top: var(--space-2);
 }
