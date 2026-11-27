@@ -224,9 +224,9 @@ def test_frontend_v2_desktop_shell_uses_bounded_three_column_layout(live_app, br
     assert 20 <= workspace_box["x"] - (sidebar_box["x"] + sidebar_box["width"]) <= 24
     # 设计稿：工作区与右栏间距 16px
     assert 14 <= right_box["x"] - (workspace_box["x"] + workspace_box["width"]) <= 20
-    # 设计稿：右栏顶部留 26px、底部距视口底 14px，不撑满侧栏全高。
+    # 设计稿：右栏顶部与底部均留 14px，与主区对称对齐。
     # 容差 1px 只覆盖 Chromium 布局系统的分数像素取整，几何在渲染完成后读取。
-    browser_env.assert_close(right_box["y"], 26, 1, label="右栏顶部偏移")
+    browser_env.assert_close(right_box["y"], 14, 1, label="右栏顶部偏移")
     browser_env.assert_close(
         right_box["y"] + right_box["height"],
         sidebar_box["y"] + sidebar_box["height"] - 14,
@@ -1099,9 +1099,9 @@ def test_frontend_connections_workspace_uses_aligned_master_detail_layout(live_a
     detail_box = detail_panel.bounding_box()
     assert manager_box is not None and sidebar_box is not None
     assert list_box is not None and detail_box is not None
-    # 设计稿：功能页主卡顶部留 26px、底部距视口底 14px；
+    # 功能页主卡顶部与底部均留 14px，与总览及侧栏对称对齐；
     # 容差 1px 只覆盖亚像素取整，布局在渲染完成后读取。
-    browser_env.assert_close(manager_box["y"], 26, 1, label="功能页主卡顶部偏移")
+    browser_env.assert_close(manager_box["y"], 14, 1, label="功能页主卡顶部偏移")
     browser_env.assert_close(
         manager_box["y"] + manager_box["height"],
         sidebar_box["y"] + sidebar_box["height"] - 14,
@@ -1204,8 +1204,8 @@ def test_frontend_connections_detail_scrolls_inside_fixed_workspace(live_app, br
     sidebar_box = sidebar.bounding_box()
     manager_box = manager.bounding_box()
     assert sidebar_box is not None and manager_box is not None
-    # 设计稿：功能页主卡顶部留 26px、底部距视口底 14px，容差 1px 仅为亚像素取整
-    browser_env.assert_close(manager_box["y"], 26, 1, label="功能页主卡顶部偏移")
+    # 功能页主卡顶部与底部均留 14px，容差 1px 仅为亚像素取整
+    browser_env.assert_close(manager_box["y"], 14, 1, label="功能页主卡顶部偏移")
     browser_env.assert_close(
         manager_box["y"] + manager_box["height"],
         sidebar_box["y"] + sidebar_box["height"] - 14,
@@ -1804,7 +1804,74 @@ def test_frontend_recurring_todo_creation_and_homepage_single_item(live_app, bro
     # 完成后该次标记完成，下一个未完成周期自动推选上首页（若在7天内展示）
     # 验证列表中仍至多有 1 项该系列条目，且更新为下一周期
     expect(page.locator(".todo-row").filter(has_text="每周电工实验")).to_have_count(1)
-    expect(page.locator(".todo-row").filter(has_text="每周电工实验").locator(".item-desktop-actions .btn-action-skip")).to_be_visible()
+    next_rec_row = page.locator(".todo-row").filter(has_text="每周电工实验")
+    skip_btn = next_rec_row.locator(".item-desktop-actions .btn-action-skip")
+    expect(skip_btn).to_be_visible()
+    expect(skip_btn.locator("svg.todo-action-icon")).to_have_count(1)
+
+    # 5. 验证普通待办与重复待办的操作按钮在桌面端逐列垂直对齐
+    page.fill("#new-todo-input", "普通对齐校验待办")
+    page.fill("#new-todo-due", today_str)
+    page.select_option("#new-todo-repeat", "none")
+    page.click("#add-todo-form button")
+    normal_row = page.locator(".todo-row").filter(has_text="普通对齐校验待办")
+    expect(normal_row).to_be_visible()
+    browser_env.wait_for_layout_settled(page)
+
+    normal_cols = normal_row.evaluate("""row => {
+        const xOf = sel => row.querySelector(sel).getBoundingClientRect().x;
+        return {
+            dismiss: xOf('.item-desktop-actions .btn-dismiss'),
+            secondary: xOf('.item-desktop-actions .btn-flag'),
+            detail: xOf('.item-desktop-actions .btn-detail'),
+            delete: xOf('.item-desktop-actions .btn-delete'),
+        };
+    }""")
+    recurring_cols = next_rec_row.evaluate("""row => {
+        const xOf = sel => row.querySelector(sel).getBoundingClientRect().x;
+        return {
+            dismiss: xOf('.item-desktop-actions .btn-dismiss'),
+            secondary: xOf('.item-desktop-actions .btn-action-skip'),
+            detail: xOf('.item-desktop-actions .btn-detail'),
+            delete: xOf('.item-desktop-actions .btn-delete'),
+        };
+    }""")
+    for slot in ("dismiss", "secondary", "detail", "delete"):
+        browser_env.assert_close(normal_cols[slot], recurring_cols[slot], 1, label=f"待办操作列对齐:{slot}")
+
+
+def test_frontend_connections_status_badges_distinguish_connected_and_disconnected_in_light_mode(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 900}, reduced_motion="reduce")
+    register_dashboard_user(page, live_app, "connstatuslight")
+    page.locator('[data-dashboard-view="connections"]').click()
+    expect(page.locator("#dashboard-view-connections")).to_be_visible()
+
+    connected_badge = page.locator("#card-status-canvas")
+    disconnected_badge = page.locator("#card-status-ketangpai")
+    expect(connected_badge).to_have_text("已连接")
+    expect(disconnected_badge).to_have_text("未连接")
+
+    styles = page.evaluate("""() => {
+        const read = el => {
+            const cs = getComputedStyle(el);
+            const dot = getComputedStyle(el, '::before');
+            return {
+                color: cs.color,
+                backgroundColor: cs.backgroundColor,
+                borderColor: cs.borderColor,
+                dotBg: dot.backgroundColor,
+            };
+        };
+        return {
+            connected: read(document.getElementById('card-status-canvas')),
+            disconnected: read(document.getElementById('card-status-ketangpai')),
+        };
+    }""")
+    assert styles["connected"]["color"] != styles["disconnected"]["color"]
+    assert styles["connected"]["backgroundColor"] != styles["disconnected"]["backgroundColor"]
+    assert styles["connected"]["borderColor"] != styles["disconnected"]["borderColor"]
+    assert styles["connected"]["dotBg"] != styles["disconnected"]["dotBg"]
+    page.close()
 
 
 @pytest.mark.parametrize("width", [769, 961, 1280, 1440, 1920])
@@ -1841,4 +1908,83 @@ def test_desktop_refinement_keeps_colored_tags_and_readable_rows(live_app, brows
     row.locator('.editable-due').click()
     expect(row.locator('.inline-edit-date-input')).to_have_value('')
     row.locator('.inline-edit-date-input').press('Escape')
+    page.close()
+
+
+def test_frontend_connection_status_contrast_and_todo_action_column_alignment(live_app, browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 900}, reduced_motion="reduce")
+    register_dashboard_user(page, live_app, "statusalign")
+
+    today_str = page.evaluate("workspaceTodayISO()")
+    page.fill("#new-todo-input", "普通自定义对齐测试")
+    page.fill("#new-todo-due", today_str)
+    page.click("#add-todo-form button")
+    expect(page.locator(".todo-row", has_text="普通自定义对齐测试")).to_be_visible()
+
+    page.fill("#new-todo-input", "每周重复对齐测试")
+    page.fill("#new-todo-due", today_str)
+    page.select_option("#new-todo-repeat", "weekly")
+    page.click("#add-todo-form button")
+    rec_row = page.locator(".todo-row", has_text="每周重复对齐测试")
+    expect(rec_row).to_be_visible()
+    browser_env.wait_for_layout_settled(page)
+
+    # 跳过按钮使用矢量图标，避免原始 emoji 样式
+    skip_btn = rec_row.locator(".item-desktop-actions .btn-action-skip")
+    expect(skip_btn.locator("svg.todo-action-icon")).to_have_count(1)
+    assert "⏭" not in (skip_btn.text_content() or "")
+
+    # 普通待办与重复待办的桌面操作按钮应逐列对齐
+    alignment = page.evaluate("""() => {
+        const normal = [...document.querySelectorAll('.todo-row')].find(r => r.textContent.includes('普通自定义对齐测试'));
+        const rec = [...document.querySelectorAll('.todo-row')].find(r => r.textContent.includes('每周重复对齐测试'));
+        const xOf = (row, sel) => row?.querySelector(sel)?.getBoundingClientRect().x;
+        return {
+            normal: {
+                dismiss: xOf(normal, '.item-desktop-actions .btn-dismiss'),
+                secondary: xOf(normal, '.item-desktop-actions .btn-flag'),
+                detail: xOf(normal, '.item-desktop-actions .btn-detail'),
+                del: xOf(normal, '.item-desktop-actions .btn-delete'),
+            },
+            rec: {
+                dismiss: xOf(rec, '.item-desktop-actions .btn-dismiss'),
+                secondary: xOf(rec, '.item-desktop-actions .btn-action-skip'),
+                detail: xOf(rec, '.item-desktop-actions .btn-detail'),
+                del: xOf(rec, '.item-desktop-actions .btn-delete'),
+            },
+        };
+    }""")
+    for col in ("dismiss", "secondary", "detail", "del"):
+        assert alignment["normal"][col] is not None and alignment["rec"][col] is not None
+        browser_env.assert_close(alignment["normal"][col], alignment["rec"][col], 1, label=f"待办操作列 {col}")
+
+    # 浅色模式下「已连接」与「未连接」在底色、字色和圆点填充上都明显区分
+    page.locator('[data-dashboard-view="connections"]').click()
+    expect(page.locator("#dashboard-view-connections")).to_be_visible()
+    browser_env.wait_for_layout_settled(page)
+    connected = page.locator("#login-cards .connection-platform-status.ui-status--success").first
+    disconnected = page.locator("#login-cards .connection-platform-status.ui-status--neutral").first
+    expect(connected).to_be_visible()
+    expect(disconnected).to_be_visible()
+    styles = page.evaluate("""() => {
+        const read = el => {
+            const s = getComputedStyle(el);
+            const dot = getComputedStyle(el, '::before');
+            return {
+                bg: s.backgroundColor,
+                color: s.color,
+                borderColor: s.borderColor,
+                dotBg: dot.backgroundColor,
+                dotBorderWidth: dot.borderTopWidth,
+            };
+        };
+        return {
+            connected: read(document.querySelector('#login-cards .connection-platform-status.ui-status--success')),
+            disconnected: read(document.querySelector('#login-cards .connection-platform-status.ui-status--neutral')),
+        };
+    }""")
+    assert styles["connected"]["bg"] != styles["disconnected"]["bg"]
+    assert styles["connected"]["color"] != styles["disconnected"]["color"]
+    assert styles["connected"]["dotBg"] != styles["disconnected"]["dotBg"]
+    assert styles["disconnected"]["dotBorderWidth"] != "0px"
     page.close()

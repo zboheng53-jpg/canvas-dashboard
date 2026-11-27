@@ -926,7 +926,16 @@
 
         if (todoDeadlineState(item).overdue) urgencyClass = 'urgent is-overdue';
         else if (item.missedPlan) urgencyClass = 'remote is-missed-plan';
-        const flagIcon = manualFlag ? '&#x2691;' : '&#x2690;';
+        const todoActionSvg = (paths, extraClass = '') =>
+          `<svg class="todo-action-icon${extraClass ? ` ${extraClass}` : ''}" viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>`;
+        const completeIconHtml = todoActionSvg('<path d="M5 12.5 9.5 17 19 7.5"></path>');
+        const undoIconHtml = todoActionSvg('<path d="M9 14 4 9l5-5"></path><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"></path>');
+        const flagIcon = manualFlag
+          ? todoActionSvg('<path d="M5 20V5"></path><path class="todo-action-icon__fill" d="M5 5h11l-2.5 4.5L16 14H5Z"></path>')
+          : todoActionSvg('<path d="M5 20V5"></path><path d="M5 5h11l-2.5 4.5L16 14H5"></path>');
+        const skipIconHtml = todoActionSvg('<path d="M6 6.5 14 12l-8 5.5V6.5Z"></path><path d="M18 6v12"></path>');
+        const trashIconHtml = todoActionSvg('<path d="M4 7h16"></path><path d="M9.5 7V5a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 14.5 5v2"></path><path d="M6.5 7l1 12a1.5 1.5 0 0 0 1.5 1.5h6a1.5 1.5 0 0 0 1.5-1.5l1-12"></path><path d="M10 11.5v5"></path><path d="M14 11.5v5"></path>');
+        const dismissIconHtml = item.done ? undoIconHtml : completeIconHtml;
         const flagTitle = manualFlag ? '取消标红' : '置顶标红';
         const flagClass = manualFlag ? 'btn-flag active' : 'btn-flag';
         const dismissTitle = isDismissed ? '取消完成' : '标记完成';
@@ -948,48 +957,49 @@
 
         if (item.source === 'canvas') {
           flagBtnHtml = `<button type="button" class="todo-action-button ${flagClass}" onclick="toggleHighlight('${item.id}', ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>`;
-          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="togglePlatformCompletion('canvas', '${escapeHtml(String(item.rawId))}', ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${item.done ? '↺' : '✓'}</button>`;
-          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleCanvasDelete('${escapeHtml(String(item.rawId))}')" title="从清单隐藏" aria-label="从清单隐藏">&#x1f5d1;</button>`;
+          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="togglePlatformCompletion('canvas', '${escapeHtml(String(item.rawId))}', ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${dismissIconHtml}</button>`;
+          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleCanvasDelete('${escapeHtml(String(item.rawId))}')" title="从清单隐藏" aria-label="从清单隐藏">${trashIconHtml}</button>`;
         } else if (item.source === 'haoke') {
           flagBtnHtml = `<button type="button" class="todo-action-button ${flagClass}" onclick="togglePlatformHighlight('haoke', ${JSON.stringify(item.rawId)}, ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>`;
-          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="togglePlatformCompletion('haoke', ${item.rawId}, ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${item.done ? '↺' : '✓'}</button>`;
-          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleHaokeDelete(${item.rawId})" title="从清单隐藏" aria-label="从清单隐藏">&#x1f5d1;</button>`;
+          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="togglePlatformCompletion('haoke', ${item.rawId}, ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${dismissIconHtml}</button>`;
+          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleHaokeDelete(${item.rawId})" title="从清单隐藏" aria-label="从清单隐藏">${trashIconHtml}</button>`;
         } else if (item.source === 'custom') {
           if (item.is_recurring) {
-            dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="toggleRecurringCheck(${item.series_id}, '${escapeHtml(item.original_due_date)}', ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${item.done ? '↺' : '✓'}</button>`;
-            skipBtnHtml = `<button type="button" class="todo-action-button btn-action-skip" onclick="skipRecurringOccurrence(${item.series_id}, '${escapeHtml(item.original_due_date)}')" title="跳过本次" aria-label="跳过本次">⏭</button>`;
-            deleteBtnHtml = `<button type="button" class="btn-delete" onclick="deleteRecurringSeries(${item.series_id})" title="删除系列" aria-label="永久删除重复待办系列">&#x1f5d1;</button>`;
+            dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="toggleRecurringCheck(${item.series_id}, '${escapeHtml(item.original_due_date)}', ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${dismissIconHtml}</button>`;
+            skipBtnHtml = `<button type="button" class="todo-action-button btn-action-skip" onclick="skipRecurringOccurrence(${item.series_id}, '${escapeHtml(item.original_due_date)}')" title="跳过本次" aria-label="跳过本次">${skipIconHtml}</button>`;
+            deleteBtnHtml = `<button type="button" class="btn-delete" onclick="deleteRecurringSeries(${item.series_id})" title="删除系列" aria-label="永久删除重复待办系列">${trashIconHtml}</button>`;
           } else {
             const isDeleting = deletingCustomIds.has(item.rawId);
             flagBtnHtml = `<button type="button" class="todo-action-button ${flagClass}" onclick="toggleCustomHighlight(${item.rawId}, ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>`;
-            dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="toggleTodoCheck(${item.rawId}, ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${item.done ? '↺' : '✓'}</button>`;
-            deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleCustomDelete(${item.rawId})" ${isDeleting ? 'disabled aria-busy="true"' : ''} title="永久删除" aria-label="永久删除">&#x1f5d1;</button>`;
+            dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="toggleTodoCheck(${item.rawId}, ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${dismissIconHtml}</button>`;
+            deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleCustomDelete(${item.rawId})" ${isDeleting ? 'disabled aria-busy="true"' : ''} title="永久删除" aria-label="永久删除">${trashIconHtml}</button>`;
           }
         } else if (item.source === 'zhixuemeng') {
           const zxmId = String(item.rawId);
           flagBtnHtml = `<button type="button" class="todo-action-button ${flagClass}" onclick="togglePlatformHighlight('zhixuemeng', ${JSON.stringify(zxmId)}, ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>`;
-          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="togglePlatformCompletion('zhixuemeng', '${escapeHtml(zxmId)}', ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${item.done ? '↺' : '✓'}</button>`;
-          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleZhixuemengDelete('${escapeHtml(zxmId)}')" title="从清单隐藏" aria-label="从清单隐藏">&#x1f5d1;</button>`;
+          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="togglePlatformCompletion('zhixuemeng', '${escapeHtml(zxmId)}', ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${dismissIconHtml}</button>`;
+          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleZhixuemengDelete('${escapeHtml(zxmId)}')" title="从清单隐藏" aria-label="从清单隐藏">${trashIconHtml}</button>`;
         } else if (item.source === 'zhihuishu') {
           flagBtnHtml = `<button type="button" class="todo-action-button ${flagClass}" onclick="togglePlatformHighlight('zhihuishu', ${JSON.stringify(item.rawId)}, ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>`;
-          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="togglePlatformCompletion('zhihuishu', '${escapeHtml(String(item.rawId))}', ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${item.done ? '↺' : '✓'}</button>`;
-          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleZhihuishuDelete('${escapeHtml(String(item.rawId))}')" title="从清单隐藏" aria-label="从清单隐藏">&#x1f5d1;</button>`;
+          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="togglePlatformCompletion('zhihuishu', '${escapeHtml(String(item.rawId))}', ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${dismissIconHtml}</button>`;
+          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleZhihuishuDelete('${escapeHtml(String(item.rawId))}')" title="从清单隐藏" aria-label="从清单隐藏">${trashIconHtml}</button>`;
         } else if (item.source === 'ketangpai') {
           flagBtnHtml = `<button type="button" class="todo-action-button ${flagClass}" onclick="togglePlatformHighlight('ketangpai', ${JSON.stringify(item.rawId)}, ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>`;
-          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="togglePlatformCompletion('ketangpai', '${escapeHtml(String(item.rawId))}', ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${item.done ? '↺' : '✓'}</button>`;
-          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleKetangpaiDelete('${escapeHtml(String(item.rawId))}')" title="从清单隐藏" aria-label="从清单隐藏">&#x1f5d1;</button>`;
+          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="togglePlatformCompletion('ketangpai', '${escapeHtml(String(item.rawId))}', ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${dismissIconHtml}</button>`;
+          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleKetangpaiDelete('${escapeHtml(String(item.rawId))}')" title="从清单隐藏" aria-label="从清单隐藏">${trashIconHtml}</button>`;
         } else if (item.source === 'tongjioj') {
           flagBtnHtml = `<button type="button" class="todo-action-button ${flagClass}" onclick="togglePlatformHighlight('tongjioj', ${JSON.stringify(item.rawId)}, ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>`;
-          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="togglePlatformCompletion('tongjioj', '${escapeHtml(String(item.rawId))}', ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${item.done ? '↺' : '✓'}</button>`;
-          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleTongjiojDelete('${escapeHtml(String(item.rawId))}')" title="从清单隐藏" aria-label="从清单隐藏">&#x1f5d1;</button>`;
+          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="togglePlatformCompletion('tongjioj', '${escapeHtml(String(item.rawId))}', ${item.done})" title="${dismissTitle}" aria-label="${dismissAriaLabel}">${dismissIconHtml}</button>`;
+          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="toggleTongjiojDelete('${escapeHtml(String(item.rawId))}')" title="从清单隐藏" aria-label="从清单隐藏">${trashIconHtml}</button>`;
         } else if (item.source === 'project') {
           const taskArg = item.taskId === null ? 'null' : item.taskId;
           flagBtnHtml = `<button type="button" class="todo-action-button ${flagClass}" onclick="toggleOverviewProjectFlag(${item.projectId}, ${taskArg}, '${item.projectKind}', ${manualFlag})" title="${flagTitle}" aria-label="${flagTitle}" aria-pressed="${manualFlag}">${flagIcon}</button>`;
-          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="completeOverviewProjectTodo(${item.projectId}, ${taskArg}, '${item.projectKind}')" title="标记完成" aria-label="完成">✓</button>`;
-          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="deleteProjectTodo(${item.projectId}, ${taskArg}, '${item.projectKind}')" title="${item.projectKind === 'project_due' ? '清除项目截止日期' : '永久删除'}" aria-label="${item.projectKind === 'project_due' ? '清除项目截止日期' : '删除'}">&#x1f5d1;</button>`;
+          dismissBtnHtml = `<button type="button" class="btn-dismiss" onclick="completeOverviewProjectTodo(${item.projectId}, ${taskArg}, '${item.projectKind}')" title="标记完成" aria-label="完成">${completeIconHtml}</button>`;
+          deleteBtnHtml = `<button type="button" class="btn-delete" onclick="deleteProjectTodo(${item.projectId}, ${taskArg}, '${item.projectKind}')" title="${item.projectKind === 'project_due' ? '清除项目截止日期' : '永久删除'}" aria-label="${item.projectKind === 'project_due' ? '清除项目截止日期' : '删除'}">${trashIconHtml}</button>`;
         }
 
-        const desktopActionsHtml = `${dismissBtnHtml}${flagBtnHtml}${detailBtnHtml}${skipBtnHtml}${deleteBtnHtml}`;
+        const secondaryActionHtml = flagBtnHtml || skipBtnHtml || '<span class="todo-action-slot-placeholder" aria-hidden="true"></span>';
+        const desktopActionsHtml = `${dismissBtnHtml}${secondaryActionHtml}${detailBtnHtml}${deleteBtnHtml}`;
         const mobileActionsHtml = `${flagBtnHtml}${dismissBtnHtml}${deleteBtnHtml}${skipBtnHtml}<button type="button" class="ui-button ui-button--secondary" data-mobile-detail="${escapedDetailRef}">详情</button>`;
 
         const safeUrl = sanitizeExternalUrl(item.url);

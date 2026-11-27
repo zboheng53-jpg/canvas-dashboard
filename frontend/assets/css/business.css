@@ -505,7 +505,7 @@
 
 .connection-platform-status {
   min-width: 72px;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 .connection-detail-section {
@@ -1109,10 +1109,109 @@ button.mobile-attention-banner:focus-visible {
   box-shadow: var(--control-focus-shadow);
 }
 
-/* Todo desktop actions: detail button + safe separation before destructive delete */
+/* Todo row actions: unified monochrome SVG buttons aligned in fixed desktop columns */
+.todo-action-icon {
+  display: block;
+  width: 15px;
+  height: 15px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.todo-action-icon__fill {
+  fill: currentColor;
+}
+
+.todo-row .btn-dismiss,
+.todo-row .btn-flag,
+.todo-row .btn-action-skip,
+.todo-row .btn-delete {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    opacity var(--duration-fast) var(--ease-standard);
+}
+
+.todo-row .btn-dismiss:hover,
+.todo-row .btn-dismiss:focus-visible,
+.todo-row .btn-action-skip:hover,
+.todo-row .btn-action-skip:focus-visible {
+  color: var(--color-action-hover);
+  background: var(--color-action-soft);
+}
+
+.todo-row .btn-flag.active {
+  color: var(--color-danger);
+}
+
+.todo-row .btn-flag:hover,
+.todo-row .btn-flag:focus-visible {
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+.todo-row .btn-delete:hover,
+.todo-row .btn-delete:focus-visible {
+  color: var(--color-danger-hover);
+  background: var(--color-danger-soft);
+}
+
+@media (min-width: 769px) {
+  .todo-row .item-subtask-slot {
+    margin-right: 0;
+    min-width: 28px;
+    justify-content: flex-end;
+  }
+
+  .todo-row .subtask-toggle-placeholder {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+  }
+
+  .todo-row .item-desktop-actions {
+    display: grid;
+    grid-template-columns: 28px 28px 40px 36px;
+    align-items: center;
+    justify-items: center;
+    column-gap: var(--space-1);
+    flex: none;
+  }
+
+  .todo-row .item-desktop-actions .btn-dismiss,
+  .todo-row .item-desktop-actions .btn-flag,
+  .todo-row .item-desktop-actions .btn-action-skip,
+  .todo-row .item-desktop-actions .btn-delete,
+  .todo-row .item-desktop-actions .todo-action-slot-placeholder {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+  }
+}
+
 .item-desktop-actions .btn-detail {
   appearance: none;
-  padding: 3px var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 28px;
+  padding: 0;
   border-radius: var(--radius-control);
   border: var(--border-width) solid transparent;
   background: transparent;
@@ -1138,12 +1237,13 @@ button.mobile-attention-banner:focus-visible {
 
 .item-desktop-actions .btn-delete {
   position: relative;
+  justify-self: end;
   margin-left: var(--space-2);
 }
 
 .item-desktop-actions .btn-delete::before {
   position: absolute;
-  left: calc(var(--space-1) * -1);
+  left: -6px;
   top: 50%;
   width: 1px;
   height: 14px;
@@ -1172,9 +1272,20 @@ button.mobile-attention-banner:focus-visible {
 .todo-row .subtask-toggle:not(.subtask-toggle-placeholder) {
   width: auto;
   min-width: 28px;
+  height: 28px;
   padding: 0 5px;
   gap: var(--space-1);
   border-radius: var(--radius-control);
+  color: var(--color-text-muted);
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard);
+}
+
+.todo-row .subtask-toggle:not(.subtask-toggle-placeholder):hover,
+.todo-row .subtask-toggle:not(.subtask-toggle-placeholder):focus-visible {
+  color: var(--color-text-primary);
+  background: var(--color-surface-subtle);
 }
 
 .settings-session-disclosure .settings-disclosure-content {

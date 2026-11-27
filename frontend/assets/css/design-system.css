@@ -96,7 +96,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
     border-radius: 0 !important;
     box-shadow: none !important;
     background: var(--color-navigation-surface) !important;
-    padding: 18px 12px 14px !important;
+    padding: 12px 12px 14px !important;
     gap: 22px;
     overflow: hidden;
   }
@@ -114,8 +114,8 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
     display: grid !important;
     align-items: start !important;
     gap: 16px !important;
-    /* 设计稿 .main padding：顶部 26px 呼吸空间、底部 14px 对齐侧栏 */
-    padding: 26px 0 14px !important;
+    /* 顶部与底部保持对称 14px 留白，减少顶部空隙并对齐侧栏 */
+    padding: 14px 0 14px !important;
     box-sizing: border-box !important;
   }
   /* 总览：主栏 + 右栏 320；功能页（is-focus-view）：单栏全宽 */
@@ -2428,19 +2428,20 @@ html[data-sidebar-collapsed="1"] .academic-sidebar .sidebar-privacy-link {
   font-weight: 600 !important;
   color: var(--ds-ink, #1c2330) !important;
 }
-/* 状态胶囊（设计稿 .status-pill：灰底 + 6px 语义圆点） */
+/* 状态胶囊（未连接为浅描边空心圆点，已连接为语义绿胶囊 + 实心绿点，浅/深色下都清晰可辨） */
 .connection-platform-status,
 .connections-detail-panel .status-badge {
   display: inline-flex !important;
   align-items: center !important;
+  justify-content: center !important;
   gap: 5px !important;
   font-size: 11.5px !important;
-  font-weight: 550 !important;
+  font-weight: 500 !important;
   border-radius: 999px !important;
   padding: 2px 9px !important;
-  border: none !important;
-  background: var(--color-surface-subtle) !important;
-  color: var(--ds-ink-2, #5b6472) !important;
+  border: 1px solid var(--color-neutral-border) !important;
+  background: transparent !important;
+  color: var(--color-text-muted) !important;
 }
 .connection-platform-status { margin-left: auto !important; }
 .connection-platform-status::before,
@@ -2448,25 +2449,59 @@ html[data-sidebar-collapsed="1"] .academic-sidebar .sidebar-privacy-link {
   content: "" !important;
   width: 6px !important;
   height: 6px !important;
+  box-sizing: border-box !important;
   border-radius: 50% !important;
-  background: var(--ds-ink-3, #7d8694) !important;
+  border: 1.5px solid var(--color-text-muted) !important;
+  background: transparent !important;
 }
 .connection-platform-status.ui-status--success,
-.connections-detail-panel .status-badge.ui-status--success { color: var(--ds-ink-2, #5b6472) !important; background: var(--color-surface-subtle) !important; }
+.connections-detail-panel .status-badge.ui-status--success {
+  color: var(--color-success-ink) !important;
+  background: var(--color-success-soft) !important;
+  border-color: var(--color-success-border) !important;
+  font-weight: 600 !important;
+}
 .connection-platform-status.ui-status--success::before,
-.connections-detail-panel .status-badge.ui-status--success::before { background: var(--ds-green, #2e7d5a) !important; }
+.connections-detail-panel .status-badge.ui-status--success::before {
+  border: none !important;
+  background: var(--color-success) !important;
+}
 .connection-platform-status.ui-status--warning,
-.connections-detail-panel .status-badge.ui-status--warning { color: var(--ds-amber, #b07208) !important; background: var(--ds-amber-soft, #fdf6e7) !important; }
+.connections-detail-panel .status-badge.ui-status--warning {
+  color: var(--ds-amber, #b07208) !important;
+  background: var(--ds-amber-soft, #fdf6e7) !important;
+  border-color: var(--color-warning-border) !important;
+  font-weight: 600 !important;
+}
 .connection-platform-status.ui-status--warning::before,
-.connections-detail-panel .status-badge.ui-status--warning::before { background: var(--ds-amber, #b07208) !important; }
+.connections-detail-panel .status-badge.ui-status--warning::before {
+  border: none !important;
+  background: var(--ds-amber, #b07208) !important;
+}
 .connection-platform-status.ui-status--danger,
-.connections-detail-panel .status-badge.ui-status--danger { color: var(--ds-danger, #d64545) !important; background: var(--ds-danger-soft, #fdf0f0) !important; }
+.connections-detail-panel .status-badge.ui-status--danger {
+  color: var(--ds-danger, #d64545) !important;
+  background: var(--ds-danger-soft, #fdf0f0) !important;
+  border-color: var(--color-danger-border) !important;
+  font-weight: 600 !important;
+}
 .connection-platform-status.ui-status--danger::before,
-.connections-detail-panel .status-badge.ui-status--danger::before { background: var(--ds-danger, #d64545) !important; }
+.connections-detail-panel .status-badge.ui-status--danger::before {
+  border: none !important;
+  background: var(--ds-danger, #d64545) !important;
+}
 .connection-platform-status.ui-status--info,
-.connections-detail-panel .status-badge.ui-status--info { color: var(--ds-accent-ink, #1d4fd7) !important; background: var(--ds-accent-soft, #eff4fe) !important; }
+.connections-detail-panel .status-badge.ui-status--info {
+  color: var(--ds-accent-ink, #1d4fd7) !important;
+  background: var(--ds-accent-soft, #eff4fe) !important;
+  border-color: var(--color-action-border) !important;
+  font-weight: 550 !important;
+}
 .connection-platform-status.ui-status--info::before,
-.connections-detail-panel .status-badge.ui-status--info::before { background: var(--ds-accent, #2563eb) !important; }
+.connections-detail-panel .status-badge.ui-status--info::before {
+  border: none !important;
+  background: var(--ds-accent, #2563eb) !important;
+}
 /* 右侧详情（设计稿 .conn-detail） */
 .connections-detail-panel {
   padding: 20px 24px 24px !important;
