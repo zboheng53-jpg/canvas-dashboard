@@ -59,10 +59,6 @@
   white-space: nowrap;
 }
 
-.item-course {
-  max-width: 100%;
-}
-
 .item-subtask-slot,
 .item-desktop-actions,
 .item-mobile-actions {
@@ -265,13 +261,6 @@
   justify-content: flex-end;
 }
 
-.project-overview-main,
-.project-overview-section {
-  display: grid;
-  min-width: 0;
-  gap: var(--space-2);
-}
-
 .project-overview-task {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -281,90 +270,6 @@
 
 .project-overview-task > button {
   min-width: 0;
-}
-
-/* Schedule and course items */
-.today-schedule-list {
-  display: grid;
-  width: 100%;
-  align-content: start;
-}
-
-.agenda-item {
-  display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
-  gap: var(--space-2);
-}
-
-.agenda-item > div,
-.schedule-block {
-  min-width: 0;
-}
-
-.schedule-course-list,
-.schedule-item-list {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.schedule-course-row,
-.schedule-item-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.schedule-item-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--space-1);
-}
-
-/*
- * Schedule blocks are the one business-specific visual exception: their
- * position encodes time and their tokenized series color encodes item type.
- */
-.schedule-block {
-  position: absolute;
-  left: 3px;
-  right: 3px;
-  width: calc(100% - 6px);
-  display: block;
-  text-align: left;
-  overflow: hidden;
-  box-sizing: border-box;
-  padding: var(--space-1) var(--space-2);
-  color: var(--color-series-course);
-  background: var(--color-series-course-soft);
-  border: var(--border-width) solid var(--color-series-course-border);
-  border-left: 3px solid var(--color-series-course);
-  border-radius: var(--radius-control);
-  cursor: pointer;
-  transition:
-    border-color var(--duration-fast) var(--ease-standard),
-    box-shadow var(--duration-fast) var(--ease-standard);
-}
-
-.schedule-block:hover,
-.schedule-block:focus-visible {
-  outline: 0;
-  box-shadow: var(--shadow-hover);
-}
-
-.schedule-block-recurring {
-  color: var(--color-series-recurring);
-  background: var(--color-series-recurring-soft);
-  border-color: var(--color-series-recurring-border);
-  border-left-color: var(--color-series-recurring);
-}
-
-.schedule-block-oneoff {
-  color: var(--color-series-one-off);
-  background: var(--color-series-one-off-soft);
-  border-color: var(--color-series-one-off-border);
-  border-left-color: var(--color-series-one-off);
 }
 
 .schedule-block .schedule-card-title,
@@ -648,22 +553,11 @@
   grid-column: 1 / -1;
 }
 
-.connection-form-note {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: var(--space-1);
-}
-
 .connection-password-panel,
 .zhihuishu-login-actions {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-}
-
-.connection-password-panel {
-  margin-top: var(--space-2);
-  padding-top: var(--space-3);
 }
 
 .connection-data-actions {
@@ -867,15 +761,6 @@
   font-size: var(--font-size-control-sm);
 }
 
-.schedule-import-primary-box {
-  display: grid;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-surface);
-  background: var(--color-surface-subtle);
-}
-
 .schedule-import-fallback {
   margin-top: var(--space-3);
   border-top: var(--border-width) solid var(--color-border);
@@ -901,10 +786,6 @@
   .todo-composer.is-collapsed {
     display: none;
   }
-}
-
-.settings-secondary-divider {
-  padding: var(--space-3) var(--space-6);
 }
 
 .settings-field-label {
@@ -1048,10 +929,6 @@
   white-space: pre-wrap;
 }
 
-.agent-skill-actions {
-  margin-top: var(--space-4);
-}
-
 @media (max-width: 1100px) {
   .connections-layout,
   .calendar-subscription-layout {
@@ -1099,7 +976,6 @@
 
   .item-source-badge { grid-area: source; align-self: start; }
   .item-title { grid-area: title; }
-  .item-course { display: none; }
   .item-due { grid-area: due; justify-self: start; }
   .item-subtask-slot { grid-area: subtask; justify-self: end; }
   .item-desktop-actions { display: none; }
@@ -1138,20 +1014,6 @@
 
   .project-task-item {
     grid-template-columns: auto minmax(0, 1fr) auto;
-  }
-
-  .agenda-item {
-    grid-template-columns: 64px minmax(0, 1fr);
-  }
-
-  .schedule-course-row,
-  .schedule-item-row {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .schedule-item-actions {
-    justify-content: flex-start;
   }
 
   .connections-detail-panel,

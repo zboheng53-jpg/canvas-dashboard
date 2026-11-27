@@ -64,7 +64,9 @@
 .ui-button:disabled,
 .ui-button[aria-disabled="true"],
 .ui-icon-button:disabled,
-.ui-icon-button[aria-disabled="true"] {
+.ui-icon-button[aria-disabled="true"],
+.ui-disabled,
+[aria-disabled="true"].ui-disabled {
   cursor: not-allowed;
   opacity: var(--button-disabled-opacity);
   transform: none;
@@ -215,12 +217,6 @@
   stroke-width: 1.7;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-
-.ui-icon-button--sm {
-  width: var(--control-height-sm);
-  min-height: var(--control-height-sm);
-  flex-basis: var(--control-height-sm);
 }
 
 .ui-icon-button--danger {
@@ -632,8 +628,6 @@ input[type="time"].ui-control {
 .ui-status-dot--success { --status-color: var(--color-success); }
 .ui-status-dot--warning { --status-color: var(--color-warning); }
 .ui-status-dot--danger { --status-color: var(--color-danger); }
-.ui-status-dot--info { --status-color: var(--color-info); }
-.ui-status-dot--neutral { --status-color: var(--color-neutral); }
 
 .ui-status--success,
 .ui-feedback--success { --status-color: var(--color-success); }
@@ -917,13 +911,6 @@ input[type="time"].ui-control {
   color: var(--color-danger);
 }
 
-.ui-disabled,
-[aria-disabled="true"].ui-disabled {
-  cursor: not-allowed;
-  opacity: var(--button-disabled-opacity);
-  filter: saturate(0.72);
-}
-
 /*
  * Confirmed structural components from component-lab candidate A.
  * Business modules compose these APIs and only retain their own layout rules.
@@ -947,12 +934,6 @@ input[type="time"].ui-control {
 .ui-surface--subtle,
 .ui-card--subtle {
   background: var(--color-surface-subtle);
-}
-
-.ui-surface--danger,
-.ui-card--danger {
-  background: var(--color-danger-soft);
-  border-color: var(--color-danger-border);
 }
 
 .ui-card-section {
@@ -1048,21 +1029,9 @@ input[type="time"].ui-control {
   box-shadow: inset 2px 0 0 var(--color-danger);
 }
 
-.ui-list-item--warning {
-  background: var(--color-warning-soft);
-  border-color: var(--color-warning-border);
-  box-shadow: inset 2px 0 0 var(--color-warning);
-}
-
 .ui-list-item--muted {
   color: var(--color-text-muted);
   opacity: var(--button-disabled-opacity);
-}
-
-.ui-list-item__copy {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
 }
 
 .ui-list-item__title,

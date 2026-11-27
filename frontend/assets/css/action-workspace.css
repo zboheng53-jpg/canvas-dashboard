@@ -302,9 +302,5 @@ details[open] > summary .project-disclosure-chevron {
   .project-current-step-controls .ui-button { min-height: 44px; }
   .project-detail-actions { flex-wrap: wrap; }
 }
-.today-context-bar { display: flex; justify-content: space-between; gap: var(--space-3); align-items: center; padding: var(--space-4) 0; flex-shrink: 0; }
-.today-context-bar h1 { margin: 0; font-size: 24px; }
-.today-context-bar p { margin: var(--space-2) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-control-sm); }
-.today-context-weather { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); font-size: var(--font-size-control-sm); }
 
 @media (min-width: 961px) { #long-term-projects-card { max-height: 45%; } }

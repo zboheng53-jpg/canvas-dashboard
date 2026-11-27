@@ -80,7 +80,7 @@ def test_schedule_series_are_separate_from_status_and_source_colors():
     ):
         assert token in tokens
 
-    business = read(CSS / "business.css")
-    assert "var(--color-series-course)" in business
-    assert "var(--color-series-recurring)" in business
-    assert "var(--color-series-one-off)" in business
+    schedule = read(CSS / "action-workspace.css")
+    assert "var(--color-series-course)" in schedule
+    assert "var(--color-series-recurring)" in schedule
+    assert "var(--color-series-one-off)" in schedule
