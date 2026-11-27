@@ -142,6 +142,13 @@ details[open] > summary .project-disclosure-chevron {
 .period-event--deadline { border-left-color: var(--color-danger); background: var(--color-danger-soft); }
 .period-event--planned { border-left-color: var(--color-series-planned); background: var(--color-series-planned-soft); }
 .period-event--recurring { border-left-color: var(--color-series-recurring); background: var(--color-series-recurring-soft); }
+/* Overview right-rail timeline: one-off blocks use the calm course blue.
+   The full timetable keeps the orange one-off series color in its legend. */
+#today-schedule-content .period-event--one_off,
+#today-schedule-content .period-event--oneoff {
+  border-left-color: var(--color-series-course);
+  background: var(--color-series-course-soft);
+}
 .period-event.is-done { opacity: .55; }
 .period-event.is-done .period-event-title {
   color: var(--ds-ink-3, var(--color-text-muted));
