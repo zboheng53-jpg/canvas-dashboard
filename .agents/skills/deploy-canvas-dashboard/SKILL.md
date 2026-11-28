@@ -7,6 +7,8 @@ description: Use when deploying, uploading, syncing, shipping, restarting, rolli
 
 Run the repository deployment script exactly; do not reimplement its release sequence with ad hoc `scp`, extraction, or service commands.
 
+Normal production releases deploy from GitHub Actions when a pull request merges into `main`; see `docs/github-deploy.md`. This script is the fallback and emergency path, and remains the complete path for the off-server backup download and recovery drill. The automatic path reuses the same `install-release.sh` sequence, so do not duplicate its release logic in workflow YAML either.
+
 ## Deploy
 
 From the project root:

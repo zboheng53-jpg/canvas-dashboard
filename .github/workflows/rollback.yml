@@ -1,0 +1,70 @@
+name: Roll back production
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Release name, absolute path under releases/, or empty for .previous-release'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  rollback:
+    name: Roll back
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://canvas-dashboard.xyz
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+    env:
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+      TARGET: ${{ inputs.release }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          if [ -z "${DEPLOY_HOST:-}" ] || [ -z "${DEPLOY_SSH_KEY:-}" ]; then
+            echo "DEPLOY_HOST variable and DEPLOY_SSH_KEY environment secret are required." >&2
+            exit 1
+          fi
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          install -m 600 deploy/known_hosts "$HOME/.ssh/known_hosts"
+      - name: Roll back
+        run: |
+          target=${TARGET#/home/ubuntu/canvas-dashboard/releases/}
+          if [[ -n $TARGET && ! $target =~ ^(release-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{12}|legacy-[0-9]{8}T[0-9]{6}Z)$ ]]; then
+            echo "Target must name a release or be its absolute path under releases/." >&2
+            exit 1
+          fi
+          ssh -i "$HOME/.ssh/id_ed25519" \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 \
+            -o ServerAliveInterval=20 -o ServerAliveCountMax=6 \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            "deploy@$DEPLOY_HOST" \
+            "sudo -n /usr/local/sbin/canvas-deploy rollback '$target'"
+      - name: Verify public health
+        run: |
+          curl -fsS --retry 10 --retry-delay 3 --retry-connrefused \
+            --max-time 10 https://canvas-dashboard.xyz/healthz
+      - name: Report release state
+        if: always()
+        continue-on-error: true
+        run: |
+          ssh -i "$HOME/.ssh/id_ed25519" \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            "deploy@$DEPLOY_HOST" "sudo -n /usr/local/sbin/canvas-deploy status"

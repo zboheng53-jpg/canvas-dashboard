@@ -4,6 +4,16 @@ Production is served at `https://canvas-dashboard.xyz` on `ubuntu@124.222.188.10
 
 ## Safe Deployment
 
+Normal releases deploy from GitHub Actions when a pull request merges into `main`; see [GitHub Actions deployment](github-deploy.md) for setup, secrets, rollback and the security model. The local script below remains the fallback and emergency path.
+
+### Automatic deployment (GitHub Actions)
+
+`.github/workflows/deploy.yml` runs the full suite on the merge commit, then — on `main` only, in the `production` environment — packages that commit, uploads it to the restricted `deploy` user, and runs the root-owned `deploy/github-deploy/canvas-deploy` wrapper. Activation keeps the immutable release layout, atomic switch, health checks and automatic rollback described below; the server never runs `git pull`.
+
+Each automatic deployment creates a server-side encrypted snapshot through `deploy/run-backup.sh` before activation. The off-server backup download and isolated recovery drill are no longer part of every deployment: run `scripts/pull-production-backup.ps1 -CreateBackup -RecoveryDrill` from the maintenance workstation on a regular schedule and before risky changes. A rollback is a release switch (`rollback.yml` or `rollback-release.sh`), not a revert commit.
+
+### Manual deployment (fallback)
+
 Run deployments from the repository root on Windows:
 
 ```powershell
@@ -22,11 +32,11 @@ The deploy script:
 8. restores the previous release automatically if activation or health checks fail;
 9. after successful health checks, keeps the newest five releases while always protecting the active and recorded rollback targets.
 
-OpenSSH must be able to authenticate non-interactively through the configured key or agent. `-SkipPreDeployBackup` exists for an explicit emergency decision; it skips the off-server backup and recovery drill and should not be the normal path.
+OpenSSH must be able to authenticate non-interactively through the configured key or agent (manual path). `-SkipPreDeployBackup` exists for an explicit emergency decision; it skips the off-server backup and recovery drill and should not be the normal path.
 
 `-ForceLocalRegression` requests a fresh full suite. The legacy `-SkipLocalRegression` requires valid evidence and fails if it is unavailable; the default automatically reuses or runs. Evidence must cover a canonical full invocation, unchanged clean source before and after, the current Python/package environment, and successful JUnit results. A newer failed or interrupted full run invalidates an older success. Local evidence is not a signed CI attestation.
 
-Activation is attempted once. SSH disconnection leaves its outcome uncertain: inspect `current`, `.previous-release`, service status and health before deciding to retry. Uploads and read-only checks retain bounded retries. Server-side activation failure still triggers rollback. Do not automatically rerun extraction/restarts after a lost response. The historical `retire-unused-apps.sh` is no longer part of normal deployments; retirement requires a separate scoped operations decision.
+Activation is attempted once. SSH disconnection leaves its outcome uncertain: inspect `current`, `.previous-release`, service status and health before deciding to retry. Uploads and read-only checks retain bounded retries. Server-side activation failure still triggers rollback. Do not automatically rerun extraction/restarts after a lost response. The GitHub Actions workflow follows the same rule; its `Report release state` step only reads state. The historical `retire-unused-apps.sh` is no longer part of normal deployments; retirement requires a separate scoped operations decision.
 
 Runtime `data/` is never included in a release archive.
 
