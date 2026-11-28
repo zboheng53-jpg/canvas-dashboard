@@ -80,6 +80,8 @@ def test_project_recycle_restore_and_materials(live_app, browser):
         expect(page.locator('.project-tab-btn[data-tab="active"]')).to_be_visible()
         expect(page.locator('#project-detail h2')).to_have_text('可恢复项目')
         page.locator('.project-more-menu summary').click()
+        page.evaluate('renderProjectDetail()')
+        expect(page.locator('.project-more-menu')).to_have_attribute('open', '')
         page.get_by_role('button', name='删除项目', exact=True).click()
         with page.expect_response(lambda r: "/api/projects/" in r.url and r.request.method == "DELETE" and r.ok):
             page.locator('#project-confirm-modal').get_by_role('button', name='永久删除', exact=True).click()

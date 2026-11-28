@@ -505,6 +505,7 @@ function renderProjectDetail() {
 
   const isSameProject = detail.dataset.renderedProjectId === String(project.id);
   const prevScrollTop = isSameProject ? detail.scrollTop : 0;
+  const isMoreMenuOpen = isSameProject && detail.querySelector(".project-more-menu[open]") !== null;
   const openDisclosureIds = isSameProject
     ? new Set(
         [...detail.querySelectorAll("details[open][data-disclosure-id]")].map(
@@ -582,7 +583,7 @@ function renderProjectDetail() {
           ${active && project.id !== mainProjectId ? `<button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="setMainProject(${project.id})"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>置顶项目</button>` : ""}
           ${active && project.id === mainProjectId ? `<button type="button" class="ui-button ui-button--secondary project-button-secondary" onclick="unsetMainProject()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>取消置顶</button>` : ""}
           ${active ? completeProjectBtnHtml : `<button type="button" class="ui-button ui-button--primary project-button-primary" onclick="reopenProject(${project.id})">重新开启</button>`}
-          <details class="project-more-menu">
+          <details class="project-more-menu"${isMoreMenuOpen ? " open" : ""}>
             <summary aria-label="更多项目操作">•••</summary>
             <div>
               <button type="button" onclick="openProjectModal(${project.id})" class="ui-button ui-button--secondary"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="project-menu-icon" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> 编辑项目信息</button>
