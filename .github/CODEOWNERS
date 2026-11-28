@@ -1,0 +1,12 @@
+# Deployment, CI and agent configuration require the repository owner's review.
+# Enable "Require review from Code Owners" on the main branch protection rule
+# for these rules to be enforced.
+
+/.github/ @zboheng53-jpg
+/deploy/ @zboheng53-jpg
+/.agents/ @zboheng53-jpg
+/AGENTS.md @zboheng53-jpg
+/CLAUDE.md @zboheng53-jpg
+/docs/operations.md @zboheng53-jpg
+/docs/backup-and-restore.md @zboheng53-jpg
+/docs/github-deploy.md @zboheng53-jpg

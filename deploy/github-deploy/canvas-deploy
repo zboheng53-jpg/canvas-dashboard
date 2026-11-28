@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# Root-owned entry point for GitHub Actions deployments.
+#
+# Installed at /usr/local/sbin/canvas-deploy by setup-deploy-user.sh. The
+# `deploy` user may run only this command through sudo:
+#
+#   deploy ALL=(root) NOPASSWD: /usr/local/sbin/canvas-deploy
+#
+# The wrapper accepts a release archive whose checksum the caller supplies,
+# creates a server-side encrypted snapshot, then runs the release installer as
+# the `ubuntu` account so file ownership and the existing sudo-based release
+# flow stay unchanged. It deliberately exposes no general root shell.
+set -euo pipefail
+
+root=/home/ubuntu/canvas-dashboard
+deploy_incoming=/home/deploy/incoming
+release_pattern='^release-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{12}$'
+
+die() {
+    echo "canvas-deploy: $*" >&2
+    exit 2
+}
+
+require_root() {
+    [ "$(id -u)" -eq 0 ] || die "run this command through sudo"
+}
+
+as_ubuntu() {
+    runuser -u ubuntu -- env HOME=/home/ubuntu USER=ubuntu LOGNAME=ubuntu "$@"
+}
+
+active_installer="$root/current/deploy/install-release.sh"
+active_backup="$root/current/deploy/run-backup.sh"
+
+case "${1:-}" in
+    release)
+        require_root
+        [ "$#" -eq 3 ] || die "usage: canvas-deploy release <name> <sha256>"
+        name=${2:-}
+        expected=${3:-}
+        [[ $name =~ $release_pattern ]] || die "invalid release name: $name"
+        [[ $expected =~ ^[0-9a-f]{64}$ ]] || die "invalid archive checksum"
+        [ -f "$active_installer" ] || die "active release has no install-release.sh"
+        [ -f "$active_backup" ] || die "active release has no run-backup.sh"
+
+        # Read the upload as deploy. Verify the staged bytes that the installer
+        # will use, from a file that deploy cannot replace after verification.
+        upload="$deploy_incoming/$name.tar.gz"
+        archive=$(as_ubuntu mktemp --suffix=.tar.gz "$root/incoming/$name.XXXXXX")
+        trap 'as_ubuntu rm -f -- "$archive"' EXIT
+        runuser -u deploy -- cat -- "$upload" | as_ubuntu tee "$archive" >/dev/null
+        actual=$(as_ubuntu sha256sum "$archive" | awk '{print $1}')
+        [ "$actual" = "$expected" ] || die "archive checksum mismatch"
+        runuser -u deploy -- rm -f -- "$upload"
+
+        # Encrypted snapshot before activation. run-backup.sh stops the web and
+        # worker services and restarts them, exactly like the manual path.
+        bash "$active_backup"
+
+        as_ubuntu mkdir -- "$root/releases/$name"
+        as_ubuntu tar -xzf "$archive" -C "$root/releases/$name"
+        as_ubuntu bash "$root/releases/$name/deploy/install-release.sh" \
+            "$archive" "$name"
+        ;;
+    rollback)
+        require_root
+        target=${2:-}
+        [ -f "$root/current/deploy/rollback-release.sh" ] ||
+            die "active release has no rollback-release.sh"
+        if [ -n "$target" ]; then
+            name=${target#"$root/releases/"}
+            [[ $name =~ $release_pattern || $name =~ ^legacy-[0-9]{8}T[0-9]{6}Z$ ]] ||
+                die "invalid rollback release name"
+            target="$root/releases/$name"
+            [ -d "$target" ] && [ ! -L "$target" ] || die "rollback target is not a release directory: $target"
+            as_ubuntu bash "$root/current/deploy/rollback-release.sh" "$target"
+        else
+            as_ubuntu bash "$root/current/deploy/rollback-release.sh"
+        fi
+        ;;
+    status)
+        require_root
+        echo "current=$(readlink -f "$root/current" 2>/dev/null || echo missing)"
+        echo "previous=$(cat "$root/.previous-release" 2>/dev/null || echo missing)"
+        for unit in \
+            canvas-dashboard.service \
+            zhihuishu-worker.service \
+            zhihuishu-login-cleanup.timer \
+            canvas-dashboard-account-cleanup.timer \
+            canvas-dashboard-backup.timer \
+            canvas-dashboard-monitor.timer \
+            nginx
+        do
+            printf '%s=%s\n' "$unit" "$(systemctl is-active "$unit" 2>/dev/null || true)"
+        done
+        curl -fsS --max-time 5 http://127.0.0.1:5000/healthz && echo
+        ;;
+    *)
+        die "usage: canvas-deploy {release|rollback|status} ..."
+        ;;
+esac

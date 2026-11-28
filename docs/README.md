@@ -9,6 +9,7 @@
 - `../README.md`: project entry point and local quick start.
 - `architecture.md`: runtime architecture, data boundaries, refresh flows, and release layout.
 - `operations.md`: production deployment, rollback, services, health, TLS, and incident commands.
+- `github-deploy.md`: GitHub Actions deployment, restricted deploy user, environment secrets, rollback workflow, and the backup-policy tradeoff.
 - `backup-and-restore.md`: encrypted backups, key ownership, recovery drills, corruption handling, and production restoration.
 - `zhihuishu-reusable-web-patterns.md`: reusable browser-worker/login-window design.
 - `../design.md`: UI style guide, Figma-to-CSS token map, component rules, and responsive layout constraints.

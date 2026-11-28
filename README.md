@@ -156,10 +156,12 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1
 
 ## 部署
 
-生产部署请使用已验证的脚本：
+正常发布由 GitHub Actions 完成：PR 合入 `main` 后对同一提交运行完整测试，通过后自动部署到 `production` 环境；服务器使用受限 `deploy` 用户，仍走不可变 release、原子切换、健康检查和失败回滚。配置与安全模型见 [GitHub Actions 部署](docs/github-deploy.md)。
+
+本地脚本保留为故障回退，会执行测试与编译检查、加密备份和隔离恢复演练：
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\.agents\skills\deploy-canvas-dashboard\scripts\deploy.ps1
 ```
 
-该流程会执行测试与编译检查、加密备份和隔离恢复演练，然后以原子方式切换版本；失败时自动回滚。部署前请先阅读 [生产运维文档](docs/operations.md)，并确认没有把本地 `data/` 当作可随意覆盖的项目文件。
+部署前请先阅读 [生产运维文档](docs/operations.md)，并确认没有把本地 `data/` 当作可随意覆盖的项目文件。
